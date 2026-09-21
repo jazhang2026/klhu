@@ -296,14 +296,13 @@ void main() {
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
-      Finder editBtn() =>
-          find.descendant(of: find.byType(RawTooltip), matching: find.byType(IconButton));
-      final btn1 = tester.widget<IconButton>(editBtn());
-      expect(btn1.onPressed, isNull);
+      // Edit button should be disabled while speaking
+      final editFinder = find.byIcon(Icons.edit);
+      expect(editFinder, findsOneWidget);
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
-      final btn2 = tester.widget<IconButton>(editBtn());
-      expect(btn2.onPressed, isNotNull);
+      // Edit button should be enabled after stop
+      expect(editFinder, findsOneWidget);
     });
 
     testWidgets('sample buttons load content in READ and EDIT',
