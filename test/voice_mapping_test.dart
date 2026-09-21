@@ -38,11 +38,10 @@ void main() {
 
   group('VoiceMappingTable', () {
     test('lookup returns mapping for known voice', () {
-      const voiceId = 'com.google.android.tts:en-US-x-sfg';
-      final mapping = VoiceMappingTable.lookup(voiceId);
+      final mapping = VoiceMappingTable.lookup('en-us-x-sfg-local');
       expect(mapping, isNotNull);
-      expect(mapping!.englishName, contains('Google'));
-      expect(mapping.chineseName, contains('谷歌'));
+      expect(mapping!.englishName, contains('US'));
+      expect(mapping.chineseName, contains('美式'));
     });
 
     test('lookup returns null for unknown voice', () {
@@ -54,6 +53,70 @@ void main() {
       final all = VoiceMappingTable.all();
       expect(all.isNotEmpty, isTrue);
     });
+
+    // Regression: the picker labelled the Chinese voices with the wrong gender
+    // (the voice named CCC was shown as a man while it speaks as a woman).
+    // Values below come from measuring the rendered speech on the device.
+    test('Chinese voices carry the measured gender', () {
+      expect(VoiceMappingTable.lookup('cmn-cn-x-ccc-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('cmn-cn-x-ccc-network')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('cmn-cn-x-ssa-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('cmn-cn-x-ccd-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('cmn-cn-x-cce-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('cmn-tw-x-ctc-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('cmn-tw-x-ctd-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('cmn-tw-x-cte-local')!.gender, 'male');
+    });
+
+    // Same bug class on the English list: en-us-x-iob was labelled male, it
+    // measures as a female voice.
+    test('English voices carry the measured gender', () {
+      expect(VoiceMappingTable.lookup('en-us-x-iob-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('en-gb-x-gbc-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('en-gb-x-gbd-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('en-au-x-aua-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('en-us-x-sfg-local')!.gender, 'female');
+    });
+
+    // The engine exposes no age and the region already sits in the name, so a
+    // row may carry a gender and nothing else. Nothing is guessed.
+    test('no row claims an age or a dialect', () {
+      for (final mapping in VoiceMappingTable.all()) {
+        expect(mapping.age, isNull, reason: mapping.systemVoiceId);
+        expect(mapping.dialect, isNull, reason: mapping.systemVoiceId);
+      }
+    });
+
+    // Local and network variants of a code are the same measured voice, and
+    // the suffix only repeated the system name.
+    test('display names drop the Local/Network suffix', () {
+      for (final mapping in VoiceMappingTable.all()) {
+        expect(mapping.englishName, isNot(contains('Local')));
+        expect(mapping.englishName, isNot(contains('Network')));
+        expect(mapping.chineseName, isNot(contains('本地')));
+        expect(mapping.chineseName, isNot(contains('网络')));
+      }
+    });
+
+    test('local and network variants of a code agree on gender', () {
+      for (final base in const [
+        'cmn-cn-x-ccc',
+        'cmn-cn-x-ccd',
+        'cmn-cn-x-cce',
+        'cmn-cn-x-ssa',
+        'cmn-tw-x-ctc',
+        'cmn-tw-x-ctd',
+        'cmn-tw-x-cte',
+        'en-us-x-sfg',
+        'en-gb-x-rjs',
+        'en-au-x-aub',
+      ]) {
+        final local = VoiceMappingTable.lookup('$base-local')!.gender;
+        expect(local, isNotNull, reason: base);
+        expect(local, VoiceMappingTable.lookup('$base-network')!.gender,
+            reason: base);
+      }
+    });
   });
 
   group('VoiceMappingService', () {
@@ -64,46 +127,65 @@ void main() {
     });
 
     test('displays English name for mapped voice', () {
-      const voice = VoiceEntry(
-        name: 'com.google.android.tts:en-US-x-sfg',
-        locale: 'en-US',
-      );
-      final l10n = AppLocalizationsEn();
-      final name = service.displayName(voice, l10n);
-      expect(name, contains('Google'));
+      const voice = VoiceEntry(name: 'en-us-x-sfg-local', locale: 'en-US');
+      final name = service.displayName(voice, AppLocalizationsEn());
+      expect(name, contains('US'));
       expect(name, contains('Female'));
     });
 
     test('displays Chinese name for mapped voice', () {
-      const voice = VoiceEntry(
-        name: 'com.google.android.tts:en-US-x-sfg',
-        locale: 'en-US',
-      );
-      final l10n = AppLocalizationsZh();
-      final name = service.displayName(voice, l10n);
-      expect(name, contains('谷歌'));
+      const voice = VoiceEntry(name: 'en-us-x-sfg-local', locale: 'en-US');
+      final name = service.displayName(voice, AppLocalizationsZh());
+      expect(name, contains('美式'));
     });
 
     test('falls back to system voice name for unmapped voice', () {
-      const voice = VoiceEntry(
-        name: 'unknown-voice',
-        locale: 'en-US',
-      );
-      final l10n = AppLocalizationsEn();
-      final name = service.displayName(voice, l10n);
+      const voice = VoiceEntry(name: 'unknown-voice', locale: 'en-US');
+      final name = service.displayName(voice, AppLocalizationsEn());
       expect(name, 'unknown-voice');
     });
 
-    test('includes characteristics in display name', () {
-      const voice = VoiceEntry(
-        name: 'com.google.android.tts:en-US-x-sfg',
-        locale: 'en-US',
-      );
-      final l10n = AppLocalizationsEn();
-      final name = service.displayName(voice, l10n);
+    test('shows the gender as the only characteristic', () {
+      const voice = VoiceEntry(name: 'en-us-x-sfg-local', locale: 'en-US');
+      final name = service.displayName(voice, AppLocalizationsEn());
       expect(name, contains('Female'));
-      expect(name, contains('Young'));
-      expect(name, contains('Standard'));
+      expect(name, isNot(contains('Young')));
+      expect(name, isNot(contains('Standard')));
+    });
+
+    // The reported bug: a Chinese voice labelled 男声 while the installed
+    // voice speaks as a woman (and the reverse for the CCD/CCE voices).
+    test('Chinese list shows the measured gender for a Chinese voice', () {
+      const female = VoiceEntry(name: 'cmn-cn-x-ccc-local', locale: 'zh-CN');
+      expect(
+        service.displayName(female, AppLocalizationsZh(),
+            voiceListLanguage: 'zh-Hans'),
+        contains('女'),
+      );
+      const male = VoiceEntry(name: 'cmn-cn-x-cce-local', locale: 'zh-CN');
+      expect(
+        service.displayName(male, AppLocalizationsZh(),
+            voiceListLanguage: 'zh-Hans'),
+        contains('男'),
+      );
+    });
+
+    // The picker renders the other language's voice list while the app locale
+    // stays put: labels must follow the LIST language.
+    test('labels follow the voice list language, not the app locale', () {
+      const voice = VoiceEntry(name: 'en-us-x-sfg-local', locale: 'en-US');
+
+      final zhListInEnApp = service.displayName(voice, AppLocalizationsEn(),
+          voiceListLanguage: 'zh-Hans');
+      expect(zhListInEnApp, contains('美式'));
+      expect(zhListInEnApp, contains('女'));
+      expect(zhListInEnApp, isNot(contains('Female')));
+
+      final enListInZhApp = service.displayName(voice, AppLocalizationsZh(),
+          voiceListLanguage: 'en');
+      expect(enListInZhApp, contains('US'));
+      expect(enListInZhApp, contains('Female'));
+      expect(enListInZhApp, isNot(contains('美式')));
     });
   });
 }

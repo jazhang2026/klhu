@@ -222,4 +222,4 @@ flutter run -d <device_id>
 **Chinese voice names not displaying**:
 - Check app_zh.arb has voice characteristic translations
 - Verify AppLocalizations loads correctly for Chinese locale
-- Ensure Chinese voice names are in mapping table
+- Ensure Chinese voice names are in mapping tablesk-d31f69142a794215b0439a9186440ddf

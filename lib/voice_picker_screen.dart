@@ -251,7 +251,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
                             _keyFor(voice),
                             GlobalKey.new,
                           ),
-                          title: Text(_mappingService.displayName(voice, l10n)),
+                          title: Text(_mappingService.displayName(voice, l10n, voiceListLanguage: _language)),
                           subtitle: Text(voice.locale),
                           // Highlight WITHOUT marker: green background (not
                           // green text) + selected state keeps the TalkBack

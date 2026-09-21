@@ -1,0 +1,73 @@
+# Voice gender evidence — emulator-5554, Google TTS 20241125.02 (Sep 2026)
+
+Method: `TtsProbe.java` (run via `app_process`, no app install) -> `TextToSpeech.synthesizeToFile` per voice -> host-side F0 tracking (autocorrelation, 40 ms frames) + cross-check against the gender field of the engine's own voice manifest (`assets/voices-list-dsig.pb`). Audio and manifest agree on all 67 voices below; `en-us-x-tpc` (F0 in the overlap band) is settled by the manifest and its higher spectral centroid.
+
+| voice | median F0 (Hz) | gender |
+|---|---|---|
+| cmn-cn-x-ccc-local | 203.4 | female |
+| cmn-cn-x-ccc-network | 202.5 | female |
+| cmn-cn-x-ccd-local | 134.8 | male |
+| cmn-cn-x-ccd-network | 135.2 | male |
+| cmn-cn-x-cce-local | 124.0 | male |
+| cmn-cn-x-cce-network | 116.2 | male |
+| cmn-cn-x-ssa-local | 235.3 | female |
+| cmn-cn-x-ssa-network | 234.1 | female |
+| cmn-tw-x-ctc-local | 214.3 | female |
+| cmn-tw-x-ctc-network | 206.9 | female |
+| cmn-tw-x-ctd-local | 113.7 | male |
+| cmn-tw-x-ctd-network | 114.6 | male |
+| cmn-tw-x-cte-local | 128.3 | male |
+| cmn-tw-x-cte-network | 129.2 | male |
+| en-AU-language | 222.2 | female |
+| en-GB-language | 233.0 | female |
+| en-IN-language | 279.1 | female |
+| en-NG-language | 205.1 | female |
+| en-US-language | 230.8 | female |
+| en-au-x-aua-local | 222.2 | female |
+| en-au-x-aua-network | 224.3 | female |
+| en-au-x-aub-local | 134.8 | male |
+| en-au-x-aub-network | 137.9 | male |
+| en-au-x-auc-local | 203.4 | female |
+| en-au-x-auc-network | 206.5 | female |
+| en-au-x-aud-local | 151.9 | male |
+| en-au-x-aud-network | 149.1 | male |
+| en-gb-x-gba-local | 233.0 | female |
+| en-gb-x-gba-network | 224.3 | female |
+| en-gb-x-gbb-local | 142.0 | male |
+| en-gb-x-gbb-network | 140.8 | male |
+| en-gb-x-gbc-local | 206.9 | female |
+| en-gb-x-gbc-network | 188.2 | female |
+| en-gb-x-gbd-local | 111.1 | male |
+| en-gb-x-gbd-network | 106.7 | male |
+| en-gb-x-gbg-local | 233.0 | female |
+| en-gb-x-gbg-network | 222.2 | female |
+| en-gb-x-rjs-local | 124.4 | male |
+| en-gb-x-rjs-network | 120.6 | male |
+| en-in-x-ena-local | 247.4 | female |
+| en-in-x-ena-network | 237.0 | female |
+| en-in-x-enc-local | 279.1 | female |
+| en-in-x-enc-network | 268.2 | female |
+| en-in-x-end-local | 145.5 | male |
+| en-in-x-end-network | 140.4 | male |
+| en-in-x-ene-local | 161.1 | male |
+| en-in-x-ene-network | 151.9 | male |
+| en-ng-x-tfn-local | 205.1 | female |
+| en-ng-x-tfn-network | 206.0 | female |
+| en-us-x-iob-local | 198.3 | female |
+| en-us-x-iob-network | 195.5 | female |
+| en-us-x-iog-local | 230.8 | female |
+| en-us-x-iog-network | 227.5 | female |
+| en-us-x-iol-local | 137.1 | male |
+| en-us-x-iol-network | 138.3 | male |
+| en-us-x-iom-local | 134.8 | male |
+| en-us-x-iom-network | 132.6 | male |
+| en-us-x-sfg-local | 220.2 | female |
+| en-us-x-sfg-network | 213.3 | female |
+| en-us-x-tpc-local | 162.7 | None |
+| en-us-x-tpc-network | 157.9 | None |
+| en-us-x-tpd-local | 131.9 | male |
+| en-us-x-tpd-network | 130.1 | male |
+| en-us-x-tpf-local | 216.2 | female |
+| en-us-x-tpf-network | 207.8 | female |
+| zh-CN-language | 235.3 | female |
+| zh-TW-language | 214.3 | female |

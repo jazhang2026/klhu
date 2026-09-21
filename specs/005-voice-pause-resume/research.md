@@ -117,3 +117,31 @@
 **Alternatives Considered**:
 - Assume support without verification: Rejected - risk of implementation dead-end
 - Implement custom TTS engine: Rejected - outside scope and violates simplicity
+
+## Voice mapping correction (2026-09-21): measured gender replaces guesses
+
+The first table derived gender from the letters of the system voice id, and emulator
+validation showed the Chinese list labelling men as women and the reverse (CCC sounded
+female but was shown as 男声). Re-derived under the rule **write nothing that cannot be
+evidenced**:
+
+- Probe: `TtsProbe.java`, run through `app_process` (no app install needed), calls
+  `TextToSpeech.synthesizeToFile` once per voice; the WAVs are pulled and F0-tracked on the
+  host (autocorrelation, 40 ms frames) — male voices 110-150 Hz, female 200-260 Hz.
+- Cross-check: the gender field of the engine's own voice manifest
+  (`assets/voices-list-dsig.pb` in GoogleTTS.apk 20241125.02). Audio and manifest agree on
+  all 67 voices; the two voices Google's older published voice list documents
+  (en-us-x-sfg female, en-gb-x-rjs male) match the measurement too.
+- Table: `lib/models/voice_mapping.dart` now holds exactly the 67 `en`/`zh` voices the engine
+  reports on emulator-5554 (verified against the app's own `getVoices` output), each with its
+  measured gender.
+- Names: region + id code ("普通话 CCC", "US SFG"); gender is the only characteristic shown.
+- Removed on purpose: age (the engine exposes none — its own "Install voice data" screen lists
+  voices as "Voice I..IV"), dialect (repeated the region already in the name), the
+  Local/Network suffixes (the two variants of a code are the same measured voice), and the
+  words "English"/"Standard" in the English names.
+- `en-us-x-tpc` is left without a gender: F0 ~160 Hz sits in the overlap, its spectral centroid
+  sits in the male range, while the manifest marks it as person 1 (female) — conflicting
+  evidence, so no claim is written.
+
+Per-voice numbers: `voice-gender-evidence.md`.

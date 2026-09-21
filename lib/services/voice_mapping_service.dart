@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/models/voice_mapping.dart';
 import 'package:klhu/reader_service.dart';
@@ -8,35 +9,44 @@ import 'package:klhu/reader_service.dart';
 /// in the current locale. Falls back to the system voice name when no
 /// mapping is found.
 class VoiceMappingService {
-  /// Get the display name for a voice in the current locale.
+  /// Get the display name for a voice.
+  ///
+  /// [voiceListLanguage] is the language the voice LIST is rendered in
+  /// ('en', 'zh-Hans'); it picks the mapped name AND the characteristic
+  /// labels. It defaults to the app locale.
+  ///
+  /// Labels are resolved from [voiceListLanguage], never from [l10n]: the
+  /// picker shows the other language's voices while the app locale stays
+  /// put, so reading a zh label off the app's [l10n] renders the
+  /// half-translated "国语女声（本地） (Female, Young, Mandarin)".
   ///
   /// Returns a formatted string like "Google US English Female (Young, Standard)"
   /// in English or "谷歌美式英语女声 (年轻, 标准音)" in Chinese.
-  String displayName(VoiceEntry voice, AppLocalizations l10n) {
+  String displayName(VoiceEntry voice, AppLocalizations l10n,
+      {String? voiceListLanguage}) {
     final mapping = VoiceMappingTable.lookup(voice.name);
     if (mapping == null) {
       return voice.name;
     }
 
-    final parts = <String>[];
+    // Determine display language: explicit parameter wins, else app locale.
+    final effectiveLocale = voiceListLanguage ?? l10n.localeName;
+    final isZh = effectiveLocale.startsWith('zh');
+    final labels = lookupAppLocalizations(Locale(isZh ? 'zh' : 'en'));
 
-    // Add name
-    final name = l10n.localeName == 'zh' ? mapping.chineseName : mapping.englishName;
-    parts.add(name);
+    final parts = <String>[isZh ? mapping.chineseName : mapping.englishName];
 
-    // Add characteristics
     final characteristics = <String>[];
     if (mapping.gender != null) {
-      final genderLabel = mapping.gender == 'male' ? l10n.genderMale : l10n.genderFemale;
-      characteristics.add(genderLabel);
+      characteristics.add(
+          mapping.gender == 'male' ? labels.genderMale : labels.genderFemale);
     }
     if (mapping.age != null) {
-      final ageLabel = mapping.age == 'old' ? l10n.ageOld : l10n.ageYoung;
-      characteristics.add(ageLabel);
+      characteristics
+          .add(mapping.age == 'old' ? labels.ageOld : labels.ageYoung);
     }
     if (mapping.dialect != null) {
-      final dialectLabel = _dialectLabel(mapping.dialect!, l10n);
-      characteristics.add(dialectLabel);
+      characteristics.add(_dialectLabel(mapping.dialect!, labels));
     }
 
     if (characteristics.isNotEmpty) {
@@ -46,16 +56,14 @@ class VoiceMappingService {
     return parts.join(' ');
   }
 
-  String _dialectLabel(String dialect, AppLocalizations l10n) {
+  String _dialectLabel(String dialect, AppLocalizations labels) {
     switch (dialect) {
-      case 'standard':
-        return l10n.dialectStandard;
       case 'mandarin':
-        return l10n.dialectMandarin;
+        return labels.dialectMandarin;
       case 'cantonese':
-        return l10n.dialectCantonese;
+        return labels.dialectCantonese;
       default:
-        return l10n.dialectStandard;
+        return labels.dialectStandard;
     }
   }
 }

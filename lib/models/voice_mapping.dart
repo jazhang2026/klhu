@@ -1,8 +1,25 @@
 /// Voice mapping entry: system voice ID to user-friendly display name.
 ///
-/// Maps platform voice IDs (e.g., from flutter_tts `getVoices`) to
-/// human-readable names with characteristics (gender, age, dialect)
-/// in both English and Chinese.
+/// Only EVIDENCE-BASED data lives here. Gender was measured on the device:
+/// every voice was rendered with `synthesizeToFile` and the rendering's
+/// fundamental frequency was tracked (male voices ~110-150 Hz, female
+/// ~200-260 Hz). That was cross-checked against the gender field of the
+/// engine's own voice manifest (`assets/voices-list-dsig.pb` inside
+/// GoogleTTS.apk, version 20241125.02, emulator-5554, Sep 2026), and the two
+/// agree on every voice below. `en-us-x-tpc` is the one exception: its F0 sits
+/// in the overlap band, its spectral centroid sits in the male range and the
+/// manifest calls it person 1 (female) — conflicting evidence, so no gender is
+/// claimed for it.
+///
+/// Deliberately NOT here:
+///  - age (young/old): the engine exposes none, and its own "Install voice
+///    data" screen lists voices as "Voice I..IV", so any value would be a guess;
+///  - dialect: the region is already in the display name ("普通话", "US"), so a
+///    dialect label only repeats it;
+///  - "(Local)"/"(Network)" suffixes: the measured local and network variants
+///    of a code are the same voice — the suffix told the reader nothing;
+///  - the words "English"/"Standard" in the English names: the picker already
+///    says which language list is open.
 class VoiceMapping {
   /// The system voice identifier returned by flutter_tts.
   final String systemVoiceId;
@@ -32,314 +49,411 @@ class VoiceMapping {
   });
 }
 
-/// Static mapping table for common TTS voices.
-///
-/// Covers Google TTS, Samsung TTS, and iOS built-in voices for
-/// en-US, en-GB, and zh-Hans-CN locales.
+/// Static mapping table for the voices this app can actually show: one row per
+/// voice name the Google TTS engine reports for the `en` and `zh` lists
+/// (51 English + 16 Chinese on emulator-5554). A voice the engine does not
+/// report falls back to its raw system name (spec FR-004).
 class VoiceMappingTable {
   static const List<VoiceMapping> _entries = [
-    // Google TTS English voices (Android)
-    VoiceMapping(
-      systemVoiceId: 'com.google.android.tts:en-US-x-sfg',
-      englishName: 'Google US English Female',
-      chineseName: '谷歌美式英语女声',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'com.google.android.tts:en-US-x-sfm',
-      englishName: 'Google US English Male',
-      chineseName: '谷歌美式英语男声',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'com.google.android.tts:en-GB-x-sfg',
-      englishName: 'Google British English Female',
-      chineseName: '谷歌英式英语女声',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'com.google.android.tts:en-GB-x-sfm',
-      englishName: 'Google British English Male',
-      chineseName: '谷歌英式英语男声',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    // iOS English voices
-    VoiceMapping(
-      systemVoiceId: 'en-US',
-      englishName: 'Samantha (iOS)',
-      chineseName: '萨曼莎（iOS）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-GB',
-      englishName: 'Daniel (iOS)',
-      chineseName: '丹尼尔（iOS）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    // Chinese (Simplified) voices
-    VoiceMapping(
-      systemVoiceId: 'zh-Hans-CN',
-      englishName: 'Chinese Simplified Female',
-      chineseName: '简体中文女声',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'zh-CN',
-      englishName: 'Chinese Male',
-      chineseName: '中文男声',
-      gender: 'male',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    // Cantonese voice
-    VoiceMapping(
-      systemVoiceId: 'zh-HK',
-      englishName: 'Cantonese Female',
-      chineseName: '粤语女声',
-      gender: 'female',
-      age: 'young',
-      dialect: 'cantonese',
-    ),
-    // Google Chinese voices
-    VoiceMapping(
-      systemVoiceId: 'com.google.android.tts:zh-CN-x-hf',
-      englishName: 'Google Chinese Female',
-      chineseName: '谷歌中文女声',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'com.google.android.tts:zh-CN-x-hm',
-      englishName: 'Google Chinese Male',
-      chineseName: '谷歌中文男声',
-      gender: 'male',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    // Emulator-specific English voices
-    VoiceMapping(
-      systemVoiceId: 'en-ng-x-tfn-local',
-      englishName: 'Nigerian English Female (Local)',
-      chineseName: '尼日利亚英语女声（本地）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-au-x-aub-local',
-      englishName: 'Australian English Male (Local)',
-      chineseName: '澳大利亚英语男声（本地）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-gb-x-gbc-local',
-      englishName: 'British English Male (Local)',
-      chineseName: '英式英语男声（本地）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-iob-network',
-      englishName: 'US English Female (Network)',
-      chineseName: '美式英语女声（网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-tpd-network',
-      englishName: 'US English Deep (Network)',
-      chineseName: '美式英语深沉（网络）',
-      gender: 'male',
-      age: 'old',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-tpc-network',
-      englishName: 'US English Cheerful (Network)',
-      chineseName: '美式英语欢快（网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-in-x-end-local',
-      englishName: 'Indian English Male (Local)',
-      chineseName: '印度英语男声（本地）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-in-x-ena-network',
-      englishName: 'Indian English Female (Network)',
-      chineseName: '印度英语女声（网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-gb-x-gbb-local',
-      englishName: 'British English Female (Local)',
-      chineseName: '英式英语女声（本地）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-AU-language',
-      englishName: 'Australian English',
-      chineseName: '澳大利亚英语',
-      gender: null,
-      age: null,
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-iol-network',
-      englishName: 'US English Old (Network)',
-      chineseName: '美式英语老年（网络）',
-      gender: 'male',
-      age: 'old',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-iom-network',
-      englishName: 'US English Medium (Network)',
-      chineseName: '美式英语中音（网络）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-gb-x-gba-network',
-      englishName: 'British English Female (Network)',
-      chineseName: '英式英语女声（网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-iom-local',
-      englishName: 'US English Medium (Local)',
-      chineseName: '美式英语中音（本地）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-au-x-auc-network',
-      englishName: 'Australian English Female (Network)',
-      chineseName: '澳大利亚英语女声（网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'en-us-x-iop-network',
-      englishName: 'US English Police (Network)',
-      chineseName: '美式英语警笛（网络）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'standard',
-    ),
-    // Emulator-specific Chinese voices (from XML dump)
-    VoiceMapping(
-      systemVoiceId: 'zh-TW-language',
-      englishName: 'Chinese Traditional',
-      chineseName: '中文（繁体）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'zh-TW',
-      englishName: 'Chinese Traditional TW',
-      chineseName: '中文（台湾）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'cmn-cn-x-cce-local',
-      englishName: 'Chinese Mainland Female (Local)',
-      chineseName: '国语女声（本地）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'cmn-cn-x-ssa-local',
-      englishName: 'Chinese Mainland Male (Local)',
-      chineseName: '国语男声（本地）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'cmn-tw-x-ctd-network',
-      englishName: 'Chinese Taiwan Female (Network)',
-      chineseName: '中文（台湾女声，网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
-    VoiceMapping(
-      systemVoiceId: 'cmn-cn-x-ccd-network',
-      englishName: 'Chinese Mainland Female (Network)',
-      chineseName: '国语女声（网络）',
-      gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
-    ),
     VoiceMapping(
       systemVoiceId: 'cmn-cn-x-ccc-local',
-      englishName: 'Chinese Mainland Male (Local)',
-      chineseName: '国语男声（本地）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'mandarin',
+      englishName: 'Mandarin CCC',
+      chineseName: '普通话 CCC',
+      gender: 'female',
     ),
     VoiceMapping(
       systemVoiceId: 'cmn-cn-x-ccc-network',
-      englishName: 'Chinese Mainland Male (Network)',
-      chineseName: '国语男声（网络）',
-      gender: 'male',
-      age: 'young',
-      dialect: 'mandarin',
+      englishName: 'Mandarin CCC',
+      chineseName: '普通话 CCC',
+      gender: 'female',
     ),
     VoiceMapping(
-      systemVoiceId: 'cmn-tw-x-cte-network',
-      englishName: 'Chinese Taiwan Female (Network)',
-      chineseName: '中文（台湾女声，网络）',
+      systemVoiceId: 'cmn-cn-x-ccd-local',
+      englishName: 'Mandarin CCD',
+      chineseName: '普通话 CCD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-cn-x-ccd-network',
+      englishName: 'Mandarin CCD',
+      chineseName: '普通话 CCD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-cn-x-cce-local',
+      englishName: 'Mandarin CCE',
+      chineseName: '普通话 CCE',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-cn-x-cce-network',
+      englishName: 'Mandarin CCE',
+      chineseName: '普通话 CCE',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-cn-x-ssa-local',
+      englishName: 'Mandarin SSA',
+      chineseName: '普通话 SSA',
       gender: 'female',
-      age: 'young',
-      dialect: 'mandarin',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-cn-x-ssa-network',
+      englishName: 'Mandarin SSA',
+      chineseName: '普通话 SSA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-tw-x-ctc-local',
+      englishName: 'Taiwanese Mandarin CTC',
+      chineseName: '台湾国语 CTC',
+      gender: 'female',
     ),
     VoiceMapping(
       systemVoiceId: 'cmn-tw-x-ctc-network',
-      englishName: 'Chinese Taiwan Male (Network)',
-      chineseName: '中文（台湾男声，网络）',
+      englishName: 'Taiwanese Mandarin CTC',
+      chineseName: '台湾国语 CTC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-tw-x-ctd-local',
+      englishName: 'Taiwanese Mandarin CTD',
+      chineseName: '台湾国语 CTD',
       gender: 'male',
-      age: 'young',
-      dialect: 'mandarin',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-tw-x-ctd-network',
+      englishName: 'Taiwanese Mandarin CTD',
+      chineseName: '台湾国语 CTD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-tw-x-cte-local',
+      englishName: 'Taiwanese Mandarin CTE',
+      chineseName: '台湾国语 CTE',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'cmn-tw-x-cte-network',
+      englishName: 'Taiwanese Mandarin CTE',
+      chineseName: '台湾国语 CTE',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-AU-language',
+      englishName: 'Australian Default',
+      chineseName: '澳大利亚默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-GB-language',
+      englishName: 'UK Default',
+      chineseName: '英式默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-IN-language',
+      englishName: 'Indian Default',
+      chineseName: '印度默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-NG-language',
+      englishName: 'Nigerian Default',
+      chineseName: '尼日利亚默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-US-language',
+      englishName: 'US Default',
+      chineseName: '美式默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-aua-local',
+      englishName: 'Australian AUA',
+      chineseName: '澳大利亚 AUA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-aua-network',
+      englishName: 'Australian AUA',
+      chineseName: '澳大利亚 AUA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-aub-local',
+      englishName: 'Australian AUB',
+      chineseName: '澳大利亚 AUB',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-aub-network',
+      englishName: 'Australian AUB',
+      chineseName: '澳大利亚 AUB',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-auc-local',
+      englishName: 'Australian AUC',
+      chineseName: '澳大利亚 AUC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-auc-network',
+      englishName: 'Australian AUC',
+      chineseName: '澳大利亚 AUC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-aud-local',
+      englishName: 'Australian AUD',
+      chineseName: '澳大利亚 AUD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-au-x-aud-network',
+      englishName: 'Australian AUD',
+      chineseName: '澳大利亚 AUD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gba-local',
+      englishName: 'UK GBA',
+      chineseName: '英式 GBA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gba-network',
+      englishName: 'UK GBA',
+      chineseName: '英式 GBA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbb-local',
+      englishName: 'UK GBB',
+      chineseName: '英式 GBB',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbb-network',
+      englishName: 'UK GBB',
+      chineseName: '英式 GBB',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbc-local',
+      englishName: 'UK GBC',
+      chineseName: '英式 GBC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbc-network',
+      englishName: 'UK GBC',
+      chineseName: '英式 GBC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbd-local',
+      englishName: 'UK GBD',
+      chineseName: '英式 GBD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbd-network',
+      englishName: 'UK GBD',
+      chineseName: '英式 GBD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbg-local',
+      englishName: 'UK GBG',
+      chineseName: '英式 GBG',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-gbg-network',
+      englishName: 'UK GBG',
+      chineseName: '英式 GBG',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-rjs-local',
+      englishName: 'UK RJS',
+      chineseName: '英式 RJS',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-gb-x-rjs-network',
+      englishName: 'UK RJS',
+      chineseName: '英式 RJS',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-ena-local',
+      englishName: 'Indian ENA',
+      chineseName: '印度 ENA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-ena-network',
+      englishName: 'Indian ENA',
+      chineseName: '印度 ENA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-enc-local',
+      englishName: 'Indian ENC',
+      chineseName: '印度 ENC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-enc-network',
+      englishName: 'Indian ENC',
+      chineseName: '印度 ENC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-end-local',
+      englishName: 'Indian END',
+      chineseName: '印度 END',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-end-network',
+      englishName: 'Indian END',
+      chineseName: '印度 END',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-ene-local',
+      englishName: 'Indian ENE',
+      chineseName: '印度 ENE',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-in-x-ene-network',
+      englishName: 'Indian ENE',
+      chineseName: '印度 ENE',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-ng-x-tfn-local',
+      englishName: 'Nigerian TFN',
+      chineseName: '尼日利亚 TFN',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-ng-x-tfn-network',
+      englishName: 'Nigerian TFN',
+      chineseName: '尼日利亚 TFN',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iob-local',
+      englishName: 'US IOB',
+      chineseName: '美式 IOB',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iob-network',
+      englishName: 'US IOB',
+      chineseName: '美式 IOB',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iog-local',
+      englishName: 'US IOG',
+      chineseName: '美式 IOG',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iog-network',
+      englishName: 'US IOG',
+      chineseName: '美式 IOG',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iol-local',
+      englishName: 'US IOL',
+      chineseName: '美式 IOL',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iol-network',
+      englishName: 'US IOL',
+      chineseName: '美式 IOL',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iom-local',
+      englishName: 'US IOM',
+      chineseName: '美式 IOM',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-iom-network',
+      englishName: 'US IOM',
+      chineseName: '美式 IOM',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-sfg-local',
+      englishName: 'US SFG',
+      chineseName: '美式 SFG',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-sfg-network',
+      englishName: 'US SFG',
+      chineseName: '美式 SFG',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-tpc-local',
+      englishName: 'US TPC',
+      chineseName: '美式 TPC',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-tpc-network',
+      englishName: 'US TPC',
+      chineseName: '美式 TPC',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-tpd-local',
+      englishName: 'US TPD',
+      chineseName: '美式 TPD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-tpd-network',
+      englishName: 'US TPD',
+      chineseName: '美式 TPD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-tpf-local',
+      englishName: 'US TPF',
+      chineseName: '美式 TPF',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-us-x-tpf-network',
+      englishName: 'US TPF',
+      chineseName: '美式 TPF',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'zh-CN-language',
+      englishName: 'Mandarin Default',
+      chineseName: '普通话默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'zh-TW-language',
+      englishName: 'Taiwanese Mandarin Default',
+      chineseName: '台湾国语默认语音',
+      gender: 'female',
     ),
   ];
 

@@ -51,14 +51,15 @@ class PickerFakeReader implements Reader {
   }
 }
 
+/// Voice names as the Google TTS engine actually reports them.
 PickerFakeReader _fake({bool failList = false}) => PickerFakeReader(
       voicesByLanguage: {
         'en': const [
-          VoiceEntry(name: 'com.google.android.tts:en-US-x-sfg', locale: 'en-US'),
-          VoiceEntry(name: 'com.google.android.tts:en-GB-x-sfg', locale: 'en-GB'),
+          VoiceEntry(name: 'en-us-x-sfg-local', locale: 'en-US'),
+          VoiceEntry(name: 'en-gb-x-gba-local', locale: 'en-GB'),
         ],
         'zh-Hans': const [
-          VoiceEntry(name: 'com.google.android.tts:zh-CN-x-hf', locale: 'zh-Hans-CN'),
+          VoiceEntry(name: 'cmn-cn-x-ssa-local', locale: 'zh-CN'),
         ],
       },
       failList: failList,
@@ -97,9 +98,9 @@ void main() {
     testWidgets('lists active-language voices only', (tester) async {
       SharedPreferences.setMockInitialValues({});
       await _pumpPicker(tester, _fake());
-      expect(find.textContaining('Google US English Female'), findsOneWidget);
-      expect(find.textContaining('Google British English Female'), findsOneWidget);
-      expect(find.textContaining('Chinese'), findsNothing);
+      expect(find.textContaining('US SFG'), findsOneWidget);
+      expect(find.textContaining('UK GBA'), findsOneWidget);
+      expect(find.textContaining('普通话'), findsNothing);
     });
 
     testWidgets('tap previews in tapped voice and persists choice',
@@ -107,10 +108,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _fake();
       await _pumpPicker(tester, fake);
-      await tester.tap(find.textContaining('Google British'));
+      await tester.tap(find.textContaining('UK GBA'));
       await tester.pumpAndSettle();
       expect(fake.stops, 1);
-      expect(fake.previewed.map((v) => v.name), ['com.google.android.tts:en-GB-x-sfg']);
+      expect(fake.previewed.map((v) => v.name), ['en-gb-x-gba-local']);
       await _pumpPicker(tester, fake);
       expect(find.byIcon(Icons.check), findsNothing);
       final selected = find.byWidgetPredicate(
@@ -119,7 +120,7 @@ void main() {
       expect(selected, findsOneWidget);
       expect(
         tester.widget<ListTile>(selected).title,
-        isA<Text>().having((t) => t.data, 'data', contains('Google British')),
+        isA<Text>().having((t) => t.data, 'data', contains('UK GBA')),
       );
     });
 
@@ -128,26 +129,26 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _fake();
       await _pumpPicker(tester, fake, language: 'zh-Hans');
-      expect(find.textContaining('Chinese'), findsOneWidget);
-      expect(find.textContaining('Google US'), findsNothing);
-      await tester.tap(find.textContaining('Chinese'));
+      expect(find.textContaining('普通话'), findsOneWidget);
+      expect(find.textContaining('US SFG'), findsNothing);
+      await tester.tap(find.textContaining('普通话'));
       await tester.pumpAndSettle();
-      expect(fake.previewed.map((v) => v.name), ['com.google.android.tts:zh-CN-x-hf']);
+      expect(fake.previewed.map((v) => v.name), ['cmn-cn-x-ssa-local']);
     });
 
     testWidgets('in-picker language switch reloads the other list',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
       await _pumpPicker(tester, _fake());
-      expect(find.textContaining('Google US'), findsOneWidget);
+      expect(find.textContaining('US SFG'), findsOneWidget);
       await tester.tap(find.text('中文'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Chinese'), findsOneWidget);
-      expect(find.textContaining('Google US'), findsNothing);
+      expect(find.textContaining('普通话'), findsOneWidget);
+      expect(find.textContaining('US SFG'), findsNothing);
       await tester.tap(find.text('English'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Google US'), findsOneWidget);
-      expect(find.textContaining('Chinese'), findsNothing);
+      expect(find.textContaining('US SFG'), findsOneWidget);
+      expect(find.textContaining('普通话'), findsNothing);
     });
 
     testWidgets('empty voice list shows empty state', (tester) async {
@@ -187,7 +188,7 @@ void main() {
       fake.failList = false;
       await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Google US'), findsOneWidget);
+      expect(find.textContaining('US SFG'), findsOneWidget);
     });
 
     testWidgets('rapid taps: latest preview wins, stays selected',
@@ -195,13 +196,13 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _fake();
       await _pumpPicker(tester, fake);
-      await tester.tap(find.textContaining('Google US'));
-      await tester.tap(find.textContaining('Google British'));
+      await tester.tap(find.textContaining('US SFG'));
+      await tester.tap(find.textContaining('UK GBA'));
       await tester.pumpAndSettle();
       expect(fake.stops, 2);
       expect(fake.previewed.map((v) => v.name), [
-        'com.google.android.tts:en-US-x-sfg',
-        'com.google.android.tts:en-GB-x-sfg',
+        'en-us-x-sfg-local',
+        'en-gb-x-gba-local',
       ]);
       expect(find.byIcon(Icons.check), findsNothing);
       expect(
@@ -214,10 +215,10 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _fake();
       await _pumpPicker(tester, fake, language: 'en');
-      await tester.tap(find.textContaining('Google US'));
+      await tester.tap(find.textContaining('US SFG'));
       await tester.pumpAndSettle();
       await _pumpPicker(tester, fake, language: 'zh-Hans');
-      await tester.tap(find.textContaining('Chinese'));
+      await tester.tap(find.textContaining('普通话'));
       await tester.pumpAndSettle();
       await _pumpPicker(tester, fake, language: 'en');
       expect(find.byIcon(Icons.check), findsNothing);
@@ -225,7 +226,7 @@ void main() {
         tester.widget<ListTile>(find.byWidgetPredicate(
           (w) => w is ListTile && w.selected,
         )).title,
-        isA<Text>().having((t) => t.data, 'data', contains('Google US')),
+        isA<Text>().having((t) => t.data, 'data', contains('US SFG')),
       );
       await _pumpPicker(tester, fake, language: 'zh-Hans');
       expect(
@@ -241,7 +242,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _fake();
       await _pumpPicker(tester, fake);
-      await tester.tap(find.textContaining('Google British'));
+      await tester.tap(find.textContaining('UK GBA'));
       await tester.pumpAndSettle();
       expect(
         find.descendant(
@@ -256,7 +257,7 @@ void main() {
       expect(selected, findsOneWidget);
       expect(
         tester.widget<ListTile>(selected).title,
-        isA<Text>().having((t) => t.data, 'data', contains('Google British')),
+        isA<Text>().having((t) => t.data, 'data', contains('UK GBA')),
       );
     });
 
@@ -306,12 +307,13 @@ void main() {
   });
 
   group('voice mapping display names', () {
-    testWidgets('displays English name with characteristics', (tester) async {
+    testWidgets('shows the mapped name with the measured gender',
+        (tester) async {
       SharedPreferences.setMockInitialValues({});
       await _pumpPicker(tester, _fake());
-      expect(find.textContaining('Google US English Female'), findsOneWidget);
-      expect(find.textContaining('Google US English Female (Female, Young, Standard)'), findsOneWidget);
-      expect(find.textContaining('Google British English Female (Female, Young, Standard)'), findsOneWidget);
+      expect(find.textContaining('US SFG'), findsOneWidget);
+      expect(find.textContaining('US SFG (Female)'), findsOneWidget);
+      expect(find.textContaining('UK GBA (Female)'), findsOneWidget);
     });
 
     testWidgets('unmapped voice shows system name as fallback', (tester) async {

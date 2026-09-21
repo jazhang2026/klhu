@@ -99,8 +99,10 @@ class _ReadingViewState extends State<ReadingView> {
         // Set guard to prevent rapid switching
         setState(() => _isLanguageChanging = true);
         
-        // Stop TTS reading before language change
-        await widget.reader.stop();
+        // Full stop before the language change: resetting to READ drops any
+        // paused/speaking state, or the UI keeps offering Resume for speech
+        // that no longer exists (spec 005 scenario 7).
+        await _stop();
         
         // Call the language change callback
         widget.onLanguageChanged?.call(newLanguage);
