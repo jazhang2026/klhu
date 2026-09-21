@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:klhu/voice_picker_screen.dart';
@@ -17,7 +19,11 @@ class _SemFakeReader implements Reader {
   @override
   Future<void> stop() async {}
   @override
+  Future<void> pause() async {}
+  @override
   bool get isSpeaking => false;
+  @override
+  bool get isPaused => false;
   @override
   Future<List<VoiceEntry>> voicesFor(String language) async => language == 'en'
       ? const [VoiceEntry(name: 'en-a', locale: 'en-US')]
@@ -64,6 +70,17 @@ void main() {
         final fake = _SemFakeReader();
         await tester.pumpWidget(
           MaterialApp(
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en'),
+              Locale('zh'),
+              Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+            ],
             home: VoicePickerScreen(
               reader: fake,
               store: VoiceStore(),

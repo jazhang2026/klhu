@@ -43,7 +43,7 @@ class ReadingView extends StatefulWidget {
   State<ReadingView> createState() => _ReadingViewState();
 }
 
-enum _Mode { read, edit, speaking }
+enum _Mode { read, edit, speaking, paused }
 
 class _ReadingViewState extends State<ReadingView> {
   final _textKey = GlobalKey();
@@ -56,6 +56,15 @@ class _ReadingViewState extends State<ReadingView> {
   /// Invalidates a stale read's `finally` (tap/Stop during SPEAKING must win
   /// over the in-flight loop's cleanup).
   int _readGen = 0;
+
+  /// Rapid toggle guard: consecutive pause/resume taps are queued, not
+  /// stacked. Prevents a burst of taps from ending up in a spurious paused
+  /// state after the read has already finished.
+  bool _isPausing = false;
+  bool _isResuming = false;
+
+  bool get _isSpeakingOrPaused =>
+      _mode == _Mode.speaking || _mode == _Mode.paused;
 
   String? _error;
   String? _hint;
@@ -241,11 +250,30 @@ class _ReadingViewState extends State<ReadingView> {
 
   Future<void> _stop() async {
     _readGen++;
+    _isPausing = false;
+    _isResuming = false;
     await widget.reader.stop();
     setState(() {
       _mode = _Mode.read;
       _highlight = null;
     });
+  }
+
+  Future<void> _pauseResume() async {
+    if (_mode == _Mode.speaking) {
+      if (_isPausing) return;
+      _isPausing = true;
+      setState(() => _mode = _Mode.paused);
+      await widget.reader.pause();
+      if (mounted) setState(() => _isPausing = false);
+    } else if (_mode == _Mode.paused) {
+      if (_isResuming) return;
+      _isResuming = true;
+      setState(() => _mode = _Mode.speaking);
+      // flutter_tts.pause() is a toggle: calling it again resumes.
+      await widget.reader.pause();
+      if (mounted) setState(() => _isResuming = false);
+    }
   }
 
   /// Span tree for the reading area. A single RichText backs BOTH states
@@ -382,23 +410,48 @@ class _ReadingViewState extends State<ReadingView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: editing
                   ? [
-                      ElevatedButton(
-                          onPressed: _doneEdit, child: Text(AppLocalizations.of(context)?.doneButton ?? 'Done')),
+                      IconButton(
+                        icon: const Icon(Icons.check),
+                        tooltip: AppLocalizations.of(context)?.doneButton,
+                        onPressed: _doneEdit,
+                      ),
                     ]
                   : [
-                      ElevatedButton(
+                      if (!_isSpeakingOrPaused)
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow),
+                          tooltip: AppLocalizations.of(context)?.readButton,
                           onPressed: _readSelection,
-                          child: Text(AppLocalizations.of(context)?.readButton ?? 'Read')),
-                      ElevatedButton(
+                        ),
+                      if (!_isSpeakingOrPaused)
+                        IconButton(
+                          icon: const Icon(Icons.skip_next),
+                          tooltip: AppLocalizations.of(context)?.readPageButton,
                           onPressed: _readPage,
-                          child: Text(AppLocalizations.of(context)?.readPageButton ?? 'Read page')),
-                      ElevatedButton(
-                          onPressed: _stop, child: Text(AppLocalizations.of(context)?.stopButton ?? 'Stop')),
-                      ElevatedButton(
+                        ),
+                      if (_mode == _Mode.speaking)
+                        IconButton(
+                          icon: const Icon(Icons.pause),
+                          tooltip: AppLocalizations.of(context)?.pauseButton,
+                          onPressed: _isPausing ? null : _pauseResume,
+                        ),
+                      if (_mode == _Mode.paused)
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow),
+                          tooltip: AppLocalizations.of(context)?.resumeButton,
+                          onPressed: _isResuming ? null : _pauseResume,
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.stop),
+                        tooltip: AppLocalizations.of(context)?.stopButton,
+                        onPressed: _stop,
+                      ),
+                      IconButton(
                         // Idle-only: never enter EDIT mid-speech.
+                        icon: const Icon(Icons.edit),
+                        tooltip: AppLocalizations.of(context)?.editButton,
                         onPressed:
                             _mode == _Mode.speaking ? null : _enterEdit,
-                        child: Text(AppLocalizations.of(context)?.editButton ?? 'Edit'),
                       ),
                     ],
             ),

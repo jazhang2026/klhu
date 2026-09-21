@@ -6,6 +6,8 @@ import 'package:klhu/language.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:klhu/voice_store.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _mixed =
@@ -29,7 +31,13 @@ class MixedFakeReader implements Reader {
   }
 
   @override
+  Future<void> pause() async {}
+
+  @override
   bool get isSpeaking => false;
+
+  @override
+  bool get isPaused => false;
 
   @override
   Future<List<VoiceEntry>> voicesFor(String language) async => [];
@@ -91,17 +99,29 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = MixedFakeReader();
       await tester.pumpWidget(
-        MaterialApp(home: ReadingView(reader: fake)),
+        MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: fake)),
       );
 
       // Paste box + Load are gone (003 US2): type directly in EDIT mode.
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Edit'));
+      await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       await tester.enterText(find.byType(TextField), _mixed);
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
 
       expect(fake.paragraphs.length, 2);
@@ -116,9 +136,21 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _ManualFakeReader();
       await tester.pumpWidget(
-        MaterialApp(home: ReadingView(reader: fake)),
+        MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: fake)),
       );
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.progress, isNotNull);
 
@@ -130,7 +162,7 @@ void main() {
       expect(_hasYellow(tester, fake.paragraphs[2].text), isTrue);
       expect(_hasYellow(tester, fake.paragraphs[0].text), isFalse);
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Stop'));
+      await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
       expect(_hasAnyYellow(tester), isFalse);
     });
@@ -140,12 +172,24 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final fake = _ManualFakeReader();
       await tester.pumpWidget(
-        MaterialApp(home: ReadingView(reader: fake)),
+        MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: fake)),
       );
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       final progress = fake.progress!;
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Stop'));
+      await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
       // Late callback from the stopped loop: generation guard drops it.
       progress(0);

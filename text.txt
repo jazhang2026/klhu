@@ -12,10 +12,17 @@ Requirement:
 1. change App title to "KalaHoo" in English and "卡啦虎" in Chinese. Use images/kalahu.jpeg as the app icon.
 2. i18n support for English and Chinese. User can switch between English and Chinese.
 
-3. add puse/resume functionality to stop and continue TTS reading(page reading).
+3. Voice list: change the voice name to a user-friendly name. has i18n form English and Chinese.
+   have more characters of the voice if possible: man/woman, yang/old, 方言.
+   use Approach: Static mapping table (recommended)
 
-4. add OCR functionality to extract text from images or camera input.
+4. change Stop to Puse/Resume functionality to stop and continue TTS reading(page reading). 
+   When Pused, next action is not Resume, Pause works as Stop.
 
-5. add translation functionality to translate text to English and Chinese.
+5. use icon buttons instead of text buttons?
+
+6. add OCR functionality to extract text from images or camera input.
+
+7. add translation functionality to translate text to English and Chinese.
 
 

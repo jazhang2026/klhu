@@ -164,6 +164,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a sentence to read'**
   String get hintText;
+
+  /// No description provided for @genderMale.
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get genderMale;
+
+  /// No description provided for @genderFemale.
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get genderFemale;
+
+  /// No description provided for @ageYoung.
+  ///
+  /// In en, this message translates to:
+  /// **'Young'**
+  String get ageYoung;
+
+  /// No description provided for @ageOld.
+  ///
+  /// In en, this message translates to:
+  /// **'Old'**
+  String get ageOld;
+
+  /// No description provided for @dialectStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get dialectStandard;
+
+  /// No description provided for @dialectMandarin.
+  ///
+  /// In en, this message translates to:
+  /// **'Mandarin'**
+  String get dialectMandarin;
+
+  /// No description provided for @dialectCantonese.
+  ///
+  /// In en, this message translates to:
+  /// **'Cantonese'**
+  String get dialectCantonese;
+
+  /// No description provided for @pauseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pauseButton;
+
+  /// No description provided for @resumeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get resumeButton;
 }
 
 class _AppLocalizationsDelegate

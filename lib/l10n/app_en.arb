@@ -10,5 +10,14 @@
   "doneButton": "Done",
   "voiceButton": "Voice",
   "languageDropdown": "Language",
-  "hintText": "Tap a sentence to read"
+  "hintText": "Tap a sentence to read",
+  "genderMale": "Male",
+  "genderFemale": "Female",
+  "ageYoung": "Young",
+  "ageOld": "Old",
+  "dialectStandard": "Standard",
+  "dialectMandarin": "Mandarin",
+  "dialectCantonese": "Cantonese",
+  "pauseButton": "Pause",
+  "resumeButton": "Resume"
 }

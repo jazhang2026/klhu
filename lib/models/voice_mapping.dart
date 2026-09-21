@@ -1,0 +1,148 @@
+/// Voice mapping entry: system voice ID to user-friendly display name.
+///
+/// Maps platform voice IDs (e.g., from flutter_tts `getVoices`) to
+/// human-readable names with characteristics (gender, age, dialect)
+/// in both English and Chinese.
+class VoiceMapping {
+  /// The system voice identifier returned by flutter_tts.
+  final String systemVoiceId;
+
+  /// User-friendly name in English.
+  final String englishName;
+
+  /// User-friendly name in Chinese.
+  final String chineseName;
+
+  /// Gender characteristic: "male", "female", or null.
+  final String? gender;
+
+  /// Age characteristic: "young", "old", or null.
+  final String? age;
+
+  /// Dialect characteristic: "standard", "mandarin", "cantonese", or null.
+  final String? dialect;
+
+  const VoiceMapping({
+    required this.systemVoiceId,
+    required this.englishName,
+    required this.chineseName,
+    this.gender,
+    this.age,
+    this.dialect,
+  });
+}
+
+/// Static mapping table for common TTS voices.
+///
+/// Covers Google TTS, Samsung TTS, and iOS built-in voices for
+/// en-US, en-GB, and zh-Hans-CN locales.
+class VoiceMappingTable {
+  static const List<VoiceMapping> _entries = [
+    // Google TTS English voices (Android)
+    VoiceMapping(
+      systemVoiceId: 'com.google.android.tts:en-US-x-sfg',
+      englishName: 'Google US English Female',
+      chineseName: '谷歌美式英语女声',
+      gender: 'female',
+      age: 'young',
+      dialect: 'standard',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'com.google.android.tts:en-US-x-sfm',
+      englishName: 'Google US English Male',
+      chineseName: '谷歌美式英语男声',
+      gender: 'male',
+      age: 'young',
+      dialect: 'standard',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'com.google.android.tts:en-GB-x-sfg',
+      englishName: 'Google British English Female',
+      chineseName: '谷歌英式英语女声',
+      gender: 'female',
+      age: 'young',
+      dialect: 'standard',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'com.google.android.tts:en-GB-x-sfm',
+      englishName: 'Google British English Male',
+      chineseName: '谷歌英式英语男声',
+      gender: 'male',
+      age: 'young',
+      dialect: 'standard',
+    ),
+    // iOS English voices
+    VoiceMapping(
+      systemVoiceId: 'en-US',
+      englishName: 'Samantha (iOS)',
+      chineseName: '萨曼莎（iOS）',
+      gender: 'female',
+      age: 'young',
+      dialect: 'standard',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'en-GB',
+      englishName: 'Daniel (iOS)',
+      chineseName: '丹尼尔（iOS）',
+      gender: 'male',
+      age: 'young',
+      dialect: 'standard',
+    ),
+    // Chinese (Simplified) voices
+    VoiceMapping(
+      systemVoiceId: 'zh-Hans-CN',
+      englishName: 'Chinese Simplified Female',
+      chineseName: '简体中文女声',
+      gender: 'female',
+      age: 'young',
+      dialect: 'mandarin',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'zh-CN',
+      englishName: 'Chinese Male',
+      chineseName: '中文男声',
+      gender: 'male',
+      age: 'young',
+      dialect: 'mandarin',
+    ),
+    // Cantonese voice
+    VoiceMapping(
+      systemVoiceId: 'zh-HK',
+      englishName: 'Cantonese Female',
+      chineseName: '粤语女声',
+      gender: 'female',
+      age: 'young',
+      dialect: 'cantonese',
+    ),
+    // Google Chinese voices
+    VoiceMapping(
+      systemVoiceId: 'com.google.android.tts:zh-CN-x-hf',
+      englishName: 'Google Chinese Female',
+      chineseName: '谷歌中文女声',
+      gender: 'female',
+      age: 'young',
+      dialect: 'mandarin',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'com.google.android.tts:zh-CN-x-hm',
+      englishName: 'Google Chinese Male',
+      chineseName: '谷歌中文男声',
+      gender: 'male',
+      age: 'young',
+      dialect: 'mandarin',
+    ),
+  ];
+
+  /// Look up mapping by system voice ID.
+  /// Returns null if not found.
+  static VoiceMapping? lookup(String systemVoiceId) {
+    return _entries.where((m) => m.systemVoiceId == systemVoiceId).firstOrNull;
+  }
+
+  /// Returns all available mappings.
+  static List<VoiceMapping> all() => _entries;
+}
+
+extension FirstOrNullExtension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
+}

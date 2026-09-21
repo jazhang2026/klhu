@@ -50,6 +50,9 @@ class FakeTtsBackend implements TtsBackend {
   }
 
   @override
+  Future<dynamic> pause() async {}
+
+  @override
   Future<dynamic> awaitSpeakCompletion(bool v) async {}
 
   @override

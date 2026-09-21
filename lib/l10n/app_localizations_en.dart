@@ -41,4 +41,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hintText => 'Tap a sentence to read';
+
+  @override
+  String get genderMale => 'Male';
+
+  @override
+  String get genderFemale => 'Female';
+
+  @override
+  String get ageYoung => 'Young';
+
+  @override
+  String get ageOld => 'Old';
+
+  @override
+  String get dialectStandard => 'Standard';
+
+  @override
+  String get dialectMandarin => 'Mandarin';
+
+  @override
+  String get dialectCantonese => 'Cantonese';
+
+  @override
+  String get pauseButton => 'Pause';
+
+  @override
+  String get resumeButton => 'Resume';
 }

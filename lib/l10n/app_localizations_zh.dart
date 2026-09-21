@@ -41,6 +41,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hintText => '点击句子开始朗读';
+
+  @override
+  String get genderMale => '男';
+
+  @override
+  String get genderFemale => '女';
+
+  @override
+  String get ageYoung => '年轻';
+
+  @override
+  String get ageOld => '年长';
+
+  @override
+  String get dialectStandard => '标准音';
+
+  @override
+  String get dialectMandarin => '普通话';
+
+  @override
+  String get dialectCantonese => '粤语';
+
+  @override
+  String get pauseButton => '暂停';
+
+  @override
+  String get resumeButton => '继续';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -79,4 +106,31 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get hintText => '点击句子开始朗读';
+
+  @override
+  String get genderMale => '男';
+
+  @override
+  String get genderFemale => '女';
+
+  @override
+  String get ageYoung => '年轻';
+
+  @override
+  String get ageOld => '年长';
+
+  @override
+  String get dialectStandard => '标准音';
+
+  @override
+  String get dialectMandarin => '普通话';
+
+  @override
+  String get dialectCantonese => '粤语';
+
+  @override
+  String get pauseButton => '暂停';
+
+  @override
+  String get resumeButton => '继续';
 }

@@ -10,5 +10,14 @@
   "doneButton": "完成",
   "voiceButton": "语音",
   "languageDropdown": "语言",
-  "hintText": "点击句子开始朗读"
+  "hintText": "点击句子开始朗读",
+  "genderMale": "男",
+  "genderFemale": "女",
+  "ageYoung": "年轻",
+  "ageOld": "年长",
+  "dialectStandard": "标准音",
+  "dialectMandarin": "普通话",
+  "dialectCantonese": "粤语",
+  "pauseButton": "暂停",
+  "resumeButton": "继续"
 }

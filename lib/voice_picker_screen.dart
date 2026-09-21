@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/voice_store.dart';
+import 'package:klhu/l10n/app_localizations.dart';
+import 'package:klhu/services/voice_mapping_service.dart';
 
 /// Fixed preview line per language (spec assumption 2026-09-14).
 String sampleLineFor(String language) => language == 'zh-Hans'
@@ -9,6 +11,7 @@ String sampleLineFor(String language) => language == 'zh-Hans'
 
 /// Voice picker (002 US2): lists installed voices for [language],
 /// tap previews the sample line in that voice and persists the choice.
+/// Displays user-friendly names with characteristics via [VoiceMappingService].
 class VoicePickerScreen extends StatefulWidget {
   final Reader reader;
   final VoiceStore store;
@@ -33,6 +36,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
   VoiceChoice? _selected;
   String? _previewError;
   late String _language;
+  late VoiceMappingService _mappingService;
 
   /// Per-row keys: autoscroll target for the selected row (~40 rows max).
   final Map<String, GlobalKey> _rowKeys = {};
@@ -49,6 +53,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
   void initState() {
     super.initState();
     _language = widget.language;
+    _mappingService = VoiceMappingService();
     _load();
   }
 
@@ -165,8 +170,9 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Voice')),
+      appBar: AppBar(title: Text(l10n.voiceButton)),
       body: Column(
         children: [
           Padding(
@@ -195,10 +201,11 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
   }
 
   Widget _statusBody() {
+    final l10n = AppLocalizations.of(context)!;
     return switch (_status) {
         _PickerStatus.loading =>
           const Center(child: CircularProgressIndicator()),
-        _PickerStatus.empty => const Center(
+        _PickerStatus.empty => Center(
             child: Text('No voices installed for this language.'),
           ),
         _PickerStatus.error => Center(
@@ -244,7 +251,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
                             _keyFor(voice),
                             GlobalKey.new,
                           ),
-                          title: Text(voice.name),
+                          title: Text(_mappingService.displayName(voice, l10n)),
                           subtitle: Text(voice.locale),
                           // Highlight WITHOUT marker: green background (not
                           // green text) + selected state keeps the TalkBack

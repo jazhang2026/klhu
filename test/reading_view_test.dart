@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:klhu/sample_texts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeReader implements Reader {
@@ -24,7 +26,15 @@ class FakeReader implements Reader {
   }
 
   @override
+  Future<void> pause() async {
+    speaking = !speaking;
+  }
+
+  @override
   bool get isSpeaking => speaking;
+
+  @override
+  bool get isPaused => !speaking && stops > 0;
 
   @override
   Future<List<VoiceEntry>> voicesFor(String language) async => [];
@@ -91,7 +101,19 @@ void main() {
   group('US1 P1: tap sentence, hear it read', () {
     testWidgets('tap highlights the tapped sentence', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
       expect(hasYellowHighlight(tester, firstSentence), isTrue);
@@ -101,24 +123,48 @@ void main() {
 
     testWidgets('Read speaks the highlighted sentence', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken, [firstSentence]);
     });
 
     testWidgets('Stop halts speech', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
       final stopsBefore = fake.stops;
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Stop'));
+      await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
       expect(fake.isSpeaking, isFalse);
       expect(fake.stops, stopsBefore + 1);
@@ -127,19 +173,43 @@ void main() {
     testWidgets('Read with no tap prompts instead of reading page',
         (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken, isEmpty);
-      expect(find.text('Tap a sentence first, then Read.'), findsOneWidget);
+      expect(find.text('Tap a sentence to read'), findsOneWidget);
     });
 
     testWidgets('missing voice shows error instead of crashing', (tester) async {
       final fake = FailingReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(
           find.text('Voice not available for en-US'), findsOneWidget);
@@ -147,14 +217,26 @@ void main() {
 
     testWidgets('switching sample stops ongoing speech', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
       final stopsBefore = fake.stops;
-      await tester.tap(find.widgetWithText(ElevatedButton, '中文示例'));
+      await tester.tap(find.text('中文示例'));
       await tester.pump();
       expect(fake.stops, stopsBefore + 1);
       expect(fake.isSpeaking, isFalse);
@@ -163,7 +245,19 @@ void main() {
     testWidgets('content stays one RichText across select (no font jump)',
         (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       Finder contentText() =>
           find.text(SampleTexts.en, findRichText: false);
       // Plain-Text widget must never hold the content, before or after tap:
@@ -177,7 +271,19 @@ void main() {
 
     testWidgets('content text has explicit classic theme style', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       // Regression (emulator validation, Sep 2026): the root span must carry
       // an explicit style — ambient capture freezes MaterialApp's red-48px
       // fallback in, and a null root mispaints inherited color as white on
@@ -204,7 +310,19 @@ void main() {
 
     testWidgets('long-press highlights the whole paragraph', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.longPressAt(await tapFirstSentence(tester));
       await tester.pump();
       expect(hasYellowHighlight(tester, firstParagraph), isTrue);
@@ -214,10 +332,22 @@ void main() {
     testWidgets('Read speaks the highlighted paragraph in order',
         (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.longPressAt(await tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken, [firstParagraph]);
     });
@@ -225,7 +355,19 @@ void main() {
     testWidgets('single tap still resolves sentence after long-press',
         (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       final pos = await tapFirstSentence(tester);
       await tester.longPressAt(pos);
       await tester.pump();
@@ -238,8 +380,20 @@ void main() {
   group('US3 P3: read whole page', () {
     testWidgets('Read page speaks each paragraph in order', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       // 002 US1: one speech per paragraph (not one for the whole page).
       expect(fake.spoken.length, 3);
@@ -248,8 +402,20 @@ void main() {
 
     testWidgets('Read page clears tracking highlight at end', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       // FakeReader ignores the progress callback, so no intermediate
       // highlight is observable here — but the end state must be clean
@@ -259,11 +425,23 @@ void main() {
 
     testWidgets('Stop halts page read', (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Stop'));
+      await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
       expect(fake.isSpeaking, isFalse);
     });
@@ -271,8 +449,20 @@ void main() {
     testWidgets('sentence tap after Read page narrows to sentence',
         (tester) async {
       final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read page'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       // Measure on the live RichText: plain-Text and RichText metrics
       // differ slightly, so a position from one mis-maps on the other.
@@ -289,7 +479,7 @@ void main() {
       await tester.pump();
       expect(hasYellowHighlight(tester, 'Birds sang in the tall trees.'),
           isTrue);
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken.last, 'Birds sang in the tall trees.');
     });

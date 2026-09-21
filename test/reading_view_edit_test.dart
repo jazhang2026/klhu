@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _EditFakeReader implements Reader {
@@ -24,7 +26,15 @@ class _EditFakeReader implements Reader {
   }
 
   @override
+  Future<void> pause() async {
+    speaking = !speaking;
+  }
+
+  @override
   bool get isSpeaking => speaking;
+
+  @override
+  bool get isPaused => !speaking && stops > 0;
 
   @override
   Future<List<VoiceEntry>> voicesFor(String language) async => [];
@@ -107,11 +117,23 @@ void main() {
     testWidgets('READ is default: RichText area, Edit offered, no paste box',
         (tester) async {
       await tester.pumpWidget(
-          MaterialApp(home: ReadingView(reader: _EditFakeReader())));
+          MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: _EditFakeReader())));
       // READ shows RichText (yellow-highlight capable), no field, no caret.
       expect(find.byType(RichText), findsWidgets);
       expect(find.byType(TextField), findsNothing);
-      expect(find.text('Edit'), findsOneWidget);
+      expect(find.byTooltip('Edit'), findsOneWidget);
       // Paste box + Load are gone.
       expect(find.text('Paste text to read'), findsNothing);
       expect(find.text('Load'), findsNothing);
@@ -120,7 +142,19 @@ void main() {
     testWidgets('READ tap highlights sentence yellow, does not speak',
         (tester) async {
       final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
       expect(_hasYellow(tester, _firstSentence), isTrue);
@@ -130,14 +164,26 @@ void main() {
     testWidgets('Read speaks pending sentence; none pending shows hint',
         (tester) async {
       final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.text('Read'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken, isEmpty);
-      expect(find.text('Tap a sentence first, then Read.'), findsOneWidget);
+      expect(find.text('Tap a sentence to read'), findsOneWidget);
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.text('Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken, [_firstSentence]);
     });
@@ -145,7 +191,19 @@ void main() {
     testWidgets('READ long-press highlights paragraph yellow',
         (tester) async {
       final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.longPressAt(await _tapFirstSentence(tester));
       await tester.pump();
       expect(
@@ -154,7 +212,7 @@ void main() {
         isTrue,
       );
       expect(fake.spoken, isEmpty);
-      await tester.tap(find.text('Read'));
+      await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(
         fake.spoken,
@@ -165,32 +223,56 @@ void main() {
     testWidgets('Edit mode: TextField, read buttons hidden, Done shows',
         (tester) async {
       await tester.pumpWidget(
-          MaterialApp(home: ReadingView(reader: _EditFakeReader())));
-      await tester.tap(find.text('Edit'));
+          MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: _EditFakeReader())));
+      await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Done'), findsOneWidget);
-      expect(find.text('Read'), findsNothing);
-      expect(find.text('Read page'), findsNothing);
-      expect(find.text('Stop'), findsNothing);
+      expect(find.byTooltip('Done'), findsOneWidget);
+      expect(find.byTooltip('Read'), findsNothing);
+      expect(find.byTooltip('Read page'), findsNothing);
+      expect(find.byTooltip('Stop'), findsNothing);
     });
 
     testWidgets('typing in EDIT + Done commits; Read page speaks new text',
         (tester) async {
       final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       await tester.enterText(find.byType(TextField), 'Hello edited world.');
       await tester.pump();
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.byTooltip('Done'));
       await tester.pump();
       // Back to RichText READ with the committed content.
       expect(find.byType(TextField), findsNothing);
       // Pending sentence cleared by editing: Read page reads new content.
-      await tester.tap(find.text('Read page'));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.spoken, ['Hello edited world.']);
     });
@@ -198,35 +280,61 @@ void main() {
     testWidgets('Edit disabled while speaking, back after Stop',
         (tester) async {
       final fake = _HangingFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.text('Read page'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
       Finder editBtn() =>
-          find.widgetWithText(ElevatedButton, 'Edit');
-      expect(tester.widget<ElevatedButton>(editBtn()).enabled, isFalse);
-      await tester.tap(find.text('Stop'));
+          find.descendant(of: find.byType(RawTooltip), matching: find.byType(IconButton));
+      final btn1 = tester.widget<IconButton>(editBtn());
+      expect(btn1.onPressed, isNull);
+      await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
-      expect(tester.widget<ElevatedButton>(editBtn()).enabled, isTrue);
+      final btn2 = tester.widget<IconButton>(editBtn());
+      expect(btn2.onPressed, isNotNull);
     });
 
     testWidgets('sample buttons load content in READ and EDIT',
         (tester) async {
       await tester.pumpWidget(
-          MaterialApp(home: ReadingView(reader: _EditFakeReader())));
+          MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: _EditFakeReader())));
       await tester.tap(find.text('中文示例'));
       await tester.pump();
       expect(
         find.textContaining('清晨', findRichText: true),
         findsWidgets,
       );
-      await tester.tap(find.text('Edit'));
+      await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       await tester.tap(find.text('EN sample'));
       await tester.pump();
       // Sample load keeps EDIT mode (still editable, Done still shows).
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Done'), findsOneWidget);
+      expect(find.byTooltip('Done'), findsOneWidget);
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
         contains('The sun rose'),
@@ -237,14 +345,26 @@ void main() {
   group('US2 edge cases (003)', () {
     testWidgets('empty content: Read page hints, no crash', (tester) async {
       final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.text('Edit'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       await tester.enterText(find.byType(TextField), '');
       await tester.pump();
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-      await tester.tap(find.text('Read page'));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.spoken, isEmpty);
       expect(find.text('Nothing to read.'), findsOneWidget);
@@ -253,25 +373,49 @@ void main() {
     testWidgets('rapid Edit/Done toggling keeps content and mode',
         (tester) async {
       await tester.pumpWidget(
-          MaterialApp(home: ReadingView(reader: _EditFakeReader())));
+          MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('zh'),
+            Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          ],
+          home: ReadingView(reader: _EditFakeReader())));
       for (var i = 0; i < 3; i++) {
-        await tester.tap(find.text('Edit'));
+        await tester.tap(find.byTooltip('Edit'));
         await tester.pump();
-        await tester.tap(find.text('Done'));
+        await tester.tap(find.byTooltip('Done'));
         await tester.pump();
       }
       expect(find.byType(TextField), findsNothing);
-      expect(find.text('Read page'), findsOneWidget);
+      expect(find.byTooltip('Read page'), findsOneWidget);
     });
 
     testWidgets('Done with unchanged text reads full page', (tester) async {
       final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(home: ReadingView(reader: fake)));
-      await tester.tap(find.text('Edit'));
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake)));
+      await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-      await tester.tap(find.text('Read page'));
+      await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.spoken.length, 3);
     });

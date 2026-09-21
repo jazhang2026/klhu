@@ -9,7 +9,9 @@ import 'package:klhu/voice_store.dart';
 abstract class Reader {
   Future<void> speak(String text, String language);
   Future<void> stop();
+  Future<void> pause();
   bool get isSpeaking;
+  bool get isPaused;
 
   /// Installed voices for [language] (`'en'` or `'zh-Hans'`), filtered by
   /// locale prefix; malformed platform entries are skipped.
@@ -31,7 +33,10 @@ abstract class Reader {
 
 /// One installed voice: display name + locale as returned by getVoices.
 class VoiceEntry {
+  /// System voice identifier (the `name` field from flutter_tts getVoices).
   final String name;
+
+  /// Locale code (e.g., "en-US", "zh-Hans-CN").
   final String locale;
 
   const VoiceEntry({required this.name, required this.locale});
@@ -64,6 +69,7 @@ abstract class TtsBackend {
   Future<dynamic> setLanguage(String locale);
   Future<dynamic> setVoice(Map<String, String> voice);
   Future<dynamic> speak(String text);
+  Future<dynamic> pause();
   Future<dynamic> stop();
   Future<dynamic> awaitSpeakCompletion(bool awaitCompletion);
   void setCompletionHandler(VoidCallback callback);
@@ -90,6 +96,9 @@ class FlutterTtsBackend implements TtsBackend {
   Future<dynamic> speak(String text) => _tts.speak(text);
 
   @override
+  Future<dynamic> pause() => _tts.pause();
+
+  @override
   Future<dynamic> stop() => _tts.stop();
 
   @override
@@ -108,6 +117,7 @@ class FlutterTtsBackend implements TtsBackend {
 class ReaderService implements Reader {
   final TtsBackend _tts;
   bool _speaking = false;
+  bool _paused = false;
 
   /// Stale-generation guard: every [stop] bumps [_generation] so an
   /// in-flight [speakParagraphs] loop aborts instead of speaking on.
@@ -118,6 +128,9 @@ class ReaderService implements Reader {
 
   @override
   bool get isSpeaking => _speaking;
+
+  @override
+  bool get isPaused => _paused;
 
   static String localeFor(String language) =>
       language == 'zh-Hans' ? 'zh-Hans-CN' : 'en-US';
@@ -225,8 +238,15 @@ class ReaderService implements Reader {
   @override
   Future<void> stop() async {
     _generation++;
+    _paused = false;
     await _tts.stop();
     _speaking = false;
+  }
+
+  @override
+  Future<void> pause() async {
+    _paused = true;
+    await _tts.pause();
   }
 
   @override
