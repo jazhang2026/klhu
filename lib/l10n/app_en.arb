@@ -1,0 +1,14 @@
+{
+  "@@locale": "en",
+  "appTitle": "KalaHoo",
+  "englishNative": "English",
+  "chineseNative": "中文",
+  "readButton": "Read",
+  "readPageButton": "Read page",
+  "stopButton": "Stop",
+  "editButton": "Edit",
+  "doneButton": "Done",
+  "voiceButton": "Voice",
+  "languageDropdown": "Language",
+  "hintText": "Tap a sentence to read"
+}

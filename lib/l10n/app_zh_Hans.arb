@@ -1,0 +1,14 @@
+{
+  "@@locale": "zh_Hans",
+  "appTitle": "卡啦虎",
+  "englishNative": "English",
+  "chineseNative": "中文",
+  "readButton": "朗读",
+  "readPageButton": "朗读全文",
+  "stopButton": "停止",
+  "editButton": "编辑",
+  "doneButton": "完成",
+  "voiceButton": "语音",
+  "languageDropdown": "语言",
+  "hintText": "点击句子开始朗读"
+}

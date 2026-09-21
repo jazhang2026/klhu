@@ -6,6 +6,7 @@ import 'package:klhu/segmenter.dart';
 import 'package:klhu/sample_texts.dart';
 import 'package:klhu/voice_picker_screen.dart';
 import 'package:klhu/voice_store.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 
 /// Reading view (003, revised per emulator validation): RichText for
 /// READ/SPEAKING with the 001 yellow highlight (tap selects sentence,
@@ -26,9 +27,16 @@ import 'package:klhu/voice_store.dart';
 class ReadingView extends StatefulWidget {
   final Reader reader;
   final VoiceStore voiceStore;
+  final Function(String)? onLanguageChanged;
+  final dynamic localizationService;
 
-  ReadingView({super.key, Reader? reader, VoiceStore? voiceStore})
-      : reader = reader ?? ReaderService(),
+  ReadingView({
+    super.key,
+    Reader? reader,
+    VoiceStore? voiceStore,
+    this.onLanguageChanged,
+    this.localizationService,
+  }) : reader = reader ?? ReaderService(),
         voiceStore = voiceStore ?? VoiceStore();
 
   @override
@@ -52,6 +60,48 @@ class _ReadingViewState extends State<ReadingView> {
   String? _error;
   String? _hint;
 
+  /// Guard against rapid language switching
+  bool _isLanguageChanging = false;
+
+  /// Build the language dropdown widget
+  Widget _buildLanguageDropdown(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return const SizedBox.shrink();
+    
+    final currentLanguage = widget.localizationService?.getCurrentLanguageCode() ?? 'en';
+
+    return DropdownButton<String>(
+      value: currentLanguage,
+      underline: const SizedBox.shrink(),
+      icon: const Icon(Icons.language, size: 20),
+      items: [
+        DropdownMenuItem(
+          value: 'en', 
+          child: Text(l10n.englishNative),
+        ),
+        DropdownMenuItem(
+          value: 'zh', 
+          child: Text(l10n.chineseNative),
+        ),
+      ],
+      onChanged: (String? newLanguage) async {
+        if (newLanguage == null || _isLanguageChanging) return;
+        
+        // Set guard to prevent rapid switching
+        setState(() => _isLanguageChanging = true);
+        
+        // Stop TTS reading before language change
+        await widget.reader.stop();
+        
+        // Call the language change callback
+        widget.onLanguageChanged?.call(newLanguage);
+        
+        // Reset guard after language change completes
+        setState(() => _isLanguageChanging = false);
+      },
+    );
+  }
+
   @override
   void dispose() {
     _editController?.dispose();
@@ -62,7 +112,7 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _loadSample(String language) async {
     // Switching text must not keep reading the old content.
     await widget.reader.stop();
-    final text = language == 'zh-Hans' ? SampleTexts.zhHans : SampleTexts.en;
+    final text = language == 'zh' ? SampleTexts.zhHans : SampleTexts.en;
     setState(() {
       _content = text;
       _editController?.text = text;
@@ -128,7 +178,7 @@ class _ReadingViewState extends State<ReadingView> {
     final seg = _highlight;
     if (seg == null) {
       // No tap yet: prompt instead of surprising the user with a full page.
-      setState(() => _hint = 'Tap a sentence first, then Read.');
+      setState(() => _hint = AppLocalizations.of(context)?.hintText ?? 'Tap a sentence first, then Read.');
       return;
     }
     await _readRange(seg.start, seg.end);
@@ -251,8 +301,11 @@ class _ReadingViewState extends State<ReadingView> {
     final editing = _mode == _Mode.edit;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('klhu Read Aloud'),
+        title: Text(AppLocalizations.of(context)?.appTitle ?? 'klhu Read Aloud'),
         actions: [
+          // Language dropdown
+          if (widget.localizationService != null)
+            _buildLanguageDropdown(context),
           IconButton(
             icon: const Icon(Icons.record_voice_over),
             tooltip: 'Voice',
@@ -280,7 +333,7 @@ class _ReadingViewState extends State<ReadingView> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () => _loadSample('zh-Hans'),
+                  onPressed: () => _loadSample('zh'),
                   child: const Text('中文示例'),
                 ),
               ],
@@ -330,22 +383,22 @@ class _ReadingViewState extends State<ReadingView> {
               children: editing
                   ? [
                       ElevatedButton(
-                          onPressed: _doneEdit, child: const Text('Done'), expanded: true),
+                          onPressed: _doneEdit, child: Text(AppLocalizations.of(context)?.doneButton ?? 'Done')),
                     ]
                   : [
                       ElevatedButton(
                           onPressed: _readSelection,
-                          child: const Text('Read'), expanded: true),
+                          child: Text(AppLocalizations.of(context)?.readButton ?? 'Read')),
                       ElevatedButton(
                           onPressed: _readPage,
-                          child: const Text('Read page'), expanded: true),
+                          child: Text(AppLocalizations.of(context)?.readPageButton ?? 'Read page')),
                       ElevatedButton(
-                          onPressed: _stop, child: const Text('Stop'), expanded: true),
+                          onPressed: _stop, child: Text(AppLocalizations.of(context)?.stopButton ?? 'Stop')),
                       ElevatedButton(
                         // Idle-only: never enter EDIT mid-speech.
                         onPressed:
                             _mode == _Mode.speaking ? null : _enterEdit,
-                        child: const Text('Edit'), expanded: true,
+                        child: Text(AppLocalizations.of(context)?.editButton ?? 'Edit'),
                       ),
                     ],
             ),
