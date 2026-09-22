@@ -9,52 +9,77 @@ import 'package:klhu/reading_view.dart';
 import 'package:klhu/services/localization_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Models the two TTS contracts the pause/resume UI is built on:
+/// Fake at the [Reader] seam, modelling the contract [ReaderService] actually
+/// offers the view:
 ///
-/// 1. `pause()` is a TOGGLE — the view calls the same method to pause and to
-///    resume, so a resume must not re-issue the read.
-/// 2. A page read stays in flight until Stop / natural end, so "paused"
-///    (not "finished") is an observable state.
+/// 1. [pause] stops the audio and KEEPS the queue plus the paragraph it was on.
+/// 2. [resume] continues from that paragraph — it does not restart the read,
+///    and it does not call the engine's own pause again (doing so crashes the
+///    Android plugin: it re-truncates the remembered remainder of the
+///    utterance, `StringIndexOutOfBoundsException`).
+/// 3. [stop] discards the queue: nothing can resume afterwards.
+///
+/// A read stays in flight until the paragraph ends, Stop arrives, or the read
+/// is paused — so "paused" is observable, not "finished".
 class _PauseFakeReader implements Reader {
-  _PauseFakeReader({this.hang = true});
+  _PauseFakeReader({this.autoAdvance = false});
 
-  /// When true, `speakParagraphs` never completes by itself (a long page).
-  final bool hang;
+  /// True = every paragraph ends immediately by itself (a short page).
+  final bool autoAdvance;
 
   final List<String> spoken = [];
-  int stops = 0;
+  final List<int> paragraphStarts = [];
+  int stopCalls = 0;
   int pauseCalls = 0;
+  int resumeCalls = 0;
   bool speaking = false;
   bool paused = false;
-  Completer<void>? _inFlight;
 
-  @override
-  Future<void> speak(String text, String language) async {
-    spoken.add(text);
-    speaking = true;
-  }
+  List<ParagraphSpeech> _queue = const [];
+  int _cursor = 0;
+  void Function(int)? _onParagraphStart;
+  Completer<void>? _utterance;
 
-  @override
-  Future<void> stop() async {
-    stops++;
-    final wasPaused = paused;
-    speaking = false;
-    paused = false;
-    // Engine behavior the pre-fix language switch tripped over: pausing
-    // parks the current utterance's completion callback, and stopping a
-    // PAUSED utterance does not deliver it, so a parked speakParagraphs
-    // await never resolves and its cleanup never runs. Only a stop during
-    // actual speech releases the loop.
-    if (!wasPaused) {
-      _inFlight?.complete();
-      _inFlight = null;
-    }
+  /// Let the paragraph in flight end on its own (what a long page does).
+  void endParagraph() {
+    final done = _utterance;
+    _utterance = null;
+    if (done != null && !done.isCompleted) done.complete();
   }
 
   @override
   Future<void> pause() async {
     pauseCalls++;
-    paused = !paused;
+    paused = true;
+    speaking = false;
+    // The service stops the engine and releases the parked loop; at this seam
+    // the queue and the position survive.
+    endParagraph();
+  }
+
+  @override
+  Future<void> resume() async {
+    resumeCalls++;
+    paused = false;
+    speaking = true;
+    // The interrupted paragraph is read again, then the rest follows.
+    await _playFrom(_cursor);
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCalls++;
+    paused = false;
+    speaking = false;
+    _queue = const [];
+    _cursor = 0;
+    endParagraph();
+  }
+
+  @override
+  Future<void> speak(String text, String language) async {
+    spoken.add(text);
+    speaking = true;
   }
 
   @override
@@ -71,14 +96,27 @@ class _PauseFakeReader implements Reader {
     List<ParagraphSpeech> paragraphs, {
     void Function(int index)? onParagraphStart,
   }) async {
-    for (var i = 0; i < paragraphs.length; i++) {
-      onParagraphStart?.call(i);
-      spoken.add(paragraphs[i].text);
-    }
+    _queue = paragraphs;
+    _cursor = 0;
+    paused = false;
+    _onParagraphStart = onParagraphStart;
     speaking = paragraphs.isNotEmpty;
-    if (!hang || paragraphs.isEmpty) return;
-    _inFlight = Completer<void>();
-    await _inFlight!.future;
+    await _playFrom(0);
+  }
+
+  Future<void> _playFrom(int from) async {
+    for (var i = from; i < _queue.length; i++) {
+      _cursor = i;
+      _onParagraphStart?.call(i);
+      spoken.add(_queue[i].text);
+      paragraphStarts.add(i);
+      if (autoAdvance) continue;
+      final done = Completer<void>();
+      _utterance = done;
+      await done.future;
+      if (paused) return; // the view's resume() re-enters from _cursor
+    }
+    speaking = false;
   }
 
   @override
@@ -174,7 +212,7 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('US2 P1: pause/resume page read (005)', () {
-    testWidgets('Read page swaps Read for Pause; Pause calls the engine once',
+    testWidgets('Read page swaps Read for Pause; Pause keeps the queue',
         (tester) async {
       final fake = _PauseFakeReader();
       await _pumpView(tester, reader: fake);
@@ -192,31 +230,51 @@ void main() {
 
       expect(fake.pauseCalls, 1);
       expect(fake.isPaused, isTrue);
-      // Pausing must not end the read: Stop is the only way out of it.
-      expect(fake.stops, 0);
+      // Pausing must not end the read: no full stop, queue still held.
+      expect(fake.stopCalls, 0);
       expect(find.byTooltip('Resume'), findsOneWidget);
       expect(find.byTooltip('Pause'), findsNothing);
     });
 
-    testWidgets('Resume toggles the engine instead of restarting the read',
+    testWidgets('Resume continues from the paused paragraph, nothing skipped',
         (tester) async {
       final fake = _PauseFakeReader();
       await _pumpView(tester, reader: fake);
       await _startPageRead(tester);
-      final readCallsAfterStart = fake.spoken.length;
+      expect(fake.paragraphStarts, [0]);
+
+      // Paragraph 0 finishes on its own; paragraph 1 starts.
+      fake.endParagraph();
+      await tester.pump();
+      expect(fake.paragraphStarts, [0, 1]);
 
       await tester.tap(find.byTooltip('Pause'));
       await tester.pump();
+      final spokenAtPause = fake.spoken.length;
+
       await tester.tap(find.byTooltip('Resume'));
       await tester.pump();
 
-      expect(fake.pauseCalls, 2);
+      expect(fake.resumeCalls, 1);
       expect(fake.isPaused, isFalse);
-      expect(fake.stops, 0);
-      // Back to SPEAKING on the same read: no second round of paragraphs.
-      expect(fake.spoken.length, readCallsAfterStart);
+      expect(fake.isSpeaking, isTrue);
+      // Back in SPEAKING, and the interrupted paragraph 1 is read again
+      // rather than the read restarting from paragraph 0.
       expect(find.byTooltip('Pause'), findsOneWidget);
       expect(find.byTooltip('Resume'), findsNothing);
+      expect(fake.paragraphStarts, [0, 1, 1]);
+      expect(fake.spoken[spokenAtPause], fake.spoken[spokenAtPause - 1]);
+
+      // The rest of the queue follows in order and the read ends cleanly.
+      fake.endParagraph();
+      await tester.pump();
+      expect(fake.paragraphStarts, [0, 1, 1, 2]);
+      fake.endParagraph();
+      await tester.pump();
+      expect(fake.isSpeaking, isFalse);
+      expect(fake.stopCalls, 0);
+      expect(find.byTooltip('Read page'), findsOneWidget);
+      expect(find.byTooltip('Pause'), findsNothing);
     });
 
     testWidgets('Stop while paused resets to idle and clears Resume',
@@ -230,7 +288,7 @@ void main() {
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
 
-      expect(fake.stops, 1);
+      expect(fake.stopCalls, 1);
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
@@ -252,7 +310,7 @@ void main() {
       await tester.tapAt(topLeft + const Offset(10, 10));
       await tester.pump();
 
-      expect(fake.stops, greaterThanOrEqualTo(1));
+      expect(fake.stopCalls, greaterThanOrEqualTo(1));
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
@@ -276,7 +334,7 @@ void main() {
       // stop() and leave _mode alone, so the view kept offering Resume for
       // speech that no longer existed — a resume would then flip to a
       // phantom SPEAKING state with no audio.
-      expect(fake.stops, greaterThanOrEqualTo(1));
+      expect(fake.stopCalls, greaterThanOrEqualTo(1));
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
@@ -289,7 +347,7 @@ void main() {
 
     testWidgets('a read that ends on its own leaves no pause state behind',
         (tester) async {
-      final fake = _PauseFakeReader(hang: false);
+      final fake = _PauseFakeReader(autoAdvance: true);
       await _pumpView(tester, reader: fake);
       await _startPageRead(tester);
       await tester.pumpAndSettle();
@@ -300,7 +358,7 @@ void main() {
       expect(find.byTooltip('Edit'), findsOneWidget);
     });
 
-    testWidgets('rapid toggling: one engine call per tap, last tap wins',
+    testWidgets('rapid toggling: one call per tap, last tap wins',
         (tester) async {
       final fake = _PauseFakeReader();
       await _pumpView(tester, reader: fake);
@@ -320,13 +378,15 @@ void main() {
       }
 
       expect(tester.takeException(), isNull);
-      // Each tap maps to exactly one engine toggle (never a stacked pair).
-      expect(fake.pauseCalls, 5);
+      // Each tap maps to exactly one call: pause is never called twice in a
+      // row, which is the engine call that throws in the Android plugin.
+      expect(fake.pauseCalls, 3);
+      expect(fake.resumeCalls, 2);
       // Last tap was Pause, so the UI must offer Resume.
       expect(find.byTooltip('Resume'), findsOneWidget);
       expect(find.byTooltip('Pause'), findsNothing);
       expect(fake.isPaused, isTrue);
-      expect(fake.stops, 0);
+      expect(fake.stopCalls, 0);
     });
   });
 }

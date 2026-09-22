@@ -71,6 +71,66 @@ Build/install path that works here:
 launch with `am start -n com.example.klhu/.MainActivity` (avoid `flutter run`, it holds
 the terminal).
 
+## Resume after pause: rewritten (second pass, 2026-09-22)
+
+User report: "resume reading is not working after paused." Correct — and the cause was
+in the engine, not the UI wiring.
+
+**Root cause (logcat evidence, emulator-5554):**
+
+```
+E MethodChannel#flutter_tts: Failed to handle method call
+  java.lang.StringIndexOutOfBoundsException: length=6; index=57
+      at com.eyedeadevelopment.fluttertts.FlutterTtsPlugin.onMethodCall(FlutterTtsPlugin.kt:363)
+  #2 FlutterTts.pause  (flutter_tts.dart:366)
+  #3 ReaderService.pause (reader_service.dart:249)
+  #4 _ReadingViewState._pauseResume (reading_view.dart:276)
+```
+
+`flutter_tts` has no Android pause: `pause()` stops the utterance and remembers the
+remaining substring (`pauseText = pauseText.substring(lastProgress)`), and it expects the
+app to resume by calling `speak()` again with the same text. Every *further* `pause()`
+re-truncates that already-truncated string from an absolute progress index, so the second
+call throws inside the plugin: the method call fails and the audio never comes back. The
+old code treated `pause()` as a toggle (called it again to resume) — i.e. it always made
+exactly the call that crashes.
+
+**Fix (`lib/reader_service.dart`, `lib/reading_view.dart`):**
+
+- `ReaderService` now owns pause/resume instead of delegating to the engine: `pause()`
+  stops the audio for real and keeps the queue + the paragraph in flight; the new
+  `resume()` re-enters the same queue from that paragraph. `TtsBackend.pause()` was
+  deleted, so the crashing call cannot be reached from anywhere in the tree.
+- A paused read releases its parked utterance (`_releaseUtterance`) so the loop can
+  return instead of parking forever on a completion callback that a stopped utterance
+  never delivers; `pause`/`stop`/`resume` each bump the generation, so a released loop
+  cannot speak on and a resumed one cannot be clobbered by it.
+- **Resume is paragraph-granular**: the interrupted paragraph is read again from its
+  start, then the read continues in order (nothing skipped, nothing read twice once the
+  queue ends). Mid-utterance positions are unavailable safely, for the reason above.
+- The view had a matching bug this exposed: the read's `finally` cleanup ran on a
+  *paused* return too, dropping the paused state straight back to idle (Resume vanished
+  as soon as the reader stopped). `_runRead` now cleans up only when the view still owns
+  a SPEAKING read, and the resume path reuses the read generation so the continuation
+  keeps updating the highlight.
+
+**Verified on emulator-5554 (device, not only tests):** read page → Pause → audio tracks
+`state:started` 0 and 继续 shown → Resume → audio started again, 暂停 shown → the read ran
+on to the end by itself and returned to idle. Google TTS utterance log for that run:
+paragraph 1 stopped (`Interrupted: true`) on pause, then two more utterances started
+(paragraph 1 re-read, paragraph 2), then the app idled. Zero
+`StringIndexOutOfBounds`/`Failed to handle` entries in logcat. Scenario 7 (language
+switch while paused) and scenario 9 (rapid toggling, then a real resume) re-checked after
+the refactor: both still pass, same PID, no exceptions.
+
+**Tests:** 122 green (`flutter analyze` clean). New: `test/reader_service_test.dart`
+"pause / resume (005)" — pause keeps the queue and does not speak on; resume replays the
+paused paragraph then finishes the queue (exact utterance and callback-index sequences);
+Stop after pause cannot be revived; pause-while-idle / resume-while-speaking are no-ops.
+`test/reading_view_pause_test.dart`'s fake now models this contract, and its resume test
+asserts the paragraph sequence `[0, 1, 1, 2]` — the interruption is repeated, nothing
+skipped.
+
 ## Known, deliberately untouched
 
 - `test/branding_test.dart` still carries two `expect(true, isTrue)` placeholder stubs

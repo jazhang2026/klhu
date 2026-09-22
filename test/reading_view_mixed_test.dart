@@ -34,6 +34,9 @@ class MixedFakeReader implements Reader {
   Future<void> pause() async {}
 
   @override
+  Future<void> resume() async {}
+
+  @override
   bool get isSpeaking => false;
 
   @override

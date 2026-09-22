@@ -217,17 +217,9 @@ class _ReadingViewState extends State<ReadingView> {
       return;
     }
     final gen = ++_readGen;
-    setState(() {
-      _mode = _Mode.speaking;
-    });
-
-    void clearTracking() {
-      _mode = _Mode.read;
-      _highlight = null;
-    }
-
-    try {
-      await widget.reader.speakParagraphs(
+    await _runRead(
+      gen,
+      () => widget.reader.speakParagraphs(
         speeches,
         onParagraphStart: track
             ? (i) {
@@ -241,12 +233,30 @@ class _ReadingViewState extends State<ReadingView> {
                 });
               }
             : null,
-      );
+      ),
+    );
+  }
+
+  /// SPEAKING while a read (or its continuation) runs, back to READ when it
+  /// ends or throws. [gen] is the read generation the highlight callback was
+  /// installed with; a stale one means a newer read owns the view now.
+  Future<void> _runRead(int gen, Future<void> Function() start) async {
+    if (mounted) setState(() => _mode = _Mode.speaking);
+    try {
+      await start();
     } on ReaderException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
-      // Stale generations (tap/Stop started a newer read) skip cleanup.
-      if (mounted && gen == _readGen) setState(clearTracking);
+      // Leave the state alone when someone else owns it now: a stale
+      // generation (tap/Stop started a newer read) or a PAUSE — the reader
+      // kept the queue, so Resume must stay on screen instead of the buttons
+      // silently falling back to idle.
+      if (mounted && gen == _readGen && _mode == _Mode.speaking) {
+        setState(() {
+          _mode = _Mode.read;
+          _highlight = null;
+        });
+      }
     }
   }
 
@@ -265,15 +275,19 @@ class _ReadingViewState extends State<ReadingView> {
     if (_mode == _Mode.speaking) {
       if (_isPausing) return;
       _isPausing = true;
+      // PAUSED first: the reader releases its parked loop while stopping the
+      // audio, and the read's cleanup must not run under it.
       setState(() => _mode = _Mode.paused);
       await widget.reader.pause();
       if (mounted) setState(() => _isPausing = false);
     } else if (_mode == _Mode.paused) {
       if (_isResuming) return;
       _isResuming = true;
-      setState(() => _mode = _Mode.speaking);
-      // flutter_tts.pause() is a toggle: calling it again resumes.
-      await widget.reader.pause();
+      // resume(), not pause(): the engine's pause is not a toggle (calling it
+      // twice crashes the Android plugin), and the reader continues the queue
+      // it kept. Same read generation: the continuation keeps updating the
+      // highlight the read already installed.
+      await _runRead(_readGen, () => widget.reader.resume());
       if (mounted) setState(() => _isResuming = false);
     }
   }

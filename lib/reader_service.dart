@@ -9,7 +9,14 @@ import 'package:klhu/voice_store.dart';
 abstract class Reader {
   Future<void> speak(String text, String language);
   Future<void> stop();
+
+  /// Stop the audio, keep the queued read, remember where it stopped.
+  /// Nothing speaks until [resume].
   Future<void> pause();
+
+  /// Continue the read [pause] interrupted. No-op when not paused.
+  Future<void> resume();
+
   bool get isSpeaking;
   bool get isPaused;
 
@@ -64,12 +71,16 @@ class ParagraphSpeech {
 
 /// Platform-channel seam: production delegates to [FlutterTts], tests
 /// substitute a fake. Keeps [ReaderService] unit-testable without a device.
+///
+/// No `pause()` here on purpose: the engine's Android pause is a
+/// stop-and-remember hack that corrupts on repeat (see [ReaderService.pause]),
+/// and this app does not use it — exposing it would only invite a caller back
+/// into that trap.
 abstract class TtsBackend {
   Future<List<dynamic>> getVoices();
   Future<dynamic> setLanguage(String locale);
   Future<dynamic> setVoice(Map<String, String> voice);
   Future<dynamic> speak(String text);
-  Future<dynamic> pause();
   Future<dynamic> stop();
   Future<dynamic> awaitSpeakCompletion(bool awaitCompletion);
   void setCompletionHandler(VoidCallback callback);
@@ -96,9 +107,6 @@ class FlutterTtsBackend implements TtsBackend {
   Future<dynamic> speak(String text) => _tts.speak(text);
 
   @override
-  Future<dynamic> pause() => _tts.pause();
-
-  @override
   Future<dynamic> stop() => _tts.stop();
 
   @override
@@ -119,9 +127,23 @@ class ReaderService implements Reader {
   bool _speaking = false;
   bool _paused = false;
 
-  /// Stale-generation guard: every [stop] bumps [_generation] so an
-  /// in-flight [speakParagraphs] loop aborts instead of speaking on.
+  /// Stale-generation guard: [stop], [pause] and [resume] each bump
+  /// [_generation] so a loop that is already in flight aborts instead of
+  /// speaking on — or, after a resume started a fresh loop, speaking twice.
   int _generation = 0;
+
+  /// Queue state a paused read needs: what is being read, which paragraph is
+  /// in flight, the voices resolved for it, and the highlight callback.
+  /// Kept across [pause]/[resume]; cleared by [stop].
+  List<ParagraphSpeech> _queue = const [];
+  List<VoiceEntry> _installed = const [];
+  void Function(int index)? _onParagraphStart;
+  int _cursor = 0;
+
+  /// Resolves when the utterance in flight ends — or when [pause]/[stop] cut
+  /// it short, so a cut-off paragraph releases the loop instead of parking it
+  /// on a completion callback that a stopped utterance never delivers.
+  Completer<void>? _utterance;
 
   ReaderService([TtsBackend? backend])
       : _tts = backend ?? FlutterTtsBackend();
@@ -191,19 +213,47 @@ class ReaderService implements Reader {
     List<ParagraphSpeech> paragraphs, {
     void Function(int index)? onParagraphStart,
   }) async {
-    final generation = ++_generation;
+    _generation++;
+    _queue = paragraphs;
+    _cursor = 0;
+    _paused = false;
+    _onParagraphStart = onParagraphStart;
     _speaking = paragraphs.isNotEmpty;
+    await _run(_generation);
+  }
+
+  /// Continue the read [pause] interrupted.
+  ///
+  /// Paragraph granularity: the interrupted paragraph is spoken again from its
+  /// start, then the rest of the queue follows in order. Nothing is skipped
+  /// and no paragraph is read twice once the queue runs to its end. There is
+  /// no safe mid-utterance position to resume from: the engine's own
+  /// pause/resume bookkeeping corrupts on repeat (see [pause]).
+  @override
+  Future<void> resume() async {
+    if (!_paused) return;
+    _paused = false;
+    _generation++;
+    _speaking = _queue.isNotEmpty;
+    await _run(_generation);
+  }
+
+  /// One read: the queue from [_cursor] to the end, at [gen]. Shared by
+  /// [speakParagraphs] (from the top) and [resume] (from where it stopped).
+  Future<void> _run(int gen) async {
     try {
       await _tts.awaitSpeakCompletion(true);
-      final installed = await voicesForAll();
-      for (var i = 0; i < paragraphs.length; i++) {
-        final paragraph = paragraphs[i];
-        if (generation != _generation) break;
+      _installed = await voicesForAll();
+      while (_cursor < _queue.length) {
+        if (gen != _generation) return;
+        final paragraph = _queue[_cursor];
+        // Stop-first: the engine queues utterances, so anything still in
+        // flight (a paused one included) must go before the next speak.
         await _tts.stop();
         await _tts.setLanguage(localeFor(paragraph.language));
         final voice = paragraph.voice;
         if (voice != null &&
-            installed.any(
+            _installed.any(
               (v) => v.name == voice.name && v.locale == voice.locale,
             )) {
           try {
@@ -212,20 +262,26 @@ class ReaderService implements Reader {
             // Fall through to the OS default voice.
           }
         }
-        if (generation != _generation) break;
-        onParagraphStart?.call(i);
+        if (gen != _generation) return;
+        _onParagraphStart?.call(_cursor);
         final done = Completer<void>();
+        _utterance = done;
         _tts.setCompletionHandler(() {
           if (!done.isCompleted) done.complete();
         });
         await _tts.speak(paragraph.text);
         await done.future;
+        // Stale generation means a pause/stop already took over: leave the
+        // new run's utterance slot alone.
+        if (gen != _generation) return;
+        _utterance = null;
+        _cursor++;
       }
     } catch (e) {
       if (e is ReaderException) rethrow;
       throw ReaderException('TTS error: $e');
     } finally {
-      if (generation == _generation) _speaking = false;
+      if (gen == _generation) _speaking = false;
     }
   }
 
@@ -235,18 +291,47 @@ class ReaderService implements Reader {
     return [for (final entry in raw) ?_parseVoice(entry)];
   }
 
+  /// Cut the utterance in flight short and wake the loop waiting on it.
+  void _releaseUtterance() {
+    final done = _utterance;
+    _utterance = null;
+    if (done != null && !done.isCompleted) done.complete();
+  }
+
+  /// Stop the audio and remember the paragraph in flight, so [resume] can
+  /// continue the queue from it.
+  ///
+  /// This deliberately does NOT call the engine's own `pause()`. On Android
+  /// flutter_tts implements pause as "stop, then remember the remaining
+  /// substring of the utterance", and every further pause re-truncates that
+  /// remembered substring from an absolute progress index: the second call
+  /// throws `StringIndexOutOfBoundsException` inside the plugin
+  /// (`FlutterTtsPlugin.kt:363`, reproduced on emulator-5554 with
+  /// `length=6; index=57`), the method call fails, and the engine never
+  /// resumes. A pause/resume toggle is exactly that second call, so the app
+  /// keeps its own position and stops the audio for real instead.
+  @override
+  Future<void> pause() async {
+    if (_paused || !_speaking) return;
+    _paused = true;
+    _speaking = false;
+    // Detach the in-flight loop: it wakes up below, sees a stale generation
+    // and exits without touching the queue.
+    _generation++;
+    await _tts.stop();
+    _releaseUtterance();
+  }
+
   @override
   Future<void> stop() async {
     _generation++;
     _paused = false;
+    _queue = const [];
+    _cursor = 0;
+    _onParagraphStart = null;
+    _releaseUtterance();
     await _tts.stop();
     _speaking = false;
-  }
-
-  @override
-  Future<void> pause() async {
-    _paused = true;
-    await _tts.pause();
   }
 
   @override

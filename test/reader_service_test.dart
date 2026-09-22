@@ -50,9 +50,6 @@ class FakeTtsBackend implements TtsBackend {
   }
 
   @override
-  Future<dynamic> pause() async {}
-
-  @override
   Future<dynamic> awaitSpeakCompletion(bool v) async {}
 
   @override
@@ -214,6 +211,118 @@ void main() {
       await future;
       expect(seen, [0]);
       expect(backend.spoken, ['One.']);
+    });
+  });
+
+  group('pause / resume (005)', () {
+    List<ParagraphSpeech> queueOf(int n) => [
+          for (var i = 0; i < n; i++)
+            ParagraphSpeech(
+              text: 'Paragraph $i.',
+              language: 'en',
+              start: 0,
+              end: 12,
+            ),
+        ];
+
+    test('pause keeps the queue; resume replays the paused paragraph, then '
+        'the rest — nothing skipped', () async {
+      final backend = FakeTtsBackend(
+        voicesRaw: cannedVoices,
+        autoComplete: false,
+      );
+      final svc = ReaderService(backend);
+      final seen = <int>[];
+      final future = svc.speakParagraphs(
+        queueOf(3),
+        onParagraphStart: seen.add,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.spoken, ['Paragraph 0.']);
+
+      // Paragraph 0 ends by itself, paragraph 1 starts and stays in flight.
+      backend.completePending();
+      await Future<void>.delayed(Duration.zero);
+      expect(seen, [0, 1]);
+      expect(backend.spoken, ['Paragraph 0.', 'Paragraph 1.']);
+
+      final stopsBeforePause = backend.stops;
+      await svc.pause();
+      expect(svc.isPaused, isTrue);
+      expect(svc.isSpeaking, isFalse);
+      // Pausing stops the audio for real (the engine's own pause() is what
+      // crashes on a second call, so it is never used).
+      expect(backend.stops, stopsBeforePause + 1);
+
+      // The parked loop must not speak on by itself.
+      backend.completePending();
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.spoken, ['Paragraph 0.', 'Paragraph 1.']);
+      expect(seen, [0, 1]);
+
+      final resumed = svc.resume();
+      await Future<void>.delayed(Duration.zero);
+      expect(svc.isPaused, isFalse);
+      expect(svc.isSpeaking, isTrue);
+      // Paragraph 1 is spoken again (it was interrupted mid-read)…
+      expect(backend.spoken,
+          ['Paragraph 0.', 'Paragraph 1.', 'Paragraph 1.']);
+      expect(seen, [0, 1, 1]);
+
+      // …then the read carries on in order and ends.
+      backend.completePending();
+      await Future<void>.delayed(Duration.zero);
+      expect(seen, [0, 1, 1, 2]);
+      backend.completePending();
+      await resumed;
+      await future;
+      expect(backend.spoken, [
+        'Paragraph 0.',
+        'Paragraph 1.',
+        'Paragraph 1.',
+        'Paragraph 2.',
+      ]);
+      expect(svc.isSpeaking, isFalse);
+      expect(svc.isPaused, isFalse);
+    });
+
+    test('Stop after a pause clears the queue; resume cannot revive it',
+        () async {
+      final backend = FakeTtsBackend(
+        voicesRaw: cannedVoices,
+        autoComplete: false,
+      );
+      final svc = ReaderService(backend);
+      final future = svc.speakParagraphs(queueOf(2));
+      await Future<void>.delayed(Duration.zero);
+      await svc.pause();
+
+      await svc.stop();
+      expect(svc.isPaused, isFalse);
+      await svc.resume();
+      await Future<void>.delayed(Duration.zero);
+      backend.completePending();
+      await future;
+      // Only the first paragraph ever spoke, and it does not speak again.
+      expect(backend.spoken, ['Paragraph 0.']);
+      expect(svc.isSpeaking, isFalse);
+    });
+
+    test('pause while idle and resume while speaking are no-ops', () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices);
+      final svc = ReaderService(backend);
+
+      await svc.pause();
+      expect(svc.isPaused, isFalse);
+      await svc.resume();
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.spoken, isEmpty);
+
+      await svc.speakParagraphs(queueOf(1));
+      // Not paused: nothing to resume, and the finished read stays finished.
+      await svc.resume();
+      expect(svc.isPaused, isFalse);
+      expect(svc.isSpeaking, isFalse);
     });
   });
 }

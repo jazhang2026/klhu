@@ -105,3 +105,8 @@ Deviations from the plan, recorded so the checkboxes are honest:
 - Regression tests added for two live bugs found while validating:
   `test/reading_view_pause_test.dart` covers language-switch-while-paused (scenario 7) and
   `test/branding_test.dart` covers the app-bar Voice action staying English in the ZH UI.
+- **Resume was reworked after a device report that it did not work** (second pass,
+  2026-09-22): `flutter_tts`'s Android `pause()` is not a toggle and throws on the second
+  call, so `ReaderService` now owns pause/resume (`Reader.resume()`, `TtsBackend.pause()`
+  deleted) and resume is paragraph-granular: the interrupted paragraph is read again from
+  its start, then the queue continues in order. Details and evidence in `breakpoint.md`.

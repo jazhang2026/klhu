@@ -12,6 +12,7 @@ class FakeReader implements Reader {
   final List<String> spoken = [];
   int stops = 0;
   bool speaking = false;
+  bool paused = false;
 
   @override
   Future<void> speak(String text, String language) async {
@@ -27,14 +28,21 @@ class FakeReader implements Reader {
 
   @override
   Future<void> pause() async {
-    speaking = !speaking;
+    paused = true;
+    speaking = false;
+  }
+
+  @override
+  Future<void> resume() async {
+    paused = false;
+    speaking = true;
   }
 
   @override
   bool get isSpeaking => speaking;
 
   @override
-  bool get isPaused => !speaking && stops > 0;
+  bool get isPaused => paused;
 
   @override
   Future<List<VoiceEntry>> voicesFor(String language) async => [];

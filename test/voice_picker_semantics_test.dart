@@ -21,6 +21,8 @@ class _SemFakeReader implements Reader {
   @override
   Future<void> pause() async {}
   @override
+  Future<void> resume() async {}
+  @override
   bool get isSpeaking => false;
   @override
   bool get isPaused => false;
