@@ -338,7 +338,7 @@ class _ReadingViewState extends State<ReadingView> {
             _buildLanguageDropdown(context),
           IconButton(
             icon: const Icon(Icons.record_voice_over),
-            tooltip: 'Voice',
+            tooltip: AppLocalizations.of(context)?.voiceButton ?? 'Voice',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => VoicePickerScreen(
