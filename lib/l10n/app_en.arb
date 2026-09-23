@@ -1,8 +1,9 @@
 {
   "@@locale": "en",
-  "appTitle": "KalaHoo",
+  "appTitle": "KalaHoo Reading",
   "englishNative": "English",
   "chineseNative": "中文",
+  "spanishNative": "Español",
   "readButton": "Read",
   "readPageButton": "Read page",
   "stopButton": "Stop",
@@ -17,7 +18,21 @@
   "ageOld": "Old",
   "dialectStandard": "Standard",
   "dialectMandarin": "Mandarin",
-  "dialectCantonese": "Cantonese",
+  "dialectCantonese": "广东话",
   "pauseButton": "Pause",
-  "resumeButton": "Resume"
+  "resumeButton": "Resume",
+  "sampleEn": "EN sample",
+  "sampleZh": "中文示例",
+  "sampleEs": "ES sample",
+  "voicesCount": "{count, plural, =1{1 voice} other{{count} voices}}",
+  "@voicesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noVoices": "No voices installed for this language.",
+  "voicesLoadFailed": "Could not load voices.",
+  "retryButton": "Retry"
 }

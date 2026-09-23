@@ -5,17 +5,23 @@
 /// fundamental frequency was tracked (male voices ~110-150 Hz, female
 /// ~200-260 Hz). That was cross-checked against the gender field of the
 /// engine's own voice manifest (`assets/voices-list-dsig.pb` inside
-/// GoogleTTS.apk, version 20241125.02, emulator-5554, Sep 2026), and the two
-/// agree on every voice below. `en-us-x-tpc` is the one exception: its F0 sits
+/// GoogleTTS.apk, emulator-5554, Sep 2026), and the two agree on every voice
+/// below where both cues exist. `en-us-x-tpc` is the one exception: its F0 sits
 /// in the overlap band, its spectral centroid sits in the male range and the
 /// manifest calls it person 1 (female) — conflicting evidence, so no gender is
 /// claimed for it.
 ///
+/// The es-* and yue-HK rows were measured the same way on 2026-09-22 (see
+/// `specs/007-reader-name-spanish-cantonese/voice-gender-evidence.md`); a voice
+/// the manifest does not list takes its gender from F0 alone.
+///
 /// Deliberately NOT here:
 ///  - age (young/old): the engine exposes none, and its own "Install voice
 ///    data" screen lists voices as "Voice I..IV", so any value would be a guess;
-///  - dialect: the region is already in the display name ("普通话", "US"), so a
-///    dialect label only repeats it;
+///  - a dialect characteristic: a Cantonese voice is NAMED by its dialect
+///    (`广东话 JAR`) because that is the region label the reader asked for, so a
+///    dialect field would only repeat the name (spec 007 FR-010); for the other
+///    regions the region word already does the same job;
 ///  - "(Local)"/"(Network)" suffixes: the measured local and network variants
 ///    of a code are the same voice — the suffix told the reader nothing;
 ///  - the words "English"/"Standard" in the English names: the picker already
@@ -49,10 +55,10 @@ class VoiceMapping {
   });
 }
 
-/// Static mapping table for the voices this app can actually show: one row per
-/// voice name the Google TTS engine reports for the `en` and `zh` lists
-/// (51 English + 16 Chinese on emulator-5554). A voice the engine does not
-/// report falls back to its raw system name (spec FR-004).
+/// Static mapping table for the voices this app can show: one row per voice
+/// name the Google TTS engine reports for the `en`, `zh`, `es` and Cantonese
+/// (`yue-HK`) lists. A voice the engine does not report falls back to its raw
+/// system name (spec 002 FR-004).
 class VoiceMappingTable {
   static const List<VoiceMapping> _entries = [
     VoiceMapping(
@@ -442,6 +448,180 @@ class VoiceMappingTable {
       englishName: 'US TPF',
       chineseName: '美式 TPF',
       gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-ES-language',
+      englishName: 'Spain Default',
+      chineseName: '西班牙默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-US-language',
+      englishName: 'US Default',
+      chineseName: '美式默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eea-local',
+      englishName: 'Spain EEA',
+      chineseName: '西班牙 EEA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eea-network',
+      englishName: 'Spain EEA',
+      chineseName: '西班牙 EEA',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eec-local',
+      englishName: 'Spain EEC',
+      chineseName: '西班牙 EEC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eec-network',
+      englishName: 'Spain EEC',
+      chineseName: '西班牙 EEC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eed-local',
+      englishName: 'Spain EED',
+      chineseName: '西班牙 EED',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eed-network',
+      englishName: 'Spain EED',
+      chineseName: '西班牙 EED',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eee-local',
+      englishName: 'Spain EEE',
+      chineseName: '西班牙 EEE',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-es-x-eef-local',
+      englishName: 'Spain EEF',
+      chineseName: '西班牙 EEF',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-esc-local',
+      englishName: 'US ESC',
+      chineseName: '美式 ESC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-esc-network',
+      englishName: 'US ESC',
+      chineseName: '美式 ESC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-esd-local',
+      englishName: 'US ESD',
+      chineseName: '美式 ESD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-esd-network',
+      englishName: 'US ESD',
+      chineseName: '美式 ESD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-esf-local',
+      englishName: 'US ESF',
+      chineseName: '美式 ESF',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-esf-network',
+      englishName: 'US ESF',
+      chineseName: '美式 ESF',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-sfb-local',
+      englishName: 'US SFB',
+      chineseName: '美式 SFB',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'es-us-x-sfb-network',
+      englishName: 'US SFB',
+      chineseName: '美式 SFB',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-HK-language',
+      englishName: '广东话 Default',
+      chineseName: '广东话默认语音',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-jar-local',
+      englishName: '广东话 JAR',
+      chineseName: '广东话 JAR',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-jar-network',
+      englishName: '广东话 JAR',
+      chineseName: '广东话 JAR',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yuc-local',
+      englishName: '广东话 YUC',
+      chineseName: '广东话 YUC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yuc-network',
+      englishName: '广东话 YUC',
+      chineseName: '广东话 YUC',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yud-local',
+      englishName: '广东话 YUD',
+      chineseName: '广东话 YUD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yud-network',
+      englishName: '广东话 YUD',
+      chineseName: '广东话 YUD',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yue-local',
+      englishName: '广东话 YUE',
+      chineseName: '广东话 YUE',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yue-network',
+      englishName: '广东话 YUE',
+      chineseName: '广东话 YUE',
+      gender: 'female',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yuf-local',
+      englishName: '广东话 YUF',
+      chineseName: '广东话 YUF',
+      gender: 'male',
+    ),
+    VoiceMapping(
+      systemVoiceId: 'yue-hk-x-yuf-network',
+      englishName: '广东话 YUF',
+      chineseName: '广东话 YUF',
+      gender: 'male',
     ),
     VoiceMapping(
       systemVoiceId: 'zh-CN-language',

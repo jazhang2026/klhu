@@ -2,7 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// One persisted voice pick for a reading language.
 class VoiceChoice {
-  final String language; // 'en' | 'zh-Hans'
+  final String language; // 'en' | 'zh-Hans' | 'es'
   final String name;
   final String locale;
 
@@ -18,8 +18,11 @@ class VoiceChoice {
 class VoiceStore {
   static const _separator = '||';
 
-  static String keyFor(String language) =>
-      language == 'zh-Hans' ? 'voice_zh_Hans' : 'voice_en';
+  static String keyFor(String language) => switch (language) {
+        'zh-Hans' => 'voice_zh_Hans',
+        'es' => 'voice_es',
+        _ => 'voice_en',
+      };
 
   Future<void> saveVoice(VoiceChoice choice) async {
     final prefs = await SharedPreferences.getInstance();

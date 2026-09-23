@@ -10,13 +10,16 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'KalaHoo';
+  String get appTitle => 'KalaHoo Reading';
 
   @override
   String get englishNative => 'English';
 
   @override
   String get chineseNative => '中文';
+
+  @override
+  String get spanishNative => 'Español';
 
   @override
   String get readButton => 'Read';
@@ -61,11 +64,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dialectMandarin => 'Mandarin';
 
   @override
-  String get dialectCantonese => 'Cantonese';
+  String get dialectCantonese => '广东话';
 
   @override
   String get pauseButton => 'Pause';
 
   @override
   String get resumeButton => 'Resume';
+
+  @override
+  String get sampleEn => 'EN sample';
+
+  @override
+  String get sampleZh => '中文示例';
+
+  @override
+  String get sampleEs => 'ES sample';
+
+  @override
+  String voicesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count voices',
+      one: '1 voice',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noVoices => 'No voices installed for this language.';
+
+  @override
+  String get voicesLoadFailed => 'Could not load voices.';
+
+  @override
+  String get retryButton => 'Retry';
 }

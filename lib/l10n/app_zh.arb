@@ -1,8 +1,9 @@
 {
   "@@locale": "zh",
-  "appTitle": "卡啦虎",
+  "appTitle": "卡啦虎朗读",
   "englishNative": "English",
   "chineseNative": "中文",
+  "spanishNative": "Español",
   "readButton": "朗读",
   "readPageButton": "朗读全文",
   "stopButton": "停止",
@@ -17,7 +18,14 @@
   "ageOld": "年长",
   "dialectStandard": "标准音",
   "dialectMandarin": "普通话",
-  "dialectCantonese": "粤语",
+  "dialectCantonese": "广东话",
   "pauseButton": "暂停",
-  "resumeButton": "继续"
+  "resumeButton": "继续",
+  "sampleEn": "英文示例",
+  "sampleZh": "中文示例",
+  "sampleEs": "西班牙语示例",
+  "voicesCount": "{count, plural, other{{count} 个语音}}",
+  "noVoices": "此语言没有已安装的语音。",
+  "voicesLoadFailed": "无法加载语音列表。",
+  "retryButton": "重试"
 }

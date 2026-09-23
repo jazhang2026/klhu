@@ -12,7 +12,7 @@ class VoiceMappingService {
   /// Get the display name for a voice.
   ///
   /// [voiceListLanguage] is the language the voice LIST is rendered in
-  /// ('en', 'zh-Hans'); it picks the mapped name AND the characteristic
+  /// ('en', 'zh-Hans', 'es'); it picks the mapped name AND the characteristic
   /// labels. It defaults to the app locale.
   ///
   /// Labels are resolved from [voiceListLanguage], never from [l10n]: the
@@ -30,9 +30,15 @@ class VoiceMappingService {
     }
 
     // Determine display language: explicit parameter wins, else app locale.
+    // Labels follow the LIST language for all three lists (en/zh/es): the
+    // Spanish list used to fall through to the English branch, so a Spanish
+    // reading session showed "US SFB (Female)" while the ARB already had
+    // "Femenina" (found on emulator-5554, spec 007 SC-002).
     final effectiveLocale = voiceListLanguage ?? l10n.localeName;
-    final isZh = effectiveLocale.startsWith('zh');
-    final labels = lookupAppLocalizations(Locale(isZh ? 'zh' : 'en'));
+    final code = effectiveLocale.split(RegExp(r'[-_]')).first.toLowerCase();
+    final isZh = code == 'zh';
+    final labels =
+        lookupAppLocalizations(Locale(isZh ? 'zh' : (code == 'es' ? 'es' : 'en')));
 
     final parts = <String>[isZh ? mapping.chineseName : mapping.englishName];
 

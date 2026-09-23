@@ -1,0 +1,4 @@
+/* Localized app name for Spanish devices (spec 007 FR-011). NOTE: like
+   zh-Hans.lproj/InfoPlist.strings, this file must be added to the Runner target
+   in Xcode to be bundled — no macOS host is available to do or verify that. */
+CFBundleDisplayName = "KalaHoo Lectura";

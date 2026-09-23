@@ -92,6 +92,10 @@ class _ReadingViewState extends State<ReadingView> {
           value: 'zh', 
           child: Text(l10n.chineseNative),
         ),
+        DropdownMenuItem(
+          value: 'es',
+          child: Text(l10n.spanishNative),
+        ),
       ],
       onChanged: (String? newLanguage) async {
         if (newLanguage == null || _isLanguageChanging) return;
@@ -123,7 +127,11 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _loadSample(String language) async {
     // Switching text must not keep reading the old content.
     await widget.reader.stop();
-    final text = language == 'zh' ? SampleTexts.zhHans : SampleTexts.en;
+    final text = switch (language) {
+      'zh' => SampleTexts.zhHans,
+      'es' => SampleTexts.es,
+      _ => SampleTexts.en,
+    };
     setState(() {
       _content = text;
       _editController?.text = text;
@@ -369,16 +377,29 @@ class _ReadingViewState extends State<ReadingView> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(
+            // Wrap, not Row: a third sample button overflows a 360dp phone in
+            // a Row (three buttons + spacing ≈ 330dp before the 32dp padding).
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
+                // Labels come from the ARB: they were hardcoded (English) and a
+                // Spanish or Chinese reading session showed English buttons
+                // (found on emulator-5554, spec 007 SC-002).
                 ElevatedButton(
                   onPressed: () => _loadSample('en'),
-                  child: const Text('EN sample'),
+                  child: Text(AppLocalizations.of(context)?.sampleEn ??
+                      'EN sample'),
                 ),
-                const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _loadSample('zh'),
-                  child: const Text('中文示例'),
+                  child: Text(AppLocalizations.of(context)?.sampleZh ??
+                      '中文示例'),
+                ),
+                ElevatedButton(
+                  onPressed: () => _loadSample('es'),
+                  child: Text(AppLocalizations.of(context)?.sampleEs ??
+                      'ES sample'),
                 ),
               ],
             ),

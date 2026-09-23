@@ -6,13 +6,17 @@ import 'package:klhu/models/language_preference.dart';
 class LocalizationService {
   final LanguagePreference _preference;
 
-  LocalizationService(SharedPreferences prefs)
+  /// Device locale, used only to pick the language on a fresh install
+  /// (spec 007 FR-007). Null in tests means "no device locale" → English.
+  final Locale? deviceLocale;
+
+  LocalizationService(SharedPreferences prefs, {this.deviceLocale})
       : _preference = LanguagePreference(prefs);
 
-  /// Load the current language preference
+  /// Load the current language preference (saved choice, else device default)
   String loadLanguage() {
     try {
-      final languageCode = _preference.loadLanguage();
+      final languageCode = _preference.loadLanguage(deviceLocale: deviceLocale);
       // Normalize zh-Hans to zh for consistency with ARB files
       return languageCode == 'zh-Hans' ? 'zh' : languageCode;
     } catch (e) {
@@ -39,6 +43,10 @@ class LocalizationService {
     switch (languageCode) {
       case 'zh':
         return const Locale('zh');
+      case 'es':
+        // One Spanish translation set ships: Latin American Spanish. Any
+        // Spanish device locale resolves to it (spec 007 research.md).
+        return const Locale('es');
       case 'en':
       default:
         return const Locale('en');

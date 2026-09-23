@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -95,6 +96,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
+    Locale('es'),
     Locale('zh'),
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
   ];
@@ -102,7 +104,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'KalaHoo'**
+  /// **'KalaHoo Reading'**
   String get appTitle;
 
   /// No description provided for @englishNative.
@@ -116,6 +118,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'中文'**
   String get chineseNative;
+
+  /// No description provided for @spanishNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Español'**
+  String get spanishNative;
 
   /// No description provided for @readButton.
   ///
@@ -204,7 +212,7 @@ abstract class AppLocalizations {
   /// No description provided for @dialectCantonese.
   ///
   /// In en, this message translates to:
-  /// **'Cantonese'**
+  /// **'广东话'**
   String get dialectCantonese;
 
   /// No description provided for @pauseButton.
@@ -218,6 +226,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume'**
   String get resumeButton;
+
+  /// No description provided for @sampleEn.
+  ///
+  /// In en, this message translates to:
+  /// **'EN sample'**
+  String get sampleEn;
+
+  /// No description provided for @sampleZh.
+  ///
+  /// In en, this message translates to:
+  /// **'中文示例'**
+  String get sampleZh;
+
+  /// No description provided for @sampleEs.
+  ///
+  /// In en, this message translates to:
+  /// **'ES sample'**
+  String get sampleEs;
+
+  /// No description provided for @voicesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 voice} other{{count} voices}}'**
+  String voicesCount(int count);
+
+  /// No description provided for @noVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'No voices installed for this language.'**
+  String get noVoices;
+
+  /// No description provided for @voicesLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load voices.'**
+  String get voicesLoadFailed;
+
+  /// No description provided for @retryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retryButton;
 }
 
 class _AppLocalizationsDelegate
@@ -231,7 +281,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+      <String>['en', 'es', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -254,6 +304,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
     case 'zh':
       return AppLocalizationsZh();
   }

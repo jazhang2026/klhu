@@ -12,7 +12,13 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final reader = ReaderService();
   final voiceStore = VoiceStore();
-  runApp(KlhuApp(prefs: prefs, reader: reader, voiceStore: voiceStore));
+  runApp(KlhuApp(
+    prefs: prefs,
+    reader: reader,
+    voiceStore: voiceStore,
+    // Fresh install follows the device language (spec 007 FR-007).
+    deviceLocale: WidgetsBinding.instance.platformDispatcher.locale,
+  ));
 }
 
 class KlhuApp extends StatefulWidget {
@@ -20,11 +26,15 @@ class KlhuApp extends StatefulWidget {
   final Reader reader;
   final VoiceStore voiceStore;
 
+  /// Device locale: the interface language used until the user picks one.
+  final Locale? deviceLocale;
+
   const KlhuApp({
     super.key,
     required this.prefs,
     required this.reader,
     required this.voiceStore,
+    this.deviceLocale,
   });
 
   @override
@@ -38,7 +48,10 @@ class _KlhuAppState extends State<KlhuApp> {
   @override
   void initState() {
     super.initState();
-    _localizationService = LocalizationService(widget.prefs);
+    _localizationService = LocalizationService(
+      widget.prefs,
+      deviceLocale: widget.deviceLocale,
+    );
     _currentLocale = _localizationService.getCurrentLocale();
   }
 
@@ -53,7 +66,12 @@ class _KlhuAppState extends State<KlhuApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'klhu Read Aloud',
+      title: 'KalaHoo Reading',
+      // The OS-visible title (Android task switcher, web tab) follows the
+      // interface language too — otherwise Spanish and Chinese builds still
+      // announce "KalaHoo Reading" outside the app itself (spec 007 FR-001/003).
+      onGenerateTitle: (context) =>
+          AppLocalizations.of(context)?.appTitle ?? 'KalaHoo Reading',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -67,6 +85,7 @@ class _KlhuAppState extends State<KlhuApp> {
       supportedLocales: const [
         Locale('en'),
         Locale('zh'),
+        Locale('es'),
       ],
       locale: _currentLocale,
       home: ReadingView(

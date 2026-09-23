@@ -20,8 +20,8 @@ abstract class Reader {
   bool get isSpeaking;
   bool get isPaused;
 
-  /// Installed voices for [language] (`'en'` or `'zh-Hans'`), filtered by
-  /// locale prefix; malformed platform entries are skipped.
+  /// Installed voices for [language] (`'en'`, `'zh-Hans'` or `'es'`), filtered
+  /// by locale prefix; malformed platform entries are skipped.
   Future<List<VoiceEntry>> voicesFor(String language);
 
   /// Speak [paragraphs] in order, each with its own language voice.
@@ -154,14 +154,32 @@ class ReaderService implements Reader {
   @override
   bool get isPaused => _paused;
 
+  /// Engine locale per reading language. Spanish has no `es-MX` voice on the
+  /// engine (measured on emulator-5554: `es-ES` and `es-US` only), so Spanish
+  /// reads in `es-US` — the Latin American variety this app targets. See
+  /// `specs/007-reader-name-spanish-cantonese/research.md`.
+  static const Map<String, String> _speechLocales = {
+    'en': 'en-US',
+    'zh-Hans': 'zh-Hans-CN',
+    'es': 'es-US',
+  };
+
+  /// Voice-list membership per reading language. The Chinese list carries the
+  /// Cantonese (`yue-HK`) voices too: Cantonese is a Chinese voice choice, not
+  /// a separate language (spec 007 FR-008).
+  static const Map<String, List<String>> _voiceLocalePrefixes = {
+    'en': ['en'],
+    'zh-Hans': ['zh', 'cmn', 'yue'],
+    'es': ['es'],
+  };
+
   static String localeFor(String language) =>
-      language == 'zh-Hans' ? 'zh-Hans-CN' : 'en-US';
+      _speechLocales[language] ?? 'en-US';
 
   static bool _matchesLanguage(String locale, String language) {
     final lower = locale.toLowerCase();
-    return language == 'zh-Hans'
-        ? lower.startsWith('zh')
-        : lower.startsWith('en');
+    return (_voiceLocalePrefixes[language] ?? const ['en'])
+        .any(lower.startsWith);
   }
 
   static VoiceEntry? _parseVoice(dynamic entry) {
@@ -177,7 +195,7 @@ class ReaderService implements Reader {
     return VoiceEntry(name: name, locale: locale);
   }
 
-  /// Speak [text] in [language] (`'en'` or `'zh-Hans'`).
+  /// Speak [text] in [language] (`'en'`, `'zh-Hans'` or `'es'`).
   /// Throws [ReaderException] when no voice is available (e.g. emulator).
   @override
   Future<void> speak(String text, String language) async {
@@ -250,14 +268,22 @@ class ReaderService implements Reader {
         // Stop-first: the engine queues utterances, so anything still in
         // flight (a paused one included) must go before the next speak.
         await _tts.stop();
-        await _tts.setLanguage(localeFor(paragraph.language));
+        // The picked voice decides the engine language when it differs from the
+        // reading language's default: Cantonese (`yue-HK`) reads Chinese text,
+        // and a picked `es-ES` voice differs from the Spanish default. Telling
+        // the engine the voice's OWN locale is what makes it honor the voice
+        // instead of the list's default.
         final voice = paragraph.voice;
-        if (voice != null &&
-            _installed.any(
-              (v) => v.name == voice.name && v.locale == voice.locale,
-            )) {
+        final picked = voice != null &&
+                _installed.any(
+                  (v) => v.name == voice.name && v.locale == voice.locale,
+                )
+            ? voice
+            : null;
+        await _tts.setLanguage(picked?.locale ?? localeFor(paragraph.language));
+        if (picked != null) {
           try {
-            await _tts.setVoice({'name': voice.name, 'locale': voice.locale});
+            await _tts.setVoice({'name': picked.name, 'locale': picked.locale});
           } catch (_) {
             // Fall through to the OS default voice.
           }

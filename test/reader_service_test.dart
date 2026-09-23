@@ -112,7 +112,11 @@ void main() {
         ),
       ]);
       expect(backend.spoken, ['Hello.', '你好。']);
-      expect(backend.languages, ['en-US', 'zh-Hans-CN']);
+      // The picked voice decides the engine locale, not the reading language's
+      // default: 'en-b' is en-GB, so the English paragraph tells the engine
+      // en-GB. This is what makes a picked Cantonese (yue-HK) voice read
+      // Chinese text (spec 007) and a picked es-ES voice read Castilian.
+      expect(backend.languages, ['en-GB', 'zh-Hans-CN']);
       expect(backend.setVoices, [
         {'name': 'en-b', 'locale': 'en-GB'},
         {'name': 'zh-a', 'locale': 'zh-Hans-CN'},
@@ -140,6 +144,8 @@ void main() {
       ]);
       expect(backend.spoken, ['Hello.']);
       expect(backend.setVoices, isEmpty);
+      // No usable pick → the reading language's own default locale.
+      expect(backend.languages, ['en-US']);
     });
 
     test('Stop cancels the queue: no further speaks', () async {

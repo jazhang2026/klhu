@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/l10n/app_localizations.dart';
+import 'package:klhu/l10n/app_localizations_en.dart';
+import 'package:klhu/l10n/app_localizations_es.dart';
+import 'package:klhu/l10n/app_localizations_zh.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,6 +46,7 @@ Future<void> _pumpApp(WidgetTester tester, Locale locale) async {
       Locale('en'),
       Locale('zh'),
       Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+      Locale('es'),
     ],
     home: ReadingView(reader: _BrandFakeReader()),
   ));
@@ -64,6 +68,25 @@ void main() {
       // This test verifies fallback to default icon when custom icon is missing
       // Implementation should not crash and should use default Flutter icon
       expect(true, isTrue); // Placeholder - will be expanded
+    });
+  });
+
+  group('Branding: the app title is localized on every surface (007 US1)', () {
+    testWidgets('the app bar reads the ARB title in all three languages',
+        (tester) async {
+      await _pumpApp(tester, const Locale('en'));
+      expect(find.text(AppLocalizationsEn().appTitle), findsOneWidget);
+      expect(find.text('KalaHoo Reading'), findsOneWidget);
+
+      await _pumpApp(tester, const Locale('zh'));
+      expect(find.text(AppLocalizationsZh().appTitle), findsOneWidget);
+      expect(find.text('卡啦虎朗读'), findsOneWidget);
+      expect(find.text('KalaHoo Reading'), findsNothing);
+
+      await _pumpApp(tester, const Locale('es'));
+      expect(find.text(AppLocalizationsEs().appTitle), findsOneWidget);
+      expect(find.text('KalaHoo Lectura'), findsOneWidget);
+      expect(find.text('KalaHoo Reading'), findsNothing);
     });
   });
 

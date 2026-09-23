@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/l10n/app_localizations_en.dart';
+import 'package:klhu/l10n/app_localizations_es.dart';
 import 'package:klhu/l10n/app_localizations_zh.dart';
 import 'package:klhu/models/voice_mapping.dart';
 import 'package:klhu/reader_service.dart';
@@ -110,12 +111,99 @@ void main() {
         'en-us-x-sfg',
         'en-gb-x-rjs',
         'en-au-x-aub',
+        'es-es-x-eea',
+        'es-es-x-eec',
+        'es-es-x-eed',
+        'es-us-x-esc',
+        'es-us-x-esd',
+        'es-us-x-esf',
+        'es-us-x-sfb',
+        'yue-hk-x-jar',
+        'yue-hk-x-yuc',
+        'yue-hk-x-yud',
+        'yue-hk-x-yue',
+        'yue-hk-x-yuf',
       ]) {
         final local = VoiceMappingTable.lookup('$base-local')!.gender;
         expect(local, isNotNull, reason: base);
         expect(local, VoiceMappingTable.lookup('$base-network')!.gender,
             reason: base);
       }
+    });
+
+    // Spec 007: the es-* and yue-HK rows come from the 2026-09-22 sweep
+    // (specs/007-.../voice-gender-evidence.md), same method as the rows above:
+    // rendered speech tracked for F0, cross-checked against the engine
+    // manifest's gender bit.
+    test('Spanish voices carry the measured gender', () {
+      expect(VoiceMappingTable.lookup('es-ES-language')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('es-US-language')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('es-es-x-eea-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('es-es-x-eed-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('es-es-x-eef-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('es-us-x-esd-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('es-us-x-esf-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('es-us-x-sfb-local')!.gender, 'female');
+    });
+
+    // A Cantonese voice is named by its dialect instead of carrying a dialect
+    // characteristic (spec FR-010), so gender is the only label it needs.
+    test('Cantonese voices carry the measured gender', () {
+      expect(VoiceMappingTable.lookup('yue-HK-language')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('yue-hk-x-jar-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('yue-hk-x-yuc-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('yue-hk-x-yue-local')!.gender, 'female');
+      expect(VoiceMappingTable.lookup('yue-hk-x-yud-local')!.gender, 'male');
+      expect(VoiceMappingTable.lookup('yue-hk-x-yuf-local')!.gender, 'male');
+    });
+
+    // Every voice the sweep measured for the Spanish and Cantonese lists has a
+    // row, so no row in those lists falls back to a raw system id (T023).
+    test('the measured es-* and yue-* voices all resolve', () {
+      for (final measured in const [
+        'es-ES-language',
+        'es-US-language',
+        'es-es-x-eea-local',
+        'es-es-x-eea-network',
+        'es-es-x-eec-local',
+        'es-es-x-eec-network',
+        'es-es-x-eed-local',
+        'es-es-x-eed-network',
+        'es-es-x-eee-local',
+        'es-es-x-eef-local',
+        'es-us-x-esc-local',
+        'es-us-x-esc-network',
+        'es-us-x-esd-local',
+        'es-us-x-esd-network',
+        'es-us-x-esf-local',
+        'es-us-x-esf-network',
+        'es-us-x-sfb-local',
+        'es-us-x-sfb-network',
+        'yue-HK-language',
+        'yue-hk-x-jar-local',
+        'yue-hk-x-jar-network',
+        'yue-hk-x-yuc-local',
+        'yue-hk-x-yuc-network',
+        'yue-hk-x-yud-local',
+        'yue-hk-x-yud-network',
+        'yue-hk-x-yue-local',
+        'yue-hk-x-yue-network',
+        'yue-hk-x-yuf-local',
+        'yue-hk-x-yuf-network',
+      ]) {
+        final mapping = VoiceMappingTable.lookup(measured);
+        expect(mapping, isNotNull, reason: measured);
+        expect(mapping!.englishName, isNot(measured), reason: measured);
+        expect(mapping.chineseName, isNot(measured), reason: measured);
+        expect(mapping.gender, isNotNull, reason: measured);
+      }
+    });
+
+    // The one voice whose two cues disagree (F0 in the overlap band, manifest
+    // saying person 1): no gender is claimed rather than a coin flip.
+    test('the ambiguous voice carries no gender', () {
+      expect(VoiceMappingTable.lookup('en-us-x-tpc-local')!.gender, isNull);
+      expect(VoiceMappingTable.lookup('en-us-x-tpc-network')!.gender, isNull);
     });
   });
 
@@ -168,6 +256,25 @@ void main() {
             voiceListLanguage: 'zh-Hans'),
         contains('男'),
       );
+    });
+
+    // The Spanish list is labelled in Spanish: with only an en/zh split the
+    // Spanish list fell through to the English labels, so a Spanish reading
+    // session showed "US SFB (Female)" while app_es.arb already had "Femenina"
+    // (found on emulator-5554, spec 007 SC-002).
+    test('the Spanish list is labelled in Spanish', () {
+      const female = VoiceEntry(name: 'es-us-x-sfb-local', locale: 'es-US');
+      const male = VoiceEntry(name: 'es-us-x-esd-local', locale: 'es-US');
+
+      final femaleName = service.displayName(female, AppLocalizationsEs(),
+          voiceListLanguage: 'es');
+      expect(femaleName, contains('Femenina'));
+      expect(femaleName, isNot(contains('Female')));
+
+      final maleName = service.displayName(male, AppLocalizationsEs(),
+          voiceListLanguage: 'es');
+      expect(maleName, contains('Masculina'));
+      expect(maleName, isNot(contains('Male')));
     });
 
     // The picker renders the other language's voice list while the app locale

@@ -4,10 +4,13 @@ import 'package:klhu/voice_store.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/services/voice_mapping_service.dart';
 
-/// Fixed preview line per language (spec assumption 2026-09-14).
-String sampleLineFor(String language) => language == 'zh-Hans'
-    ? '你好，这是我的朗读声音。'
-    : 'Hello, this is my reading voice.';
+/// Fixed preview line per language (spec assumption 2026-09-14, extended by
+/// spec 007 with the Spanish line).
+String sampleLineFor(String language) => switch (language) {
+      'zh-Hans' => '你好，这是我的朗读声音。',
+      'es' => 'Hola, esta es mi voz de lectura.',
+      _ => 'Hello, this is my reading voice.',
+    };
 
 /// Voice picker (002 US2): lists installed voices for [language],
 /// tap previews the sample line in that voice and persists the choice.
@@ -181,9 +184,14 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
               // No markers anywhere in the picker (spec US1): the selected
               // segment is already evident from its fill color.
               showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: 'en', label: Text('English')),
-                ButtonSegment(value: 'zh-Hans', label: Text('中文')),
+              // One segment per pickable list, Spanish included: the picker
+              // opens on the reading text's language, so without the Spanish
+              // segment a Spanish voice could only be picked from Spanish text
+              // (found on emulator-5554, spec 007 US2).
+              segments: [
+                ButtonSegment(value: 'en', label: Text(l10n.englishNative)),
+                ButtonSegment(value: 'es', label: Text(l10n.spanishNative)),
+                ButtonSegment(value: 'zh-Hans', label: Text(l10n.chineseNative)),
               ],
               selected: {_language},
               onSelectionChanged: (selection) {
@@ -206,15 +214,18 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
         _PickerStatus.loading =>
           const Center(child: CircularProgressIndicator()),
         _PickerStatus.empty => Center(
-            child: Text('No voices installed for this language.'),
+            child: Text(l10n.noVoices),
           ),
         _PickerStatus.error => Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Could not load voices.'),
+                Text(l10n.voicesLoadFailed),
                 const SizedBox(height: 8),
-                ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                ElevatedButton(
+                  onPressed: _load,
+                  child: Text(l10n.retryButton),
+                ),
               ],
             ),
           ),
@@ -222,11 +233,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  _voices.length == 1
-                      ? '1 voice'
-                      : '${_voices.length} voices',
-                ),
+                child: Text(l10n.voicesCount(_voices.length)),
               ),
               if (_previewError != null)
                 Text(

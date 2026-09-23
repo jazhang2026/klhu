@@ -10,13 +10,16 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => '卡啦虎';
+  String get appTitle => '卡啦虎朗读';
 
   @override
   String get englishNative => 'English';
 
   @override
   String get chineseNative => '中文';
+
+  @override
+  String get spanishNative => 'Español';
 
   @override
   String get readButton => '朗读';
@@ -61,13 +64,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dialectMandarin => '普通话';
 
   @override
-  String get dialectCantonese => '粤语';
+  String get dialectCantonese => '广东话';
 
   @override
   String get pauseButton => '暂停';
 
   @override
   String get resumeButton => '继续';
+
+  @override
+  String get sampleEn => '英文示例';
+
+  @override
+  String get sampleZh => '中文示例';
+
+  @override
+  String get sampleEs => '西班牙语示例';
+
+  @override
+  String voicesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个语音',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noVoices => '此语言没有已安装的语音。';
+
+  @override
+  String get voicesLoadFailed => '无法加载语音列表。';
+
+  @override
+  String get retryButton => '重试';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -75,13 +106,16 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   AppLocalizationsZhHans() : super('zh_Hans');
 
   @override
-  String get appTitle => '卡啦虎';
+  String get appTitle => '卡啦虎朗读';
 
   @override
   String get englishNative => 'English';
 
   @override
   String get chineseNative => '中文';
+
+  @override
+  String get spanishNative => 'Español';
 
   @override
   String get readButton => '朗读';
@@ -126,11 +160,39 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get dialectMandarin => '普通话';
 
   @override
-  String get dialectCantonese => '粤语';
+  String get dialectCantonese => '广东话';
 
   @override
   String get pauseButton => '暂停';
 
   @override
   String get resumeButton => '继续';
+
+  @override
+  String get sampleEn => '英文示例';
+
+  @override
+  String get sampleZh => '中文示例';
+
+  @override
+  String get sampleEs => '西班牙语示例';
+
+  @override
+  String voicesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个语音',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noVoices => '此语言没有已安装的语音。';
+
+  @override
+  String get voicesLoadFailed => '无法加载语音列表。';
+
+  @override
+  String get retryButton => '重试';
 }

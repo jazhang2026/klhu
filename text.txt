@@ -21,8 +21,19 @@ Requirement:
 
 5. use icon buttons instead of text buttons?
 
-6. add OCR functionality to extract text from images or camera input.
+6. header changes: KalaHoo -> KalaHoo Reader. 卡啦虎 -> 卡啦虎朗读
 
-7. add translation functionality to translate text to English and Chinese.
+7. add Spanish as a language option - reading and i18n support. 
+
+8. add 中文 方言 广东话 as Voice option.
+
+9. save text page content(sample and user input) to local storage. can be loaded later. 
+   remove the sample buttons. make the samples selectable and loadable.
+
+10. app icon: use images/kalahoo.jpeg as the new app icon.
+
+11. add OCR functionality to extract text from images or camera input.
+
+12. add translation functionality to translate text to English and Chinese.
 
 

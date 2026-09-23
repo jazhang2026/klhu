@@ -17,9 +17,35 @@ String? _cjkRule(String paragraph) {
   return RegExp('[$cjk]').hasMatch(paragraph) ? 'zh-Hans' : null;
 }
 
-const List<_LanguageRule> _rules = [_cjkRule];
+const List<_LanguageRule> _rules = [_cjkRule, _spanishRule];
 
-/// Detect the language of one paragraph: `'zh-Hans'` or `'en'`.
+/// Spanish-only letters: á é í ó ú ü ñ ¿ ¡. English text has none of them, so a
+/// single occurrence is already decisive.
+final RegExp _spanishLetters = RegExp('[áéíóúüñ¿¡]', caseSensitive: false);
+
+/// High-frequency Spanish function words, used for text that carries no accent
+/// ("Hola, como estas" typed without accents). Two DISTINCT hits are required so
+/// an English sentence containing "no" or "son" cannot flip the paragraph.
+const Set<String> _spanishWords = {
+  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+  'de', 'del', 'que', 'y', 'en', 'con', 'para', 'por', 'es', 'son',
+  'está', 'están', 'este', 'esta', 'esto', 'muy', 'pero', 'como',
+  'se', 'su', 'sus', 'al', 'mi', 'tu', 'yo', 'nos', 'les', 'más',
+};
+
+/// Rule 2: Spanish accents, or two distinct Spanish function words.
+String? _spanishRule(String paragraph) {
+  if (_spanishLetters.hasMatch(paragraph)) return 'es';
+  final hits = <String>{};
+  for (final match in RegExp(r'[a-z]+', caseSensitive: false)
+      .allMatches(paragraph.toLowerCase())) {
+    if (_spanishWords.contains(match.group(0))) hits.add(match.group(0)!);
+    if (hits.length >= 2) return 'es';
+  }
+  return null;
+}
+
+/// Detect the language of one paragraph: `'zh-Hans'`, `'es'` or `'en'`.
 String detectLanguage(String paragraph) {
   for (final rule in _rules) {
     final hit = rule(paragraph);

@@ -1,4 +1,9 @@
 /* 
   Localized versions of Info.plist keys
+
+  Spec 007: title is 卡啦虎朗读. NOTE: this file is NOT referenced by
+  Runner.xcodeproj (no PBXFileReference, not in knownRegions), so it has never
+  been bundled — there is no macOS host here to add it to the Runner target and
+  build the app. Wiring it up in Xcode is the remaining iOS step.
 */
-CFBundleDisplayName = "卡啦虎";
+CFBundleDisplayName = "卡啦虎朗读";
