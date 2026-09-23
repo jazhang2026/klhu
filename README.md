@@ -66,9 +66,32 @@ flutter build apk --debug
 adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-The emulator/device walk for each feature is scripted under
-`~/.hermes/cache/scratch/klhu_walk*.py`; findings, per-scenario PASS/FAIL rows and
-the divergences are recorded in `specs/<feature>/breakpoint.md`.
+### Launcher icons
+
+The icon comes from `images/kalahoo.jpeg` (1024×1024), configured in
+`pubspec.yaml` under `flutter_launcher_icons:`. Regenerating is one command:
+
+```bash
+dart run flutter_launcher_icons        # writes android/…/res + ios/…/AppIcon.appiconset
+flutter test test/app_icon_test.dart   # the asset contract: sizes, formats, catalogue
+```
+
+- `flutter_launcher_icons` is a **dev** dependency; no build step reads the source
+  image (so a missing source cannot break a build — the generator itself fails
+  loudly), and the source is deliberately **not** a bundled asset.
+- After a run, check `git status`: the generator also rewrites
+  `ios/Runner.xcodeproj/project.pbxproj` (`ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS`
+  from `YES` to `AppIcon`, which is the wrong setting — the icon name is already
+  declared by `ASSETCATALOG_COMPILER_APPICON_NAME`). Revert it:
+  `git checkout -- ios/Runner.xcodeproj/project.pbxproj`.
+- Android gets an adaptive icon (white background + the art inset 16 %), so
+  launcher masks do not clip the subject; iOS icons are written without an alpha
+  channel, which the App Store requires. The iOS set is generated and checked
+  structurally here but **not validated** (no macOS on this host).
+
+The emulator/device walk for each feature is scripted — for this one, under
+`specs/009-app-icon/scripts/`; findings, per-scenario PASS/FAIL rows and the
+divergences are recorded in `specs/<feature>/breakpoint.md`.
 
 ## Specs
 
@@ -87,7 +110,7 @@ it matters, `tasks.md` (one task per artifact, ticked as verified) and
 | 005-voice-pause-resume | pause/resume + voice mapping with measured genders |
 | 007-reader-name-spanish-cantonese | Spanish + Cantonese, localized reader name |
 | 008-content-storage | the content library: save/list/load/edit/delete, pre-sets as data |
-| 009-app-icon | launcher icon from `images/kalahoo.jpeg` (spec only) |
+| 009-app-icon | branded launcher icon on Android + iOS from `images/kalahoo.jpeg`, adaptive on Android 8+ |
 | 010-continue-read | set a start position and continue reading from it (spec only) |
 
 ## Known limitations
@@ -99,19 +122,3 @@ it matters, `tasks.md` (one task per artifact, ticked as verified) and
   list never reads text — is covered by a unit test.
 
 ## Project development based on spec-kit.
-
-specs/001-read-aloud /002-voice-picker /003-reading-polish
-Did on hermes-agent with model muse-spark-1.3-contributor-free.
-
-specs/004-app-branding-i18n
-Specs on Devin Local with model SWE-1.6 Slow. Tasks on agnes-3.0-flash, agnes-2.5-flash.
-
-specs/005-voice-pause-resume
-Specs on Devin Local with model SWE-1.6 Slow. Tasks on agnes-2.5-flash. Then Deepseek flash paid model.
-
-specs/007-reader-name-spanish-cantonese
-Specs on Devin Local with model SWE-1.6 Slow. Tasks on Deepseek flash paid.
-
-specs/008-content-storage
-Specs and tasks partly on hermes-agent (deepseek-flash); implementation, tests,
-device walk and breakpoint.md on hermes-agent.

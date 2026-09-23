@@ -242,9 +242,10 @@ confirm, restart → it stays gone.
 - [x] T022 [P] Write `test/l10n_keys_test.dart`: every template key exists in
       `app_zh.arb`, `app_zh_Hans.arb` and `app_es.arb` (the 007 regression class:
       a string added to three of four files renders English in the fourth)
-- [x] T023 [P] Delete the now-unused `sampleEn`/`sampleZh`/`sampleEs` keys from
-      `L10N/app_{en,zh,zh_Hans,es}.arb` and re-run `flutter gen-l10n`, then drop their
-      assertions from `test/spanish_localization_test.dart` and `test/branding_test.dart`
+- [x] T023 [P] Delete the now-unused `sampleEn`/`sampleZh`/`sampleEs` keys from `lib/l10n/app_en.arb`
+      (and `app_zh.arb` / `app_zh_Hans.arb` / `app_es.arb`), re-run
+      `flutter gen-l10n`, then drop their assertions from
+      `test/spanish_localization_test.dart` and `test/branding_test.dart`
 - [x] T024 [P] Accessibility pass over `lib/reading_view.dart` and
       `lib/content_list_screen.dart`: localized tooltips on every new `IconButton`,
       `ListTile` rows ≥44pt, dialog buttons reachable without gestures; note anything

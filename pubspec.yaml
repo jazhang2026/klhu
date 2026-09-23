@@ -55,6 +55,30 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # Launcher icon generation (spec 009, research D1/D5). Dev-only, run by hand:
+  #   dart run flutter_launcher_icons
+  # The generated assets are committed and NO build step reads the source image,
+  # so a missing source cannot break `flutter build`.
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher icons (spec 009). The source is a build-time input only — it is
+# deliberately NOT listed under `flutter: assets:` (research D4), because the app
+# never renders it at runtime.
+flutter_launcher_icons:
+  image_path: "images/kalahoo.jpeg"
+  android: true
+  ios: true
+  # Android 8+ adaptive icon: the art's own measured background (#ffffff) plus
+  # the same art as the foreground. The tool's default 16% inset is left alone —
+  # it draws the 108dp layer inside the 72dp safe disc, so no launcher mask clips
+  # the subject (research D3; contracts/icon-assets.md C3).
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "images/kalahoo.jpeg"
+  # iOS icons must carry no alpha channel (App Store); the shipped defaults are
+  # RGBA, and the JPEG has no alpha of its own (research D2).
+  remove_alpha_ios: true
+  background_color_ios: "#ffffff"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
