@@ -73,15 +73,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resumeButton => 'Resume';
 
   @override
-  String get sampleEn => 'EN sample';
-
-  @override
-  String get sampleZh => '中文示例';
-
-  @override
-  String get sampleEs => 'ES sample';
-
-  @override
   String voicesCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -100,4 +91,75 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retryButton => 'Retry';
+
+  @override
+  String get contentsButton => 'Contents';
+
+  @override
+  String get contentsTitle => 'Contents';
+
+  @override
+  String currentContentLabel(Object name) {
+    return 'Reading: $name';
+  }
+
+  @override
+  String get saveButton => 'Save';
+
+  @override
+  String get undoButton => 'Undo';
+
+  @override
+  String get deleteButton => 'Delete';
+
+  @override
+  String get cancelButton => 'Cancel';
+
+  @override
+  String get discardButton => 'Discard';
+
+  @override
+  String get deleteConfirmTitle => 'Delete this content?';
+
+  @override
+  String get deleteConfirmMessage => 'This cannot be undone.';
+
+  @override
+  String get deletePresetConfirmMessage =>
+      'This cannot be undone. A deleted sample returns only if you reinstall the app.';
+
+  @override
+  String get savedMessage => 'Saved';
+
+  @override
+  String get nothingToSaveMessage => 'There is nothing to save';
+
+  @override
+  String get undoExhaustedMessage => 'Nothing more to undo';
+
+  @override
+  String contentTooLargeMessage(Object limit) {
+    return 'Too long to save (limit: $limit characters)';
+  }
+
+  @override
+  String get storageErrorMessage =>
+      'Could not save. Check storage space and try again.';
+
+  @override
+  String get unsavedChangesTitle => 'Unsaved changes';
+
+  @override
+  String get unsavedChangesMessage => 'You have changes that are not saved.';
+
+  @override
+  String get noContentsMessage =>
+      'No contents yet. Write something, then tap Save.';
+
+  @override
+  String get damagedContentMessage => 'This content is damaged';
+
+  @override
+  String get libraryRepairedMessage =>
+      'The content library was repaired: a damaged index was replaced and the shipped samples are back.';
 }

@@ -8,6 +8,8 @@ import 'package:klhu/l10n/app_localizations_zh.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'content_fixtures.dart';
 
 class _BrandFakeReader implements Reader {
   @override
@@ -48,12 +50,25 @@ Future<void> _pumpApp(WidgetTester tester, Locale locale) async {
       Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
       Locale('es'),
     ],
-    home: ReadingView(reader: _BrandFakeReader()),
+    home: ReadingView(reader: _BrandFakeReader(), contentStore: sharedPageStore()),
   ));
+  await tester.pump(const Duration(seconds: 3));
+  await tester.pump();
+  await tester.pump();
   await tester.pumpAndSettle();
 }
 
 void main() {
+  late Directory root;
+
+  setUp(() {
+    root = Directory.systemTemp.createTempSync('klhu-page-test');
+  });
+
+  tearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+
   SharedPreferences.setMockInitialValues({});
 
   group('Branding Tests', () {

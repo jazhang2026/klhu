@@ -9,6 +9,8 @@ import 'package:klhu/voice_store.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'content_fixtures.dart';
+import 'dart:io';
 
 const _mixed =
     'The sun rose over the quiet town. Birds sang.\n\n清晨的阳光洒在安静的小镇上。鸟儿在歌唱。';
@@ -62,6 +64,16 @@ class MixedFakeReader implements Reader {
 }
 
 void main() {
+  late Directory root;
+
+  setUp(() {
+    root = Directory.systemTemp.createTempSync('klhu-page-test');
+  });
+
+  tearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+
   group('resolveParagraphSpeeches (unit)', () {
     test('mixed page splits into per-paragraph speeches in order', () async {
       final speeches =
@@ -114,8 +126,9 @@ void main() {
             Locale('zh'),
             Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
           ],
-          home: ReadingView(reader: fake)),
+          home: ReadingView(reader: fake, contentStore: pageStore(root))),
       );
+      await loadPageContent(tester);
 
       // Paste box + Load are gone (003 US2): type directly in EDIT mode.
       await tester.tap(find.byTooltip('Edit'));
@@ -151,8 +164,9 @@ void main() {
             Locale('zh'),
             Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
           ],
-          home: ReadingView(reader: fake)),
+          home: ReadingView(reader: fake, contentStore: pageStore(root))),
       );
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.progress, isNotNull);
@@ -187,8 +201,9 @@ void main() {
             Locale('zh'),
             Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
           ],
-          home: ReadingView(reader: fake)),
+          home: ReadingView(reader: fake, contentStore: pageStore(root))),
       );
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       final progress = fake.progress!;

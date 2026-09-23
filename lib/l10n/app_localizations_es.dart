@@ -73,15 +73,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get resumeButton => 'Reanudar';
 
   @override
-  String get sampleEn => 'Muestra en inglés';
-
-  @override
-  String get sampleZh => 'Muestra en chino';
-
-  @override
-  String get sampleEs => 'Muestra en español';
-
-  @override
   String voicesCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -100,4 +91,75 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get retryButton => 'Reintentar';
+
+  @override
+  String get contentsButton => 'Contenidos';
+
+  @override
+  String get contentsTitle => 'Contenidos';
+
+  @override
+  String currentContentLabel(Object name) {
+    return 'Leyendo: $name';
+  }
+
+  @override
+  String get saveButton => 'Guardar';
+
+  @override
+  String get undoButton => 'Deshacer';
+
+  @override
+  String get deleteButton => 'Eliminar';
+
+  @override
+  String get cancelButton => 'Cancelar';
+
+  @override
+  String get discardButton => 'Descartar';
+
+  @override
+  String get deleteConfirmTitle => '¿Eliminar este contenido?';
+
+  @override
+  String get deleteConfirmMessage => 'Esta acción no se puede deshacer.';
+
+  @override
+  String get deletePresetConfirmMessage =>
+      'Esta acción no se puede deshacer. Una muestra eliminada vuelve solo si reinstalas la aplicación.';
+
+  @override
+  String get savedMessage => 'Guardado';
+
+  @override
+  String get nothingToSaveMessage => 'No hay nada que guardar';
+
+  @override
+  String get undoExhaustedMessage => 'No hay más para deshacer';
+
+  @override
+  String contentTooLargeMessage(Object limit) {
+    return 'Demasiado largo para guardar (límite: $limit caracteres)';
+  }
+
+  @override
+  String get storageErrorMessage =>
+      'No se pudo guardar. Verifica el espacio de almacenamiento e inténtalo de nuevo.';
+
+  @override
+  String get unsavedChangesTitle => 'Cambios sin guardar';
+
+  @override
+  String get unsavedChangesMessage => 'Tienes cambios que no están guardados.';
+
+  @override
+  String get noContentsMessage =>
+      'Aún no hay contenidos. Escribe algo y toca Guardar.';
+
+  @override
+  String get damagedContentMessage => 'Este contenido está dañado';
+
+  @override
+  String get libraryRepairedMessage =>
+      'La biblioteca se reparó: un índice dañado fue reemplazado y las muestras vuelven a estar disponibles.';
 }

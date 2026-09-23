@@ -7,6 +7,8 @@ import 'package:klhu/reading_view.dart';
 import 'package:klhu/voice_picker_screen.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'content_fixtures.dart';
+import 'dart:io';
 
 // T019: TalkBack operability via semantics (manual double-tap on the
 // emulator succeeds ~1/10 across ALL buttons — system-wide emulator
@@ -40,13 +42,24 @@ class _SemFakeReader implements Reader {
 }
 
 void main() {
+  late Directory root;
+
+  setUp(() {
+    root = Directory.systemTemp.createTempSync('klhu-page-test');
+  });
+
+  tearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+
   group('T019 talkback semantics', () {
     testWidgets('reading view exposes Voice action with tap + label',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
       await tester.pumpWidget(
-        MaterialApp(home: ReadingView(reader: _SemFakeReader())),
+        MaterialApp(home: ReadingView(reader: _SemFakeReader(), contentStore: pageStore(root))),
       );
+      await loadPageContent(tester);
       await tester.pumpAndSettle();
       final voiceBtn = find.byTooltip('Voice');
       expect(voiceBtn, findsOneWidget);

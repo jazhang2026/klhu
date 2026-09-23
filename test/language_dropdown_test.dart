@@ -6,8 +6,20 @@ import 'package:klhu/reading_view.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:klhu/services/localization_service.dart';
+import 'content_fixtures.dart';
+import 'dart:io';
 
 void main() {
+  late Directory root;
+
+  setUp(() {
+    root = Directory.systemTemp.createTempSync('klhu-page-test');
+  });
+
+  tearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+
   group('Language Dropdown Tests', () {
     testWidgets('current language display shows native name', (tester) async {
       // This test verifies the current language is displayed in native name
@@ -33,9 +45,10 @@ void main() {
             reader: fake,
             onLanguageChanged: (lang) {},
             localizationService: service,
-          ),
+          contentStore: pageStore(root)),
         ),
       );
+      await loadPageContent(tester);
 
       // Verify the app builds without errors
       expect(find.byType(ReadingView), findsOneWidget);
@@ -65,9 +78,10 @@ void main() {
             reader: fake,
             onLanguageChanged: (lang) {},
             localizationService: service,
-          ),
+          contentStore: pageStore(root)),
         ),
       );
+      await loadPageContent(tester);
 
       // Verify the app builds without errors
       expect(find.byType(ReadingView), findsOneWidget);

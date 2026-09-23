@@ -6,11 +6,14 @@ import 'package:klhu/language.dart';
 import 'package:klhu/main.dart';
 import 'package:klhu/models/language_preference.dart';
 import 'package:klhu/reader_service.dart';
-import 'package:klhu/sample_texts.dart';
+import 'content_fixtures.dart';
 import 'package:klhu/services/localization_service.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:klhu/voice_picker_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:klhu/content_naming.dart';
+import 'package:klhu/services/content_store.dart';
 
 /// Voice inventory shaped like the emulator's Google TTS (spec 007 research.md
 /// correction 1): two Spanish locales and NO `es-MX`.
@@ -105,7 +108,8 @@ Future<void> _pumpApp(
     voiceStore: VoiceStore(),
     deviceLocale: deviceLocale,
   ));
-  await tester.pumpAndSettle();
+  // Let the page's content load land, which also drains the storage deadline.
+  await loadPageContent(tester);
 }
 
 void main() {
@@ -146,12 +150,11 @@ void main() {
       );
       expect(find.text('KalaHoo Lectura'), findsOneWidget);
       expect(find.text('KalaHoo Reading'), findsNothing);
-      // The Spanish sample is one tap away, with Spanish labels on the actions.
       expect(find.byTooltip('Leer'), findsOneWidget);
       expect(find.text('Español'), findsOneWidget);
-      // The sample buttons are ARB strings now: they used to stay 'EN sample' /
-      // 'ES sample' in every interface (found on emulator-5554).
-      expect(find.text('Muestra en español'), findsOneWidget);
+      // Content is reached through the library now; the sample buttons are gone
+      // in every interface language (008 FR-003).
+      expect(find.text('Muestra en español'), findsNothing);
       expect(find.text('ES sample'), findsNothing);
     });
   });
@@ -211,11 +214,11 @@ void main() {
   group('Spanish reading: sample, detection, speech locale (FR-006)', () {
     test('the bundled Spanish sample detects as es, paragraph by paragraph',
         () async {
-      expect(SampleTexts.all, contains(SampleTexts.es));
+      expect(kSampleTexts, contains(kSampleEsText));
       final speeches = await resolveParagraphSpeeches(
-        SampleTexts.es,
+        kSampleEsText,
         0,
-        SampleTexts.es.length,
+        kSampleEsText.length,
         (_) async => null,
       );
       expect(speeches, isNotEmpty);
@@ -255,9 +258,9 @@ void main() {
         locale: 'es-US',
       );
       final speeches = await resolveParagraphSpeeches(
-        SampleTexts.es,
+        kSampleEsText,
         0,
-        SampleTexts.es.length,
+        kSampleEsText.length,
         (language) async => language == 'es' ? saved : null,
       );
       expect(speeches.length, 3);
@@ -281,24 +284,17 @@ void main() {
       );
     });
 
-    testWidgets('the Spanish sample loads in the Spanish interface',
-        (tester) async {
-      await _pumpApp(
-        tester,
-        prefs: await _freshPrefs(),
-        deviceLocale: const Locale('es', 'MX'),
-      );
+    test('the shipped catalog carries the Spanish pre-set and its title', () {
+      // The UI path that loads it (last used content) is covered by the content
+      // library tests; here the shipped data itself is checked.
+      final presets = parsePresetCatalog(
+          File('assets/content/presets.json').readAsStringSync());
+      final spanish =
+          presets.firstWhere((preset) => preset.language == 'es');
 
-      expect(find.textContaining('The sun rose', findRichText: true),
-          findsOneWidget);
-
-      await tester.tap(find.text('Muestra en español'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('El sol salió', findRichText: true),
-          findsOneWidget);
-      expect(find.textContaining('The sun rose', findRichText: true),
-          findsNothing);
+      expect(spanish.text, contains('El sol salió'));
+      expect(contentNameFrom(spanish.text), contains('El sol salió'));
+      expect(contentNameFrom(spanish.text), isNot(contains('\n')));
     });
 
     testWidgets('the picker itself is localized and offers the Spanish list',
@@ -343,8 +339,14 @@ void main() {
         deviceLocale: const Locale('es', 'MX'),
       );
 
-      await tester.tap(find.text('Muestra en español'));
-      await tester.pumpAndSettle();
+      // Content now comes from the library (the sample buttons are gone, 008
+      // FR-003): put Spanish text on the page through EDIT.
+      await tester.tap(find.byIcon(Icons.edit));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), kSampleEsText);
+      await tester.tap(find.byIcon(Icons.check));
+      await tester.pump();
+
       await tester.tap(find.byTooltip('Voz'));
       await tester.pumpAndSettle();
 

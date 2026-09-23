@@ -3,10 +3,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
-import 'package:klhu/sample_texts.dart';
+import 'content_fixtures.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:klhu/models/content.dart';
+import 'package:klhu/services/content_store.dart';
 
 class FakeReader implements Reader {
   final List<String> spoken = [];
@@ -79,6 +82,16 @@ class FailingReader extends FakeReader {
 }
 
 void main() {
+  late Directory root;
+
+  setUp(() {
+    root = Directory.systemTemp.createTempSync('klhu-page-test');
+  });
+
+  tearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+
   // ReadingView's default VoiceStore is real shared_preferences: mock it.
   SharedPreferences.setMockInitialValues({});
 
@@ -88,7 +101,7 @@ void main() {
   Future<Offset> tapFirstSentence(WidgetTester tester) async {
     // Content is always RichText now (single widget for both states).
     final topLeft = tester.getTopLeft(
-        find.textContaining('The sun rose', findRichText: true));
+        find.textContaining('Birds sang', findRichText: true));
     return topLeft + const Offset(10, 10);
   }
 
@@ -121,7 +134,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
       expect(hasYellowHighlight(tester, firstSentence), isTrue);
@@ -143,7 +157,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
       await tester.tap(find.byTooltip('Read'));
@@ -165,7 +180,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
       await tester.tap(find.byTooltip('Read'));
@@ -193,7 +209,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.spoken, isEmpty);
@@ -214,7 +231,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
       await tester.tap(find.byTooltip('Read'));
@@ -223,8 +241,30 @@ void main() {
           find.text('Voice not available for en-US'), findsOneWidget);
     });
 
-    testWidgets('switching sample stops ongoing speech', (tester) async {
+    testWidgets('switching content stops ongoing speech', (tester) async {
+      final root = Directory.systemTemp.createTempSync('klhu-switch-test');
+      addTearDown(() {
+        if (root.existsSync()) root.deleteSync(recursive: true);
+      });
+      final store = ContentStore(
+        directory: root,
+        loadCatalog: () async => [
+          PresetContent(
+              id: 'preset_en_sample', language: 'en', text: kSampleEnText),
+          PresetContent(
+              id: 'preset_es_sample', language: 'es', text: kSampleEsText),
+        ],
+        now: () => DateTime.utc(2026, 9, 23, 10, 22, 3),
+      );
       final fake = FakeReader();
+      Future<void> settle() async {
+        for (var round = 0; round < 6; round++) {
+          await tester.runAsync(
+              () => Future<void>.delayed(const Duration(milliseconds: 20)));
+          await tester.pump();
+        }
+      }
+
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
           AppLocalizations.delegate,
@@ -236,16 +276,23 @@ void main() {
           Locale('en'),
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+          Locale('es'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: store)));
+      await settle();
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
       final stopsBefore = fake.stops;
-      await tester.tap(find.text('中文示例'));
-      await tester.pump();
+
+      // Content now switches through the library, not a sample button.
+      await tester.tap(find.byTooltip('Contents'));
+      await settle();
+      await tester.tap(find.textContaining('El sol salió'));
+      await settle();
+
       expect(fake.stops, stopsBefore + 1);
       expect(fake.isSpeaking, isFalse);
     });
@@ -265,9 +312,10 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       Finder contentText() =>
-          find.text(SampleTexts.en, findRichText: false);
+          find.text(kSampleEnText, findRichText: false);
       // Plain-Text widget must never hold the content, before or after tap:
       // the Text/RichText swap rendered different metrics (font jump).
       expect(contentText(), findsNothing);
@@ -291,15 +339,16 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       // Regression (emulator validation, Sep 2026): the root span must carry
       // an explicit style — ambient capture freezes MaterialApp's red-48px
       // fallback in, and a null root mispaints inherited color as white on
       // this GPU path. Only an explicit classic-sRGB theme color paints.
       final content = find.byWidgetPredicate((w) =>
           w is RichText &&
-          (w.text.toPlainText() == SampleTexts.en ||
-              w.text.toPlainText() == SampleTexts.zhHans));
+          (w.text.toPlainText() == kSampleEnText ||
+              w.text.toPlainText() == kSampleZhText));
       final style = (tester.widget<RichText>(content).text as TextSpan).style;
       expect(style, isNotNull);
       expect(style!.color, isNot(equals(const Color(0xD0FF0000))));
@@ -330,7 +379,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.longPressAt(await tapFirstSentence(tester));
       await tester.pump();
       expect(hasYellowHighlight(tester, firstParagraph), isTrue);
@@ -352,7 +402,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.longPressAt(await tapFirstSentence(tester));
       await tester.pump();
       await tester.tap(find.byTooltip('Read'));
@@ -375,7 +426,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       final pos = await tapFirstSentence(tester);
       await tester.longPressAt(pos);
       await tester.pump();
@@ -400,12 +452,13 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       // 002 US1: one speech per paragraph (not one for the whole page).
       expect(fake.spoken.length, 3);
-      expect(fake.spoken.join('\n\n'), SampleTexts.en.trimRight());
+      expect(fake.spoken.join('\n\n'), kSampleEnText.trimRight());
     });
 
     testWidgets('Read page clears tracking highlight at end', (tester) async {
@@ -422,7 +475,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       // FakeReader ignores the progress callback, so no intermediate
@@ -445,7 +499,8 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
@@ -469,14 +524,15 @@ void main() {
           Locale('zh'),
           Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
         ],
-        home: ReadingView(reader: fake)));
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read page'));
       await tester.pump();
       // Measure on the live RichText: plain-Text and RichText metrics
       // differ slightly, so a position from one mis-maps on the other.
       final render = _contentRender(tester);
       const target = 'Birds sang in the tall trees.';
-      final start = SampleTexts.en.indexOf(target);
+      final start = kSampleEnText.indexOf(target);
       final box = render
           .getBoxesForSelection(
               TextSelection(baseOffset: start, extentOffset: start + 5))
@@ -498,8 +554,8 @@ void main() {
 RenderParagraph _contentRender(WidgetTester tester) {
   for (final e in find.byType(RichText).evaluate()) {
     final w = e.widget as RichText;
-    if (w.text.toPlainText() == SampleTexts.en ||
-        w.text.toPlainText() == SampleTexts.zhHans) {
+    if (w.text.toPlainText() == kSampleEnText ||
+        w.text.toPlainText() == kSampleZhText) {
       return e.renderObject as RenderParagraph;
     }
   }

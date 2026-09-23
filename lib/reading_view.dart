@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:klhu/content_list_screen.dart';
+import 'package:klhu/content_naming.dart';
 import 'package:klhu/language.dart';
+import 'package:klhu/models/content.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
-import 'package:klhu/sample_texts.dart';
+import 'package:klhu/services/content_store.dart';
 import 'package:klhu/voice_picker_screen.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:klhu/l10n/app_localizations.dart';
@@ -24,9 +27,15 @@ import 'package:klhu/l10n/app_localizations.dart';
 ///
 /// No gesture overloading (tap means one thing per state); typing-during-read
 /// and Read-with-unsaved-edits are impossible by construction.
+///
+/// Content library (008): the app-bar Content action opens the unified list
+/// and loads what it returns; EDIT offers Save and Undo beside Done. Save goes
+/// through [ContentStore.saveEdited], so editing a pre-set produces new
+/// content while editing a saved page updates it in place.
 class ReadingView extends StatefulWidget {
   final Reader reader;
   final VoiceStore voiceStore;
+  final ContentStore contentStore;
   final Function(String)? onLanguageChanged;
   final dynamic localizationService;
 
@@ -34,10 +43,12 @@ class ReadingView extends StatefulWidget {
     super.key,
     Reader? reader,
     VoiceStore? voiceStore,
+    ContentStore? contentStore,
     this.onLanguageChanged,
     this.localizationService,
-  }) : reader = reader ?? ReaderService(),
-        voiceStore = voiceStore ?? VoiceStore();
+  })  : reader = reader ?? ReaderService(),
+        voiceStore = voiceStore ?? VoiceStore(),
+        contentStore = contentStore ?? ContentStore();
 
   @override
   State<ReadingView> createState() => _ReadingViewState();
@@ -49,9 +60,93 @@ class _ReadingViewState extends State<ReadingView> {
   final _textKey = GlobalKey();
   final _focusNode = FocusNode();
   TextEditingController? _editController;
-  String _content = SampleTexts.en;
+
+  /// Scope for the platform undo stack, one per EDIT session so the stack can
+  /// never reach back into a document that is no longer on screen (008).
+  UndoHistoryController? _undoController;
+
+  /// The library entry currently on screen, and the name to caption it with
+  /// (a pre-set's localized catalog name, else the entry's own name).
+  SavedContent? _loaded;
+  String? _loadedName;
+
+  /// Empty until the library (or the shipped catalog) supplies a text: with the
+  /// sample buttons gone, content only ever comes from the library (008).
+  String _content = '';
   TextSegment? _highlight;
   _Mode _mode = _Mode.read;
+
+  ContentStore get _store => widget.contentStore;
+
+  @override
+  void initState() {
+    super.initState();
+    _openInitialContent();
+  }
+
+  /// How long storage gets to answer before the page falls back to the shipped
+  /// pre-set. A hung or absent storage plugin must never leave a blank page.
+  static const Duration _storageDeadline = Duration(seconds: 3);
+
+  /// Opens the last used content, else the first one, else the first shipped
+  /// pre-set: a fresh install is never a blank page.
+  Future<void> _openInitialContent() async {
+    try {
+      final entries = await _store.list().timeout(_storageDeadline);
+      final last = await _store.lastOpened().timeout(_storageDeadline);
+      final entry = last ?? (entries.isEmpty ? null : entries.first);
+      if (entry != null) {
+        await _loadEntry(entry);
+        _reportStorageSignal();
+        return;
+      }
+    } on Object {
+      // Storage missing, unreadable or too slow to answer: reading still works
+      // from the shipped catalog, which needs no storage at all.
+    }
+    await _loadCatalogFallback();
+    _reportStorageSignal();
+  }
+
+  /// Surfaces the store's own signal ONCE, after the page has content: a
+  /// damaged index that was moved aside and re-seeded, or an IO failure that
+  /// left the library empty, otherwise looks to the user like "my contents
+  /// vanished" with no explanation (contract § Error and repair states,
+  /// FR-010). The signal is cleared so the next launch is quiet again.
+  void _reportStorageSignal() {
+    final signal = _store.lastError;
+    if (signal == null || !mounted) return;
+    _store.clearError();
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _error = switch (signal) {
+        ContentError.indexRepaired =>
+          l10n?.libraryRepairedMessage ?? 'The library was repaired.',
+        _ => l10n?.storageErrorMessage ?? 'Could not open the library.',
+      };
+    });
+  }
+
+  /// The first shipped pre-set, shown when the library holds nothing. It is not
+  /// an entry and not marked as opened — saving still creates new content.
+  Future<void> _loadCatalogFallback() async {
+    final presets = await _store.catalog();
+    if (presets.isEmpty || !mounted) return;
+    final preset = presets.first;
+    final name = contentNameFrom(preset.text);
+    setState(() {
+      _content = preset.text;
+      _loaded = null;
+      _loadedName = name;
+      _editController?.value = TextEditingValue(
+        text: preset.text,
+        selection: TextSelection.collapsed(offset: preset.text.length),
+      );
+      _highlight = null;
+      _error = null;
+      _hint = null;
+    });
+  }
 
   /// Invalidates a stale read's `finally` (tap/Stop during SPEAKING must win
   /// over the in-flight loop's cleanup).
@@ -119,35 +214,35 @@ class _ReadingViewState extends State<ReadingView> {
 
   @override
   void dispose() {
+    _disposeUndo();
     _editController?.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _loadSample(String language) async {
-    // Switching text must not keep reading the old content.
-    await widget.reader.stop();
-    final text = switch (language) {
-      'zh' => SampleTexts.zhHans,
-      'es' => SampleTexts.es,
-      _ => SampleTexts.en,
-    };
-    setState(() {
-      _content = text;
-      _editController?.text = text;
-      _highlight = null;
-      _error = null;
-      _hint = null;
-      // EDIT survives (sample load is an edit op); SPEAKING drops to READ.
-      if (_mode == _Mode.speaking) _mode = _Mode.read;
-    });
+  /// The undo stack belongs to one EDIT session; leaving EDIT ends it.
+  void _disposeUndo() {
+    _undoController?.removeListener(_onUndoChanged);
+    _undoController?.dispose();
+    _undoController = null;
+  }
+
+  void _onUndoChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _enterEdit() async {
     if (_mode == _Mode.speaking) return;
     await widget.reader.stop();
     _editController ??= TextEditingController();
-    _editController!.text = _content;
+    // A valid selection, so the loaded text is the undo stack's first state
+    // and the very first typed edit is already undoable.
+    _editController!.value = TextEditingValue(
+      text: _content,
+      selection: TextSelection.collapsed(offset: _content.length),
+    );
+    _disposeUndo();
+    _undoController = UndoHistoryController()..addListener(_onUndoChanged);
     setState(() {
       _mode = _Mode.edit;
       _highlight = null;
@@ -163,6 +258,130 @@ class _ReadingViewState extends State<ReadingView> {
       _mode = _Mode.read;
       _highlight = null;
     });
+    _disposeUndo();
+  }
+
+  // -------------------------------------------------------------------
+  // Content library (008)
+  // -------------------------------------------------------------------
+
+  bool get _hasUnsavedEdits =>
+      _mode == _Mode.edit && _editController?.text != _content;
+
+  /// The name to caption an entry with: a pre-set's title regenerated from its
+  /// catalog text, else the name the index holds.
+  Future<String> _displayName(SavedContent entry) async {
+    if (!entry.isPreset) return entry.name;
+    final preset = await _store.presetFor(entry.id);
+    return preset == null ? entry.name : contentNameFrom(preset.text);
+  }
+
+  Future<void> _loadEntry(SavedContent entry) async {
+    try {
+      final text = await _store.read(entry);
+      final name = await _displayName(entry);
+      await _store.markOpened(entry.id);
+      if (!mounted) return;
+      setState(() {
+        _content = text;
+        _loaded = entry;
+        _loadedName = name;
+        _editController?.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+        _highlight = null;
+        _error = null;
+        _hint = null;
+        // Loading during SPEAKING is impossible (the list is opened from a
+        // READ-only action), but a stale PAUSED state must not survive.
+        if (_mode == _Mode.speaking) _mode = _Mode.read;
+      });
+    } on ContentStoreException {
+      if (!mounted) return;
+      setState(() => _error = AppLocalizations.of(context)
+              ?.damagedContentMessage ??
+          'This content is damaged');
+    }
+  }
+
+  Future<void> _openContentList() async {
+    await widget.reader.stop();
+    if (!mounted) return;
+    final picked = await Navigator.of(context).push<SavedContent>(
+      MaterialPageRoute(builder: (_) => ContentListScreen(store: _store)),
+    );
+    if (picked == null || !mounted) return;
+    if (_hasUnsavedEdits && await _confirmDiscard() != true) return;
+    await _loadEntry(picked);
+    if (mounted && _mode == _Mode.edit) {
+      setState(() => _mode = _Mode.read);
+      _disposeUndo();
+    }
+  }
+
+  /// True when the user chose to throw the edits away.
+  Future<bool?> _confirmDiscard() {
+    final l10n = AppLocalizations.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n?.unsavedChangesTitle ?? 'Unsaved changes'),
+        content: Text(l10n?.unsavedChangesMessage ?? 'Unsaved changes'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n?.cancelButton ?? 'Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n?.discardButton ?? 'Discard'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Save: a pre-set becomes new content, a saved page is updated in place;
+  /// a refused save explains itself and writes nothing (008 FR-010/FR-019).
+  Future<void> _save() async {
+    final l10n = AppLocalizations.of(context);
+    final text = _editController!.text;
+    try {
+      final saved = await _store.saveEdited(_loaded, text);
+      if (!mounted) return;
+      setState(() {
+        _content = text;
+        _loaded = saved;
+        _loadedName = saved.name;
+      });
+      _showMessage(l10n?.savedMessage ?? 'Saved');
+    } on ContentStoreException catch (e) {
+      if (!mounted) return;
+      _showMessage(switch (e.kind) {
+        ContentError.emptyText =>
+          l10n?.nothingToSaveMessage ?? 'There is nothing to save',
+        ContentError.tooLarge => l10n?.contentTooLargeMessage(kMaxContentChars) ??
+            'Too long to save',
+        _ => l10n?.storageErrorMessage ?? 'Could not save.',
+      });
+    }
+  }
+
+  void _undo() {
+    final controller = _undoController;
+    if (controller == null || !controller.value.canUndo) return;
+    controller.undo();
+    // Oldest state reached: say so rather than leaving a dead button.
+    if (!controller.value.canUndo) {
+      _showMessage(AppLocalizations.of(context)?.undoExhaustedMessage ??
+          'Nothing more to undo');
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _onTapDown(TapDownDetails details) async {
@@ -359,6 +578,12 @@ class _ReadingViewState extends State<ReadingView> {
           if (widget.localizationService != null)
             _buildLanguageDropdown(context),
           IconButton(
+            icon: const Icon(Icons.folder_open),
+            tooltip:
+                AppLocalizations.of(context)?.contentsButton ?? 'Contents',
+            onPressed: () => _openContentList(),
+          ),
+          IconButton(
             icon: const Icon(Icons.record_voice_over),
             tooltip: AppLocalizations.of(context)?.voiceButton ?? 'Voice',
             onPressed: () => Navigator.of(context).push(
@@ -377,32 +602,20 @@ class _ReadingViewState extends State<ReadingView> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Wrap, not Row: a third sample button overflows a 360dp phone in
-            // a Row (three buttons + spacing ≈ 330dp before the 32dp padding).
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                // Labels come from the ARB: they were hardcoded (English) and a
-                // Spanish or Chinese reading session showed English buttons
-                // (found on emulator-5554, spec 007 SC-002).
-                ElevatedButton(
-                  onPressed: () => _loadSample('en'),
-                  child: Text(AppLocalizations.of(context)?.sampleEn ??
-                      'EN sample'),
+            // Which saved content is on screen (008): the list lives one
+            // screen away, so the page names itself.
+            if (_loadedName != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  AppLocalizations.of(context)
+                          ?.currentContentLabel(_loadedName!) ??
+                      _loadedName!,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                ElevatedButton(
-                  onPressed: () => _loadSample('zh'),
-                  child: Text(AppLocalizations.of(context)?.sampleZh ??
-                      '中文示例'),
-                ),
-                ElevatedButton(
-                  onPressed: () => _loadSample('es'),
-                  child: Text(AppLocalizations.of(context)?.sampleEs ??
-                      'ES sample'),
-                ),
-              ],
-            ),
+              ),
+            // Content comes from the library only (008 FR-003): the sample
+            // buttons are gone, replaced by the Content action in the app bar.
             const SizedBox(height: 8),
             Expanded(
               child: editing
@@ -410,6 +623,7 @@ class _ReadingViewState extends State<ReadingView> {
                   ? TextField(
                       controller: _editController,
                       focusNode: _focusNode,
+                      undoController: _undoController,
                       maxLines: null,
                       expands: true,
                       textAlignVertical: TextAlignVertical.top,
@@ -447,6 +661,19 @@ class _ReadingViewState extends State<ReadingView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: editing
                   ? [
+                      IconButton(
+                        icon: const Icon(Icons.undo),
+                        tooltip: AppLocalizations.of(context)?.undoButton,
+                        // Disabled, not a silent no-op, with nothing to undo.
+                        onPressed: (_undoController?.value.canUndo ?? false)
+                            ? _undo
+                            : null,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.save_outlined),
+                        tooltip: AppLocalizations.of(context)?.saveButton,
+                        onPressed: _save,
+                      ),
                       IconButton(
                         icon: const Icon(Icons.check),
                         tooltip: AppLocalizations.of(context)?.doneButton,

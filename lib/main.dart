@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/reading_view.dart';
+import 'package:klhu/services/content_store.dart';
 import 'package:klhu/services/localization_service.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/voice_store.dart';
@@ -16,6 +17,9 @@ void main() async {
     prefs: prefs,
     reader: reader,
     voiceStore: voiceStore,
+    // The content library (008): app documents directory for the index and the
+    // saved texts, seeded from the shipped preset catalog on first launch.
+    contentStore: ContentStore(),
     // Fresh install follows the device language (spec 007 FR-007).
     deviceLocale: WidgetsBinding.instance.platformDispatcher.locale,
   ));
@@ -26,6 +30,9 @@ class KlhuApp extends StatefulWidget {
   final Reader reader;
   final VoiceStore voiceStore;
 
+  /// Optional so widget tests can inject a store on a temp directory.
+  final ContentStore? contentStore;
+
   /// Device locale: the interface language used until the user picks one.
   final Locale? deviceLocale;
 
@@ -34,6 +41,7 @@ class KlhuApp extends StatefulWidget {
     required this.prefs,
     required this.reader,
     required this.voiceStore,
+    this.contentStore,
     this.deviceLocale,
   });
 
@@ -93,6 +101,7 @@ class _KlhuAppState extends State<KlhuApp> {
         localizationService: _localizationService,
         reader: widget.reader,
         voiceStore: widget.voiceStore,
+        contentStore: widget.contentStore,
       ),
     );
   }

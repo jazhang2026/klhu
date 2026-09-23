@@ -39,6 +39,10 @@ dependencies:
   flutter_tts: ^4.2.3
   shared_preferences: ^2.5.5
   intl: ^0.20.3
+  # Content library (spec 008): app documents directory for index.json +
+  # contents/<id>.txt. Text does not belong in SharedPreferences (whole map is
+  # parsed into memory at launch); see specs/008-content-storage/research.md D1.
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +71,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - images/kalahu.jpeg
+    # Shipped pre-set contents for the content library (spec 008, FR-017/020):
+    # adding a pre-set is a JSON edit, never a code change.
+    - assets/content/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

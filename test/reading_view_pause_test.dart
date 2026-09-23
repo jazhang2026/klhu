@@ -8,6 +8,8 @@ import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:klhu/services/localization_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'content_fixtures.dart';
 
 /// Fake at the [Reader] seam, modelling the contract [ReaderService] actually
 /// offers the view:
@@ -145,8 +147,29 @@ Future<void> _pumpView(
       reader: reader,
       localizationService: service,
       onLanguageChanged: onLanguageChanged,
-    ),
+    contentStore: sharedPageStore()),
   ));
+  await _waitForStartupContent(tester);
+}
+
+/// Mounts the locale-owning root the way `_pumpView` mounts the bare view —
+/// including the startup wait: the view's first content load is bounded by a
+/// 3 s deadline in production, and without pumping past it the page is empty
+/// and no control that needs content ever appears.
+Future<void> _pumpLocaleHost(
+  WidgetTester tester, {
+  required Reader reader,
+  required LocalizationService service,
+}) async {
+  await tester.pumpWidget(_LocaleHost(reader: reader, service: service));
+  await _waitForStartupContent(tester);
+}
+
+/// Pumps past the view's storage deadline so the first content is on screen.
+Future<void> _waitForStartupContent(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 3));
+  await tester.pump();
+  await tester.pump();
 }
 
 /// Starts a page read and leaves the view in SPEAKING.
@@ -201,12 +224,22 @@ class _LocaleHostState extends State<_LocaleHost> {
           widget.service.saveLanguage(code);
           setState(() => _locale = widget.service.resolveLocale(code));
         },
-      ),
+      contentStore: sharedPageStore()),
     );
   }
 }
 
 void main() {
+  late Directory root;
+
+  setUp(() {
+    root = Directory.systemTemp.createTempSync('klhu-page-test');
+  });
+
+  tearDown(() {
+    if (root.existsSync()) root.deleteSync(recursive: true);
+  });
+
   // The view's default VoiceStore is real shared_preferences: mock it per
   // test, or resolving speeches throws before the read ever starts.
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -306,7 +339,7 @@ void main() {
       await tester.pump();
 
       final topLeft = tester.getTopLeft(
-          find.textContaining('The sun rose', findRichText: true));
+          find.textContaining('Birds sang', findRichText: true));
       await tester.tapAt(topLeft + const Offset(10, 10));
       await tester.pump();
 
@@ -322,7 +355,7 @@ void main() {
       final service =
           LocalizationService(await SharedPreferences.getInstance());
       final fake = _PauseFakeReader();
-      await tester.pumpWidget(_LocaleHost(reader: fake, service: service));
+      await _pumpLocaleHost(tester, reader: fake, service: service);
       await _startPageRead(tester);
       await tester.tap(find.byTooltip('Pause'));
       await tester.pump();

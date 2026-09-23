@@ -1,13 +1,4 @@
 
-The sun rose over the quiet town. Birds sang.
-
-清晨的阳光洒在安静的小镇上。鸟儿在歌唱。
-
-Flutter 让构建精美应用变得简单 with one codebase.
-
-Hello 世界.
-
-
 Requirement:
 1. change App title to "KalaHoo" in English and "卡啦虎" in Chinese. Use images/kalahu.jpeg as the app icon.
 2. i18n support for English and Chinese. User can switch between English and Chinese.
@@ -28,12 +19,16 @@ Requirement:
 8. add 中文 方言 广东话 as Voice option.
 
 9. save text page content(sample and user input) to local storage. can be loaded later. 
+   saved content can be edit, undo edit, save or delete. delete has a worning message.
    remove the sample buttons. make the samples selectable and loadable.
 
 10. app icon: use images/kalahoo.jpeg as the new app icon.
 
-11. add OCR functionality to extract text from images or camera input.
+11. change "Read Page" to "Continue Read" function. tap or tap and hold to set the start position. 
+    "Continue Read" is same as Read Page, but it starts from the position where the user set.
 
-12. add translation functionality to translate text to English and Chinese.
+12. add OCR functionality to extract text from images or camera input.
+
+13. add translation functionality to translate text to English and Chinese.
 
 

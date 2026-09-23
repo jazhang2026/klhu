@@ -227,24 +227,6 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get resumeButton;
 
-  /// No description provided for @sampleEn.
-  ///
-  /// In en, this message translates to:
-  /// **'EN sample'**
-  String get sampleEn;
-
-  /// No description provided for @sampleZh.
-  ///
-  /// In en, this message translates to:
-  /// **'中文示例'**
-  String get sampleZh;
-
-  /// No description provided for @sampleEs.
-  ///
-  /// In en, this message translates to:
-  /// **'ES sample'**
-  String get sampleEs;
-
   /// No description provided for @voicesCount.
   ///
   /// In en, this message translates to:
@@ -268,6 +250,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get retryButton;
+
+  /// No description provided for @contentsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Contents'**
+  String get contentsButton;
+
+  /// No description provided for @contentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Contents'**
+  String get contentsTitle;
+
+  /// No description provided for @currentContentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading: {name}'**
+  String currentContentLabel(Object name);
+
+  /// No description provided for @saveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get saveButton;
+
+  /// No description provided for @undoButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undoButton;
+
+  /// No description provided for @deleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteButton;
+
+  /// No description provided for @cancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelButton;
+
+  /// No description provided for @discardButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discardButton;
+
+  /// No description provided for @deleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this content?'**
+  String get deleteConfirmTitle;
+
+  /// No description provided for @deleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone.'**
+  String get deleteConfirmMessage;
+
+  /// No description provided for @deletePresetConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone. A deleted sample returns only if you reinstall the app.'**
+  String get deletePresetConfirmMessage;
+
+  /// No description provided for @savedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get savedMessage;
+
+  /// No description provided for @nothingToSaveMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'There is nothing to save'**
+  String get nothingToSaveMessage;
+
+  /// No description provided for @undoExhaustedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing more to undo'**
+  String get undoExhaustedMessage;
+
+  /// No description provided for @contentTooLargeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Too long to save (limit: {limit} characters)'**
+  String contentTooLargeMessage(Object limit);
+
+  /// No description provided for @storageErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save. Check storage space and try again.'**
+  String get storageErrorMessage;
+
+  /// No description provided for @unsavedChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get unsavedChangesTitle;
+
+  /// No description provided for @unsavedChangesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You have changes that are not saved.'**
+  String get unsavedChangesMessage;
+
+  /// No description provided for @noContentsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No contents yet. Write something, then tap Save.'**
+  String get noContentsMessage;
+
+  /// No description provided for @damagedContentMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This content is damaged'**
+  String get damagedContentMessage;
+
+  /// No description provided for @libraryRepairedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The content library was repaired: a damaged index was replaced and the shipped samples are back.'**
+  String get libraryRepairedMessage;
 }
 
 class _AppLocalizationsDelegate

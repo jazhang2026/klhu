@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "preset_en_sample",
+      "language": "en",
+      "text": "The sun rose over the quiet town. Birds sang in the tall trees.\n\nFlutter makes it easy to build beautiful apps. A single codebase runs on both iOS and Android. Tap any sentence to hear it read aloud.\n\nThis is the third paragraph. It tests paragraph-level resolution across blank lines. Each block should highlight and speak in order.\n"
+    },
+    {
+      "id": "preset_zh_sample",
+      "language": "zh-Hans",
+      "text": "清晨的阳光洒在安静的小镇上。鸟儿在高大的树上歌唱。\n\nFlutter 让构建精美应用变得简单。同一套代码可以运行在 iOS 和 Android 上。点击任意句子即可听到朗读。\n\n这是第三段。它用于测试段落级别的解析。每个段落都应该按顺序高亮并朗读。\n"
+    },
+    {
+      "id": "preset_es_sample",
+      "language": "es",
+      "text": "El sol salió sobre el pueblo tranquilo. Los pájaros cantaron en los árboles altos.\n\nFlutter hace fácil crear aplicaciones hermosas. El mismo código funciona en iOS y Android. Toca cualquier oración para escucharla en voz alta.\n\nEste es el tercer párrafo. Prueba la lectura por párrafos entre líneas vacías. Cada bloque se resalta y se lee en orden.\n"
+    }
+  ]
+}
