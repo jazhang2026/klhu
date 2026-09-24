@@ -44,5 +44,18 @@
   "unsavedChangesMessage": "你有尚未保存的更改。",
   "noContentsMessage": "还没有内容。输入文字后点击保存。",
   "damagedContentMessage": "此内容已损坏",
-  "libraryRepairedMessage": "内容库已修复：损坏的索引已被替换，内置示例已恢复。"
+  "libraryRepairedMessage": "内容库已修复：损坏的索引已被替换，内置示例已恢复。",
+  "addContentButton": "添加内容",
+  "appearanceButton": "外观",
+  "appearanceTitle": "外观",
+  "fontLabel": "字体",
+  "sizeLabel": "文字大小",
+  "previewLabel": "预览",
+  "fontDefaultLabel": "默认",
+  "fontSerifLabel": "衬线体",
+  "fontMonoLabel": "等宽体",
+  "sizeSmallLabel": "小",
+  "sizeMediumLabel": "中",
+  "sizeLargeLabel": "大",
+  "sizeXLargeLabel": "特大"
 }

@@ -44,5 +44,18 @@
   "unsavedChangesMessage": "Tienes cambios que no están guardados.",
   "noContentsMessage": "Aún no hay contenidos. Escribe algo y toca Guardar.",
   "damagedContentMessage": "Este contenido está dañado",
-  "libraryRepairedMessage": "La biblioteca se reparó: un índice dañado fue reemplazado y las muestras vuelven a estar disponibles."
+  "libraryRepairedMessage": "La biblioteca se reparó: un índice dañado fue reemplazado y las muestras vuelven a estar disponibles.",
+  "addContentButton": "Añadir contenido",
+  "appearanceButton": "Apariencia",
+  "appearanceTitle": "Apariencia",
+  "fontLabel": "Tipografía",
+  "sizeLabel": "Tamaño del texto",
+  "previewLabel": "Vista previa",
+  "fontDefaultLabel": "Predeterminada",
+  "fontSerifLabel": "Serif",
+  "fontMonoLabel": "Monoespaciada",
+  "sizeSmallLabel": "Pequeño",
+  "sizeMediumLabel": "Mediano",
+  "sizeLargeLabel": "Grande",
+  "sizeXLargeLabel": "Muy grande"
 }

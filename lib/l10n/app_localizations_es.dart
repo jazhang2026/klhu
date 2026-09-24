@@ -157,4 +157,43 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get libraryRepairedMessage =>
       'La biblioteca se reparó: un índice dañado fue reemplazado y las muestras vuelven a estar disponibles.';
+
+  @override
+  String get addContentButton => 'Añadir contenido';
+
+  @override
+  String get appearanceButton => 'Apariencia';
+
+  @override
+  String get appearanceTitle => 'Apariencia';
+
+  @override
+  String get fontLabel => 'Tipografía';
+
+  @override
+  String get sizeLabel => 'Tamaño del texto';
+
+  @override
+  String get previewLabel => 'Vista previa';
+
+  @override
+  String get fontDefaultLabel => 'Predeterminada';
+
+  @override
+  String get fontSerifLabel => 'Serif';
+
+  @override
+  String get fontMonoLabel => 'Monoespaciada';
+
+  @override
+  String get sizeSmallLabel => 'Pequeño';
+
+  @override
+  String get sizeMediumLabel => 'Mediano';
+
+  @override
+  String get sizeLargeLabel => 'Grande';
+
+  @override
+  String get sizeXLargeLabel => 'Muy grande';
 }

@@ -29,7 +29,7 @@ class _BrandFakeReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {}
   @override
   Future<void> previewVoice(VoiceEntry voice, String sampleText) async {}

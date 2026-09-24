@@ -41,7 +41,7 @@ const contentKey = 'preset_en_sample';
 /// so a test can observe the view mid-read.
 class RecordingReader implements Reader {
   final List<List<ParagraphSpeech>> reads = [];
-  void Function(int index)? onParagraphStart;
+  void Function(SpokenSentence spoken)? onSentenceStart;
   final List<String> spoken = [];
   int stops = 0;
   bool hold = false;
@@ -52,8 +52,15 @@ class RecordingReader implements Reader {
   List<ParagraphSpeech> get speeches =>
       reads.isEmpty ? const <ParagraphSpeech>[] : reads.last;
 
-  /// Fires the tracking callback the read installed, as the service does.
-  void fireParagraph(int index) => onParagraphStart?.call(index);
+  /// Fires the tracking callback the read installed, as the service does, for
+  /// the FIRST sentence of [paragraph] — the unit tracking paints now (011
+  /// FR-020).
+  SpokenSentence fireFirstSentence(int paragraph) {
+    final spoken =
+        spokenSentences(speeches[paragraph], paragraph).first;
+    onSentenceStart?.call(spoken);
+    return spoken;
+  }
 
   /// Lets the parked read finish (and stops parking the next one).
   void release() {
@@ -65,13 +72,13 @@ class RecordingReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     reads.add(paragraphs);
     for (final p in paragraphs) {
       spoken.add(p.text);
     }
-    this.onParagraphStart = onParagraphStart;
+    this.onSentenceStart = onSentenceStart;
     speaking = paragraphs.isNotEmpty;
     if (hold) {
       final parked = Completer<void>();
@@ -282,14 +289,16 @@ void main() {
       // A tap anchors the sentence it landed in, not its paragraph.
       expect(fake.speeches.length, 2);
 
-      // The read tracks per paragraph, from the anchored one on.
-      fake.fireParagraph(0);
+      // The read tracks per SENTENCE, from the anchored one on (011 FR-020):
+      // the same span the engine is speaking, not the paragraph around it.
+      final first = fake.fireFirstSentence(0);
       await tester.pump();
-      expect(hasYellow(tester, fake.speeches[0].text), isTrue);
-      fake.fireParagraph(1);
+      expect(hasYellow(tester, text.substring(first.start, first.end)), isTrue);
+      final second = fake.fireFirstSentence(1);
       await tester.pump();
-      expect(hasYellow(tester, fake.speeches[1].text), isTrue);
-      expect(hasYellow(tester, fake.speeches[0].text), isFalse);
+      expect(
+          hasYellow(tester, text.substring(second.start, second.end)), isTrue);
+      expect(hasYellow(tester, text.substring(first.start, first.end)), isFalse);
 
       fake.release();
       await tester.pump();

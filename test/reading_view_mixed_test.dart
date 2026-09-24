@@ -50,12 +50,15 @@ class MixedFakeReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> ps, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     paragraphs = ps;
-    // Mirror ReaderService: progress fires in paragraph order pre-utterance.
+    // Mirror ReaderService: one report per sentence, in order, before it is
+    // spoken (011 FR-020).
     for (var i = 0; i < ps.length; i++) {
-      onParagraphStart?.call(i);
+      for (final spoken in spokenSentences(ps[i], i)) {
+        onSentenceStart?.call(spoken);
+      }
     }
   }
 
@@ -146,8 +149,8 @@ void main() {
     });
   });
 
-  group('US3 paragraph tracking (003)', () {
-    testWidgets('highlight advances per paragraph, clears on Stop',
+  group('US3: the read is tracked sentence by sentence (011 FR-020)', () {
+    testWidgets('highlight advances per sentence, clears on Stop',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
       final fake = _ManualFakeReader();
@@ -171,13 +174,24 @@ void main() {
       await tester.pump();
       expect(fake.progress, isNotNull);
 
-      fake.progress!(0);
+      // The page shows the store's first pre-set, so the reported offsets are
+      // absolute into it.
+      final first = fake.fire(0, 0);
       await tester.pump();
-      expect(_hasYellow(tester, fake.paragraphs[0].text), isTrue);
-      fake.progress!(2);
+      expect(
+          _hasYellow(
+              tester, kSampleEnText.substring(first.start, first.end)),
+          isTrue);
+      final third = fake.fire(2, 0);
       await tester.pump();
-      expect(_hasYellow(tester, fake.paragraphs[2].text), isTrue);
-      expect(_hasYellow(tester, fake.paragraphs[0].text), isFalse);
+      expect(
+          _hasYellow(
+              tester, kSampleEnText.substring(third.start, third.end)),
+          isTrue);
+      expect(
+          _hasYellow(
+              tester, kSampleEnText.substring(first.start, first.end)),
+          isFalse);
 
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
@@ -210,7 +224,8 @@ void main() {
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
       // Late callback from the stopped loop: generation guard drops it.
-      progress(0);
+      progress(const SpokenSentence(
+          paragraph: 0, sentence: 0, start: 0, end: 12));
       await tester.pump();
       expect(_hasAnyYellow(tester), isFalse);
     });
@@ -259,19 +274,27 @@ bool _hasAnyYellow(WidgetTester tester) {
   return false;
 }
 
-/// Manual-drive fake: captures the progress callback and hangs mid-speech
+/// Manual-drive fake: captures the tracking callback and hangs mid-speech
 /// so tests observe tracking; Stop releases the hang.
 class _ManualFakeReader extends MixedFakeReader {
-  void Function(int)? progress;
+  void Function(SpokenSentence spoken)? progress;
   Completer<void>? _release;
+
+  /// Reports sentence [sentence] of paragraph [paragraph] — what the read does
+  /// just before speaking it — and returns the reported unit.
+  SpokenSentence fire(int paragraph, int sentence) {
+    final spoken = spokenSentences(paragraphs[paragraph], paragraph)[sentence];
+    progress!(spoken);
+    return spoken;
+  }
 
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> ps, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     paragraphs = ps;
-    progress = onParagraphStart;
+    progress = onSentenceStart;
     _release = Completer<void>();
     await _release!.future;
   }

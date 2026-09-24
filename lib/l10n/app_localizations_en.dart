@@ -157,4 +157,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get libraryRepairedMessage =>
       'The content library was repaired: a damaged index was replaced and the shipped samples are back.';
+
+  @override
+  String get addContentButton => 'Add content';
+
+  @override
+  String get appearanceButton => 'Appearance';
+
+  @override
+  String get appearanceTitle => 'Appearance';
+
+  @override
+  String get fontLabel => 'Typeface';
+
+  @override
+  String get sizeLabel => 'Text size';
+
+  @override
+  String get previewLabel => 'Preview';
+
+  @override
+  String get fontDefaultLabel => 'Default';
+
+  @override
+  String get fontSerifLabel => 'Serif';
+
+  @override
+  String get fontMonoLabel => 'Mono';
+
+  @override
+  String get sizeSmallLabel => 'Small';
+
+  @override
+  String get sizeMediumLabel => 'Medium';
+
+  @override
+  String get sizeLargeLabel => 'Large';
+
+  @override
+  String get sizeXLargeLabel => 'Extra large';
 }

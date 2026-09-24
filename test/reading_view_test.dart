@@ -53,7 +53,7 @@ class FakeReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     for (final p in paragraphs) {
       spoken.add(p.text);
@@ -75,7 +75,7 @@ class FailingReader extends FakeReader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     throw ReaderException('Voice not available for en-US');
   }

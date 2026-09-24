@@ -51,5 +51,18 @@
   "unsavedChangesMessage": "You have changes that are not saved.",
   "noContentsMessage": "No contents yet. Write something, then tap Save.",
   "damagedContentMessage": "This content is damaged",
-  "libraryRepairedMessage": "The content library was repaired: a damaged index was replaced and the shipped samples are back."
+  "libraryRepairedMessage": "The content library was repaired: a damaged index was replaced and the shipped samples are back.",
+  "addContentButton": "Add content",
+  "appearanceButton": "Appearance",
+  "appearanceTitle": "Appearance",
+  "fontLabel": "Typeface",
+  "sizeLabel": "Text size",
+  "previewLabel": "Preview",
+  "fontDefaultLabel": "Default",
+  "fontSerifLabel": "Serif",
+  "fontMonoLabel": "Mono",
+  "sizeSmallLabel": "Small",
+  "sizeMediumLabel": "Medium",
+  "sizeLargeLabel": "Large",
+  "sizeXLargeLabel": "Extra large"
 }

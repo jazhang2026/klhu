@@ -30,12 +30,14 @@ abstract class Reader {
   /// Each paragraph reaches the engine as one utterance per SENTENCE (010
   /// FR-011), which is what makes a paused read resume at the sentence that
   /// was in progress rather than at the top of a possibly long paragraph.
-  /// [onParagraphStart] fires once per paragraph, with the paragraph's index
-  /// in [paragraphs], on its first sentence (read-page tracking); never for a
-  /// stale generation.
+  /// [onSentenceStart] fires once per sentence, immediately before that
+  /// sentence goes to the engine, carrying its absolute offsets — the span
+  /// the page paints and follows (011 FR-020), so the highlight, the
+  /// utterance and 010's resume point name the same unit. Never for a stale
+  /// generation.
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   });
 
   /// Preview [voice] with [sampleText]: stops current speech first, then
@@ -69,6 +71,35 @@ class ParagraphSpeech {
     required this.text,
     required this.language,
     this.voice,
+    required this.start,
+    required this.end,
+  });
+}
+
+/// One sentence about to be handed to the engine, as the tracking callback
+/// reports it (011 FR-020): its paragraph, its index inside that paragraph,
+/// and the span it occupies in the reading content.
+///
+/// The offsets are absolute into the text the speeches were resolved from, so
+/// the page paints exactly what the engine was given. Before 011 the callback
+/// carried only the paragraph's index and tracking painted the whole
+/// paragraph, which is not the unit 010 resumes from.
+class SpokenSentence {
+  /// Index into the speeches the caller handed over.
+  final int paragraph;
+
+  /// Index of this sentence inside its paragraph.
+  final int sentence;
+
+  /// Start offset into the reading content.
+  final int start;
+
+  /// End offset into the reading content (exclusive).
+  final int end;
+
+  const SpokenSentence({
+    required this.paragraph,
+    required this.sentence,
     required this.start,
     required this.end,
   });
@@ -133,12 +164,16 @@ class _Utterance {
   final String language;
   final VoiceChoice? voice;
 
-  /// Index of the paragraph this sentence came from — what the tracking
-  /// callback reports, so 003 stays paragraph-level.
+  /// Index of the paragraph this sentence came from.
   final int paragraph;
 
-  /// Index of this sentence inside its paragraph (device-evidence only).
+  /// Index of this sentence inside its paragraph.
   final int sentence;
+
+  /// The sentence's span in the reading content (011 FR-020), absolute so the
+  /// view paints it without recomputing anything.
+  final int start;
+  final int end;
 
   const _Utterance({
     required this.text,
@@ -146,6 +181,8 @@ class _Utterance {
     this.voice,
     required this.paragraph,
     required this.sentence,
+    required this.start,
+    required this.end,
   });
 }
 
@@ -165,10 +202,10 @@ class ReaderService implements Reader {
 
   /// Queue state a paused read needs: what is being read — one entry per
   /// sentence — which one is in flight, the voices resolved for it, and the
-  /// highlight callback. Kept across [pause]/[resume]; cleared by [stop].
+  /// tracking callback. Kept across [pause]/[resume]; cleared by [stop].
   List<_Utterance> _queue = const [];
   List<VoiceEntry> _installed = const [];
-  void Function(int index)? _onParagraphStart;
+  void Function(SpokenSentence spoken)? _onSentenceStart;
   int _cursor = 0;
 
   /// Resolves when the utterance in flight ends — or when [pause]/[stop] cut
@@ -260,13 +297,13 @@ class ReaderService implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     _generation++;
     _queue = _sentencesOf(paragraphs);
     _cursor = 0;
     _paused = false;
-    _onParagraphStart = onParagraphStart;
+    _onSentenceStart = onSentenceStart;
     _speaking = _queue.isNotEmpty;
     await _run(_generation);
   }
@@ -291,6 +328,8 @@ class ReaderService implements Reader {
             voice: paragraph.voice,
             paragraph: i,
             sentence: j,
+            start: paragraph.start + ranges[j].start,
+            end: paragraph.start + ranges[j].end,
           ),
         );
       }
@@ -320,7 +359,6 @@ class ReaderService implements Reader {
     try {
       await _tts.awaitSpeakCompletion(true);
       _installed = await voicesForAll();
-      var reported = -1;
       while (_cursor < _queue.length) {
         if (gen != _generation) return;
         final unit = _queue[_cursor];
@@ -348,13 +386,16 @@ class ReaderService implements Reader {
           }
         }
         if (gen != _generation) return;
-        // 003's tracking is paragraph-level: one callback per paragraph, on its
-        // first sentence. A resume reports its paragraph again, as it always
-        // has; nothing downstream counts the calls.
-        if (unit.paragraph != reported) {
-          reported = unit.paragraph;
-          _onParagraphStart?.call(unit.paragraph);
-        }
+        // The tracking callback reports the sentence about to be spoken, with
+        // its offsets (011 FR-020). A resume reports its interrupted sentence
+        // again — which is what puts the highlight back on the sentence being
+        // repeated instead of leaving it wherever the pause left it.
+        _onSentenceStart?.call(SpokenSentence(
+          paragraph: unit.paragraph,
+          sentence: unit.sentence,
+          start: unit.start,
+          end: unit.end,
+        ));
         debugPrint(
           'klhu speak p${unit.paragraph} s${unit.sentence} '
           '"${_logPrefix(unit.text)}"',
@@ -431,7 +472,7 @@ class ReaderService implements Reader {
     _paused = false;
     _queue = const [];
     _cursor = 0;
-    _onParagraphStart = null;
+    _onSentenceStart = null;
     _releaseUtterance();
     await _tts.stop();
     _speaking = false;

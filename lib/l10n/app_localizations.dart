@@ -370,6 +370,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The content library was repaired: a damaged index was replaced and the shipped samples are back.'**
   String get libraryRepairedMessage;
+
+  /// No description provided for @addContentButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add content'**
+  String get addContentButton;
+
+  /// No description provided for @appearanceButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearanceButton;
+
+  /// No description provided for @appearanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearanceTitle;
+
+  /// No description provided for @fontLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Typeface'**
+  String get fontLabel;
+
+  /// No description provided for @sizeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get sizeLabel;
+
+  /// No description provided for @previewLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get previewLabel;
+
+  /// No description provided for @fontDefaultLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get fontDefaultLabel;
+
+  /// No description provided for @fontSerifLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Serif'**
+  String get fontSerifLabel;
+
+  /// No description provided for @fontMonoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get fontMonoLabel;
+
+  /// No description provided for @sizeSmallLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Small'**
+  String get sizeSmallLabel;
+
+  /// No description provided for @sizeMediumLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get sizeMediumLabel;
+
+  /// No description provided for @sizeLargeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Large'**
+  String get sizeLargeLabel;
+
+  /// No description provided for @sizeXLargeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra large'**
+  String get sizeXLargeLabel;
 }
 
 class _AppLocalizationsDelegate

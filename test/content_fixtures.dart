@@ -10,6 +10,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:klhu/models/content.dart';
+import 'package:klhu/reader_service.dart';
+import 'package:klhu/segmenter.dart';
 import 'package:klhu/services/content_store.dart';
 
 const String kSampleEnText = '''
@@ -102,4 +104,21 @@ ContentStore? _sharedStore;
 ContentStore sharedPageStore() {
   _sharedRoot ??= Directory.systemTemp.createTempSync('klhu-page-shared');
   return _sharedStore ??= pageStore(_sharedRoot!);
+}
+
+/// The sentences of [speech] as the reader reports them: one [SpokenSentence]
+/// per utterance, with ABSOLUTE offsets into the text the speech was cut from.
+/// `ReaderService` hands the view exactly this, so a fake that mirrors it
+/// drives tracking (011 FR-020) the way a real read does.
+List<SpokenSentence> spokenSentences(ParagraphSpeech speech, int paragraph) {
+  final ranges = sentenceRanges(speech.text);
+  return [
+    for (var j = 0; j < ranges.length; j++)
+      SpokenSentence(
+        paragraph: paragraph,
+        sentence: j,
+        start: speech.start + ranges[j].start,
+        end: speech.start + ranges[j].end,
+      ),
+  ];
 }

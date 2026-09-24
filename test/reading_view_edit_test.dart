@@ -54,10 +54,12 @@ class _EditFakeReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     for (var i = 0; i < paragraphs.length; i++) {
-      onParagraphStart?.call(i);
+      for (final spokenUnit in spokenSentences(paragraphs[i], i)) {
+        onSentenceStart?.call(spokenUnit);
+      }
       spoken.add(paragraphs[i].text);
     }
     speaking = paragraphs.isNotEmpty;
@@ -71,10 +73,12 @@ class _HangingFakeReader extends _EditFakeReader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     for (var i = 0; i < paragraphs.length; i++) {
-      onParagraphStart?.call(i);
+      for (final spokenUnit in spokenSentences(paragraphs[i], i)) {
+        onSentenceStart?.call(spokenUnit);
+      }
       spoken.add(paragraphs[i].text);
     }
     speaking = true;

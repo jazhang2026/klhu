@@ -152,6 +152,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get libraryRepairedMessage => '内容库已修复：损坏的索引已被替换，内置示例已恢复。';
+
+  @override
+  String get addContentButton => '添加内容';
+
+  @override
+  String get appearanceButton => '外观';
+
+  @override
+  String get appearanceTitle => '外观';
+
+  @override
+  String get fontLabel => '字体';
+
+  @override
+  String get sizeLabel => '文字大小';
+
+  @override
+  String get previewLabel => '预览';
+
+  @override
+  String get fontDefaultLabel => '默认';
+
+  @override
+  String get fontSerifLabel => '衬线体';
+
+  @override
+  String get fontMonoLabel => '等宽体';
+
+  @override
+  String get sizeSmallLabel => '小';
+
+  @override
+  String get sizeMediumLabel => '中';
+
+  @override
+  String get sizeLargeLabel => '大';
+
+  @override
+  String get sizeXLargeLabel => '特大';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -301,4 +340,43 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get libraryRepairedMessage => '内容库已修复：损坏的索引已被替换，内置示例已恢复。';
+
+  @override
+  String get addContentButton => '添加内容';
+
+  @override
+  String get appearanceButton => '外观';
+
+  @override
+  String get appearanceTitle => '外观';
+
+  @override
+  String get fontLabel => '字体';
+
+  @override
+  String get sizeLabel => '文字大小';
+
+  @override
+  String get previewLabel => '预览';
+
+  @override
+  String get fontDefaultLabel => '默认';
+
+  @override
+  String get fontSerifLabel => '衬线体';
+
+  @override
+  String get fontMonoLabel => '等宽体';
+
+  @override
+  String get sizeSmallLabel => '小';
+
+  @override
+  String get sizeMediumLabel => '中';
+
+  @override
+  String get sizeLargeLabel => '大';
+
+  @override
+  String get sizeXLargeLabel => '特大';
 }

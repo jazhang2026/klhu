@@ -169,20 +169,35 @@ void main() {
       expect(backend.spoken, ['One.']);
     });
 
-    test('onParagraphStart fires in order with matching index', () async {
+    test('onSentenceStart reports every sentence with its absolute offsets',
+        () async {
       final backend = FakeTtsBackend(voicesRaw: cannedVoices);
       final svc = ReaderService(backend);
-      final seen = <int>[];
+      final seen = <SpokenSentence>[];
+      // The two speeches as an anchored read hands them over: absolute offsets
+      // into one content string ('One. Two.\n\n二。三。').
       await svc.speakParagraphs(
         [
           const ParagraphSpeech(
-              text: 'One.', language: 'en', start: 0, end: 4),
+              text: 'One. Two.', language: 'en', start: 0, end: 9),
           const ParagraphSpeech(
-              text: '二。', language: 'zh-Hans', start: 0, end: 2),
+              text: '二。三。', language: 'zh-Hans', start: 11, end: 17),
         ],
-        onParagraphStart: seen.add,
+        onSentenceStart: seen.add,
       );
-      expect(seen, [0, 1]);
+      expect(
+        seen.map((s) => (s.paragraph, s.sentence)).toList(),
+        [(0, 0), (0, 1), (1, 0), (1, 1)],
+      );
+      // Absolute, not paragraph-relative: paragraph.start + the sentence's own
+      // range, so the view can paint exactly the span the engine was handed
+      // (011 FR-020).
+      expect(seen.map((s) => (s.start, s.end)).toList(), [
+        (0, 4), // 'One.'
+        (5, 9), // 'Two.'
+        (11, 13), // '二。'
+        (13, 15), // '三。'
+      ]);
     });
 
     test('omitted callback speaks exactly as before', () async {
@@ -200,22 +215,22 @@ void main() {
         autoComplete: false,
       );
       final svc = ReaderService(backend);
-      final seen = <int>[];
+      final seen = <(int, int)>[];
       final future = svc.speakParagraphs(
         [
           const ParagraphSpeech(
               text: 'One.', language: 'en', start: 0, end: 4),
           const ParagraphSpeech(
-              text: 'Two.', language: 'en', start: 0, end: 4),
+              text: 'Two.', language: 'en', start: 5, end: 9),
         ],
-        onParagraphStart: seen.add,
+        onSentenceStart: (s) => seen.add((s.paragraph, s.sentence)),
       );
       await Future<void>.delayed(Duration.zero);
-      expect(seen, [0]);
+      expect(seen, [(0, 0)]);
       await svc.stop();
       backend.completePending();
       await future;
-      expect(seen, [0]);
+      expect(seen, [(0, 0)]);
       expect(backend.spoken, ['One.']);
     });
   });
@@ -238,10 +253,12 @@ void main() {
         autoComplete: false,
       );
       final svc = ReaderService(backend);
+      // Each paragraph in [queueOf] is a single sentence, so the paragraph
+      // index this test asserts on is what the sentence callback reports.
       final seen = <int>[];
       final future = svc.speakParagraphs(
         queueOf(3),
-        onParagraphStart: seen.add,
+        onSentenceStart: (s) => seen.add(s.paragraph),
       );
       await Future<void>.delayed(Duration.zero);
       expect(backend.spoken, ['Paragraph 0.']);
@@ -348,13 +365,15 @@ void main() {
         () async {
       final backend = FakeTtsBackend(voicesRaw: cannedVoices);
       final svc = ReaderService(backend);
-      final seen = <int>[];
-      await svc.speakParagraphs(oneLongParagraph(), onParagraphStart: seen.add);
+      final seen = <(int, int)>[];
+      await svc.speakParagraphs(oneLongParagraph(),
+          onSentenceStart: (s) => seen.add((s.paragraph, s.sentence)));
 
       expect(backend.spoken, ['One.', 'Two.', 'Three.']);
-      // ...and the paragraph callback still fires ONCE, for the paragraph, on
-      // its first sentence: 003's tracking is paragraph-level (I14).
-      expect(seen, [0]);
+      // The tracking callback names the SENTENCE, not the paragraph: the
+      // amended unit (011 FR-020/FR-021) — the highlight, the utterance and
+      // 010's resume point are now the same unit.
+      expect(seen, [(0, 0), (0, 1), (0, 2)]);
     });
 
     test('every sentence keeps its paragraph language and picked voice',
@@ -391,19 +410,19 @@ void main() {
         autoComplete: false,
       );
       final svc = ReaderService(backend);
-      final seen = <int>[];
+      final seen = <(int, int)>[];
       final future = svc.speakParagraphs(
         oneLongParagraph(),
-        onParagraphStart: seen.add,
+        onSentenceStart: (s) => seen.add((s.paragraph, s.sentence)),
       );
 
       await Future<void>.delayed(Duration.zero);
       expect(backend.spoken, ['One.']);
       backend.completePending();
       await Future<void>.delayed(Duration.zero);
-      // Second sentence in flight, and still one callback for the paragraph.
+      // Second sentence in flight.
       expect(backend.spoken, ['One.', 'Two.']);
-      expect(seen, [0]);
+      expect(seen, [(0, 0), (0, 1)]);
 
       await svc.pause();
       expect(svc.isPaused, isTrue);
@@ -412,9 +431,11 @@ void main() {
       final resumed = svc.resume();
       await Future<void>.delayed(Duration.zero);
       // The interrupted SENTENCE is repeated — not the paragraph from its top
-      // (I12/SC-006).
+      // (I12/SC-006) — and the callback says so, which is what puts the
+      // highlight back on the sentence being repeated (FR-021).
       expect(backend.spoken, ['One.', 'Two.', 'Two.']);
       expect(svc.isSpeaking, isTrue);
+      expect(seen, [(0, 0), (0, 1), (0, 1)]);
 
       backend.completePending();
       await Future<void>.delayed(Duration.zero);

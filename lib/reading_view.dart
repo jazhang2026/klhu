@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:klhu/appearance_screen.dart';
+import 'package:klhu/appearance_store.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
@@ -14,7 +17,8 @@ import 'package:klhu/l10n/app_localizations.dart';
 /// Reading view (003, revised per emulator validation): RichText for
 /// READ/SPEAKING with the 001 yellow highlight (tap selects sentence,
 /// long-press selects paragraph, read tracking highlights the spoken
-/// paragraph); a TextField appears ONLY in EDIT mode.
+/// SENTENCE and keeps it on screen — 011 FR-020/FR-021); a TextField appears
+/// ONLY in EDIT mode.
 ///
 /// - READ (default): RichText, tap sentence / long-press paragraph, keyboard
 ///   never appears, no caret/selection UI. TalkBack gestures keep meanings.
@@ -24,7 +28,8 @@ import 'package:klhu/l10n/app_localizations.dart';
 ///   Done commits the text and returns to READ.
 /// - SPEAKING: RichText locked (no gestures resolve while speaking except
 ///   tap/long-press, which stop-first then select); tracking highlight moves
-///   per paragraph; Edit disabled until Stop / natural end.
+///   with the spoken sentence and the page follows it; Edit disabled until
+///   Stop / natural end.
 ///
 /// No gesture overloading (tap means one thing per state); typing-during-read
 /// and Read-with-unsaved-edits are impossible by construction.
@@ -56,6 +61,37 @@ class ReadingView extends StatefulWidget {
 }
 
 enum _Mode { read, edit, speaking, paused }
+
+/// A reported sentence's box against the visible area, in the visible area's
+/// own coordinates: what the follow decision is made on and what the
+/// `klhu follow:` evidence line prints.
+class _SentenceGeometry {
+  /// The paragraph the box was measured on — the reveal's target.
+  final RenderParagraph paragraph;
+
+  /// The box, in [paragraph]'s own coordinates (what `showOnScreen` wants).
+  final Rect rect;
+
+  /// Distance from the visible area's top edge to the box's top.
+  final double top;
+
+  /// Distance from the visible area's top edge to the box's bottom.
+  final double bottom;
+
+  /// Height of the visible area.
+  final double viewport;
+
+  const _SentenceGeometry({
+    required this.paragraph,
+    required this.rect,
+    required this.top,
+    required this.bottom,
+    required this.viewport,
+  });
+
+  /// Fully inside the visible area: the page does not have to move for it.
+  bool get visible => top >= 0 && bottom <= viewport;
+}
 
 class _ReadingViewState extends State<ReadingView> {
   final _textKey = GlobalKey();
@@ -95,12 +131,62 @@ class _ReadingViewState extends State<ReadingView> {
   /// voice picks and the interface language.
   final _positions = ReadPositionStore();
 
+  /// Per-device appearance store (011 US2): the reading text's typeface and
+  /// size, in the same store as the app's other view state.
+  final _appearances = AppearanceStore();
+
+  /// The appearance in force. The defaults are the app's shipped look, which is
+  /// also what an absent or malformed record reads as (contract § Read rules).
+  ReadingAppearance _appearance = ReadingAppearance.defaults;
+
   ContentStore get _store => widget.contentStore;
 
   @override
   void initState() {
     super.initState();
+    _loadAppearance();
     _openInitialContent();
+  }
+
+  /// Puts the stored appearance in force. A record naming something this build
+  /// does not offer already read as the defaults in the store, so there is
+  /// nothing to validate here.
+  Future<void> _loadAppearance() async {
+    final stored = await _appearances.load();
+    if (!mounted) return;
+    if (stored.typeface.name == _appearance.typeface.name &&
+        stored.size.name == _appearance.size.name) {
+      return;
+    }
+    setState(() => _appearance = stored);
+  }
+
+  /// Opens the appearance screen and puts the confirmed choice in force; a
+  /// dismissed screen (null) changes nothing and writes nothing (FR-008).
+  Future<void> _openAppearance() async {
+    final chosen = await Navigator.of(context).push<ReadingAppearance>(
+      MaterialPageRoute(
+        builder: (_) => AppearanceScreen(
+          initial: _appearance,
+          previewText: _previewText(),
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    setState(() => _appearance = chosen);
+    await _appearances.save(chosen);
+  }
+
+  /// What the appearance screen previews: the page's own first paragraph, short
+  /// enough for the preview box.
+  String _previewText() {
+    final text = _content.trim();
+    if (text.isEmpty) return '';
+    final paragraphs = paragraphRanges(text);
+    final first = paragraphs.isEmpty
+        ? text
+        : text.substring(paragraphs.first.start, paragraphs.first.end);
+    return first.length <= 240 ? first : '${first.substring(0, 240)}…';
   }
 
   /// How long storage gets to answer before the page falls back to the shipped
@@ -521,8 +607,8 @@ class _ReadingViewState extends State<ReadingView> {
   /// Shared read path (002 US1): resolve the range into per-paragraph
   /// speeches — each paragraph in its own language's picked voice, in order.
   /// A sentence tap inherits its enclosing paragraph's language (spec FR-001).
-  /// With [track], the yellow highlight follows each spoken paragraph (US3)
-  /// and clears at end/Stop.
+  /// With [track], the sentence being spoken is painted (011 FR-020) and kept
+  /// on screen, and the highlight clears at end/Stop.
   Future<void> _readRange(int start, int end, {bool track = false}) async {
     final speeches = await resolveParagraphSpeeches(
       _content,
@@ -545,19 +631,118 @@ class _ReadingViewState extends State<ReadingView> {
       gen,
       () => widget.reader.speakParagraphs(
         speeches,
-        onParagraphStart: track
-            ? (i) {
-                if (!mounted || gen != _readGen) return;
-                setState(() {
-                  _highlight = TextSegment(
-                    speeches[i].start,
-                    speeches[i].end,
-                    SegmentUnit.paragraph,
-                  );
-                });
-              }
-            : null,
+        onSentenceStart:
+            track ? (spoken) => _onSpokenSentence(gen, spoken) : null,
       ),
+    );
+  }
+
+  /// The last unit the page followed: re-reporting it — what a resume does for
+  /// the sentence it interrupted — must not move the page (D9/FR-004).
+  int _followedGen = -1;
+  int _followedParagraph = -1;
+  int _followedSentence = -1;
+
+  /// The read reports the sentence it is about to speak (011 FR-020): paint
+  /// exactly that span, then keep it on screen. One span, one measurement, one
+  /// reveal — what is painted is what is followed.
+  void _onSpokenSentence(int gen, SpokenSentence spoken) {
+    if (!mounted || gen != _readGen) return;
+    setState(() {
+      _highlight = TextSegment(spoken.start, spoken.end, SegmentUnit.sentence);
+    });
+    _followRead(gen, spoken);
+  }
+
+  /// How long the page takes to move a sentence into view.
+  static const Duration _revealDuration = Duration(milliseconds: 200);
+
+  /// Brings the sentence being spoken into view, minimally.
+  ///
+  /// The box comes from the same [RenderParagraph] the tap path measures
+  /// (`getBoxesForSelection`), and the move is the framework's own reveal
+  /// (`showOnScreen` on the enclosing viewport): a sentence already fully
+  /// visible is left alone, the sentence already playing is not dragged back
+  /// after a manual scroll, and no scroll offset of this view's own is needed
+  /// (research D1, constitution V).
+  void _followRead(int gen, SpokenSentence spoken) {
+    if (gen == _followedGen &&
+        spoken.paragraph == _followedParagraph &&
+        spoken.sentence == _followedSentence) {
+      return;
+    }
+    final geometry = _measure(spoken);
+    if (geometry == null) return;
+    _followedGen = gen;
+    _followedParagraph = spoken.paragraph;
+    _followedSentence = spoken.sentence;
+    if (geometry.visible) {
+      _logFollow(spoken, geometry);
+      return;
+    }
+    geometry.paragraph.showOnScreen(
+      rect: geometry.rect,
+      duration: _revealDuration,
+      curve: Curves.easeOut,
+    );
+    // The evidence line reports the SETTLED state, one line per sentence: the
+    // reveal is animated, so measuring here would report the sentence as off
+    // screen — the very sentence the page is moving to. Post-frame callbacks
+    // rather than a timer, so a test that never settles leaves nothing
+    // pending.
+    _logFollowWhenSettled(gen, spoken);
+  }
+
+  void _logFollowWhenSettled(int gen, SpokenSentence spoken, [int frames = 0]) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || gen != _readGen) return;
+      final settled = _measure(spoken);
+      if (settled == null) return;
+      // The animation runs for [_revealDuration]; a sentence that will not fit
+      // at all is reported as it is rather than polled forever.
+      if (!settled.visible && frames < 20) {
+        _logFollowWhenSettled(gen, spoken, frames + 1);
+        return;
+      }
+      _logFollow(spoken, settled);
+    });
+  }
+
+  /// The reported sentence's box against the visible area, in the visible
+  /// area's own coordinates — or null when there is no live paragraph to
+  /// measure.
+  _SentenceGeometry? _measure(SpokenSentence spoken) {
+    final ctx = _textKey.currentContext;
+    final obj = ctx?.findRenderObject();
+    if (ctx == null || obj is! RenderParagraph) return null;
+    final RenderObject? ancestor =
+        ctx.findAncestorRenderObjectOfType<RenderAbstractViewport>();
+    if (ancestor is! RenderBox) return null;
+    final boxes = obj.getBoxesForSelection(
+      TextSelection(baseOffset: spoken.start, extentOffset: spoken.end),
+    );
+    if (boxes.isEmpty) return null;
+    final rect = boxes
+        .map((box) => box.toRect())
+        .reduce((a, b) => a.expandToInclude(b));
+    final origin = ancestor.localToGlobal(Offset.zero);
+    return _SentenceGeometry(
+      paragraph: obj,
+      rect: rect,
+      top: obj.localToGlobal(rect.topLeft).dy - origin.dy,
+      bottom: obj.localToGlobal(rect.bottomRight).dy - origin.dy,
+      viewport: ancestor.size.height,
+    );
+  }
+
+  /// The device walk's evidence line, in the app's other evidence lines' style
+  /// (`klhu speak`, `klhu read range`): where the sentence being spoken sits in
+  /// the visible area, and how tall that area is.
+  void _logFollow(SpokenSentence spoken, _SentenceGeometry geometry) {
+    debugPrint(
+      'klhu follow: p${spoken.paragraph} s${spoken.sentence} '
+      'visible=${geometry.visible ? 1 : 0} top=${geometry.top.round()} '
+      'bottom=${geometry.bottom.round()} viewport=${geometry.viewport.round()}',
     );
   }
 
@@ -645,8 +830,16 @@ class _ReadingViewState extends State<ReadingView> {
   TextStyle _contentTextStyle(BuildContext context) {
     final body = Theme.of(context).textTheme.bodyMedium!;
     final color = body.color;
-    if (color == null) return body;
-    return body.copyWith(color: Color(color.toARGB32()));
+    final base = color == null ? body : body.copyWith(color: Color(color.toARGB32()));
+    // The appearance seam (011 FR-009): this method is the ONE place the
+    // reading text's style is built, and the rich text and the edit field both
+    // go through it — so a chosen typeface and size reach both of them and
+    // neither reaches the app's chrome. `default` sets no family, which leaves
+    // the theme's own family (and the system's CJK fallback) in force.
+    return base.copyWith(
+      fontFamily: _appearance.typeface.familyFor(Theme.of(context).platform),
+      fontSize: _appearance.size.points,
+    );
   }
 
   /// Picker language (spec FR-003): language of the highlighted paragraph,
@@ -674,6 +867,14 @@ class _ReadingViewState extends State<ReadingView> {
           // Language dropdown
           if (widget.localizationService != null)
             _buildLanguageDropdown(context),
+          IconButton(
+            icon: const Icon(Icons.format_size),
+            tooltip:
+                AppLocalizations.of(context)?.appearanceButton ?? 'Appearance',
+            // Idle-only (FR-014): changing the text's look mid-read would fight
+            // the page's own tracking, which is measured on that text.
+            onPressed: _isSpeakingOrPaused ? null : _openAppearance,
+          ),
           IconButton(
             icon: const Icon(Icons.folder_open),
             tooltip:

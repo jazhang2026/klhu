@@ -1,7 +1,8 @@
-/// Widget tests for the content list (spec 008 T010).
+/// Widget tests for the content list (spec 008 T010, extended by 011 US3).
 ///
 /// The screen is presented the same way the reading view presents it: pushed
-/// as a route that resolves to the chosen entry (or null when dismissed).
+/// as a route that resolves to the chosen result — a picked entry, a request
+/// for a new content, or null when dismissed.
 ///
 /// Widget tests run inside a fake-async zone, where real file IO only makes
 /// progress inside a `tester.runAsync` window — [settle] opens one, so the
@@ -116,7 +117,7 @@ void main() {
     final store = buildStore(catalog: [
       preset('preset_en_sample', 'en', 'Hello there.'),
     ]);
-    SavedContent? picked;
+    ContentListResult? result;
 
     await tester.pumpWidget(MaterialApp(
       localizationsDelegates: const [
@@ -130,7 +131,7 @@ void main() {
         builder: (context) => Scaffold(
           body: ElevatedButton(
             onPressed: () async {
-              picked = await Navigator.of(context).push<SavedContent>(
+              result = await Navigator.of(context).push<ContentListResult>(
                 MaterialPageRoute(
                     builder: (_) => ContentListScreen(store: store)),
               );
@@ -147,7 +148,90 @@ void main() {
     await tester.tap(find.text('Hello there.'));
     await tester.pumpAndSettle();
 
-    expect(picked?.id, 'preset_en_sample');
+    expect(result, isA<PickedContent>());
+    expect((result! as PickedContent).entry.id, 'preset_en_sample');
+  });
+
+  testWidgets('the add action asks for a new content, not an entry',
+      (tester) async {
+    final store = buildStore(catalog: [
+      preset('preset_en_sample', 'en', 'Hello there.'),
+    ]);
+    ContentListResult? result;
+
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en')],
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: ElevatedButton(
+            onPressed: () async {
+              result = await Navigator.of(context).push<ContentListResult>(
+                MaterialPageRoute(
+                    builder: (_) => ContentListScreen(store: store)),
+              );
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await settle(tester);
+    await tester.pumpAndSettle();
+
+    // The action is a named control of its own, in the app bar (011 FR-015):
+    // its tooltip is the accessible name, as for the row deletes.
+    await tester.tap(find.byTooltip('Add content'));
+    await tester.pumpAndSettle();
+
+    expect(result, isA<NewContentRequest>());
+    // Nothing was created by asking: the page decides what "+" means.
+    final entries = await tester.runAsync(() => store.list());
+    expect(entries!.map((e) => e.id), ['preset_en_sample']);
+  });
+
+  testWidgets('going back from the list resolves to nothing', (tester) async {
+    final store = buildStore(catalog: [
+      preset('preset_en_sample', 'en', 'Hello there.'),
+    ]);
+    ContentListResult? result;
+
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en')],
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: ElevatedButton(
+            onPressed: () async {
+              result = await Navigator.of(context).push<ContentListResult>(
+                MaterialPageRoute(
+                    builder: (_) => ContentListScreen(store: store)),
+              );
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await settle(tester);
+    await tester.pumpAndSettle();
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(result, isNull);
   });
 
   testWidgets('an empty library explains itself', (tester) async {

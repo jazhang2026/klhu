@@ -39,7 +39,7 @@ class _PauseFakeReader implements Reader {
 
   List<ParagraphSpeech> _queue = const [];
   int _cursor = 0;
-  void Function(int)? _onParagraphStart;
+  void Function(SpokenSentence spoken)? _onSentenceStart;
   Completer<void>? _utterance;
 
   /// Let the paragraph in flight end on its own (what a long page does).
@@ -96,12 +96,12 @@ class _PauseFakeReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {
     _queue = paragraphs;
     _cursor = 0;
     paused = false;
-    _onParagraphStart = onParagraphStart;
+    _onSentenceStart = onSentenceStart;
     speaking = paragraphs.isNotEmpty;
     await _playFrom(0);
   }
@@ -109,7 +109,12 @@ class _PauseFakeReader implements Reader {
   Future<void> _playFrom(int from) async {
     for (var i = from; i < _queue.length; i++) {
       _cursor = i;
-      _onParagraphStart?.call(i);
+      // One report per sentence, in order — the amended tracking unit (011
+      // FR-020). `paragraphStarts` still records the paragraph, so the
+      // pause/resume expectations below keep their meaning.
+      for (final spoken in spokenSentences(_queue[i], i)) {
+        _onSentenceStart?.call(spoken);
+      }
       spoken.add(_queue[i].text);
       paragraphStarts.add(i);
       if (autoAdvance) continue;

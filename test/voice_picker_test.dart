@@ -44,7 +44,7 @@ class PickerFakeReader implements Reader {
   @override
   Future<void> speakParagraphs(
     List<ParagraphSpeech> ps, {
-    void Function(int index)? onParagraphStart,
+    void Function(SpokenSentence spoken)? onSentenceStart,
   }) async {}
 
   @override
