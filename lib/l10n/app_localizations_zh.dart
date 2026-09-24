@@ -25,7 +25,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readButton => '朗读';
 
   @override
-  String get readPageButton => '朗读全文';
+  String get continueReadButton => '继续朗读';
 
   @override
   String get stopButton => '停止';
@@ -44,6 +44,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hintText => '点击句子开始朗读';
+
+  @override
+  String get nothingToReadMessage => '从这里开始没有可朗读的内容';
 
   @override
   String get genderMale => '男';
@@ -179,7 +182,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get readButton => '朗读';
 
   @override
-  String get readPageButton => '朗读全文';
+  String get continueReadButton => '继续朗读';
 
   @override
   String get stopButton => '停止';
@@ -198,6 +201,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get hintText => '点击句子开始朗读';
+
+  @override
+  String get nothingToReadMessage => '从这里开始没有可朗读的内容';
 
   @override
   String get genderMale => '男';

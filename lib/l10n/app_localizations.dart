@@ -131,11 +131,11 @@ abstract class AppLocalizations {
   /// **'Read'**
   String get readButton;
 
-  /// No description provided for @readPageButton.
+  /// No description provided for @continueReadButton.
   ///
   /// In en, this message translates to:
-  /// **'Read page'**
-  String get readPageButton;
+  /// **'Continue Read'**
+  String get continueReadButton;
 
   /// No description provided for @stopButton.
   ///
@@ -172,6 +172,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a sentence to read'**
   String get hintText;
+
+  /// No description provided for @nothingToReadMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing left to read from here'**
+  String get nothingToReadMessage;
 
   /// No description provided for @genderMale.
   ///

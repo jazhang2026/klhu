@@ -121,10 +121,10 @@ void main() {
         (tester) async {
       await _pumpApp(tester, const Locale('zh'));
       expect(find.byTooltip('朗读'), findsOneWidget);
-      expect(find.byTooltip('朗读全文'), findsOneWidget);
+      expect(find.byTooltip('继续朗读'), findsOneWidget);
       expect(find.byTooltip('停止'), findsOneWidget);
       expect(find.byTooltip('编辑'), findsOneWidget);
-      expect(find.byTooltip('Read page'), findsNothing);
+      expect(find.byTooltip('Continue Read'), findsNothing);
     });
   });
 }

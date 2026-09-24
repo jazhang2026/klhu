@@ -26,6 +26,7 @@ Requirement:
 
 11. change "Read Page" to "Continue Read" function. tap or tap and hold to set the start position. 
     "Continue Read" is same as Read Page, but it starts from the position where the user set.
+    pause/resume on sentence level, not paragraph level.
 
 12. add OCR functionality to extract text from images or camera input.
 

@@ -25,7 +25,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readButton => 'Read';
 
   @override
-  String get readPageButton => 'Read page';
+  String get continueReadButton => 'Continue Read';
 
   @override
   String get stopButton => 'Stop';
@@ -44,6 +44,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hintText => 'Tap a sentence to read';
+
+  @override
+  String get nothingToReadMessage => 'Nothing left to read from here';
 
   @override
   String get genderMale => 'Male';

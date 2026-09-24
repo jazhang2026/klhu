@@ -109,7 +109,7 @@ void main() {
   });
 
   group('reading view mixed read (widget)', () {
-    testWidgets('Read page on edited mixed text speaks per-paragraph voices',
+    testWidgets('Continue Read on edited mixed text speaks per-paragraph voices',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
       final fake = MixedFakeReader();
@@ -137,7 +137,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
 
       expect(fake.paragraphs.length, 2);
@@ -167,7 +167,7 @@ void main() {
           home: ReadingView(reader: fake, contentStore: pageStore(root))),
       );
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(fake.progress, isNotNull);
 
@@ -204,7 +204,7 @@ void main() {
           home: ReadingView(reader: fake, contentStore: pageStore(root))),
       );
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       final progress = fake.progress!;
       await tester.tap(find.byTooltip('Stop'));

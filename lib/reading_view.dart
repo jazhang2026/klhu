@@ -4,6 +4,7 @@ import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/read_position_store.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/services/content_store.dart';
@@ -13,13 +14,14 @@ import 'package:klhu/l10n/app_localizations.dart';
 
 /// Reading view (003, revised per emulator validation): RichText for
 /// READ/SPEAKING with the 001 yellow highlight (tap selects sentence,
-/// long-press selects paragraph, page-read tracking highlights the spoken
+/// long-press selects paragraph, read tracking highlights the spoken
 /// paragraph); a TextField appears ONLY in EDIT mode.
 ///
 /// - READ (default): RichText, tap sentence / long-press paragraph, keyboard
 ///   never appears, no caret/selection UI. TalkBack gestures keep meanings.
+///   The same gesture also sets the Continue Read start position (010).
 /// - EDIT (Edit button, idle-only): fully editable TextField with native
-///   type/paste/copy/cut; Read + Read page + Stop hidden, only Done shows.
+///   type/paste/copy/cut; Read + Continue Read + Stop hidden, only Done shows.
 ///   Done commits the text and returns to READ.
 /// - SPEAKING: RichText locked (no gestures resolve while speaking except
 ///   tap/long-press, which stop-first then select); tracking highlight moves
@@ -75,6 +77,25 @@ class _ReadingViewState extends State<ReadingView> {
   String _content = '';
   TextSegment? _highlight;
   _Mode _mode = _Mode.read;
+
+  /// The Continue Read start position in force: an offset into [_content] at a
+  /// sentence or paragraph start, or null for "read from the beginning"
+  /// (FR-004/FR-005). Distinct from [_highlight]: tracking repaints the
+  /// highlight per paragraph, and the position must survive that.
+  int? _anchor;
+
+  /// Which text [_anchor] belongs to — the library entry id, or the shipped
+  /// pre-set's id on the catalog-fallback path. Null when the text has no name
+  /// yet, which also means nothing can be persisted for it.
+  String? _anchorKey;
+
+  /// Position writes in flight: a tap supersedes an earlier one, so only the
+  /// last position the user set may land on disk.
+  int _anchorWrite = 0;
+
+  /// Per-device position store (010 FR-008); `shared_preferences`, like the
+  /// voice picks and the interface language.
+  final _positions = ReadPositionStore();
 
   ContentStore get _store => widget.contentStore;
 
@@ -134,10 +155,13 @@ class _ReadingViewState extends State<ReadingView> {
     if (presets.isEmpty || !mounted) return;
     final preset = presets.first;
     final name = contentNameFrom(preset.text);
+    final previous = _anchorKey;
     setState(() {
       _content = preset.text;
       _loaded = null;
       _loadedName = name;
+      _anchor = null;
+      _anchorKey = preset.id;
       _editController?.value = TextEditingValue(
         text: preset.text,
         selection: TextSelection.collapsed(offset: preset.text.length),
@@ -146,6 +170,45 @@ class _ReadingViewState extends State<ReadingView> {
       _error = null;
       _hint = null;
     });
+    await _adoptAnchor(previous);
+  }
+
+  /// The text on screen changed (FR-007): the position in force belonged to the
+  /// text being left — it is forgotten here and on disk — and the incoming
+  /// content's own stored position is put back (FR-008).
+  Future<void> _adoptAnchor(String? previous) async {
+    if (previous != null && previous != _anchorKey) {
+      await _positions.clear(previous);
+    }
+    await _restoreAnchor();
+  }
+
+  /// Puts the stored position for the content on screen back in force, and
+  /// shows it: a restored position that read from an invisible offset would be
+  /// a mystery button. A missing record, a malformed one or one computed on
+  /// different text all mean "read from the beginning" (FR-005/FR-009).
+  Future<void> _restoreAnchor() async {
+    final key = _anchorKey;
+    final length = _content.length;
+    if (key == null || length == 0) return;
+    final stored = await _positions.load(key, length);
+    if (stored == null || !mounted) return;
+    final segment = resolveSentence(_content, stored.offset);
+    setState(() {
+      _anchor = segment.start;
+      _highlight = segment;
+    });
+  }
+
+  /// Forgets the position: the visible text changed (FR-007). The record goes
+  /// with the field, so a restart cannot bring the old offset back.
+  Future<void> _clearAnchor() async {
+    final key = _anchorKey;
+    // A write still in flight is for text that no longer exists.
+    _anchorWrite++;
+    if (_anchor != null) setState(() => _anchor = null);
+    if (key == null) return;
+    await _positions.clear(key);
   }
 
   /// Invalidates a stale read's `finally` (tap/Stop during SPEAKING must win
@@ -251,7 +314,7 @@ class _ReadingViewState extends State<ReadingView> {
     _focusNode.requestFocus();
   }
 
-  void _doneEdit() {
+  Future<void> _doneEdit() async {
     // Commit the edited text, leave EDIT.
     setState(() {
       _content = _editController!.text;
@@ -259,6 +322,7 @@ class _ReadingViewState extends State<ReadingView> {
       _highlight = null;
     });
     _disposeUndo();
+    await _clearAnchor();
   }
 
   // -------------------------------------------------------------------
@@ -282,10 +346,13 @@ class _ReadingViewState extends State<ReadingView> {
       final name = await _displayName(entry);
       await _store.markOpened(entry.id);
       if (!mounted) return;
+      final previous = _anchorKey;
       setState(() {
         _content = text;
         _loaded = entry;
         _loadedName = name;
+        _anchor = null;
+        _anchorKey = entry.id;
         _editController?.value = TextEditingValue(
           text: text,
           selection: TextSelection.collapsed(offset: text.length),
@@ -297,6 +364,7 @@ class _ReadingViewState extends State<ReadingView> {
         // READ-only action), but a stale PAUSED state must not survive.
         if (_mode == _Mode.speaking) _mode = _Mode.read;
       });
+      await _adoptAnchor(previous);
     } on ContentStoreException {
       if (!mounted) return;
       setState(() => _error = AppLocalizations.of(context)
@@ -348,13 +416,20 @@ class _ReadingViewState extends State<ReadingView> {
     final l10n = AppLocalizations.of(context);
     final text = _editController!.text;
     try {
+      final previous = _anchorKey;
       final saved = await _store.saveEdited(_loaded, text);
       if (!mounted) return;
       setState(() {
         _content = text;
         _loaded = saved;
         _loadedName = saved.name;
+        _anchor = null;
+        // Editing a pre-set produces a new entry: the position belongs to the
+        // text this Save replaced.
+        _anchorKey = saved.id;
       });
+      _anchorWrite++;
+      if (previous != null) await _positions.clear(previous);
       _showMessage(l10n?.savedMessage ?? 'Saved');
     } on ContentStoreException catch (e) {
       if (!mounted) return;
@@ -393,8 +468,9 @@ class _ReadingViewState extends State<ReadingView> {
   }
 
   /// Shared tap/long-press path: map the touch point to a text offset,
-  /// resolve to the enclosing segment, stop current speech, highlight,
-  /// and wait for Read (data-model invariant).
+  /// resolve to the enclosing segment, stop current speech, highlight, set the
+  /// Continue Read start position from the same segment (D1), and wait for a
+  /// read action (data-model invariant).
   Future<void> _resolveAt(Offset globalPosition,
       TextSegment Function(String, int) resolve) async {
     final obj = _textKey.currentContext?.findRenderObject();
@@ -402,14 +478,41 @@ class _ReadingViewState extends State<ReadingView> {
     final pos =
         obj.getPositionForOffset(obj.globalToLocal(globalPosition));
     await widget.reader.stop();
+    final segment = resolve(_content, pos.offset);
     setState(() {
       // Win over the stopped loop's `finally` below.
       _readGen++;
       _mode = _Mode.read;
-      _highlight = resolve(_content, pos.offset);
+      _highlight = segment;
+      // A tap anchors the sentence it resolved to, a long-press its paragraph.
+      _anchor = segment.start;
       _error = null;
       _hint = null;
     });
+    await _persistAnchor();
+  }
+
+  /// Stores the position in force for the content on screen (FR-008).
+  ///
+  /// Written on the gesture that set it, not at read start, so a position the
+  /// user set and never played is still remembered. The hop before the write
+  /// lets a burst of taps supersede an earlier one, so the LAST position is the
+  /// one that stays on disk (invariant I10).
+  Future<void> _persistAnchor() async {
+    final key = _anchorKey;
+    final offset = _anchor;
+    if (key == null || offset == null) return;
+    final write = ++_anchorWrite;
+    await Future<void>.microtask(() {});
+    if (write != _anchorWrite) return;
+    await _positions.save(
+      key,
+      ReadingPosition(
+        contentKey: key,
+        offset: offset,
+        charCount: _content.length,
+      ),
+    );
   }
 
   Future<void> _readSelection() async {
@@ -422,9 +525,10 @@ class _ReadingViewState extends State<ReadingView> {
     await _readRange(seg.start, seg.end);
   }
 
-  Future<void> _readPage() async {
-    final seg = pageRange(_content);
-    await _readRange(seg.start, seg.end, track: true);
+  Future<void> _readContinue() async {
+    // The page read with a starting offset: with no position set this is
+    // exactly the read the app shipped before (FR-005).
+    await _readRange(_anchor ?? 0, _content.length, track: true);
   }
 
   /// Shared read path (002 US1): resolve the range into per-paragraph
@@ -440,9 +544,15 @@ class _ReadingViewState extends State<ReadingView> {
       widget.voiceStore.loadVoice,
     );
     if (speeches.isEmpty) {
-      setState(() => _hint = 'Nothing to read.');
+      setState(() =>
+          _hint = AppLocalizations.of(context)?.nothingToReadMessage ??
+              'Nothing left to read from here.');
       return;
     }
+    // Device evidence for the range actually read: `flutter_tts` never logs the
+    // utterance text on Android, so this is what proves a read started where
+    // the user pointed (research D10).
+    debugPrint('klhu read range: $start..$end');
     final gen = ++_readGen;
     await _runRead(
       gen,
@@ -690,8 +800,9 @@ class _ReadingViewState extends State<ReadingView> {
                       if (!_isSpeakingOrPaused)
                         IconButton(
                           icon: const Icon(Icons.skip_next),
-                          tooltip: AppLocalizations.of(context)?.readPageButton,
-                          onPressed: _readPage,
+                          tooltip:
+                              AppLocalizations.of(context)?.continueReadButton,
+                          onPressed: _readContinue,
                         ),
                       if (_mode == _Mode.speaking)
                         IconButton(

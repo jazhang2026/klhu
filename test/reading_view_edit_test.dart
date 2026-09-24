@@ -127,13 +127,16 @@ void main() {
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('klhu-page-test');
+    // The view persists its Continue Read position (010) in
+    // shared_preferences, and the mock store is shared for the whole file:
+    // without a clean one per test, a position set in one test is restored
+    // into the next one's page.
+    SharedPreferences.setMockInitialValues({});
   });
 
   tearDown(() {
     if (root.existsSync()) root.deleteSync(recursive: true);
   });
-
-  SharedPreferences.setMockInitialValues({});
 
   group('US2 direct-edit modes (003)', () {
     testWidgets('READ is default: RichText area, Edit offered, no paste box',
@@ -268,11 +271,11 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
       expect(find.byTooltip('Done'), findsOneWidget);
       expect(find.byTooltip('Read'), findsNothing);
-      expect(find.byTooltip('Read page'), findsNothing);
+      expect(find.byTooltip('Continue Read'), findsNothing);
       expect(find.byTooltip('Stop'), findsNothing);
     });
 
-    testWidgets('typing in EDIT + Done commits; Read page speaks new text',
+    testWidgets('typing in EDIT + Done commits; Continue Read speaks new text',
         (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -299,8 +302,8 @@ void main() {
       await tester.pump();
       // Back to RichText READ with the committed content.
       expect(find.byType(TextField), findsNothing);
-      // Pending sentence cleared by editing: Read page reads new content.
-      await tester.tap(find.byTooltip('Read page'));
+      // Pending sentence cleared by editing: Continue Read reads new content.
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(fake.spoken, ['Hello edited world.']);
     });
@@ -322,7 +325,7 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
       // Edit button should be disabled while speaking
@@ -364,7 +367,7 @@ void main() {
   });
 
   group('US2 edge cases (003)', () {
-    testWidgets('empty content: Read page hints, no crash', (tester) async {
+    testWidgets('empty content: Continue Read hints, no crash', (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
@@ -386,10 +389,10 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(fake.spoken, isEmpty);
-      expect(find.text('Nothing to read.'), findsOneWidget);
+      expect(find.text('Nothing left to read from here'), findsOneWidget);
     });
 
     testWidgets('rapid Edit/Done toggling keeps content and mode',
@@ -416,7 +419,7 @@ void main() {
         await tester.pump();
       }
       expect(find.byType(TextField), findsNothing);
-      expect(find.byTooltip('Read page'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsOneWidget);
     });
 
     testWidgets('Done with unchanged text reads full page', (tester) async {
@@ -439,7 +442,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(fake.spoken.length, 3);
     });

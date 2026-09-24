@@ -174,7 +174,7 @@ Future<void> _waitForStartupContent(WidgetTester tester) async {
 
 /// Starts a page read and leaves the view in SPEAKING.
 Future<void> _startPageRead(WidgetTester tester) async {
-  await tester.tap(find.byTooltip('Read page'));
+  await tester.tap(find.byTooltip('Continue Read'));
   await tester.pump();
 }
 
@@ -245,16 +245,16 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('US2 P1: pause/resume page read (005)', () {
-    testWidgets('Read page swaps Read for Pause; Pause keeps the queue',
+    testWidgets('Continue Read swaps Read for Pause; Pause keeps the queue',
         (tester) async {
       final fake = _PauseFakeReader();
       await _pumpView(tester, reader: fake);
       await _startPageRead(tester);
 
       expect(fake.isSpeaking, isTrue);
-      // Read + Read page hide while speaking; Pause takes their place.
+      // Read + Continue Read hide while speaking; Pause takes their place.
       expect(find.byTooltip('Read'), findsNothing);
-      expect(find.byTooltip('Read page'), findsNothing);
+      expect(find.byTooltip('Continue Read'), findsNothing);
       expect(find.byTooltip('Pause'), findsOneWidget);
       expect(find.byTooltip('Resume'), findsNothing);
 
@@ -306,7 +306,7 @@ void main() {
       await tester.pump();
       expect(fake.isSpeaking, isFalse);
       expect(fake.stopCalls, 0);
-      expect(find.byTooltip('Read page'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsOneWidget);
       expect(find.byTooltip('Pause'), findsNothing);
     });
 
@@ -326,7 +326,7 @@ void main() {
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
       expect(find.byTooltip('Read'), findsOneWidget);
-      expect(find.byTooltip('Read page'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsOneWidget);
       expect(find.byTooltip('Edit'), findsOneWidget);
     });
 
@@ -347,7 +347,7 @@ void main() {
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
-      expect(find.byTooltip('Read page'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsOneWidget);
     });
 
     testWidgets('switching language while paused returns to idle (scenario 7)',
@@ -371,10 +371,10 @@ void main() {
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
-      // Idle in the NEW language: 朗读 / 朗读全文 / 停止 / 编辑.
-      expect(find.byTooltip('朗读全文'), findsOneWidget);
+      // Idle in the NEW language: 朗读 / 继续朗读 / 停止 / 编辑.
+      expect(find.byTooltip('继续朗读'), findsOneWidget);
       expect(find.byTooltip('编辑'), findsOneWidget);
-      expect(find.byTooltip('Read page'), findsNothing);
+      expect(find.byTooltip('Continue Read'), findsNothing);
       expect(service.loadLanguage(), 'zh');
     });
 
@@ -387,7 +387,7 @@ void main() {
 
       expect(find.byTooltip('Pause'), findsNothing);
       expect(find.byTooltip('Resume'), findsNothing);
-      expect(find.byTooltip('Read page'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsOneWidget);
       expect(find.byTooltip('Edit'), findsOneWidget);
     });
 

@@ -86,14 +86,16 @@ void main() {
 
   setUp(() {
     root = Directory.systemTemp.createTempSync('klhu-page-test');
+    // ReadingView's default VoiceStore and its Continue Read position store
+    // are both real shared_preferences, and the mock store is shared for the
+    // whole file: without a clean one per test, a position a test set is
+    // restored into the next one.
+    SharedPreferences.setMockInitialValues({});
   });
 
   tearDown(() {
     if (root.existsSync()) root.deleteSync(recursive: true);
   });
-
-  // ReadingView's default VoiceStore is real shared_preferences: mock it.
-  SharedPreferences.setMockInitialValues({});
 
   // First sentence of the bundled EN sample.
   const firstSentence = 'The sun rose over the quiet town.';
@@ -438,7 +440,7 @@ void main() {
   });
 
   group('US3 P3: read whole page', () {
-    testWidgets('Read page speaks each paragraph in order', (tester) async {
+    testWidgets('Continue Read speaks each paragraph in order', (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
@@ -454,14 +456,14 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       // 002 US1: one speech per paragraph (not one for the whole page).
       expect(fake.spoken.length, 3);
       expect(fake.spoken.join('\n\n'), kSampleEnText.trimRight());
     });
 
-    testWidgets('Read page clears tracking highlight at end', (tester) async {
+    testWidgets('Continue Read clears tracking highlight at end', (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
@@ -477,7 +479,7 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       // FakeReader ignores the progress callback, so no intermediate
       // highlight is observable here — but the end state must be clean
@@ -501,7 +503,7 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(fake.isSpeaking, isTrue);
       await tester.tap(find.byTooltip('Stop'));
@@ -509,7 +511,7 @@ void main() {
       expect(fake.isSpeaking, isFalse);
     });
 
-    testWidgets('sentence tap after Read page narrows to sentence',
+    testWidgets('sentence tap after Continue Read narrows to sentence',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -526,7 +528,7 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read page'));
+      await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       // Measure on the live RichText: plain-Text and RichText metrics
       // differ slightly, so a position from one mis-maps on the other.
