@@ -28,8 +28,12 @@ Requirement:
     "Continue Read" is same as Read Page, but it starts from the position where the user set.
     pause/resume on sentence level, not paragraph level.
 
-12. add OCR functionality to extract text from images or camera input.
+12. on continue read, always high light one sentence by one sentence. 
+    Pause/Resume always heppen on the high lighted sentence.
+    check language/voice on sentence(vs on paragraph). can switch language/voice on sentence level.
 
-13. add translation functionality to translate text to English and Chinese.
+14. add OCR functionality to extract text from images or camera input.
+
+15. add translation functionality to translate text to English and Chinese.
 
 

@@ -99,7 +99,8 @@ Deviations from the text of the tasks above, recorded rather than silently absor
 - [x] T003 [P] `L10N`: add these 20 keys to **all four** ARBs (`app_en.arb`,
       `app_zh.arb`, `app_zh_Hans.arb`, `app_es.arb`), then `flutter gen-l10n`:
       `contentsButton` "Contents", `contentsTitle` "Contents",
-      `currentContentLabel` "Reading: {name}", `saveButton` "Save",
+      `currentContentLabel` "Reading: {name}" (010 later dropped this key from all four
+      ARBs along with the caption it labelled), `saveButton` "Save",
       `undoButton` "Undo", `deleteButton` "Delete", `cancelButton` "Cancel",
       `discardButton` "Discard", `deleteConfirmTitle` "Delete this content?",
       `deleteConfirmMessage` "This cannot be undone.",
@@ -180,7 +181,8 @@ then undo an edit, re-save, delete with confirmation, and cancel a deletion.
       load, trailing delete icon → `AlertDialog` (`deleteConfirmTitle` /
       `deleteConfirmMessage`, Cancel/Delete), empty and damaged-entry states — depends on T010/T012
 - [x] T014 [US1] Modify `lib/reading_view.dart`: new app-bar Content action opening the
-      list, `currentContentLabel` caption for the loaded entry, Save + Undo actions in
+      list, `currentContentLabel` caption for the loaded entry (010 removed this caption
+      again — the page no longer names itself), Save + Undo actions in
       EDIT mode (lazily created `UndoHistoryController` disposed with the editor,
       `undoExhaustedMessage` SnackBar on the final undo), unsaved-change guard on
       content switch. Sample buttons stay for now — depends on T003/T012

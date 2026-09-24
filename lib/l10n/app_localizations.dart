@@ -167,12 +167,6 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get languageDropdown;
 
-  /// No description provided for @hintText.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap a sentence to read'**
-  String get hintText;
-
   /// No description provided for @nothingToReadMessage.
   ///
   /// In en, this message translates to:
@@ -268,12 +262,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Contents'**
   String get contentsTitle;
-
-  /// No description provided for @currentContentLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Reading: {name}'**
-  String currentContentLabel(Object name);
 
   /// No description provided for @saveButton.
   ///

@@ -188,7 +188,7 @@ void main() {
       expect(fake.spoken, isEmpty);
     });
 
-    testWidgets('Read speaks pending sentence; none pending shows hint',
+    testWidgets('Read speaks the pending sentence; with none it reads from the top',
         (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -207,8 +207,15 @@ void main() {
       await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
-      expect(fake.spoken, isEmpty);
-      expect(find.text('Tap a sentence to read'), findsOneWidget);
+      // No highlight yet: the read starts at the first sentence (the hint that
+      // used to appear here is gone).
+      expect(fake.spoken.first, startsWith(_firstSentence));
+      expect(fake.isSpeaking, isTrue);
+
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+      fake.spoken.clear();
+
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
       await tester.tap(find.byTooltip('Read'));

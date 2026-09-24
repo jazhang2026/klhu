@@ -43,9 +43,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageDropdown => '语言';
 
   @override
-  String get hintText => '点击句子开始朗读';
-
-  @override
   String get nothingToReadMessage => '从这里开始没有可朗读的内容';
 
   @override
@@ -99,11 +96,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get contentsTitle => '内容';
-
-  @override
-  String currentContentLabel(Object name) {
-    return '正在阅读：$name';
-  }
 
   @override
   String get saveButton => '保存';
@@ -200,9 +192,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get languageDropdown => '语言';
 
   @override
-  String get hintText => '点击句子开始朗读';
-
-  @override
   String get nothingToReadMessage => '从这里开始没有可朗读的内容';
 
   @override
@@ -256,11 +245,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get contentsTitle => '内容';
-
-  @override
-  String currentContentLabel(Object name) {
-    return '正在阅读：$name';
-  }
 
   @override
   String get saveButton => '保存';

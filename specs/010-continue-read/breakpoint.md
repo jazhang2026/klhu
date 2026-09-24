@@ -57,6 +57,16 @@ line, which is inside paragraph 3.
 | A position is never read for another content | **[unit]** | store tests "a position for one content is never read for another", "clearing one content leaves another content's record alone", "the namespace cannot collide with the voice or language keys" |
 | Storage unavailable → the read still works, position only in memory | **UNVERIFIED WITH REASON** | The store is failure-tolerant by construction (every `shared_preferences` call is wrapped and an unavailable store degrades to "no position"), but no test or device step forces a platform-channel failure on this host; the contract's error state is therefore asserted at code level only |
 
+## Post-review fixes (user-directed, after the rows above)
+
+| Change | State | Evidence |
+|---|---|---|
+| The `Reading: <name>` caption is gone from the page | **WALKED — PASS** | Part of a two-fix review pass. `currentContentLabel` is dropped from all four ARBs (+ regenerated l10n) and the caption block from `lib/reading_view.dart`, together with the field and helper it was the only reader of (`_loadedName`, `_displayName`). On the device the page dump has **no** node starting with `Reading` — the pre-fix dump of the same page carried `Reading: El sol salió sobre el p…` |
+| Read (▶) with no highlight starts at the first sentence and reads to the end | **WALKED — PASS** | The button used to set `hintText` ("Tap a sentence to read") and speak nothing. Fresh `pm clear`, no tap, tap ▶ → `klhu read range: 0..334` (first sentence to the text's end) and utterances `p0 s0, p0 s1, p1 s0, p1 s1, p1 s2, p2 s0, p2 s1, p2 s2`; `hintText` dropped from all four ARBs. Two 003-era tests were rewritten to pin the new behaviour (`Read with no tap starts at the top of the text`, `Read speaks the pending sentence; with none it reads from the top`) |
+
+Both fixes: `flutter analyze` clean, `flutter test --concurrency=2` → **266 passing, 0 failing**,
+APK rebuilt and reinstalled, device rows above re-walked on the installed build.
+
 ## Deviations found while validating
 
 1. **`T002` ran before `T001`**, the reverse of the dependency line: the baseline (234 green, analyze clean) has to exist before any file moves.

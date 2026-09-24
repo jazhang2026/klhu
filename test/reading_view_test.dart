@@ -196,7 +196,7 @@ void main() {
       expect(fake.stops, stopsBefore + 1);
     });
 
-    testWidgets('Read with no tap prompts instead of reading page',
+    testWidgets('Read with no tap starts at the top of the text',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -215,8 +215,12 @@ void main() {
       await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
-      expect(fake.spoken, isEmpty);
-      expect(find.text('Tap a sentence to read'), findsOneWidget);
+      // Nothing is highlighted, so there is nothing to scope the read to: the
+      // read begins at the first sentence instead of hinting the user away.
+      expect(fake.spoken.first, startsWith(firstSentence));
+      expect(fake.spoken.length, greaterThan(1),
+          reason: 'the page from its first sentence, not a single sentence');
+      expect(fake.isSpeaking, isTrue);
     });
 
     testWidgets('missing voice shows error instead of crashing', (tester) async {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:klhu/content_list_screen.dart';
-import 'package:klhu/content_naming.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/read_position_store.dart';
@@ -67,10 +66,9 @@ class _ReadingViewState extends State<ReadingView> {
   /// never reach back into a document that is no longer on screen (008).
   UndoHistoryController? _undoController;
 
-  /// The library entry currently on screen, and the name to caption it with
-  /// (a pre-set's localized catalog name, else the entry's own name).
+  /// The library entry currently on screen, if any (the catalog fallback has
+  /// none): what a Save edits in place instead of creating new content.
   SavedContent? _loaded;
-  String? _loadedName;
 
   /// Empty until the library (or the shipped catalog) supplies a text: with the
   /// sample buttons gone, content only ever comes from the library (008).
@@ -154,12 +152,10 @@ class _ReadingViewState extends State<ReadingView> {
     final presets = await _store.catalog();
     if (presets.isEmpty || !mounted) return;
     final preset = presets.first;
-    final name = contentNameFrom(preset.text);
     final previous = _anchorKey;
     setState(() {
       _content = preset.text;
       _loaded = null;
-      _loadedName = name;
       _anchor = null;
       _anchorKey = preset.id;
       _editController?.value = TextEditingValue(
@@ -332,25 +328,15 @@ class _ReadingViewState extends State<ReadingView> {
   bool get _hasUnsavedEdits =>
       _mode == _Mode.edit && _editController?.text != _content;
 
-  /// The name to caption an entry with: a pre-set's title regenerated from its
-  /// catalog text, else the name the index holds.
-  Future<String> _displayName(SavedContent entry) async {
-    if (!entry.isPreset) return entry.name;
-    final preset = await _store.presetFor(entry.id);
-    return preset == null ? entry.name : contentNameFrom(preset.text);
-  }
-
   Future<void> _loadEntry(SavedContent entry) async {
     try {
       final text = await _store.read(entry);
-      final name = await _displayName(entry);
       await _store.markOpened(entry.id);
       if (!mounted) return;
       final previous = _anchorKey;
       setState(() {
         _content = text;
         _loaded = entry;
-        _loadedName = name;
         _anchor = null;
         _anchorKey = entry.id;
         _editController?.value = TextEditingValue(
@@ -422,7 +408,6 @@ class _ReadingViewState extends State<ReadingView> {
       setState(() {
         _content = text;
         _loaded = saved;
-        _loadedName = saved.name;
         _anchor = null;
         // Editing a pre-set produces a new entry: the position belongs to the
         // text this Save replaced.
@@ -518,8 +503,10 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _readSelection() async {
     final seg = _highlight;
     if (seg == null) {
-      // No tap yet: prompt instead of surprising the user with a full page.
-      setState(() => _hint = AppLocalizations.of(context)?.hintText ?? 'Tap a sentence first, then Read.');
+      // No tap yet: nothing is highlighted, so there is nothing to scope the
+      // read to. Start at the first sentence instead of hinting the user away
+      // from a button that otherwise looks broken.
+      await _readContinue();
       return;
     }
     await _readRange(seg.start, seg.end);
@@ -712,18 +699,6 @@ class _ReadingViewState extends State<ReadingView> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Which saved content is on screen (008): the list lives one
-            // screen away, so the page names itself.
-            if (_loadedName != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  AppLocalizations.of(context)
-                          ?.currentContentLabel(_loadedName!) ??
-                      _loadedName!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
             // Content comes from the library only (008 FR-003): the sample
             // buttons are gone, replaced by the Content action in the app bar.
             const SizedBox(height: 8),

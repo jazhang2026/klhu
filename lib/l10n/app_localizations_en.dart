@@ -43,9 +43,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageDropdown => 'Language';
 
   @override
-  String get hintText => 'Tap a sentence to read';
-
-  @override
   String get nothingToReadMessage => 'Nothing left to read from here';
 
   @override
@@ -100,11 +97,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contentsTitle => 'Contents';
-
-  @override
-  String currentContentLabel(Object name) {
-    return 'Reading: $name';
-  }
 
   @override
   String get saveButton => 'Save';
