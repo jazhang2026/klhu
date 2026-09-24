@@ -331,4 +331,117 @@ void main() {
       expect(svc.isSpeaking, isFalse);
     });
   });
+
+  group('sentence granularity (010 FR-011)', () {
+    /// One paragraph holding three sentences: the queue unit the caller hands
+    /// over, whatever granularity the service speaks it at.
+    List<ParagraphSpeech> oneLongParagraph() => [
+          const ParagraphSpeech(
+            text: 'One. Two. Three.',
+            language: 'en',
+            start: 0,
+            end: 15,
+          ),
+        ];
+
+    test('a three-sentence paragraph is spoken as three utterances in order',
+        () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices);
+      final svc = ReaderService(backend);
+      final seen = <int>[];
+      await svc.speakParagraphs(oneLongParagraph(), onParagraphStart: seen.add);
+
+      expect(backend.spoken, ['One.', 'Two.', 'Three.']);
+      // ...and the paragraph callback still fires ONCE, for the paragraph, on
+      // its first sentence: 003's tracking is paragraph-level (I14).
+      expect(seen, [0]);
+    });
+
+    test('every sentence keeps its paragraph language and picked voice',
+        () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices);
+      final svc = ReaderService(backend);
+      await svc.speakParagraphs([
+        const ParagraphSpeech(
+          text: 'One. Two.',
+          language: 'zh-Hans',
+          voice: VoiceChoice(
+            language: 'zh-Hans',
+            name: 'zh-a',
+            locale: 'zh-Hans-CN',
+          ),
+          start: 0,
+          end: 9,
+        ),
+      ]);
+
+      // A sentence never re-detects its language and never re-picks a voice:
+      // both come from the paragraph it was split out of.
+      expect(backend.languages, ['zh-Hans-CN', 'zh-Hans-CN']);
+      expect(backend.setVoices, [
+        {'name': 'zh-a', 'locale': 'zh-Hans-CN'},
+        {'name': 'zh-a', 'locale': 'zh-Hans-CN'},
+      ]);
+    });
+
+    test('pause in the second sentence resumes at it, not at the paragraph top',
+        () async {
+      final backend = FakeTtsBackend(
+        voicesRaw: cannedVoices,
+        autoComplete: false,
+      );
+      final svc = ReaderService(backend);
+      final seen = <int>[];
+      final future = svc.speakParagraphs(
+        oneLongParagraph(),
+        onParagraphStart: seen.add,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.spoken, ['One.']);
+      backend.completePending();
+      await Future<void>.delayed(Duration.zero);
+      // Second sentence in flight, and still one callback for the paragraph.
+      expect(backend.spoken, ['One.', 'Two.']);
+      expect(seen, [0]);
+
+      await svc.pause();
+      expect(svc.isPaused, isTrue);
+      expect(svc.isSpeaking, isFalse);
+
+      final resumed = svc.resume();
+      await Future<void>.delayed(Duration.zero);
+      // The interrupted SENTENCE is repeated — not the paragraph from its top
+      // (I12/SC-006).
+      expect(backend.spoken, ['One.', 'Two.', 'Two.']);
+      expect(svc.isSpeaking, isTrue);
+
+      backend.completePending();
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.spoken, ['One.', 'Two.', 'Two.', 'Three.']);
+      backend.completePending();
+      await resumed;
+      await future;
+      expect(svc.isSpeaking, isFalse);
+      expect(svc.isPaused, isFalse);
+    });
+
+    test('a speech that begins mid-paragraph queues whole sentences',
+        () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices);
+      final svc = ReaderService(backend);
+      // What an anchored Continue Read hands over: the remainder of the
+      // paragraph, starting at a sentence boundary (I13).
+      await svc.speakParagraphs([
+        const ParagraphSpeech(
+          text: 'Two. Three.',
+          language: 'en',
+          start: 112,
+          end: 123,
+        ),
+      ]);
+
+      expect(backend.spoken, ['Two.', 'Three.']);
+    });
+  });
 }

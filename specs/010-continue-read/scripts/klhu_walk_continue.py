@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""klhu device walk — spec 010 quickstart, scenarios 13-15 (Continue Read).
+"""klhu device walk — spec 010 quickstart, scenarios 13-17 (Continue Read).
 
 What each part proves, and with which evidence line:
 
@@ -11,9 +11,17 @@ What each part proves, and with which evidence line:
                                    range again after a force-stop + relaunch
   15  no position -> the previous behaviour, unchanged
                                 -> `klhu read range: 0..<len>` after `pm clear`
+  16  pause mid-paragraph, resume repeats only that sentence (FR-011, I12)
+                                -> `klhu speak p<i> s<j> "…"` before and after
+                                   the pause: the same p/s, never s0
+  17  a sentence-queued read is still a whole read, per language (D12)
+                                -> one `klhu speak` line per sentence, in order,
+                                   ending on the text's last sentence, and one
+                                   engine `Synthesis request … locale <tag>` per
+                                   utterance in the content's own language
 
 Usage:
-    python3 klhu_walk_continue.py 13|14|15
+    python3 klhu_walk_continue.py 13|14|15|16|17
 
 Env:
     ADB_SERIAL  (default: emulator-5554)
@@ -162,15 +170,12 @@ def yellow_pixels(path):
     return sum(1 for p in img.getdata() if p[0] > 200 and p[1] > 200 and p[2] < 90)
 
 
-def preset_text():
-    """The shipped EN pre-set, straight out of the asset the app ships."""
-    path = os.path.join(KLHU_REPO, "assets", "content", "presets.json")
-    with open(path, encoding="utf-8") as fh:
-        data = __import__("json").load(fh)
-    for p in data["presets"]:
-        if p["id"] == "preset_en_sample":
+def preset_text(preset_id="preset_en_sample"):
+    """A shipped pre-set, straight out of the asset the app ships."""
+    for p in presets():
+        if p["id"] == preset_id:
             return p["text"]
-    raise SystemExit("preset_en_sample missing from the catalog")
+    raise SystemExit(f"{preset_id} missing from the catalog")
 
 
 def sentence_starts(text):
@@ -190,6 +195,35 @@ def sentence_starts(text):
     return starts
 
 
+def paragraph_ranges(text):
+    """The paragraphs of [text], mirroring `lib/segmenter.dart` (blank-line
+    split, trailing newlines trimmed) — the unit the service queues today."""
+    ranges, start = [], 0
+    for m in re.finditer(r"\n[ \t]*\n+", text):
+        end = m.start()
+        while end > start and text[end - 1] in "\n \t":
+            end -= 1
+        if end > start:
+            ranges.append((start, end))
+        start = m.end()
+    while start < len(text) and text[start] == "\n":
+        start += 1
+    if start < len(text):
+        end = len(text)
+        while end > start and text[end - 1] == "\n":
+            end -= 1
+        ranges.append((start, end))
+    return ranges
+
+
+def units_in(text, start, end, unit):
+    """How many utterances [start, end) is worth: one per paragraph until
+    FR-011's sentence split lands, then one per sentence (scenario 17)."""
+    if unit == "sentence":
+        return sum(1 for s in sentence_starts(text) if start <= s < end)
+    return sum(1 for (a, b) in paragraph_ranges(text) if a < end and b > start)
+
+
 def content_node(rows):
     """The single semantics node that carries the whole reading text.
 
@@ -198,6 +232,24 @@ def content_node(rows):
     own (verified in the 010 walk dump: [42,388][1038,966] with the full text).
     """
     return find(rows, "The sun rose over the quiet town.")
+
+
+def wait_for_idle(timeout=45):
+    """Wait until the read has ended (the idle toolbar is back).
+
+    The engine's `Synthesis request` lines are only a cross-check for the read
+    LENGTH if the whole read has finished — counted inside a sleep window they
+    say nothing (3-4 lines for a one-sentence read, 2 for a full page, purely
+    by timing). The app's own `klhu speak` lines (one per utterance, FR-011)
+    are the per-utterance evidence; this makes the other count honest.
+    """
+    for _ in range(timeout):
+        rows = dump()
+        if find(rows, "Continue Read") is not None:
+            return True
+        time.sleep(1)
+    print(f"   read did not return to idle within {timeout} polls")
+    return False
 
 
 def tap_last_line(rows, label):
@@ -239,9 +291,10 @@ def scenario_13():
 
     step("SC13: Continue Read — logcat names the range it read")
     rows = dump()
+    clear_log()
     if not tap_node(rows, "Continue Read", "Continue Read"):
         return False
-    time.sleep(6)
+    print("   read returned to idle:", wait_for_idle())
     lines = log_lines("klhu read range")
     for ln in lines:
         print("   ", ln)
@@ -258,7 +311,10 @@ def scenario_13():
           and end == len(text))
     print(f"   start is a sentence start inside the third paragraph: {ok}")
     print("   persisted record:", stored_position())
-    print("   engine utterances for this read:", synthesis_count())
+    print(f"   engine utterances for this read: {synthesis_count()} "
+          f"(paragraphs in range: {units_in(text, start, end, 'paragraph')}, "
+          f"sentences: {units_in(text, start, end, 'sentence')} — the queue "
+          "unit is a paragraph until FR-011 lands)")
     return ok
 
 
@@ -316,7 +372,7 @@ def scenario_15():
     clear_log()
     if not tap_node(rows, "Continue Read", "Continue Read"):
         return False
-    time.sleep(8)
+    print("   read returned to idle:", wait_for_idle())
     for ln in log_lines("klhu read range"):
         print("   ", ln)
     got = ranges()
@@ -328,15 +384,201 @@ def scenario_15():
     print(f"   read range {start}..{end}; text length {len(text)}")
     print("   full-page read: start == 0 and end == text length:",
           start == 0 and end == len(text))
-    print("   engine utterances for the full read:", synthesis_count())
+    print(f"   engine utterances for the full read: {synthesis_count()} "
+          f"(paragraphs in range: {units_in(text, start, end, 'paragraph')}, "
+          f"sentences: {units_in(text, start, end, 'sentence')})")
     return start == 0 and end == len(text)
 
 
-PARTS = {"13": scenario_13, "14": scenario_14, "15": scenario_15}
+def presets():
+    path = os.path.join(KLHU_REPO, "assets", "content", "presets.json")
+    with open(path, encoding="utf-8") as fh:
+        return __import__("json").load(fh)["presets"]
+
+
+def preset_by_language(language):
+    for p in presets():
+        if p["language"] == language:
+            return p
+    raise SystemExit(f"no pre-set for language {language}")
+
+
+def speak_lines():
+    """`klhu speak p<i> s<j> "<text>"` — which sentence went to the engine."""
+    return log_lines("klhu speak")
+
+
+def tags(lines):
+    """The `p<i> s<j>` of each speak line, in order."""
+    return [m for ln in lines
+            for m in re.findall(r"p\d+ s\d+", ln)]
+
+
+def synthesis_locales():
+    """Locale tags the engine reported: `Synthesis request for locale <tag> …`.
+    The only place a picked voice shows up — a UI dump never shows it."""
+    out = []
+    for ln in log_lines("Synthesis request"):
+        m = re.search(r"locale ([a-zA-Z-]+)", ln)
+        if m:
+            out.append(m.group(1))
+    return out
+
+
+def open_library(rows):
+    """Tap the app-bar Content action (008) to reach the unified list."""
+    if not tap_node(rows, "Content", "Content (library)"):
+        return None
+    time.sleep(1.5)
+    return dump()
+
+
+def pick_content(rows, prefix):
+    """Tap the library row whose name starts with [prefix] — a pre-set's row
+    name is the first line of its text (008 `contentNameFrom`)."""
+    node = find(rows, prefix)
+    if node is None:
+        print(f"   NOT FOUND: a row starting {prefix!r} — "
+              f"visible: {labels(rows)[:12]}")
+        return None
+    tap_at(node["x"], node["y"], f"library row {prefix!r}")
+    time.sleep(2.5)
+    return dump()
+
+
+def full_read_check(text, tag):
+    """A whole read of [text]: one utterance per sentence, in order, and the
+    read ends at the last sentence. Returns True on the machine-checkable
+    half of quickstart scenario 17."""
+    want = units_in(text, 0, len(text), "sentence")
+    lines = speak_lines()
+    got = tags(lines)
+    print(f"   {tag}: sentences {want}, utterances {len(got)}, "
+          f"engine requests {synthesis_count()}")
+    print(f"   {tag}: utterance order {got}")
+    locales = sorted(set(synthesis_locales()))
+    print(f"   {tag}: engine locales {locales}")
+    if len(got) != want:
+        print(f"   FAIL: {len(got)} utterances for {want} sentences")
+        return False
+    last = text[sentence_starts(text)[-1]:].strip().replace("\n", " ")
+    spoken = lines[-1].split('"', 1)[1].rsplit('"', 1)[0] if '"' in lines[-1] else ""
+    if spoken.endswith("..."):
+        # The log line is a 24-character prefix (ReaderService._logPrefix).
+        spoken = spoken[:-3]
+    tail = last[:24]
+    print(f"   {tag}: last utterance {spoken!r} vs last sentence {tail!r} "
+          f"(the log line trims at 24 chars)")
+    return spoken != "" and tail.startswith(spoken)
+
+
+def scenario_16():
+    step("SC16: learn the toolbar's Pause/Resume coordinates from a live dump")
+    rows = start_app(clear=True)
+    if not tap_node(rows, "Continue Read", "Continue Read"):
+        return False
+    time.sleep(1.5)
+    rows = dump()
+    pause = find(rows, "Pause")
+    if pause is None:
+        print("   FAIL: no Pause button while speaking:", labels(rows)[:12])
+        return False
+    px, py = pause["x"], pause["y"]
+    print(f"   Pause at {px},{py}")
+    if not tap_node(rows, "Stop", "Stop (end the probe read)"):
+        return False
+    print("   back to idle:", wait_for_idle())
+
+    step("SC16: read again; Pause lands during paragraph 0's SECOND sentence")
+    clear_log()
+    rows = dump()
+    if not tap_node(rows, "Continue Read", "Continue Read"):
+        return False
+    paused_at = None
+    for _ in range(80):
+        seen = tags(speak_lines())
+        if len(seen) >= 2 and seen[1] == "p0 s1":
+            # The second sentence is in flight: kill the read right now.
+            tap_at(px, py, "Pause (p0 s1 in flight)")
+            paused_at = seen[1]
+            break
+        time.sleep(0.25)
+    if paused_at is None:
+        print("   FAIL: never reached p0 s1:", speak_lines())
+        return False
+    time.sleep(3)
+    before = tags(speak_lines())
+    print(f"   utterances before the pause: {before}")
+    print(f"   last utterance before the pause: {before[-1] if before else '(none)'}")
+
+    step("SC16: Resume repeats that sentence — not s0 of its paragraph")
+    clear_log()
+    rows = dump()
+    if find(rows, "Resume") is None:
+        print("   FAIL: no Resume button:", labels(rows)[:12])
+        return False
+    if not tap_node(rows, "Resume", "Resume"):
+        return False
+    print("   read finished:", wait_for_idle())
+    after = speak_lines()
+    got = tags(after)
+    print(f"   utterances after the resume: {got}")
+    if not got:
+        print("   FAIL: nothing spoken after the resume")
+        return False
+    interrupted = before[-1]
+    text = preset_text()
+    counts = [units_in(text, a, b, "sentence")
+              for (a, b) in paragraph_ranges(text)]
+    p, s = (int(v) for v in interrupted.replace("p", "").split(" s"))
+    remaining = sum(counts) - (sum(counts[:p]) + s)
+    print(f"   interrupted {interrupted}: repeats {got[0]} "
+          f"(same sentence: {got[0] == interrupted}), "
+          f"utterances after the resume {len(got)} vs "
+          f"{remaining} sentences left to read")
+    print(f"   engine requests after the resume: {synthesis_count()}")
+    return got[0] == interrupted and len(got) == remaining
+
+
+def scenario_17():
+    ok = True
+    for language, label in (("en", "EN pre-set (catalog fallback)"),
+                            ("zh-Hans", "ZH pre-set (from the library)"),
+                            ("es", "ES pre-set (from the library)")):
+        preset = preset_by_language(language)
+        text = preset["text"].strip()
+        step(f"SC17: a whole read of the {label}")
+        rows = start_app(clear=True)
+        if language != "en":
+            rows = open_library(rows)
+            if rows is None:
+                return False
+            rows = pick_content(rows, text[:8])
+            if rows is None:
+                return False
+            if text[:8] not in " ".join(labels(rows)):
+                print(f"   FAIL: the {language} text is not on the page:",
+                      labels(rows)[:8])
+                return False
+        clear_log()
+        if not tap_node(rows, "Continue Read", "Continue Read"):
+            return False
+        print("   read finished:", wait_for_idle())
+        ok = full_read_check(text, label) and ok
+    return ok
+
+
+PARTS = {
+    "13": scenario_13,
+    "14": scenario_14,
+    "15": scenario_15,
+    "16": scenario_16,
+    "17": scenario_17,
+}
 
 if __name__ == "__main__":
     part = sys.argv[1] if len(sys.argv) > 1 else ""
     if part not in PARTS:
-        print(f"usage: {os.path.basename(__file__)} 13|14|15")
+        print(f"usage: {os.path.basename(__file__)} 13|14|15|16|17")
         sys.exit(2)
     print("RESULT:", "PASS" if PARTS[part]() else "FAIL")

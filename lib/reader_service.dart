@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:klhu/segmenter.dart';
 import 'package:klhu/voice_store.dart';
 
 /// TTS capability consumed by the reading view. Extracted so widget
@@ -26,8 +27,12 @@ abstract class Reader {
 
   /// Speak [paragraphs] in order, each with its own language voice.
   /// Stop ([stop]) cancels the queue; nothing further speaks afterwards.
-  /// [onParagraphStart] fires with the paragraph index immediately before
-  /// each utterance (read-page tracking); never for a stale generation.
+  /// Each paragraph reaches the engine as one utterance per SENTENCE (010
+  /// FR-011), which is what makes a paused read resume at the sentence that
+  /// was in progress rather than at the top of a possibly long paragraph.
+  /// [onParagraphStart] fires once per paragraph, with the paragraph's index
+  /// in [paragraphs], on its first sentence (read-page tracking); never for a
+  /// stale generation.
   Future<void> speakParagraphs(
     List<ParagraphSpeech> paragraphs, {
     void Function(int index)? onParagraphStart,
@@ -118,6 +123,32 @@ class FlutterTtsBackend implements TtsBackend {
       _tts.setCompletionHandler(callback);
 }
 
+/// One utterance handed to the engine: a whole sentence of a paragraph, in
+/// submission order, carrying the paragraph's own language, picked voice and
+/// index. The sentence is the smallest unit that is still a whole utterance,
+/// so it is also the smallest unit a [ReaderService.resume] can start from
+/// (FR-011) — the engine's own mid-utterance pause corrupts on repeat.
+class _Utterance {
+  final String text;
+  final String language;
+  final VoiceChoice? voice;
+
+  /// Index of the paragraph this sentence came from — what the tracking
+  /// callback reports, so 003 stays paragraph-level.
+  final int paragraph;
+
+  /// Index of this sentence inside its paragraph (device-evidence only).
+  final int sentence;
+
+  const _Utterance({
+    required this.text,
+    required this.language,
+    this.voice,
+    required this.paragraph,
+    required this.sentence,
+  });
+}
+
 /// Thin wrapper over [TtsBackend]; production [Reader].
 ///
 /// Language follows the reading content: `en-US` for English,
@@ -132,10 +163,10 @@ class ReaderService implements Reader {
   /// speaking on — or, after a resume started a fresh loop, speaking twice.
   int _generation = 0;
 
-  /// Queue state a paused read needs: what is being read, which paragraph is
-  /// in flight, the voices resolved for it, and the highlight callback.
-  /// Kept across [pause]/[resume]; cleared by [stop].
-  List<ParagraphSpeech> _queue = const [];
+  /// Queue state a paused read needs: what is being read — one entry per
+  /// sentence — which one is in flight, the voices resolved for it, and the
+  /// highlight callback. Kept across [pause]/[resume]; cleared by [stop].
+  List<_Utterance> _queue = const [];
   List<VoiceEntry> _installed = const [];
   void Function(int index)? _onParagraphStart;
   int _cursor = 0;
@@ -232,19 +263,46 @@ class ReaderService implements Reader {
     void Function(int index)? onParagraphStart,
   }) async {
     _generation++;
-    _queue = paragraphs;
+    _queue = _sentencesOf(paragraphs);
     _cursor = 0;
     _paused = false;
     _onParagraphStart = onParagraphStart;
-    _speaking = paragraphs.isNotEmpty;
+    _speaking = _queue.isNotEmpty;
     await _run(_generation);
+  }
+
+  /// The queue a read is spoken from: every paragraph's speech cut into whole
+  /// sentences, in order, each carrying its paragraph's language, picked voice
+  /// and index (FR-011). A speech that starts mid-paragraph — what an anchored
+  /// Continue Read hands over — yields its remainder as the first sentence.
+  ///
+  /// An empty [sentenceRanges] can only come from an empty speech, which the
+  /// resolver never emits: a paragraph with text always has one sentence.
+  static List<_Utterance> _sentencesOf(List<ParagraphSpeech> paragraphs) {
+    final units = <_Utterance>[];
+    for (var i = 0; i < paragraphs.length; i++) {
+      final paragraph = paragraphs[i];
+      final ranges = sentenceRanges(paragraph.text);
+      for (var j = 0; j < ranges.length; j++) {
+        units.add(
+          _Utterance(
+            text: paragraph.text.substring(ranges[j].start, ranges[j].end),
+            language: paragraph.language,
+            voice: paragraph.voice,
+            paragraph: i,
+            sentence: j,
+          ),
+        );
+      }
+    }
+    return units;
   }
 
   /// Continue the read [pause] interrupted.
   ///
-  /// Paragraph granularity: the interrupted paragraph is spoken again from its
+  /// Sentence granularity: the interrupted SENTENCE is spoken again from its
   /// start, then the rest of the queue follows in order. Nothing is skipped
-  /// and no paragraph is read twice once the queue runs to its end. There is
+  /// and no sentence is read twice once the queue runs to its end. There is
   /// no safe mid-utterance position to resume from: the engine's own
   /// pause/resume bookkeeping corrupts on repeat (see [pause]).
   @override
@@ -262,9 +320,10 @@ class ReaderService implements Reader {
     try {
       await _tts.awaitSpeakCompletion(true);
       _installed = await voicesForAll();
+      var reported = -1;
       while (_cursor < _queue.length) {
         if (gen != _generation) return;
-        final paragraph = _queue[_cursor];
+        final unit = _queue[_cursor];
         // Stop-first: the engine queues utterances, so anything still in
         // flight (a paused one included) must go before the next speak.
         await _tts.stop();
@@ -273,14 +332,14 @@ class ReaderService implements Reader {
         // and a picked `es-ES` voice differs from the Spanish default. Telling
         // the engine the voice's OWN locale is what makes it honor the voice
         // instead of the list's default.
-        final voice = paragraph.voice;
+        final voice = unit.voice;
         final picked = voice != null &&
                 _installed.any(
                   (v) => v.name == voice.name && v.locale == voice.locale,
                 )
             ? voice
             : null;
-        await _tts.setLanguage(picked?.locale ?? localeFor(paragraph.language));
+        await _tts.setLanguage(picked?.locale ?? localeFor(unit.language));
         if (picked != null) {
           try {
             await _tts.setVoice({'name': picked.name, 'locale': picked.locale});
@@ -289,13 +348,23 @@ class ReaderService implements Reader {
           }
         }
         if (gen != _generation) return;
-        _onParagraphStart?.call(_cursor);
+        // 003's tracking is paragraph-level: one callback per paragraph, on its
+        // first sentence. A resume reports its paragraph again, as it always
+        // has; nothing downstream counts the calls.
+        if (unit.paragraph != reported) {
+          reported = unit.paragraph;
+          _onParagraphStart?.call(unit.paragraph);
+        }
+        debugPrint(
+          'klhu speak p${unit.paragraph} s${unit.sentence} '
+          '"${_logPrefix(unit.text)}"',
+        );
         final done = Completer<void>();
         _utterance = done;
         _tts.setCompletionHandler(() {
           if (!done.isCompleted) done.complete();
         });
-        await _tts.speak(paragraph.text);
+        await _tts.speak(unit.text);
         await done.future;
         // Stale generation means a pause/stop already took over: leave the
         // new run's utterance slot alone.
@@ -317,6 +386,14 @@ class ReaderService implements Reader {
     return [for (final entry in raw) ?_parseVoice(entry)];
   }
 
+  /// The first few characters of an utterance, one line, for the device walk
+  /// (`adb logcat | grep 'klhu speak'` names which sentence went to the
+  /// engine, which no UI dump can show).
+  static String _logPrefix(String text) {
+    final oneLine = text.replaceAll(RegExp(r'\s+'), ' ');
+    return oneLine.length <= 24 ? oneLine : '${oneLine.substring(0, 24)}...';
+  }
+
   /// Cut the utterance in flight short and wake the loop waiting on it.
   void _releaseUtterance() {
     final done = _utterance;
@@ -324,7 +401,7 @@ class ReaderService implements Reader {
     if (done != null && !done.isCompleted) done.complete();
   }
 
-  /// Stop the audio and remember the paragraph in flight, so [resume] can
+  /// Stop the audio and remember the sentence in flight, so [resume] can
   /// continue the queue from it.
   ///
   /// This deliberately does NOT call the engine's own `pause()`. On Android
