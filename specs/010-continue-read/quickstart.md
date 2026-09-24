@@ -54,6 +54,25 @@ adb -s emulator-5554 shell run-as com.example.klhu \
 | `git status --short lib/l10n` after `flutter gen-l10n` | the generated localizations are committed artifacts, and the regeneration is reproducible (no drift) |
 | `grep -rn "Read page" lib/ test/` | the old label is gone from source and tests (SC-001) |
 
+## Re-run the device rows
+
+The `[device]` rows are scripted — one command per part, each printing its evidence and
+ending with `RESULT: PASS|FAIL`:
+
+```bash
+cd specs/010-continue-read/scripts
+python3 klhu_walk_continue.py 13      # tap a paragraph, Continue Read starts there
+python3 klhu_walk_continue.py 14      # the record, then the same range after a restart
+python3 klhu_walk_continue.py 15      # pm clear ⇒ 0..<len>, the pre-010 read
+python3 klhu_walk_continue.py 16      # pause mid-paragraph, resume repeats that sentence
+python3 klhu_walk_continue.py 17      # whole reads in EN, ZH and ES (machine half)
+```
+
+`ADB_SERIAL` (default `emulator-5554`), `KLHU_REPO` (default this repo) and `KLHU_OUT`
+(default `/tmp`) override the defaults. The driver reads the pre-set text straight out of
+`assets/content/presets.json`, so a logged offset is checked against the shipped asset, not
+against a copy. Rows and divergences: [breakpoint.md](./breakpoint.md).
+
 ## Validation scenarios
 
 ### 1. The button is Continue Read, in every shipped locale — [unit]

@@ -68,13 +68,15 @@ produce, not a target.
 **Purpose**: the one piece both stories' user-visible text depends on. Nothing is
 installed — this feature adds no dependency (plan § Technical Context).
 
-- [ ] T001 Rename `readPageButton` → `continueReadButton` and add `nothingToReadMessage` in `lib/l10n/app_en.arb`
+- [x] T001 Rename `readPageButton` → `continueReadButton` and add `nothingToReadMessage` in `lib/l10n/app_en.arb`
       (template) and the three translation ARBs `lib/l10n/app_zh.arb`, `lib/l10n/app_zh_Hans.arb`,
       `lib/l10n/app_es.arb` — en "Continue Read", zh/zh_Hans
       "继续朗读", es "Continuar leyendo"; the new message en "Nothing left to read from
       here", zh "从这里开始没有可朗读的内容", zh_Hans the same, es "No queda nada por leer
       desde aquí". Then `flutter gen-l10n` and confirm the diff is exactly the 4 ARBs + the
       4 regenerated `lib/l10n/app_localizations*.dart` files (D9)
+      (deviation: the view's single reference to the old key moved in the same step — the tree
+      would not compile otherwise, so T001 landed with one line of T006)
 
 **Checkpoint**: `flutter analyze` clean (the view still references the old key — that
 breaks at T006, which is expected and is why T001 lands first).
@@ -86,9 +88,11 @@ breaks at T006, which is expected and is why T001 lands first).
 **⚠️ CRITICAL**: without a known-green baseline, no later "the suite is green" claim means
 anything on this box (no CI in this repo).
 
-- [ ] T002 Record the baseline over the whole `test/` tree before touching anything:
+- [x] T002 Record the baseline over the whole `test/` tree before touching anything:
       `flutter analyze` + `flutter test --concurrency=2` → 234 passing, 0 failing, and
       keep the tail of the output as the starting receipt for every later claim
+      (deviation: it ran BEFORE T001, the reverse of the "Dependencies & ordering" line — the
+      receipt's whole value is that it predates every edit, and T001 edits files)
 
 **Checkpoint**: baseline receipt in hand; the tree is untouched.
 
@@ -108,7 +112,7 @@ range is read again (quickstart scenarios 13–15).
 
 ### Tests for US1 ⚠️ (write first, run RED)
 
-- [ ] T003 [P] [US1] Write the record contract test `test/read_position_store_test.dart`
+- [x] T003 [P] [US1] Write the record contract test `test/read_position_store_test.dart`
       from [contracts/read-position-format.md](./contracts/read-position-format.md): the
       save/load round-trip; a length mismatch returns null and leaves the stored value
       untouched; every malformed value (`214`, `214||`, `||334`, `a||b`, `-1||334`,
@@ -117,7 +121,7 @@ range is read again (quickstart scenarios 13–15).
       two saves wins. Use `SharedPreferences.setMockInitialValues`. Run it and keep the RED
       output (the file `lib/read_position_store.dart` does not exist yet — a compile error
       is the RED, and it must be quoted as one)
-- [ ] T004 [P] [US1] Write the widget suite `test/reading_view_continue_test.dart` covering
+- [x] T004 [P] [US1] Write the widget suite `test/reading_view_continue_test.dart` covering
       quickstart scenarios 1–11: the Continue Read label in all four locales; no position ⇒
       the old page-read sequence; tap sets the position and Continue Read starts there;
       long-press anchors the paragraph start; a tap while speaking stops and re-anchors;
@@ -131,12 +135,12 @@ range is read again (quickstart scenarios 13–15).
 
 ### Implementation for US1
 
-- [ ] T005 [US1] Implement `lib/read_position_store.dart`: `ReadingPosition`
+- [x] T005 [US1] Implement `lib/read_position_store.dart`: `ReadingPosition`
       (`contentKey`, `offset`, `charCount`) with the read rules of the contract as a pure,
       testable function, plus `ReadPositionStore` (`save`/`load`/`clear`) over
       `SharedPreferences`, malformed ⇒ null. Then run `test/read_position_store_test.dart`
       → T003's cases green
-- [ ] T006 [US1] Implement the anchor in `lib/reading_view.dart`: `_anchor` / `_anchorKey`
+- [x] T006 [US1] Implement the anchor in `lib/reading_view.dart`: `_anchor` / `_anchorKey`
       fields (`int?` / `String?`), set on tap and long-press inside `_resolveAt` (the
       resolved segment's `start`), persisted through the store; restore on load (including
       the catalog-fallback path, keyed by the preset id) and paint the anchor's sentence;
@@ -146,17 +150,25 @@ range is read again (quickstart scenarios 13–15).
       `debugPrint('klhu read range: $start..$end')` in `_readRange`; the toolbar's page
       button becomes `continueReadButton` (icon stays `Icons.skip_next`). Then run
       `test/reading_view_continue_test.dart` → T004's cases green
-- [ ] T007 [US1] Update the 30 `'Read page'` literals in `test/reading_view_test.dart` and
+- [x] T007 [US1] Update the 30 `'Read page'` literals in `test/reading_view_test.dart` and
       the four other reading-view test files (`test/reading_view_edit_test.dart`,
       `test/reading_view_pause_test.dart`, `test/reading_view_mixed_test.dart`,
       `test/branding_test.dart`), plus the test names that say "Read page", to the new
       label; then `flutter analyze` + the full suite (`flutter test --concurrency=2`) →
       back to green at 234 + the new cases
-- [ ] T008 [US1] Device walk on `emulator-5554` per `specs/010-continue-read/quickstart.md` scenarios 13, 14, 15
+      (deviation: two more changes the plan did not predict — the old **zh** literal `朗读全文`
+      was a live assertion in `reading_view_pause_test.dart` and `branding_test.dart`, and the
+      two files that reset the mocked prefs once at file scope needed it per test, because the
+      view now *writes* a record that the next test otherwise restores)
+- [x] T008 [US1] Device walk on `emulator-5554` per `specs/010-continue-read/quickstart.md` scenarios 13, 14, 15
       and 18, with PASS/FAIL rows and evidence lines written into
       `specs/010-continue-read/breakpoint.md`: tap a middle paragraph → Continue Read starts there; the record in
       `shared_prefs/FlutterSharedPreferences.xml`; force-stop + relaunch restores it; `pm clear` ⇒
       `klhu read range: 0..<len>`; the scope check
+      (deviation: scenario 18's `grep -rn "Read page" lib/ test/` does match once — the new
+      suite's own `findsNothing` guard, and nothing in `lib/`; the walk also found that the
+      page's text is ONE semantics node, so "tap paragraph 3" is a position inside the block,
+      not a node of its own)
 
 **Checkpoint**: US1 is complete and independently demonstrable — the anchor is set,
 persisted, restored and cleared, and the device walk proves the read starts where the user
@@ -175,7 +187,7 @@ resume — the second sentence is heard again from its start and the first is no
 
 ### Tests for US2 ⚠️ (write first, run RED)
 
-- [ ] T009 [US2] Add the FR-011 cases to `test/reader_service_test.dart` (real
+- [x] T009 [US2] Add the FR-011 cases to `test/reader_service_test.dart` (real
       `ReaderService`, `FakeTtsBackend` at the platform seam): one paragraph speech holding
       three sentences is spoken as three utterances in order; `onParagraphStart` fires
       **once** for that paragraph, on its first sentence; pause during the second utterance
@@ -187,7 +199,7 @@ resume — the second sentence is heard again from its start and the first is no
 
 ### Implementation for US2
 
-- [ ] T010 [US2] Split the queue per sentence in `lib/reader_service.dart`: `sentenceRanges`
+- [x] T010 [US2] Split the queue per sentence in `lib/reader_service.dart`: `sentenceRanges`
       from `package:klhu/segmenter.dart` cuts each `ParagraphSpeech.text` into whole-sentence
       utterances, each carrying its paragraph's language and picked voice and its paragraph
       index (what `onParagraphStart` reports, once per paragraph, on its first sentence);
@@ -195,11 +207,14 @@ resume — the second sentence is heard again from its start and the first is no
       "paragraph granularity" wording in the `pause`/`resume` doc comments with the sentence
       rule; add the per-utterance `debugPrint('klhu speak p$p s$s "$prefix"')`. Then run
       `test/reader_service_test.dart` → T009 green, and the full suite → still green
-- [ ] T011 [US2] Device walk on `emulator-5554` per `specs/010-continue-read/quickstart.md` scenarios 16 and 17,
+- [x] T011 [US2] Device walk on `emulator-5554` per `specs/010-continue-read/quickstart.md` scenarios 16 and 17,
       with the rows written into `specs/010-continue-read/breakpoint.md`: pause inside a paragraph, resume — the
       next `klhu speak` line after the resume is the interrupted sentence and no earlier sentence of that
       paragraph is synthesized again; then a full pre-set read in EN, ZH and ES passes the listening check for
       sentence boundaries, with the engine's own `Synthesis request` lines as the cross-check
+      (deviation: only scenario 17's machine half is claimed — 8 sentences / 8 utterances / 8
+      engine requests per language, one engine locale per read. Nobody listened to the audio, so
+      the human judgment of D12's accepted cost stays unverified and is marked as such)
 
 **Checkpoint**: US1 and US2 work independently — the read starts where the user pointed, and
 pause/resume is sentence-granular.
@@ -208,16 +223,23 @@ pause/resume is sentence-granular.
 
 ## Phase 5: Polish & cross-cutting concerns
 
-- [ ] T012 [P] Commit the walk driver to `specs/010-continue-read/scripts/` (a
+- [x] T012 [P] Commit the walk driver to `specs/010-continue-read/scripts/` (a
       `continue_read_walk.py` with `ADB_SERIAL` / `KLHU_REPO` / `KLHU_OUT` parameters and
       imports relative to the spec dir) so the device evidence outlives the scratch copy,
       and point the re-run block of `specs/010-continue-read/quickstart.md` at it
-- [ ] T013 [P] Update `README.md`: the 010 row in the spec index and the one-line
+      (deviation: the file is `klhu_walk_continue.py`, following `specs/008-content-storage/scripts/klhu_walk*.py`
+      rather than this task's `continue_read_walk.py`; it carries parts 13–17, not 13–15)
+- [x] T013 [P] Update `README.md`: the 010 row in the spec index and the one-line
       Continue Read / sentence-resume notes
-- [ ] T014 Tick the boxes in `specs/010-continue-read/tasks.md`, record any deviation
+- [x] T014 Tick the boxes in `specs/010-continue-read/tasks.md`, record any deviation
       inline (moved work, superseded steps) instead of leaving the list disagreeing with the
       tree, run the tasks-format checker over every directory under `specs/`, and finish with
       `flutter analyze` + `flutter test --concurrency=2`
+      (deviation: no tasks-format checker script exists in this repo — `.specify/scripts/bash/`
+      holds only the spec-kit helpers, and none was added for this; the check ran as an inline
+      scan over every `specs/*/tasks.md`: each `- [ ]` / `- [x]` line carries a `T<digits>` id,
+      and all nine files come back with every task ticked. The only lines that do not match the
+      task shape are `tasks-template.md`'s two legend rows in `specs/004-…`, which are not tasks)
 
 ---
 

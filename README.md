@@ -89,9 +89,31 @@ flutter test test/app_icon_test.dart   # the asset contract: sizes, formats, cat
   channel, which the App Store requires. The iOS set is generated and checked
   structurally here but **not validated** (no macOS on this host).
 
-The emulator/device walk for each feature is scripted — for this one, under
-`specs/009-app-icon/scripts/`; findings, per-scenario PASS/FAIL rows and the
-divergences are recorded in `specs/<feature>/breakpoint.md`.
+The emulator/device walk for each feature is scripted — under
+`specs/<feature>/scripts/` (`specs/009-app-icon/scripts/`, `specs/010-continue-read/scripts/`);
+findings, per-scenario PASS/FAIL rows and the divergences are recorded in
+`specs/<feature>/breakpoint.md`. A walk driver takes `ADB_SERIAL` / `KLHU_REPO` /
+`KLHU_OUT` and prints `RESULT: PASS|FAIL`, so a row can be re-run on demand.
+
+### Continue Read (010)
+
+The reading page's ▶ reads the highlighted sentence; with nothing highlighted it starts at
+the first sentence (a tap/long-press highlights a sentence/paragraph **and** sets the start
+position). Continue Read reads from that position to the end, shows the position again after
+a restart, and forgets it the moment the visible text changes. Pause/resume works at
+sentence granularity: resuming repeats the sentence that was interrupted, never the
+paragraph from its top.
+
+```bash
+cd specs/010-continue-read/scripts
+python3 klhu_walk_continue.py 13      # 13|14|15 the position: set, survive a restart, absent
+python3 klhu_walk_continue.py 16      # 16|17 pause/resume + whole reads in EN, ZH, ES
+```
+
+Both the range a read started from (`klhu read range: <start>..<end>`) and the sentence
+handed to the engine (`klhu speak p<i> s<j> "…"`) are `debugPrint` lines, so a device row is
+read from a **debug** build's `adb logcat -s flutter` — and the engine's own
+`Synthesis request for locale <tag>` lines are what says which language actually spoke.
 
 ## Specs
 
@@ -111,7 +133,7 @@ it matters, `tasks.md` (one task per artifact, ticked as verified) and
 | 007-reader-name-spanish-cantonese | Spanish + Cantonese, localized reader name |
 | 008-content-storage | the content library: save/list/load/edit/delete, pre-sets as data |
 | 009-app-icon | branded launcher icon on Android + iOS from `images/kalahoo.jpeg`, adaptive on Android 8+ |
-| 010-continue-read | set a start position and continue reading from it (spec only) |
+| 010-continue-read | Continue Read: tap a sentence / long-press a paragraph to set the start position, read from there, resume after pause at the sentence |
 
 ## Known limitations
 

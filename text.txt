@@ -30,7 +30,10 @@ Requirement:
 
 12. on continue read, always high light one sentence by one sentence. 
     Pause/Resume always heppen on the high lighted sentence.
-    check language/voice on sentence(vs on paragraph). can switch language/voice on sentence level.
+
+13. on reading page, I like the page to automatically scroll when read out of view. so the highlighted sentence is always visible.
+    on contents list, I like to have a "+" icon to add a new content.
+    on the reading page, I like to preview/select font and character size of the text. App should remember the user's choice.
 
 14. add OCR functionality to extract text from images or camera input.
 
