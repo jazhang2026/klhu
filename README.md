@@ -90,10 +90,11 @@ flutter test test/app_icon_test.dart   # the asset contract: sizes, formats, cat
   structurally here but **not validated** (no macOS on this host).
 
 The emulator/device walk for each feature is scripted — under
-`specs/<feature>/scripts/` (`specs/009-app-icon/scripts/`, `specs/010-continue-read/scripts/`);
-findings, per-scenario PASS/FAIL rows and the divergences are recorded in
-`specs/<feature>/breakpoint.md`. A walk driver takes `ADB_SERIAL` / `KLHU_REPO` /
-`KLHU_OUT` and prints `RESULT: PASS|FAIL`, so a row can be re-run on demand.
+`specs/<feature>/scripts/` (`specs/009-app-icon/scripts/`, `specs/010-continue-read/scripts/`,
+`specs/011-reading-experience/scripts/`); findings, per-scenario PASS/FAIL rows and the
+divergences are recorded in `specs/<feature>/breakpoint.md`. A walk driver takes
+`ADB_SERIAL` / `KLHU_REPO` / `KLHU_OUT` and prints `RESULT: PASS|FAIL`, so a row can be
+re-run on demand.
 
 ### Continue Read (010)
 
@@ -115,6 +116,45 @@ handed to the engine (`klhu speak p<i> s<j> "…"`) are `debugPrint` lines, so a
 read from a **debug** build's `adb logcat -s flutter` — and the engine's own
 `Synthesis request for locale <tag>` lines are what says which language actually spoke.
 
+### Reading experience (011)
+
+The highlight marks the **sentence** being spoken and the page follows it: a read that starts
+below the fold scrolls its position into view, a manual scroll is left alone until the next
+sentence, and a resumed read re-paints the sentence it repeats, so the paint and the utterance
+agree. The app bar's appearance control — idle only, disabled while a read plays — opens a
+screen that previews the page's own text in three typefaces (`default`/`serif`/`mono`) and four
+sizes (`small`/`medium`/`large`/`xlarge` = 12/14/18/24 pt); confirming applies the choice to the
+reading text **and** the editor and never to the app's chrome, and stores it per device in
+`shared_preferences` under `reading_appearance` as `<typeface>||<size>` (dismissing writes
+nothing; a malformed record falls back per field). The content list gained a `+`: it resolves to
+a request for a **new content**, the page opens a blank focused draft, and Save names the entry
+from its text (008's rule, no name prompt) — an empty draft is refused with the existing message,
+and leaving a draft creates nothing and leaves the previous content's stored position alone.
+
+```bash
+cd specs/011-reading-experience/scripts
+python3 klhu_walk_experience.py 7     # 7|8 the page follows a read; an off-screen position comes back
+python3 klhu_walk_experience.py 9     # 9|10 a fitting text never moves; Stop keeps the page
+python3 klhu_walk_experience.py 16    # 16 the appearance record, a restart, the render
+python3 klhu_walk_experience.py 17    # 17 "+" saves a named draft; an empty Save adds nothing
+python3 klhu_walk_experience.py 20    # 20|21 the two read buttons, and a touch during a read
+```
+
+▶ Read speaks the page's own selection and asks for one when nothing is highlighted; ⏭ Continue Read
+reads from that selection (or from the top when there is none), and the position lives exactly as long
+as the highlight that shows it. A touch on the text never interrupts a read — playing or paused (011's
+2026-09-25 amendments, superseding 010's "a tap during a read stops it": a tap is also how a dimmed
+display is woken and how the page's own fling is stopped). Rows 20–21 of
+`specs/011-reading-experience/breakpoint.md` are the receipts.
+
+The driver imports `specs/010-continue-read/scripts/klhu_walk_continue.py` for the shared device
+mechanics. Rows 7, 8 and 10 are about a page that has to move: at the default display this AVD's
+reading area is 718 logical px tall while the longest shipped text is 226, so those parts set
+X-Large on the appearance screen and shrink the display (`adb shell wm size 1080x1000`, reset when
+the part ends). The highlight is measured as pixels: the app's `klhu follow` geometry is mapped to
+the screen (`origin + top × dpr`, origin = the text node's top) and the yellow rows must be that
+band with nothing outside it — `breakpoint.md` records the numbers.
+
 ## Specs
 
 Development is spec-driven: each feature has `specs/<NNN>-<name>/` with
@@ -134,6 +174,7 @@ it matters, `tasks.md` (one task per artifact, ticked as verified) and
 | 008-content-storage | the content library: save/list/load/edit/delete, pre-sets as data |
 | 009-app-icon | branded launcher icon on Android + iOS from `images/kalahoo.jpeg`, adaptive on Android 8+ |
 | 010-continue-read | Continue Read: tap a sentence / long-press a paragraph to set the start position, read from there, resume after pause at the sentence |
+| 011-reading-experience | the highlight follows the read sentence by sentence, a per-device typeface/size for the reading text, `+` to add a content from the library |
 
 ## Known limitations
 

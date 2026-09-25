@@ -12,6 +12,7 @@
   "voiceButton": "Voz",
   "languageDropdown": "Idioma",
   "nothingToReadMessage": "No queda nada por leer desde aquí",
+  "selectToReadMessage": "Selecciona una frase o un párrafo para leer",
   "genderMale": "Masculina",
   "genderFemale": "Femenina",
   "ageYoung": "Joven",

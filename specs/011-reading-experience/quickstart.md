@@ -133,26 +133,57 @@ the previous report's `start` within one generation. Proves the data-model invar
 
 ### 7. On the device: the page follows a long read, sentence by sentence — [device]
 
+**Premise (measured on the AVD, 2026-09-24)**: this row needs a page that has to move. At the default
+size the reading area here is **718 logical px** tall (viewport reported by the app) while the longest
+shipped text is 226 logical px (the English pre-set, 334 chars; the Spanish one is 349 chars but
+shorter per line) — *nothing scrolls*, and the walk's first run of this scenario proved exactly that
+(the block sits at 346..924 device px and never moves). The driver therefore asks the device for a
+smaller display (`adb shell wm size 1080x1000`, leaving a 209 logical viewport) and resets it with
+`wm size reset` when the part ends. The text is still the shipped pre-set the steps name.
+
 Steps (app installed, `adb logcat -s flutter` running, buffer cleared before the read):
 1. Open the shipped English pre-set (fresh install opens it directly).
 2. Tap Continue Read and let the read run to the end.
 3. Read back every `klhu follow: p<i> s<j> visible=<0|1> top=<t> bottom=<b> viewport=<h>` line.
+4. Take screenshots while sentences are spoken (the driver does, one per sample) and measure the
+   highlight's device-pixel row range.
 Expected: one line per sentence spoken (correlate with `klhu speak p<i> s<j>`), each with
 `visible=1` and `0 <= top < bottom <= viewport`; and the paint half as a pixel claim: for a screenshot
 taken while a sentence is spoken, the yellow pixel count **inside** that line's `top..bottom` band is
 > 0 while the count **outside** it is ~0 — the highlight covers exactly the sentence being spoken and
 nothing else (FR-020/SC-008).
+
+Mapping the app's numbers to the screen (measured, not assumed): the `follow` geometry is in the
+reading area's space, so a reported band's device rows are `origin + top × dpr .. origin + bottom × dpr`
+with `dpr = 420/160 = 2.625` and `origin` = the reading-content node's top bound in the same dump
+(284 px at the 1080x1000 display, 346 px at 1080x2400); the two agreed within ~6 px on both. The
+pixel test is run with an 8 px slack around the band, which is narrower than one text line (54 px).
+
 This is the device proof of FR-001/SC-001 and of the amendment (research D3). It needs the app-side
 line: nothing in `logcat` from the engine or the platform reports where the page is scrolled, and a
 whole-screen yellow count cannot tell a sentence's span from a paragraph's.
 
-### 8. On the device: a read started far down the text reveals its position — [device]
+### 8. On the device: a stored position that is off screen is revealed first — [device]
 
-Steps: tap a late paragraph (sets the Continue Read position), tap Continue Read, and read the first
-`klhu follow:` line.
-Expected: the first line is that paragraph's first sentence with `visible=1`, and the `klhu read
-range: <start>..<end>` line still starts at the tapped offset (010 unchanged). Proves FR-002/SC-002 on
-a device, where the scroll only exists if it actually happened.
+**Correction (2026-09-24, from the first device run)**: this scenario was first written as "tap a late
+paragraph, then Continue Read" — unreachable as a scroll proof. A tap target is by definition *on*
+screen, so a tapped position is never below the fold, and the reading view's semantics node is clipped
+to the viewport (its bounds do not move when the page scrolls, so a dump cannot show the scroll
+either). The reachable form of the same claim: the position is set by a tap, the page is then moved by
+hand (010's rule — a manual scroll keeps the anchor), and *that* is what makes the stored position
+off screen when the read starts.
+
+Steps:
+1. Display at 1080x1000 (scenario 7's premise), fresh app.
+2. Tap a line low on the page: the position is set and painted (yellow present in the screenshot).
+3. Swipe the page up by hand: the painted sentence leaves the screen — the screenshot has no yellow —
+   while the stored offset is unchanged.
+4. Tap Continue Read; read the first `klhu follow:` line.
+Expected: the first line is that sentence with `visible=1` and its band inside the viewport, the
+`klhu read range: <start>..<end>` line still starts at the tapped offset (010 unchanged), and a
+screenshot taken right after the read starts has its yellow rows **inside** the reading area's bounds —
+the page scrolled back to the position. Proves FR-002/SC-002 on a device, where the scroll only exists
+if it actually happened.
 
 ### 9. On the device: a text that fits on screen never moves — [device]
 
@@ -235,9 +266,11 @@ Steps:
 2. Type a short sentence and tap Save.
 3. Return to the list.
 4. Repeat (1), tap Save with nothing typed, then go back.
+5. Repeat (1) once more, type a sentence and finish it with the **check icon** (Done).
 Expected: step 2 creates a row whose name is the typed text (auto-generated, no name prompt) and it is
 at the top of the list; step 4 shows the existing "There is nothing to save" message and the list
-gains no row; the prefs file gains no position record for the draft (it had no name). Proves
+gains no row; step 5 creates the row as well — the check icon commits **and saves**, so a draft cannot
+be lost by finishing it; the prefs file gains no position record for a draft (it had no name). Proves
 FR-015–FR-019/SC-006/SC-007.
 
 ### 18. Structural: what moved, and what must not have — [structural]
@@ -261,14 +294,70 @@ flutter test test/l10n_keys_test.dart            # key parity across all four AR
 Test: `test/reading_view_new_content_test.dart` + `test/content_list_test.dart` (the unit half of
 scenario 17's device row).
 Steps: from the list, tap the add action, then (a) type a sentence and Save; (b) Save with nothing
-typed; (c) leave a fresh draft with Done/back; (d) after (c), check the content that was on screen
+typed; (c) finish a fresh draft with the check icon (Done); (d) leave another draft through the library
+(Contents → the unsaved-changes guard → Discard); (e) after (d), check the content that was on screen
 before the "+".
 Expected: the add action resolves to a **new-content request**, not to a library entry; the page opens
 blank, editable and focused with no entry created anywhere; (a) Save creates an entry whose name is the
 typed text (auto-generated, no name prompt) and it appears in the list; (b) is refused with the
-existing "There is nothing to save" message and creates nothing; (c) creates nothing and leaves the
-library unchanged; (d) that earlier content keeps its stored position and its saved text.
+existing "There is nothing to save" message and creates nothing; (c) **Done saves too**: the check icon
+persists the typed text before it returns the page to READ, so the draft becomes an entry named from
+its text (a check icon that only left the editor lost a draft — the behaviour this row now pins);
+(d) creates nothing and leaves the library unchanged; (e) that earlier content keeps its stored position
+and its saved text.
 Proves FR-015–FR-019 and SC-006/SC-007.
+
+### 20. On the device: no highlight means no read; the page's gesture picks the unit — [device]
+
+Unit half: `test/reading_view_test.dart` → "Read with nothing selected asks for a selection", "Read
+after a stop asks for a selection again", "Read speaks the highlighted paragraph in order" and "the
+page gesture picks the unit ▶ reads (FR-024)"; `test/reading_view_continue_test.dart` → "Stop drops
+the position, in memory and on disk" and "tracking follows the read, and the read takes the position
+with it" (the same cases without a device; each was RED first — ▶ spoke the whole page from offset 0
+where it should have asked for a selection, and ⏭ resumed from an old offset where it should have
+started at the top).
+Steps: at Extra large, tap a line low on the page (a sentence position in force and painted, 010
+FR-002) and tap ▶; **hold** that same line (a paragraph position) and tap ▶; tap it again and ⏭,
+letting the read run to the end; then ▶ Read with nothing highlighted; then ⏭ Continue Read again.
+Expected: the tap paints its line (yellow in the screenshot) and `shared_prefs` carries
+`read_position_<key>`; ▶ reads exactly the page's selection — one sentence after a tap, the whole
+paragraph after a hold, never a larger block; ⏭ reads from the selection to the end of the text; when
+that read ends the page shows no yellow **and the record is gone from `shared_prefs`** (FR-022);
+▶ Read then logs **no** `klhu read range` line at all — it speaks nothing — and the page shows
+"Select a sentence or paragraph to read" (FR-023); ⏭ Continue Read starts at the top, the same read a
+page that was never tapped gives. Proves FR-022–FR-024 and SC-009/SC-010, with 010's FR-004/FR-005
+intact for as long as a position is in force.
+Measured (1080×1000, Extra large, one point at `62,792`): **105 968** yellow px after the tap,
+position `112||334`, the paragraph holding 112 is `65..199`; ▶ after the **tap** → `klhu read range:`
+**112..159** (one sentence), ▶ after the **hold** on the same point → **65..199** (exactly the
+paragraph), ⏭ → **112..334**; after the read **0** yellow px and **no** `read_position_*` record; ▶
+with nothing highlighted → no range line at all and the prompt on screen; ⏭ → **0..334**.
+`RESULT: PASS`.
+Driver: `python3 specs/011-reading-experience/scripts/klhu_walk_experience.py 20` (leaves the app at
+Extra large, as scenario 8 does).
+
+### 21. On the device: a touch during a read changes nothing — [device]
+
+Unit half: `test/reading_view_continue_test.dart` → "a touch during a read changes nothing (FR-025)"
+(a tap and a long-press while SPEAKING, then a tap while PAUSED: no stop, nothing selected, no position)
+and `test/reading_view_pause_test.dart` → "a sentence tap while paused changes nothing (FR-025)". Both
+assert the **negation** of the tests they replace ("a tap while speaking stops the read and re-anchors",
+"a sentence tap while paused fully stops"), so they are red on the old handlers by construction.
+Steps: start a read from the top (⏭ with nothing set), and while it plays tap the text once, long-press
+it once, and drag a scroll across it; then Pause and tap the text again; then Stop.
+Expected: after all three touches the read is **still running** (the toolbar still shows Pause, and
+Resume is not offered) and nothing was selected or written to `shared_prefs`; with the read parked a tap
+leaves Resume on offer and the page idle-free of Read/Continue Read; Stop then returns the page to idle
+(Read + Continue Read back, Pause and Resume gone). This is the user's own report ("user may also use
+single tap to scroll the content or reactive the screen when it's become dark… I interupted the reading
+many times"): a quick tap is how a dimmed display is woken and how the page's own fling is stopped, so
+it may not be an action on the text. Proves FR-025/SC-011 and supersedes 010 US1 scenario 5.
+Measured: with `Pause` up (read in flight), "still reading after tap + hold + scroll: Pause is up";
+"position: still none" (no `read_position_*` record); after `Pause`, "parked: Resume is still up after a
+tap"; after `Stop`, "Read / Continue Read are back, Pause and Resume are gone". `RESULT: PASS`.
+Driver: `python3 specs/011-reading-experience/scripts/klhu_walk_experience.py 21`.
+Note: `ADB_SERIAL` picks the target (default `emulator-5554`) — the walk starts with `pm clear`, so
+pointing it at a phone wipes that phone's app data.
 
 ## Troubleshooting
 
@@ -294,6 +383,12 @@ Proves FR-015–FR-019 and SC-006/SC-007.
   draft is refused with "There is nothing to save" and creates nothing (008's rule, FR-018).
 - **A reading position lost after adding content** — expected: a draft has no name, so it writes no
   position; the content that was on screen keeps its own record (FR-019).
+- **▶ Read speaks nothing and shows "Select a sentence or paragraph to read"** — expected with nothing
+  highlighted: ▶ reads the selection, and reading the page from its first sentence is ⏭ Continue
+  Read's fallback (FR-023). The yellow sentence on screen is what makes ▶ read again.
+- **⏭ Continue Read starts at the top of a text that had a position in it** — expected once the
+  highlight is gone: Stop and the end of a read take the position away with the highlight (FR-022), so
+  a tap from before the read cannot decide where the next one starts.
 - **iOS**: no macOS on this host, so the iOS half is not validated. The feature adds no platform code
   (`shared_preferences` and a `fontFamily` string already ship on both), but the iOS family names in
   the contract's table are unverified here (research D5).

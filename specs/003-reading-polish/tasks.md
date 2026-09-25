@@ -84,3 +84,15 @@
 - T002/T003 writable in parallel with T004 (different files); tests before implementation per task
 - US3 hard-depends on US2 (tracking rides the EDIT-state selection); US1 independent — may swap before US2 if preferred
 - Stories sequential P1 → P1 → P2 (single developer); US1 is shippable alone
+
+---
+
+## Superseded by later specs
+
+- **011-reading-experience, FR-025 (2026-09-25)**: this spec's SPEAKING bullet read "Tap/long-press
+  mid-read keeps stop-first, then selects". The user's own device use showed that gesture interrupting
+  the reading (a tap is also how a dimmed display is woken and how a page fling is stopped), so a touch
+  on the text during a read — playing or paused — now changes nothing at all. The bullet in `spec.md`
+  was revised in place; the receipt is scenario 21 in
+  `specs/011-reading-experience/breakpoint.md`, and the unit rows are
+  `test/reading_view_continue_test.dart` / `test/reading_view_pause_test.dart` (FR-025).

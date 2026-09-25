@@ -106,7 +106,10 @@ inside it). Proves FR-003 (I3).
 
 ### 5. Setting a position during a read stops it, then continues from there — [unit]
 
-Test: `test/reading_view_continue_test.dart`, "tapping while speaking stops and re-anchors".
+Test: `test/reading_view_continue_test.dart`, "a touch during a read changes nothing (FR-025)".
+Superseded 2026-09-25 by 011 FR-025: a touch on the text while a read plays changes nothing at all —
+no stop, no re-anchor — because a tap is also how a user wakes a dimmed display or stops the page's
+own fling (and `onTapDown` fired on the pointer-down, so a scroll start did it too).
 Steps: start a read, tap a later paragraph while it is speaking, tap Continue Read.
 Expected: the first read was stopped; the view is back in READ with the new position
 highlighted; the new read starts at the new position. Proves spec US1 scenario 5.

@@ -23,13 +23,17 @@ import 'package:klhu/l10n/app_localizations.dart';
 /// - READ (default): RichText, tap sentence / long-press paragraph, keyboard
 ///   never appears, no caret/selection UI. TalkBack gestures keep meanings.
 ///   The same gesture also sets the Continue Read start position (010).
+///   ▶ Read speaks that selection and asks for one when nothing is selected
+///   (011 FR-023/FR-024); ⏭ Continue Read reads it to the end of the text, and
+///   from the first sentence when there is none (010 FR-004/FR-005, 011 FR-022).
 /// - EDIT (Edit button, idle-only): fully editable TextField with native
 ///   type/paste/copy/cut; Read + Continue Read + Stop hidden, only Done shows.
 ///   Done commits the text and returns to READ.
-/// - SPEAKING: RichText locked (no gestures resolve while speaking except
-///   tap/long-press, which stop-first then select); tracking highlight moves
-///   with the spoken sentence and the page follows it; Edit disabled until
-///   Stop / natural end.
+/// - SPEAKING / PAUSED: RichText locked — a touch on the text changes nothing at
+///   all: no selection, no position, and the read is NOT stopped, so a tap that
+///   only woke a dimmed display or stopped the page's own fling cannot interrupt
+///   the reading (011 FR-025). The tracking highlight moves with the spoken
+///   sentence and the page follows it; Edit is disabled until Stop / natural end.
 ///
 /// No gesture overloading (tap means one thing per state); typing-during-read
 /// and Read-with-unsaved-edits are impossible by construction.
@@ -115,7 +119,13 @@ class _ReadingViewState extends State<ReadingView> {
   /// The Continue Read start position in force: an offset into [_content] at a
   /// sentence or paragraph start, or null for "read from the beginning"
   /// (FR-004/FR-005). Distinct from [_highlight]: tracking repaints the
-  /// highlight per paragraph, and the position must survive that.
+  /// highlight per sentence, and the position must survive that.
+  ///
+  /// The two are in force together and die together (FR-022): a tap is the one
+  /// gesture that sets both, the tracking highlight does not move the position,
+  /// and every state a read leaves — Stop, the end of a read, EDIT — takes the
+  /// highlight away and clears the position with it, in memory and on disk, so
+  /// nothing can resume from a sentence that is no longer painted.
   int? _anchor;
 
   /// Which text [_anchor] belongs to — the library entry id, or the shipped
@@ -393,11 +403,26 @@ class _ReadingViewState extends State<ReadingView> {
       _highlight = null;
       _hint = null;
     });
+    // EDIT paints no highlight, so no position is in force either (FR-022):
+    // the offsets the editor can change are the ones a stored position is
+    // measured against (010 FR-007).
+    await _clearAnchor();
     _focusNode.requestFocus();
   }
 
   Future<void> _doneEdit() async {
-    // Commit the edited text, leave EDIT.
+    // Done commits the edit — and SAVES it first when the text changed, so
+    // leaving the editor can never lose work (008's Done used to leave the
+    // text on screen only, which silently dropped a new draft and any edit).
+    // An empty text has nothing to save and is not a refusal to fix: the page
+    // goes back to READ empty and the stored entry keeps its own text, as
+    // before (008). Any other refusal (too long, storage error) keeps the
+    // editor open with its message on screen, because the screen would
+    // otherwise show text the library does not have.
+    if (_hasUnsavedEdits && _editController!.text.trim().isNotEmpty) {
+      if (!await _save()) return;
+      if (!mounted) return;
+    }
     setState(() {
       _content = _editController!.text;
       _mode = _Mode.read;
@@ -448,16 +473,44 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _openContentList() async {
     await widget.reader.stop();
     if (!mounted) return;
-    final picked = await Navigator.of(context).push<SavedContent>(
+    final chosen = await Navigator.of(context).push<ContentListResult>(
       MaterialPageRoute(builder: (_) => ContentListScreen(store: _store)),
     );
-    if (picked == null || !mounted) return;
+    if (chosen == null || !mounted) return;
+    // Both outcomes replace what is on screen, so 008's unsaved-edit guard is
+    // asked once, before either.
     if (_hasUnsavedEdits && await _confirmDiscard() != true) return;
-    await _loadEntry(picked);
-    if (mounted && _mode == _Mode.edit) {
-      setState(() => _mode = _Mode.read);
-      _disposeUndo();
+    switch (chosen) {
+      case PickedContent(:final entry):
+        await _loadEntry(entry);
+        // A picked entry replaces the page: leaving EDIT with it is what the
+        // user asked for (008).
+        if (mounted && _mode == _Mode.edit) {
+          setState(() => _mode = _Mode.read);
+          _disposeUndo();
+        }
+      case NewContentRequest():
+        await _startNewContent();
     }
+  }
+
+  /// The list's add action (011 FR-016): a blank page in EDIT, with no entry
+  /// behind it. Nothing is created until Save names it from the text, and the
+  /// content that was on screen keeps everything it had — its stored position
+  /// included, because a draft never belonged to it (FR-019).
+  Future<void> _startNewContent() async {
+    await widget.reader.stop();
+    if (!mounted) return;
+    setState(() {
+      _content = '';
+      _loaded = null;
+      _anchor = null;
+      _anchorKey = null;
+      _highlight = null;
+      _error = null;
+      _hint = null;
+    });
+    await _enterEdit();
   }
 
   /// True when the user chose to throw the edits away.
@@ -484,13 +537,15 @@ class _ReadingViewState extends State<ReadingView> {
 
   /// Save: a pre-set becomes new content, a saved page is updated in place;
   /// a refused save explains itself and writes nothing (008 FR-010/FR-019).
-  Future<void> _save() async {
+  /// Reports whether the text was written, so a caller that was about to leave
+  /// the editor can stay in it instead.
+  Future<bool> _save() async {
     final l10n = AppLocalizations.of(context);
     final text = _editController!.text;
     try {
       final previous = _anchorKey;
       final saved = await _store.saveEdited(_loaded, text);
-      if (!mounted) return;
+      if (!mounted) return true;
       setState(() {
         _content = text;
         _loaded = saved;
@@ -502,8 +557,9 @@ class _ReadingViewState extends State<ReadingView> {
       _anchorWrite++;
       if (previous != null) await _positions.clear(previous);
       _showMessage(l10n?.savedMessage ?? 'Saved');
+      return true;
     } on ContentStoreException catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       _showMessage(switch (e.kind) {
         ContentError.emptyText =>
           l10n?.nothingToSaveMessage ?? 'There is nothing to save',
@@ -511,6 +567,7 @@ class _ReadingViewState extends State<ReadingView> {
             'Too long to save',
         _ => l10n?.storageErrorMessage ?? 'Could not save.',
       });
+      return false;
     }
   }
 
@@ -530,18 +587,29 @@ class _ReadingViewState extends State<ReadingView> {
         ?.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _onTapDown(TapDownDetails details) async {
+  Future<void> _onTapText(TapUpDetails details) async {
+    // While a read is playing or parked, a touch on the text does NOTHING
+    // (FR-025): the page is following the read, the user may be tapping to wake
+    // a dimmed display or to stop the page's own fling, and neither may end the
+    // read or move the position. Ending a read is Pause/Stop's job.
+    if (_isSpeakingOrPaused) return;
     await _resolveAt(details.globalPosition, resolveSentence);
   }
 
-  Future<void> _onLongPressStart(LongPressStartDetails details) async {
+  Future<void> _onLongPressText(LongPressStartDetails details) async {
+    // Same rule as a tap, for the same reason (FR-025).
+    if (_isSpeakingOrPaused) return;
     await _resolveAt(details.globalPosition, resolveParagraph);
   }
 
-  /// Shared tap/long-press path: map the touch point to a text offset,
-  /// resolve to the enclosing segment, stop current speech, highlight, set the
-  /// Continue Read start position from the same segment (D1), and wait for a
-  /// read action (data-model invariant).
+  /// Shared idle tap/long-press path: map the touch point to a text offset,
+  /// resolve to the enclosing segment, highlight, set the Continue Read start
+  /// position from the same segment (D1), and wait for a read action
+  /// (data-model invariant).
+  ///
+  /// The gesture is arena-gated (`onTapUp`, not `onTapDown`): a touch that turns
+  /// into a scroll, or the tap that stops the page's fling, never resolves a
+  /// sentence (FR-025).
   Future<void> _resolveAt(Offset globalPosition,
       TextSegment Function(String, int) resolve) async {
     final obj = _textKey.currentContext?.findRenderObject();
@@ -586,21 +654,31 @@ class _ReadingViewState extends State<ReadingView> {
     );
   }
 
+  /// ▶ Read (FR-023): speaks the SELECTION — the sentence a tap picked, or the
+  /// paragraph a long-press picked — and nothing else. The page's gesture names
+  /// the unit; the button reads exactly what is highlighted.
+  ///
+  /// With nothing highlighted there is no selection to scope the read to, so
+  /// the page asks for one instead of reading aloud. Reading the text from its
+  /// first sentence with nothing selected is ⏭ Continue Read's fallback (010
+  /// FR-005), and two buttons that do the same thing explain neither.
   Future<void> _readSelection() async {
     final seg = _highlight;
     if (seg == null) {
-      // No tap yet: nothing is highlighted, so there is nothing to scope the
-      // read to. Start at the first sentence instead of hinting the user away
-      // from a button that otherwise looks broken.
-      await _readContinue();
+      setState(() {
+        _hint = AppLocalizations.of(context)?.selectToReadMessage ??
+            'Select a sentence or paragraph to read';
+        _error = null;
+      });
       return;
     }
     await _readRange(seg.start, seg.end);
   }
 
+  /// ⏭ Continue Read: the selection read to the end of the text — from the
+  /// sentence a tap picked, from the paragraph a long-press picked, and from
+  /// the first sentence when nothing is highlighted (010 FR-004/FR-005).
   Future<void> _readContinue() async {
-    // The page read with a starting offset: with no position set this is
-    // exactly the read the app shipped before (FR-005).
     await _readRange(_anchor ?? 0, _content.length, track: true);
   }
 
@@ -765,6 +843,11 @@ class _ReadingViewState extends State<ReadingView> {
           _mode = _Mode.read;
           _highlight = null;
         });
+        // The position lives only as long as the highlight that shows it
+        // (011 FR-022): a read that has ended leaves nothing to continue from,
+        // so ⏭ starts at the first sentence again instead of resuming from a
+        // sentence nothing on screen points at.
+        await _clearAnchor();
       }
     }
   }
@@ -778,6 +861,10 @@ class _ReadingViewState extends State<ReadingView> {
       _mode = _Mode.read;
       _highlight = null;
     });
+    // Stop takes the highlight away, and the position goes with it (FR-022):
+    // ⏭ Continue Read starts at the first sentence afterwards rather than
+    // resuming from a sentence the user can no longer see.
+    await _clearAnchor();
   }
 
   Future<void> _pauseResume() async {
@@ -923,8 +1010,8 @@ class _ReadingViewState extends State<ReadingView> {
                   // no selection UI, no keyboard.
                   : SingleChildScrollView(
                       child: GestureDetector(
-                        onTapDown: _onTapDown,
-                        onLongPressStart: _onLongPressStart,
+                        onTapUp: _onTapText,
+                        onLongPressStart: _onLongPressText,
                         child: RichText(
                           key: _textKey,
                           // Explicit theme-derived style (see
@@ -958,7 +1045,7 @@ class _ReadingViewState extends State<ReadingView> {
                       IconButton(
                         icon: const Icon(Icons.save_outlined),
                         tooltip: AppLocalizations.of(context)?.saveButton,
-                        onPressed: _save,
+                        onPressed: () => _save(),
                       ),
                       IconButton(
                         icon: const Icon(Icons.check),

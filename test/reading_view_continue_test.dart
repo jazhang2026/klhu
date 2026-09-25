@@ -1,6 +1,7 @@
 /// Continue Read through the widget (spec 010 US1): the anchor's whole life
-/// cycle — set by tap/long-press, shown, persisted, restored, cleared — plus
-/// the renamed toolbar label. Quickstart scenarios 1–11.
+/// cycle — set by tap/long-press, shown, persisted, restored, cleared, and
+/// ended with the highlight that shows it (011 FR-022) — plus the renamed
+/// toolbar label. Quickstart scenarios 1–11.
 ///
 /// The reader is a fake that RECORDS the speeches it is handed with their
 /// offsets ([ParagraphSpeech.start]/[ParagraphSpeech.end]), because every
@@ -221,6 +222,8 @@ void main() {
       // Feedback before any read (FR-006): the tapped sentence is painted.
       expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
       expect(fake.reads, isEmpty);
+      // A position a tap set and never played is already remembered (FR-008).
+      expect(await record(), '$s2Start||${text.length}');
 
       await continueRead(tester);
 
@@ -235,7 +238,9 @@ void main() {
         expect(text.substring(fake.speeches[i].end, fake.speeches[i + 1].start),
             '\n\n');
       }
-      expect(await record(), '$s2Start||${text.length}');
+      // The read ended, so its highlight is gone and the position with it
+      // (FR-022) — the record the tap wrote does not outlive the read.
+      expect(await record(), isNull);
     });
 
     testWidgets('a long-press sets the position at the paragraph start',
@@ -245,15 +250,15 @@ void main() {
 
       await tester.longPressAt(offsetOf(tester, 'codebase runs'));
       await tester.pump();
+      expect(await record(), '$p2Start||${text.length}');
       await continueRead(tester);
 
       // The paragraph start, not the sentence the finger landed in.
       expect(fake.speeches.first.start, p2Start);
       expect(fake.speeches.first.text, text.substring(p2Start, p3Start - 2));
-      expect(await record(), '$p2Start||${text.length}');
     });
 
-    testWidgets('a tap while speaking stops the read and re-anchors',
+    testWidgets('a touch during a read changes nothing (FR-025)',
         (tester) async {
       final fake = RecordingReader()..hold = true;
       await openPage(tester, fake);
@@ -265,20 +270,36 @@ void main() {
       expect(find.byTooltip('Pause'), findsOneWidget);
       final stopsBefore = fake.stops;
 
-      fake.hold = false;
+      // A tap and a long-press on the text do NOTHING while the read plays: no
+      // stop, no selection, no position. A touch may only have woken a dimmed
+      // display or stopped the page's own fling, and neither may interrupt the
+      // reading (FR-025) — 010 US1 scenario 5's stop-and-re-anchor is gone.
+      await tester.tapAt(offsetOf(tester, 'third paragraph'));
+      await tester.pump();
+      await tester.longPressAt(offsetOf(tester, 'third paragraph'));
+      await tester.pump();
+
+      expect(fake.stops, stopsBefore);
+      expect(fake.speaking, isTrue);
+      expect(find.byTooltip('Pause'), findsOneWidget);
+      expect(hasAnyYellow(tester), isFalse, reason: 'nothing was selected');
+      expect(await record(), isNull, reason: 'no position was written');
+
+      // PAUSED is a read in progress too: the same touch changes nothing, so
+      // Resume stays on offer and nothing was re-anchored.
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
       await tester.tapAt(offsetOf(tester, 'third paragraph'));
       await tester.pump();
 
-      expect(fake.stops, greaterThan(stopsBefore));
-      expect(find.byTooltip('Continue Read'), findsOneWidget);
-      expect(find.byTooltip('Pause'), findsNothing);
-      expect(hasYellow(tester, 'This is the third paragraph.'), isTrue);
-
-      await continueRead(tester);
-      expect(fake.speeches.first.start, p3Start);
+      expect(fake.paused, isTrue);
+      expect(fake.stops, stopsBefore);
+      expect(find.byTooltip('Resume'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsNothing);
+      expect(await record(), isNull);
     });
 
-    testWidgets('tracking follows the read; the position outlives it',
+    testWidgets('tracking follows the read, and the read takes the position with it',
         (tester) async {
       final fake = RecordingReader()..hold = true;
       await openPage(tester, fake);
@@ -303,12 +324,34 @@ void main() {
       fake.release();
       await tester.pump();
       await tester.pump();
-      // End of the read clears the tracking highlight…
+      // End of the read clears the tracking highlight… (FR-020)
       expect(hasAnyYellow(tester), isFalse);
-      // …and leaves the position alone: Continue Read starts there again.
-      expect(await record(), '$p2Sentence2Start||${text.length}');
+      // …and the position goes with it, in memory and on disk (FR-022): a read
+      // that has ended leaves nothing to continue from, so a later ⏭ starts at
+      // the first sentence instead of resuming from an unpainted one.
+      expect(await record(), isNull);
       await continueRead(tester);
-      expect(fake.speeches.first.start, p2Sentence2Start);
+      expect(fake.speeches.first.start, 0);
+    });
+
+    testWidgets('Stop drops the position, in memory and on disk', (tester) async {
+      final fake = RecordingReader();
+      await openPage(tester, fake);
+
+      await tester.tapAt(offsetOf(tester, 'Birds sang'));
+      await tester.pump();
+      expect(await record(), '$s2Start||${text.length}');
+
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+
+      // The highlight is gone, so the position is gone with it (FR-022) — the
+      // leftovers must not decide where the next read starts.
+      expect(hasAnyYellow(tester), isFalse);
+      expect(await record(), isNull);
+      await continueRead(tester);
+      expect(fake.speeches.first.start, 0);
+      expect(fake.speeches.first.text, text.substring(0, p1End));
     });
 
     testWidgets('rapid taps leave the last position in force', (tester) async {
@@ -320,10 +363,12 @@ void main() {
       await tester.tapAt(offsetOf(tester, 'codebase runs'));
       await tester.tapAt(offsetOf(tester, 'third paragraph'));
       await tester.pump();
+      // The LAST of them is the one on disk (invariant I10)…
+      expect(await record(), '$p3Start||${text.length}');
       await continueRead(tester);
 
+      // …and the one the read starts from.
       expect(fake.speeches.first.start, p3Start);
-      expect(await record(), '$p3Start||${text.length}');
     });
 
     testWidgets('mixed content reads per paragraph from a non-zero anchor',
@@ -337,7 +382,9 @@ void main() {
       await tester.enterText(find.byType(TextField), mixed);
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
-      await tester.pump();
+      // Done saves before it leaves the editor: the store write is real file
+      // IO, so a real event-loop window is needed to see READ again.
+      await loadPageContent(tester);
 
       final anchor = mixed.indexOf('Birds sang');
       await tester.tapAt(offsetOf(tester, 'Birds sang', inText: mixed));
@@ -454,10 +501,16 @@ void main() {
 
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
+      // EDIT paints no highlight, so the position is gone the moment the
+      // editor opens (011 FR-022); the commit below only keeps it gone.
+      expect(await record(), isNull);
       await tester.enterText(find.byType(TextField), 'A new text entirely.');
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
-      await tester.pump();
+      // Done saves the new text before it leaves the editor (the check icon
+      // persists): that write is real file IO, so the anchor is cleared — and
+      // the record with it — inside a real event-loop window.
+      await loadPageContent(tester);
 
       expect(await record(), isNull);
       await continueRead(tester);

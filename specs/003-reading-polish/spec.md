@@ -41,7 +41,10 @@ yellow highlight; the TextField exists ONLY in EDIT):
   Read + Read page + Stop buttons are HIDDEN; only Done shows. Done commits
   the text and returns to READ (pending selection cleared).
 - SPEAKING: RichText locked; tracking highlight (yellow) advances per
-  paragraph (US3). Tap/long-press mid-read keeps stop-first, then selects.
+  paragraph (US3). A touch on the text mid-read changes NOTHING — no stop,
+  no selection, no position (revised 2026-09-25 per 011 FR-025: a tap is
+  also how a user wakes a dimmed display or stops the page's own fling, so
+  it may not interrupt the reading; ending a read is Pause/Stop's job).
   Edit is disabled until Stop / natural end.
 - Remove the "Paste text to read" field and the Load button.
 - EN sample / 中文示例 buttons keep loading sample texts (edit ops, visible

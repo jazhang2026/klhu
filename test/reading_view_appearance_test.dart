@@ -197,7 +197,10 @@ void main() {
       expect(action(tester).onPressed, isNotNull, reason: 'locale ${entry.key}');
 
       // Reading: present but disabled — an appearance change mid-read would
-      // fight the page's own tracking (FR-014).
+      // fight the page's own tracking (FR-014). ▶ reads a selection (FR-023),
+      // so the page has to be tapped before Read is offered anything to speak.
+      await tester.tapAt(offsetOf(tester, 'The sun rose'));
+      await tester.pump();
       await tester.tap(find.byTooltip(read));
       await tester.pump();
       expect(action(tester).onPressed, isNull, reason: 'locale ${entry.key}');

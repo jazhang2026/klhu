@@ -139,7 +139,9 @@ void main() {
       await tester.enterText(find.byType(TextField), _mixed);
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
-      await tester.pump();
+      // Done persists the pasted text (the check icon saves): the write is real
+      // file IO, so the window is what lets the page return to READ.
+      await loadPageContent(tester);
       await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
 

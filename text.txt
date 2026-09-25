@@ -35,8 +35,10 @@ Requirement:
     on contents list, I like to have a "+" icon to add a new content.
     on the reading page, I like to preview/select font and character size of the text. App should remember the user's choice.
 
-14. add OCR functionality to extract text from images or camera input.
+14: I want to record the content reading into a mp4 video. Include the contents, hight lights, auto-scroll and reading voice.
 
-15. add translation functionality to translate text to English and Chinese.
+15. add OCR functionality to extract text from images or camera input.
+
+16. add translation functionality to translate text to English and Chinese.
 
 

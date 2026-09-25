@@ -7,9 +7,29 @@ import 'package:klhu/services/content_store.dart';
 /// The unified content list (spec 008, FR-004): every pre-set and every saved
 /// page in one place, newest first.
 ///
-/// Pushing this screen resolves to the chosen entry, or to null when the user
-/// goes back — loading is the caller's decision, because only the caller knows
-/// whether the page has unsaved edits.
+/// Pushing this screen resolves to a [ContentListResult], or to null when the
+/// user goes back — acting on it is the caller's decision, because only the
+/// caller knows whether the page has unsaved edits.
+///
+/// What the list can resolve to (spec 008's push, widened by 011 US3): a picked
+/// entry, or a request for a new content. The page decides what that request
+/// means: nothing is created until Save, which 008 names from the text.
+sealed class ContentListResult {
+  const ContentListResult();
+}
+
+/// The user picked an existing entry.
+class PickedContent extends ContentListResult {
+  final SavedContent entry;
+
+  const PickedContent(this.entry);
+}
+
+/// The user asked for a new content: a blank page, not an entry.
+class NewContentRequest extends ContentListResult {
+  const NewContentRequest();
+}
+
 class ContentListScreen extends StatefulWidget {
   final ContentStore store;
 
@@ -99,7 +119,19 @@ class _ContentListScreenState extends State<ContentListScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.contentsTitle)),
+      appBar: AppBar(
+        title: Text(l10n.contentsTitle),
+        actions: [
+          // The add control (011 FR-015): named by its tooltip, like the row
+          // deletes — a list-wide action, never a row's own text.
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: l10n.addContentButton,
+            onPressed: () =>
+                Navigator.of(context).pop(const NewContentRequest()),
+          ),
+        ],
+      ),
       body: FutureBuilder<List<_Row>>(
         future: _rows,
         builder: (context, snapshot) {
@@ -145,7 +177,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
                   tooltip: l10n.deleteButton,
                   onPressed: () => _confirmDelete(entry),
                 ),
-                onTap: () => Navigator.of(context).pop(entry),
+                onTap: () => Navigator.of(context).pop(PickedContent(entry)),
               );
             },
           );

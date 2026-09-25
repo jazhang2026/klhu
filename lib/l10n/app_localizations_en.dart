@@ -46,6 +46,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nothingToReadMessage => 'Nothing left to read from here';
 
   @override
+  String get selectToReadMessage => 'Select a sentence or paragraph to read';
+
+  @override
   String get genderMale => 'Male';
 
   @override

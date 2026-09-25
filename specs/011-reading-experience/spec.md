@@ -12,6 +12,31 @@
 read-tracking highlight becomes the **sentence** being spoken (it was the whole paragraph, 003), so the
 highlight, the spoken sentence and the resume point always name the same unit.
 
+**Input (amendment, 2026-09-25)**: "if no highlighted sentence, Read button read whole page from first
+sentence. This is duplicated with Continue Read button. Correct action: show warning: select
+sentence/paragraph to read." and "with no highlighted content, click Continue Read button, it start
+reading from previous highlighted sentence. Correct action: start reading from first sentence. Previous
+highlighted history should be removed when high light is gone." — the two read buttons stop sharing one
+fallback: ▶ reads a selection and asks for one when there is none, ⏭ keeps its read-from-the-first-
+sentence fallback, and 010's position is in force exactly as long as the highlight that shows it
+(FR-022/FR-023).
+
+**Input (amendment, 2026-09-25, second pass)**: "tap to select one centence, click ▶: read one sentence.
+tap hold to select one paragraph, click ▶: read paragraph. tap/tap hold to select content, click ⏭: read
+to the end from the selected. click ⏭ read from first sentence if no high light." — the PAGE gesture
+picks the unit (003's tap/long-press), ▶ reads that selection as it stands, and ⏭ reads from it to the
+end of the text (FR-024). An earlier reading of this correction — that ▶'s own gesture picked the unit —
+was wrong and is not what ships: ▶ has one press.
+
+**Input (amendment, 2026-09-25, third pass)**: "we use single tap to select one sentence. but user may
+also use single tap to scroll the content or reactive the screen when it's become dark. On real use, I
+interupted the reading many times… I take what you proposed. Cost of step 2: sign off. When it's on
+reading(include paused), tap on content should not stop the reading. no status change." — a touch on the
+text while a read plays or is parked becomes a no-op, and the page's gestures are recognised only when
+the touch was a gesture in its own right (FR-025). This supersedes 010 US1 scenario 5 ("a tap during a
+read stops it, then continues from there"), whose `onTapDown` handler fired on the pointer-down — so a
+scroll start and a fling-stop tap did it too, which is the interruption the user was hitting.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The page follows the read (Priority: P1)
@@ -133,6 +158,13 @@ entry in the list; repeat and leave without saving instead, and find the library
   offered setting can produce missing-glyph boxes in English, Simplified Chinese or Spanish
 - The app's own chrome (app bar, buttons, dialogs, messages) does not follow the text appearance
 - The largest offered size with the longest line in the shipped content: still inside the page
+- Stop, or a read that ends on its own: the highlight goes and the position goes with it (FR-022), so the
+  next ⏭ Continue Read starts at the first sentence — and ▶ asks for a selection again
+- ▶ Read tapped with nothing highlighted: the prompt appears and nothing is spoken; the tap that selects a
+  sentence clears the prompt (FR-023)
+- ▶ Read held rather than tapped on one of the two buttons: nothing changes — the unit comes from what the
+  page selected (a tapped sentence, a long-pressed paragraph), and ⏭ reads from the selection to the end of
+  the text either way (FR-024)
 
 ## Requirements *(mandatory)*
 
@@ -154,6 +186,31 @@ entry in the list; repeat and leave without saving instead, and find the library
   clearing it at the end of a read and on Stop, as today
 - **FR-021**: A pause and its resume MUST leave the highlight on the sentence being repeated, so the
   highlighted sentence, the spoken sentence and 010's resume point are always the same unit
+
+**The two read buttons** *(amendment, 2026-09-25)*
+
+- **FR-022**: 010's Continue Read position MUST be in force exactly while the highlight that shows it
+  is painted: the gesture that paints the highlight is the one that sets the position, and the position
+  MUST be dropped — in memory and on disk — wherever the highlight is cleared (Stop, the end of a read,
+  entering EDIT). A read MUST NOT resume from a position whose highlight is gone; with no position in
+  force ⏭ reads from the first sentence, as 010 FR-005 requires. This narrows 010 FR-002/FR-004/FR-008:
+  a position outlives a restart only while its highlight is up when the app is left.
+- **FR-023**: ▶ Read MUST speak the highlighted sentence or paragraph, and MUST NOT read aloud when
+  nothing is highlighted: the page asks the user to select a sentence or paragraph instead. Reading the
+  text from its first sentence with nothing selected stays ⏭ Continue Read's fallback (010 FR-005,
+  kept by FR-022), so no two buttons answer the same tap with the same read.
+- **FR-024**: The unit ▶ Read speaks MUST be the unit the page's own gesture selected: a **tap** on the
+  text selects its sentence and a **long-press** its paragraph (003, unchanged), and ▶ reads that
+  selection as it stands — never a larger block than what is highlighted. ⏭ Continue Read MUST read
+  from that selection to the end of the text, for a sentence selection and for a paragraph selection
+  alike, and from the first sentence when no selection is in force (FR-022).
+- **FR-025**: A touch on the reading text while a read is playing or paused MUST change nothing: it MUST
+  NOT stop or pause the read, MUST NOT select a sentence or paragraph, MUST NOT move the Continue Read
+  position, and MUST leave the page's controls as they are. A quick tap is also how a user wakes a
+  dimmed display and how the page's own fling is stopped, so it cannot be an action on the text; ending
+  a read stays with Pause and Stop. The idle gestures keep 003's meanings (tap = sentence, long-press =
+  paragraph) and MUST be recognised only when the touch was that gesture in its own right — a touch that
+  turns into a scroll MUST NOT select, and MUST NOT stop a read either.
 
 **Text appearance**
 
@@ -212,6 +269,14 @@ entry in the list; repeat and leave without saving instead, and find the library
 - **SC-007**: Leaving a new content unsaved, or saving it empty, adds no entry to the library
 - **SC-008**: While a read plays, the highlighted text is exactly the sentence being spoken — checked
   per utterance, including the sentence a resume repeats
+- **SC-009**: After a Stop and after a read that ended on its own, ▶ speaks nothing and shows the
+  selection prompt while ⏭ starts at the text's first sentence — the same two outcomes as on a page that
+  was never tapped (FR-022/FR-023)
+- **SC-010**: A tapped sentence and a long-pressed paragraph are each read whole by ▶ and by nothing larger
+  than themselves, and ⏭ reads from either selection to the end of the text (FR-023/FR-024)
+- **SC-011**: With a read playing or paused, a tap, a long-press and a scroll drag on the text each leave
+  the read in the state it was in and the page unchanged — no stop, no selection, no position — and a
+  touch that turns into a scroll does not select either (FR-025)
 
 ## Assumptions
 
@@ -219,7 +284,8 @@ entry in the list; repeat and leave without saving instead, and find the library
   reading (003); this feature narrows that highlight from the spoken paragraph to the spoken sentence
   (amendment: FR-020/FR-021) and moves the page to follow it, rather than adding a second highlight.
 - The manual selection highlight is unchanged: a tap still selects a sentence and a long-press its
-  paragraph (003), and Continue Read still starts the read at that selection.
+  paragraph (003), and Continue Read still starts the read at that selection — which is the only state
+  that holds a position (FR-022).
 - Scrolling is animated and short; no reduced-motion setting is in scope for this version.
 - The offered typefaces are a small set the app ships or the platform guarantees, each of which
   renders English, Simplified Chinese and Spanish.
@@ -235,7 +301,9 @@ entry in the list; repeat and leave without saving instead, and find the library
 - The contents list is reached from the reading page while it is idle, so "+" cannot be reached
   during a read — the shipped navigation, unchanged here.
 - The reading page's toolbar keeps its shipped actions (Read, Continue Read, Pause/Resume, Stop,
-  Edit); the appearance control is added to the page without removing or reordering them.
+  Edit); the appearance control is added to the page without removing or reordering them, and the page's
+  own gestures carry the meanings (FR-024) — a read in flight owns the text, so a touch changes nothing
+  until Pause or Stop (FR-025)
 
 ## Out of scope
 

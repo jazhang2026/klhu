@@ -7,6 +7,8 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:klhu/models/content.dart';
@@ -104,6 +106,38 @@ ContentStore? _sharedStore;
 ContentStore sharedPageStore() {
   _sharedRoot ??= Directory.systemTemp.createTempSync('klhu-page-shared');
   return _sharedStore ??= pageStore(_sharedRoot!);
+}
+
+/// The paragraph render object holding the reading content itself.
+///
+/// Both suites that tap the page need it: `reading_view_test.dart`'s own
+/// RichText carries the English sample, and a screen showing [kSampleEsText]
+/// carries the Spanish one — a reader that matched the first RichText would
+/// measure the toolbar.
+RenderParagraph contentRender(WidgetTester tester) {
+  for (final element in find.byType(RichText).evaluate()) {
+    final widget = element.widget as RichText;
+    final plain = widget.text.toPlainText();
+    if (plain == kSampleEnText || plain == kSampleEsText) {
+      return element.renderObject as RenderParagraph;
+    }
+  }
+  throw StateError('reading content RichText not found');
+}
+
+/// A global point inside [target]'s first characters, so a tap resolves to it.
+Offset offsetOf(WidgetTester tester, String target) {
+  final render = contentRender(tester);
+  final start = kSampleEnText.indexOf(target);
+  if (start < 0) throw StateError('"$target" is not in the content');
+  final box = render
+      .getBoxesForSelection(
+          TextSelection(baseOffset: start, extentOffset: start + 3))
+      .first;
+  return render.localToGlobal(Offset(
+    (box.left + box.right) / 2,
+    (box.top + box.bottom) / 2,
+  ));
 }
 
 /// The sentences of [speech] as the reader reports them: one [SpokenSentence]

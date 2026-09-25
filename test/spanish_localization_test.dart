@@ -101,11 +101,13 @@ Future<void> _pumpApp(
   required SharedPreferences prefs,
   Reader? reader,
   Locale? deviceLocale,
+  ContentStore? contentStore,
 }) async {
   await tester.pumpWidget(KlhuApp(
     prefs: prefs,
     reader: reader ?? _FakeReader(),
     voiceStore: VoiceStore(),
+    contentStore: contentStore,
     deviceLocale: deviceLocale,
   ));
   // Let the page's content load land, which also drains the storage deadline.
@@ -332,11 +334,18 @@ void main() {
     testWidgets('the voice picker opens on the Spanish list for Spanish text',
         (tester) async {
       final reader = _FakeReader();
+      // A store on a temp directory: the check icon SAVES before it leaves the
+      // editor (011's fix), so the page needs somewhere to write.
+      final root = Directory.systemTemp.createTempSync('klhu-es-voices');
+      addTearDown(() {
+        if (root.existsSync()) root.deleteSync(recursive: true);
+      });
       await _pumpApp(
         tester,
         prefs: await _freshPrefs(),
         reader: reader,
         deviceLocale: const Locale('es', 'MX'),
+        contentStore: pageStore(root),
       );
 
       // Content now comes from the library (the sample buttons are gone, 008
@@ -345,7 +354,14 @@ void main() {
       await tester.pump();
       await tester.enterText(find.byType(TextField), kSampleEsText);
       await tester.tap(find.byIcon(Icons.check));
-      await tester.pump();
+      // The check icon saves before it leaves EDIT (011's fix): the store write
+      // is real file IO, so the page only returns to READ — with the new text's
+      // language — inside a real event-loop window.
+      for (var round = 0; round < 6; round++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)));
+        await tester.pump();
+      }
 
       await tester.tap(find.byTooltip('Voz'));
       await tester.pumpAndSettle();

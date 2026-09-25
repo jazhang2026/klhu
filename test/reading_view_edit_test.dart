@@ -192,7 +192,7 @@ void main() {
       expect(fake.spoken, isEmpty);
     });
 
-    testWidgets('Read speaks the pending sentence; with none it reads from the top',
+    testWidgets('Read speaks the pending sentence, and asks for one when there is none',
         (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -211,19 +211,19 @@ void main() {
       await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
-      // No highlight yet: the read starts at the first sentence (the hint that
-      // used to appear here is gone).
-      expect(fake.spoken.first, startsWith(_firstSentence));
-      expect(fake.isSpeaking, isTrue);
-
-      await tester.tap(find.byTooltip('Stop'));
-      await tester.pump();
-      fake.spoken.clear();
+      // Nothing is highlighted: ▶ has no selection to read and asks for one
+      // (FR-023). Reading the page from its first sentence is ⏭'s fallback.
+      expect(fake.spoken, isEmpty);
+      expect(find.text('Select a sentence or paragraph to read'),
+          findsOneWidget);
 
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
+      // The tap that selects a sentence takes the prompt away…
+      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
+      // …and ▶ reads that selection.
       expect(fake.spoken, [_firstSentence]);
     });
 
@@ -252,6 +252,7 @@ void main() {
         isTrue,
       );
       expect(fake.spoken, isEmpty);
+      // The page's long-press selected the whole paragraph, so ▶ reads it.
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       expect(
@@ -310,7 +311,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Hello edited world.');
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
-      await tester.pump();
+      // Done persists the edit now (the check icon saves): the store write is
+      // real file IO, so the editor only returns to READ inside a real
+      // event-loop window.
+      await loadPageContent(tester);
       // Back to RichText READ with the committed content.
       expect(find.byType(TextField), findsNothing);
       // Pending sentence cleared by editing: Continue Read reads new content.

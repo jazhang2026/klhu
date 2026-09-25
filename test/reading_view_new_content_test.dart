@@ -9,7 +9,6 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/l10n/app_localizations.dart';
@@ -180,11 +179,12 @@ void main() {
     await tester.tap(find.text('Discard'));
     await loadPageContent(tester);
 
-    expect(await entryCount(tester, store), 3, reason: 'the draft was saved');
+    expect(await entryCount(tester, store), 3,
+        reason: 'discarding a draft must not save it');
     expect(find.byType(TextField), findsNothing);
   });
 
-  testWidgets('the content from before keeps its text and its position',
+  testWidgets('Done saves the draft, and the earlier content keeps its position',
       (tester) async {
     final store = pageStore(root);
     await openPage(tester, store);
@@ -194,16 +194,20 @@ void main() {
     await tester.pump();
     expect(await storedPosition(), isNotNull);
 
-    // A draft, left behind with Done.
+    // A draft, finished with Done: the check icon commits AND saves, so the
+    // typed text cannot be lost by leaving the editor.
     await addContent(tester);
-    await tester.enterText(find.byType(TextField), 'A draft that is left.');
+    await tester.enterText(find.byType(TextField), 'A draft that is kept.');
     await tester.pump();
     await tester.tap(find.byTooltip('Done'));
-    await tester.pump();
+    await loadPageContent(tester);
 
-    // Nothing was created, and the earlier content's record is untouched
-    // (FR-019) — the draft never belonged to it.
-    expect(await entryCount(tester, store), 3);
+    expect(find.byType(TextField), findsNothing, reason: 'back to READ');
+    final entries = await tester.runAsync(() => store.list());
+    expect(entries!.map((e) => e.name), contains('A draft that is kept.'));
+
+    // The earlier content's record is untouched (FR-019) — the draft never
+    // belonged to it.
     expect(await storedPosition(), isNotNull);
 
     // Re-opening that content brings its own position back.
@@ -212,33 +216,6 @@ void main() {
     await loadPageContent(tester);
     expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
   });
-}
-
-/// The reading-content RichText, whatever text it currently holds.
-RenderParagraph contentRender(WidgetTester tester) {
-  for (final element in find.byType(RichText).evaluate()) {
-    final widget = element.widget as RichText;
-    final plain = widget.text.toPlainText();
-    if (plain == kSampleEnText || plain == kSampleEsText) {
-      return element.renderObject as RenderParagraph;
-    }
-  }
-  throw StateError('reading content RichText not found');
-}
-
-/// A global point inside [target]'s first characters, so a tap resolves to it.
-Offset offsetOf(WidgetTester tester, String target) {
-  final render = contentRender(tester);
-  final start = kSampleEnText.indexOf(target);
-  if (start < 0) throw StateError('"$target" is not in the content');
-  final box = render
-      .getBoxesForSelection(
-          TextSelection(baseOffset: start, extentOffset: start + 3))
-      .first;
-  return render.localToGlobal(Offset(
-    (box.left + box.right) / 2,
-    (box.top + box.bottom) / 2,
-  ));
 }
 
 bool hasYellow(WidgetTester tester, String text) {

@@ -8,13 +8,15 @@
 
 ## Status
 
-**Not started (tasks generated 2026-09-24, plan reviewed after the sentence-highlight amendment).**
-All tasks are open; the implement stage ticks them as they complete and records any deviation inline.
+**Closed 2026-09-25.** All tasks are ticked and every row of
+[quickstart.md](./quickstart.md) is recorded in [breakpoint.md](./breakpoint.md) — including the four
+amendment rows (FR-022–FR-025) added after the user's review, which carry their own tasks T024–T027 at
+the end of this file.
 
 Baseline to protect: **266 tests green, `flutter analyze` clean** (last measured 2026-09-24 at the end
-of 010; T002 re-takes the receipt before the first edit, because a baseline measured after a change is
-not a baseline). Additions expected: ~20 widget/unit scenarios across 5 new or rewritten files, ~8
-service cases, one new store — the exact numbers are whatever the RED runs produce, not a target.
+of 010; T002 re-took the receipt before the first edit, because a baseline measured after a change is
+not a baseline). Final: **301 passing, 0 failing**, `flutter analyze` clean — 35 added (sentence
+tracking, the follow suite, the appearance store/screen, the "`+`" suite, the amendment cases).
 
 **One measured claim this list corrects**: the plan's test tree did not name a file for the "+"
 story's unit rows. They land in a new `test/reading_view_new_content_test.dart`, and
@@ -78,13 +80,15 @@ way).
 **Purpose**: the one piece US2 and US3 both render from. Nothing is installed — this feature adds no
 dependency and no asset (plan § Technical Context).
 
-- [ ] T001 Add the new message keys to the template `lib/l10n/app_en.arb` and the three translations
+- [x] T001 Add the new message keys to the template `lib/l10n/app_en.arb` and the three translations
       `lib/l10n/app_zh.arb`, `lib/l10n/app_zh_Hans.arb`, `lib/l10n/app_es.arb` — `addContentButton`,
       `appearanceButton`, `appearanceTitle`, `fontLabel`, `sizeLabel`, `previewLabel`,
       `fontDefaultLabel`, `fontSerifLabel`, `fontMonoLabel`, `sizeSmallLabel`, `sizeMediumLabel`,
       `sizeLargeLabel`, `sizeXLargeLabel` (D12) — then `flutter gen-l10n` and confirm the diff is
       exactly the 4 ARBs + the regenerated `lib/l10n/app_localizations*.dart`. The template keys must
       exist before any widget task compiles against them
+      (DONE 2026-09-25: the four ARBs + the regenerated `lib/l10n/app_localizations*.dart`; the
+      amendment later added `selectToReadMessage` to the same four files — see T024)
 
 **Checkpoint**: `flutter analyze` clean; `flutter test test/l10n_keys_test.dart` green (key parity in
 both directions across the four ARBs).
@@ -96,7 +100,7 @@ both directions across the four ARBs).
 **⚠️ CRITICAL**: without a known-green baseline, no later "the suite is green" claim means anything on
 this box (no CI in this repo).
 
-- [ ] T002 Record the baseline over the whole `test/` tree before touching anything: `flutter analyze`
+- [x] T002 Record the baseline over the whole `test/` tree before touching anything: `flutter analyze`
       + `flutter test --concurrency=2` → the passing/failing counts, and keep the tail of the output as
       the starting receipt for every later claim (expected 266 passing, 0 failing; if it differs, the
       difference is the first thing to explain, not the last)
@@ -121,7 +125,7 @@ by nothing (quickstart scenarios 7–10).
 
 ### Tests for US1 ⚠️ (write first, run RED)
 
-- [ ] T003 [P] [US1] Write the sentence-callback cases in `test/reader_service_test.dart` and migrate
+- [x] T003 [P] [US1] Write the sentence-callback cases in `test/reader_service_test.dart` and migrate
       its six existing tracking drives (`:172`, `:183`, `:211`, `:244`, `:352`, `:397`) to the new
       seam: one `ParagraphSpeech` holding three sentences produces three reports in order with
       `(paragraph, sentence)` `(0,0)/(0,1)/(0,2)` and `start`/`end` equal to the sentence ranges of the
@@ -129,7 +133,7 @@ by nothing (quickstart scenarios 7–10).
       report the **interrupted** sentence again and nothing earlier. Run it and keep the RED output
       (today the callback is `onParagraphStart(int)` and reports once per paragraph — a compile error
       against the new shape is the RED, and it must be quoted as one)
-- [ ] T004 [P] [US1] Write the new widget suite `test/reading_view_follow_test.dart` covering
+- [x] T004 [P] [US1] Write the new widget suite `test/reading_view_follow_test.dart` covering
       quickstart scenarios 2–6 against a fake `Reader`: a text that fits is never scrolled; a sentence
       below the fold is revealed and is inside the viewport when reported; Continue Read from a stored
       position reports that position first; a manual scroll survives until the next sentence (the
@@ -139,14 +143,14 @@ by nothing (quickstart scenarios 7–10).
 
 ### Implementation for US1
 
-- [ ] T005 [US1] Implement the sentence-level tracking seam in `lib/reader_service.dart`:
+- [x] T005 [US1] Implement the sentence-level tracking seam in `lib/reader_service.dart`:
       `SpokenSentence` (paragraph, sentence, `start`, `end`) as an immutable value; `_Utterance` gains
       the two absolute offsets (computed where `sentenceRanges` already cuts each speech);
       `onSentenceStart` replaces `onParagraphStart` on `Reader.speakParagraphs` and the private state;
       the callback fires once per sentence immediately before it is handed to the engine, generation-
       guarded as today; update the interface's doc comments (including the "003's tracking is
       paragraph-level" note). Then run `test/reader_service_test.dart` → T003 green
-- [ ] T006 [US1] Implement the paint and the follow in `lib/reading_view.dart`: paint
+- [x] T006 [US1] Implement the paint and the follow in `lib/reading_view.dart`: paint
       `TextSegment(unit.start, unit.end, SegmentUnit.sentence)` from the callback (replacing the
       paragraph span), then measure that box through `_textKey`'s `RenderParagraph`
       (`getBoxesForSelection`, the same handle `_resolveAt` uses) and, only when it is not fully inside
@@ -154,20 +158,23 @@ by nothing (quickstart scenarios 7–10).
       `(generation, paragraph, sentence)` and never re-follow the same one (D9); add the debug-only
       `debugPrint('klhu follow: p<i> s<j> visible=… top=… bottom=… viewport=…')` after the reveal
       settles (D3). Then run `test/reading_view_follow_test.dart` → T004 green
-- [ ] T007 [P] [US1] Rewrite the tracking expectations in `test/reading_view_continue_test.dart` and
+- [x] T007 [P] [US1] Rewrite the tracking expectations in `test/reading_view_continue_test.dart` and
       its three siblings — `test/reading_view_mixed_test.dart`, `test/reading_view_test.dart`,
       `test/reading_view_pause_test.dart` — to sentence granularity:
       their fakes take the new callback, their drives report sentences, and their yellow-span
       assertions expect exactly the spoken sentence (rewritten, never deleted). Keep the two selection
       tests (`test/reading_view_edit_test.dart:168`, `:226`) exactly as they are (D11). Run the four
       files, then the full suite
-- [ ] T008 [P] [US1] Update the fake `Reader` implementations in `test/reading_view_edit_test.dart`,
+      (DONE: the four files were rewritten for sentence granularity; T027 rewrote two of their cases a
+      second time for FR-025 — "a touch during a read changes nothing" / "a sentence tap while paused
+      changes nothing" — because those two pinned the behaviour the user had removed)
+- [x] T008 [P] [US1] Update the fake `Reader` implementations in `test/reading_view_edit_test.dart`,
       `test/branding_test.dart`, `test/spanish_localization_test.dart`, `test/voice_picker_test.dart`
       and `test/voice_picker_semantics_test.dart` that only forward tracking, so their
       `speakParagraphs` matches the new contract (Dart rejects an override that omits a named parameter);
       confirm none of their expectations change by running each file, then the full suite →
       `flutter analyze` + `flutter test --concurrency=2` green
-- [ ] T009 [US1] Device walk on `emulator-5554` per `specs/011-reading-experience/quickstart.md`
+- [x] T009 [US1] Device walk on `emulator-5554` per `specs/011-reading-experience/quickstart.md`
       scenarios 7–10, with PASS/FAIL rows and the raw evidence lines written into
       `specs/011-reading-experience/breakpoint.md`: the follow lines of a full read (one per sentence,
       `visible=1`, box inside the viewport), the yellow-pixel band check around a spoken sentence, a
@@ -176,6 +183,9 @@ by nothing (quickstart scenarios 7–10).
       engine's `Synthesis request` lines
       (deviation note: this task appends to `breakpoint.md`, so it is sequential with T015 and T020
       even though the story chains are independent)
+      (DONE 2026-09-25: rows 7–10 of `specs/011-reading-experience/breakpoint.md`, re-walked at close.
+      Part 10 needed **two** driver fixes before its row was trustworthy — the numbers it first passed
+      on differed only by the highlight; the Deviations section of `breakpoint.md` says what was wrong)
 
 **Checkpoint**: US1 is complete and independently demonstrable — the highlight and the speech name the
 same sentence, and the page keeps that sentence on screen from the first utterance to the last.
@@ -193,7 +203,7 @@ screen, change both rows, go back, and find the record and the look untouched (q
 
 ### Tests for US2 ⚠️ (write first, run RED)
 
-- [ ] T010 [P] [US2] Write the store contract test `test/appearance_store_test.dart` from
+- [x] T010 [P] [US2] Write the store contract test `test/appearance_store_test.dart` from
       [contracts/appearance-format.md](./contracts/appearance-format.md): the save/load round-trip; an
       absent key → `(default, medium)`; per-field fallback (`Helvetica||xlarge` → `(default, xlarge)`,
       `serif||huge` → `(serif, medium)`); every malformed shape (`''`, `serif`, `serif||`, `||xlarge`,
@@ -202,7 +212,7 @@ screen, change both rows, go back, and find the record and the look untouched (q
       equals the theme's `bodyMedium` size. Use `SharedPreferences.setMockInitialValues`. Run it and
       keep the RED output (the file `lib/appearance_store.dart` does not exist yet — a compile error is
       the RED, and it must be quoted as one)
-- [ ] T011 [P] [US2] Write the widget suite `test/reading_view_appearance_test.dart` covering
+- [x] T011 [P] [US2] Write the widget suite `test/reading_view_appearance_test.dart` covering
       quickstart scenarios 11–15: the appearance action exists in all four locales and is disabled while
       a read plays; the offered sets are exactly three typefaces and four sizes; the largest size lays
       the longest shipped line out inside a 360 dp-wide viewport with no overflow; confirming styles the
@@ -212,23 +222,23 @@ screen, change both rows, go back, and find the record and the look untouched (q
 
 ### Implementation for US2
 
-- [ ] T012 [US2] Implement `lib/appearance_store.dart`: `ReadingAppearance` (`typeface`, `size`) with
+- [x] T012 [US2] Implement `lib/appearance_store.dart`: `ReadingAppearance` (`typeface`, `size`) with
       the contract's read rules as a pure, testable function plus the name→point-size and
       name→platform-family tables; `AppearanceStore.load()`/`save()` over `SharedPreferences`, every
       failure caught → the defaults with a `debugPrint`, nothing repaired (D4). Then run
       `test/appearance_store_test.dart` → T010's cases green
-- [ ] T013 [US2] Implement `lib/appearance_screen.dart`: a pushed screen mirroring
+- [x] T013 [US2] Implement `lib/appearance_screen.dart`: a pushed screen mirroring
       `lib/voice_picker_screen.dart`, previewing the text on screen in the candidate style, with a
       typeface row and a size row (each showing the offered set from the store's constants), popping the
       chosen appearance on confirm and nothing on back (D8). Then run the screen's cases in
       `test/reading_view_appearance_test.dart` → the offered-set and preview rows green
-- [ ] T014 [US2] Wire the appearance into `lib/reading_view.dart`: load the stored appearance on init
+- [x] T014 [US2] Wire the appearance into `lib/reading_view.dart`: load the stored appearance on init
       (defaults on any failure), apply it inside `_contentTextStyle` so the rich text and the edit field
       both follow it and the app's chrome does not (FR-009), add the app-bar action (`Icons.format_size`,
       the ARB tooltip) that is **disabled while a read plays** (FR-014) and pushed to the appearance
       screen, and persist on confirm only (FR-008/FR-010). Then run
       `test/reading_view_appearance_test.dart` → T011 green, then the full suite
-- [ ] T015 [US2] Device walk on `emulator-5554` per `specs/011-reading-experience/quickstart.md`
+- [x] T015 [US2] Device walk on `emulator-5554` per `specs/011-reading-experience/quickstart.md`
       scenario 16, with the rows in `specs/011-reading-experience/breakpoint.md`: choose Serif +
       X-Large, confirm, read `reading_appearance` out of
       `shared_prefs/FlutterSharedPreferences.xml`, force-stop + relaunch, and screenshot the page before
@@ -253,12 +263,12 @@ repeat and leave without saving, then save an empty draft — the library is unc
 
 ### Tests for US3 ⚠️ (write first, run RED)
 
-- [ ] T016 [P] [US3] Update `test/content_list_test.dart` for the add action and the typed route result
+- [x] T016 [P] [US3] Update `test/content_list_test.dart` for the add action and the typed route result
       (its two existing push sites at `:77`, `:133`): tapping the add action resolves to a
       new-content request rather than to a library entry, tapping a row still resolves to its entry, and
       going back still resolves to nothing. Run it and keep the RED output (the result type does not
       exist yet — a compile error is the RED, and it must be quoted as one)
-- [ ] T017 [P] [US3] Write `test/reading_view_new_content_test.dart` for quickstart scenario 19: the
+- [x] T017 [P] [US3] Write `test/reading_view_new_content_test.dart` for quickstart scenario 19: the
       add action's result opens the page blank, in EDIT, focused, with no entry created; Save with text
       creates an auto-named entry (no name prompt) and the text stays on screen; Save with nothing typed
       is refused with the existing "There is nothing to save" message and creates nothing; leaving the
@@ -267,18 +277,18 @@ repeat and leave without saving, then save an empty draft — the library is unc
 
 ### Implementation for US3
 
-- [ ] T018 [US3] Implement the result type and the add action in `lib/content_list_screen.dart`:
+- [x] T018 [US3] Implement the result type and the add action in `lib/content_list_screen.dart`:
       `ContentListResult` as a sealed value (`PickedContent(SavedContent)` | `NewContentRequest`), the
       row tap and the app-bar `Icons.add` action (the ARB tooltip) popping the right one (D7). Then run
       `test/content_list_test.dart` → T016 green
-- [ ] T019 [US3] Implement the draft path in `lib/reading_view.dart`: switch on the route result —
+- [x] T019 [US3] Implement the draft path in `lib/reading_view.dart`: switch on the route result —
       the entry path stays `_loadEntry`, the request path resets `_content`/`_loaded`/`_anchorKey`/
       `_anchor`/`_highlight` and reuses `_enterEdit()` for a blank focused editor, with the existing
       `_hasUnsavedEdits` + `_confirmDiscard()` guard in front of both (D7). Saving a draft goes through
       the shipped `_store.saveEdited(null, text)`, so an empty draft is refused by 008's rule and the
       message already exists (FR-018). Then run `test/reading_view_new_content_test.dart` → T017 green,
       then the full suite
-- [ ] T020 [US3] Device walk on `emulator-5554` per `specs/011-reading-experience/quickstart.md`
+- [x] T020 [US3] Device walk on `emulator-5554` per `specs/011-reading-experience/quickstart.md`
       scenario 17, with the rows in `specs/011-reading-experience/breakpoint.md`: tap the add action
       (found by its exact tooltip in the app-bar band — a match there is a matching bug, not a control),
       type a sentence, Save, return to the list and confirm the new row and its auto-generated name;
@@ -290,7 +300,7 @@ repeat and leave without saving, then save an empty draft — the library is unc
 
 ## Phase 6: Polish & cross-cutting concerns
 
-- [ ] T021 [P] Commit the walk driver to `specs/011-reading-experience/scripts/klhu_walk_experience.py`
+- [x] T021 [P] Commit the walk driver to `specs/011-reading-experience/scripts/klhu_walk_experience.py`
       (parts 7, 8, 9, 10, 16, 17 — one function each, `ADB_SERIAL` / `KLHU_REPO` / `KLHU_OUT` honoured,
       importing `specs/010-continue-read/scripts/klhu_walk_continue.py` for the shared device mechanics
       rather than copying them, D10) and point the re-run block of
@@ -298,10 +308,17 @@ repeat and leave without saving, then save an empty draft — the library is unc
       (deviation note: the harness may produce these lines in a scratch copy first — the committed file
       is what the evidence is allowed to cite, and the quickstart's block must name the paths that exist
       in the tree)
-- [ ] T022 [P] Update `README.md`: the 011 row in the spec index (drop any "spec only" wording) and the
+      (DONE: the committed driver walks 7, 8, 9, 10, 16, 17, 20 and 21 — parts 20 and 21 came with the
+      amendment. Two races were fixed while closing: part 10 accepted a mid-read moment in which the
+      page had never moved, and part 20 selected the paragraph while the previous read was still
+      playing (FR-025 makes that a no-op), leaving the selection to `base.wait_for_idle()`, reused from
+      `specs/010-continue-read/scripts/klhu_walk_continue.py` rather than copied)
+- [x] T022 [P] Update `README.md`: the 011 row in the spec index (drop any "spec only" wording) and the
       one-line notes for the three behaviours — the page follows the spoken sentence, the text's
       typeface/size is remembered, "+" adds a content — plus the re-run commands for the device rows
-- [ ] T023 Tick the boxes in `specs/011-reading-experience/tasks.md`, record every deviation inline
+      (DONE: the 011 section carries the re-run block for parts 7, 8, 9, 10, 16, 17, 20 and 21 and points
+      at `specs/011-reading-experience/breakpoint.md` for the rows)
+- [x] T023 Tick the boxes in `specs/011-reading-experience/tasks.md`, record every deviation inline
       (moved work, superseded steps) instead of leaving the list disagreeing with the tree, then run the
       tasks-format checker over **every** directory under `specs/`
       (`python3 ~/.hermes/skills/software-development/spec-driven-development/scripts/check_tasks_format.py specs/<each>`),
@@ -313,6 +330,42 @@ repeat and leave without saving, then save an empty draft — the library is unc
       with no path on its first line each, plus requirement ids the file never names because those specs
       carry no coverage table; 008, 009, 010 and 011 pass it) — and finish with `flutter analyze`
       + `flutter test --concurrency=2`
+      (DONE 2026-09-25: all tasks ticked, T024–T027 added for the amendment, and the coverage table
+      gained FR-022–FR-025 + SC-009–SC-011. Final `flutter analyze` clean,
+      `flutter test --concurrency=2` → **301 passing, 0 failing**. The checker still reports the older
+      specs, unchanged: 003 no longer lists FR-025 because `specs/003-reading-polish/tasks.md` now
+      carries a "Superseded by later specs" note for it; the other old findings stand, reported not
+      rewritten)
+
+---
+
+## Phase 7: Post-review amendments (2026-09-25, user-directed)
+
+**Purpose**: the user's own reading on a real device (OnePlus 9) changed four requirements after the
+US1–US3 work was already on the device — the highlight's lifetime (FR-022), ▶ Read with nothing
+selected (FR-023), which unit ▶ reads (FR-024) and what a touch on the text does while a read plays
+(FR-025). The amendment text and the user's wording are in `spec.md`; the device receipts are rows 20
+and 21 of `breakpoint.md`.
+
+- [x] T024 [P] Add `selectToReadMessage` to `lib/l10n/app_en.arb`, `lib/l10n/app_zh.arb`,
+      `lib/l10n/app_zh_Hans.arb` and `lib/l10n/app_es.arb` (+ `flutter gen-l10n`) and stop the two read
+      buttons from sharing one fallback — ▶ asks for a selection instead of reading the text from its
+      first sentence (FR-023) — with the 003-era tests in `test/reading_view_test.dart` that pinned "with
+      no selection it reads from the top" rewritten to the new behaviour
+- [x] T025 [P] Clear the Continue Read position in `lib/reading_view.dart` whenever the highlight that
+      shows it goes — Stop, the end of a read and entering EDIT, in memory and on disk (FR-022) — and pin
+      both in `test/reading_view_continue_test.dart` (the row that said "the position outlives the end"
+      now says it does not)
+- [x] T026 [P] Make ▶ read the page's own selection (FR-024) in `lib/reading_view.dart`: the unit comes
+      from 003's gestures (a tapped sentence, a long-pressed paragraph), ▶ has one press, and ⏭ reads
+      from that selection to the end of the text; `test/reading_view_test.dart` gains "the page gesture
+      picks the unit ▶ reads", and an earlier build that gave ▶ its own tap/hold units was reverted
+- [x] T027 [P] Guard the page's gestures in `lib/reading_view.dart` so a touch on the text during a read
+      changes nothing (FR-025): the handlers return while the page is speaking or paused, and the gesture
+      is arena-gated (`onTapUp`, not `onTapDown`, so a touch that becomes a scroll does not select
+      either); `test/reading_view_continue_test.dart` → "a touch during a read changes nothing (FR-025)"
+      and `test/reading_view_pause_test.dart` → "a sentence tap while paused changes nothing (FR-025)"
+      replace the two tests that pinned stop-and-re-anchor, and the walk driver gains part 21
 
 ---
 
@@ -396,6 +449,10 @@ repeat and leave without saving, then save an empty draft — the library is unc
 | FR-019 leaving a draft creates nothing and leaves the previous content unchanged | T017, T020 |
 | FR-020 the highlight is the sentence being spoken, advancing and clearing | T003, T004, T005, T006, T007, T008, T009 |
 | FR-021 a pause/resume leaves the highlight on the repeated sentence | T003, T004, T005, T007, T009 |
+| FR-022 the position lives exactly as long as the highlight showing it | T025, T027 |
+| FR-023 ▶ with nothing highlighted asks for a selection, it does not read | T024 |
+| FR-024 ▶ reads the page's selection; the page's gesture picks the unit | T026 |
+| FR-025 a touch on the text during a read changes nothing | T027 |
 | SC-001 no sentence spoken while its position is outside the visible area | T004, T006, T009 |
 | SC-002 a below-the-fold start position is shown by its first utterance | T004, T006, T009 |
 | SC-003 a text that fits on screen moves the page by zero pixels | T004, T006, T009 |
@@ -404,3 +461,6 @@ repeat and leave without saving, then save an empty draft — the library is unc
 | SC-006 a new content is created in one tap plus Save and appears in the list | T017, T019, T020 |
 | SC-007 leaving a new content unsaved, or saving it empty, adds no entry | T017, T019, T020 |
 | SC-008 the highlighted text is exactly the sentence being spoken, resume included | T003, T004, T007, T009 |
+| SC-009 after Stop or a natural end, ▶ speaks nothing and ⏭ starts at the top | T024, T025 |
+| SC-010 a tapped sentence and a long-pressed paragraph are each read whole by ▶ | T026 |
+| SC-011 a touch during a read leaves the read and the page as they were | T027 |

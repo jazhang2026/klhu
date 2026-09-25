@@ -142,11 +142,16 @@ reads every utterance and what the evidence line reports (FR-001–FR-005).
 **States**
 
 ```
-requested ──page resets + EDIT──▶ drafting ──Save (non-empty)──▶ entry created (auto-named)
-                                     │                                   │
-                                     ├──Done / back (no save)──▶ abandoned (nothing created)
+requested ──page resets + EDIT──▶ drafting ──Save or Done (non-empty)──▶ entry created (auto-named)
+                                     │                                        │
+                                     ├──back through the library (Discard)──▶ abandoned (nothing created)
                                      └──Save (empty)──▶ refused, still drafting
 ```
+
+Done and Save both persist: the check icon leaves the editor, so it saves the changed text first (an
+empty text has nothing to save and is allowed to leave, leaving the stored entry's own text alone; any
+other refusal keeps the editor open with its message). Only leaving a draft *without* saving it — back
+through the library's unsaved-changes guard — creates nothing (FR-019).
 
 **Worked example**: "+" → blank page in EDIT → the user types `夜色深沉。` → Save → a row
 `夜色深沉。` appears at the top of the list (`c_<epochMillis>_<4 hex>`, language `zh-Hans`) and the

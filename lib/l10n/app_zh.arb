@@ -12,6 +12,7 @@
   "voiceButton": "语音",
   "languageDropdown": "语言",
   "nothingToReadMessage": "从这里开始没有可朗读的内容",
+  "selectToReadMessage": "请先选择要朗读的句子或段落",
   "genderMale": "男",
   "genderFemale": "女",
   "ageYoung": "年轻",

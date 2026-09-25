@@ -12,6 +12,7 @@
   "voiceButton": "Voice",
   "languageDropdown": "Language",
   "nothingToReadMessage": "Nothing left to read from here",
+  "selectToReadMessage": "Select a sentence or paragraph to read",
   "genderMale": "Male",
   "genderFemale": "Female",
   "ageYoung": "Young",

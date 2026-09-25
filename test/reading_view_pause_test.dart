@@ -335,24 +335,28 @@ void main() {
       expect(find.byTooltip('Edit'), findsOneWidget);
     });
 
-    testWidgets('a sentence tap while paused fully stops (no phantom resume)',
+    testWidgets('a sentence tap while paused changes nothing (FR-025)',
         (tester) async {
       final fake = _PauseFakeReader();
       await _pumpView(tester, reader: fake);
       await _startPageRead(tester);
       await tester.tap(find.byTooltip('Pause'));
       await tester.pump();
+      final stopsBefore = fake.stopCalls;
 
       final topLeft = tester.getTopLeft(
           find.textContaining('Birds sang', findRichText: true));
       await tester.tapAt(topLeft + const Offset(10, 10));
       await tester.pump();
 
-      expect(fake.stopCalls, greaterThanOrEqualTo(1));
-      expect(fake.isPaused, isFalse);
-      expect(find.byTooltip('Resume'), findsNothing);
+      // A parked read is still a read: a touch on the text neither stops nor
+      // resumes it (FR-025), so Resume stays on offer and there is no phantom
+      // resume to guard against — the case this test used to pin.
+      expect(fake.stopCalls, stopsBefore);
+      expect(fake.isPaused, isTrue);
+      expect(find.byTooltip('Resume'), findsOneWidget);
       expect(find.byTooltip('Pause'), findsNothing);
-      expect(find.byTooltip('Continue Read'), findsOneWidget);
+      expect(find.byTooltip('Continue Read'), findsNothing);
     });
 
     testWidgets('switching language while paused returns to idle (scenario 7)',
