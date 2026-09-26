@@ -83,6 +83,12 @@ class _FakeTts implements TtsBackend {
   Future<dynamic> awaitSpeakCompletion(bool awaitCompletion) async {}
 
   @override
+  Future<dynamic> awaitSynthCompletion(bool awaitCompletion) async {}
+
+  @override
+  Future<dynamic> synthesizeToFile(String text, String fileName) async => 1;
+
+  @override
   void setCompletionHandler(VoidCallback callback) {
     _handler = callback;
   }

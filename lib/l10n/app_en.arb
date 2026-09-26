@@ -65,5 +65,38 @@
   "sizeSmallLabel": "Small",
   "sizeMediumLabel": "Medium",
   "sizeLargeLabel": "Large",
-  "sizeXLargeLabel": "Extra large"
+  "sizeXLargeLabel": "Extra large",
+  "videoButton": "Video",
+  "videoAspectTitle": "Video format",
+  "videoAspectLandscape": "16:9 landscape 1080p",
+  "videoAspectVertical": "9:16 vertical (Shorts)",
+  "videoStartButton": "Start",
+  "videoRenderingLabel": "Rendering video…",
+  "videoProgressLabel": "Rendering video, sentence {index} of {total}",
+  "@videoProgressLabel": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "videoPreviewLabel": "Video preview",
+  "videoStopConfirmTitle": "Stop making the video?",
+  "videoStopConfirmMessage": "The video will not be saved.",
+  "videoLeaveTitle": "Leave the video?",
+  "videoLeaveMessage": "Nothing is saved until you tap Save.",
+  "videoSavedMessage": "Video saved",
+  "videoNotSavedMessage": "Video not saved",
+  "videoReplacedMessage": "The earlier video was replaced",
+  "videoShareButton": "Share",
+  "videoShareTitle": "Share video",
+  "videoPlayButton": "Play video",
+  "videoDeleteButton": "Delete video",
+  "videoDeleteConfirmTitle": "Delete this video?",
+  "videoGoneMessage": "This video is gone",
+  "videoRenderFailedMessage": "Could not make the video. Check storage space and try again.",
+  "videoUnavailableMessage": "This device cannot make videos."
 }

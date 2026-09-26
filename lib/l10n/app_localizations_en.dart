@@ -199,4 +199,76 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sizeXLargeLabel => 'Extra large';
+
+  @override
+  String get videoButton => 'Video';
+
+  @override
+  String get videoAspectTitle => 'Video format';
+
+  @override
+  String get videoAspectLandscape => '16:9 landscape 1080p';
+
+  @override
+  String get videoAspectVertical => '9:16 vertical (Shorts)';
+
+  @override
+  String get videoStartButton => 'Start';
+
+  @override
+  String get videoRenderingLabel => 'Rendering video…';
+
+  @override
+  String videoProgressLabel(int index, int total) {
+    return 'Rendering video, sentence $index of $total';
+  }
+
+  @override
+  String get videoPreviewLabel => 'Video preview';
+
+  @override
+  String get videoStopConfirmTitle => 'Stop making the video?';
+
+  @override
+  String get videoStopConfirmMessage => 'The video will not be saved.';
+
+  @override
+  String get videoLeaveTitle => 'Leave the video?';
+
+  @override
+  String get videoLeaveMessage => 'Nothing is saved until you tap Save.';
+
+  @override
+  String get videoSavedMessage => 'Video saved';
+
+  @override
+  String get videoNotSavedMessage => 'Video not saved';
+
+  @override
+  String get videoReplacedMessage => 'The earlier video was replaced';
+
+  @override
+  String get videoShareButton => 'Share';
+
+  @override
+  String get videoShareTitle => 'Share video';
+
+  @override
+  String get videoPlayButton => 'Play video';
+
+  @override
+  String get videoDeleteButton => 'Delete video';
+
+  @override
+  String get videoDeleteConfirmTitle => 'Delete this video?';
+
+  @override
+  String get videoGoneMessage => 'This video is gone';
+
+  @override
+  String get videoRenderFailedMessage =>
+      'Could not make the video. Check storage space and try again.';
+
+  @override
+  String get videoUnavailableMessage => 'This device cannot make videos.';
 }

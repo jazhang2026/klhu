@@ -194,6 +194,77 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sizeXLargeLabel => '特大';
+
+  @override
+  String get videoButton => '视频';
+
+  @override
+  String get videoAspectTitle => '视频格式';
+
+  @override
+  String get videoAspectLandscape => '16:9 横屏 1080p';
+
+  @override
+  String get videoAspectVertical => '9:16 竖屏（短视频）';
+
+  @override
+  String get videoStartButton => '开始';
+
+  @override
+  String get videoRenderingLabel => '正在生成视频…';
+
+  @override
+  String videoProgressLabel(int index, int total) {
+    return '正在生成视频，第 $index 段，共 $total 段';
+  }
+
+  @override
+  String get videoPreviewLabel => '视频预览';
+
+  @override
+  String get videoStopConfirmTitle => '停止生成视频？';
+
+  @override
+  String get videoStopConfirmMessage => '该视频不会被保存。';
+
+  @override
+  String get videoLeaveTitle => '离开视频页面？';
+
+  @override
+  String get videoLeaveMessage => '在点击保存之前不会保留任何内容。';
+
+  @override
+  String get videoSavedMessage => '视频已保存';
+
+  @override
+  String get videoNotSavedMessage => '视频未保存';
+
+  @override
+  String get videoReplacedMessage => '已替换之前的视频';
+
+  @override
+  String get videoShareButton => '分享';
+
+  @override
+  String get videoShareTitle => '分享视频';
+
+  @override
+  String get videoPlayButton => '播放视频';
+
+  @override
+  String get videoDeleteButton => '删除视频';
+
+  @override
+  String get videoDeleteConfirmTitle => '删除该视频？';
+
+  @override
+  String get videoGoneMessage => '该视频已不存在';
+
+  @override
+  String get videoRenderFailedMessage => '无法生成视频，请检查存储空间后重试。';
+
+  @override
+  String get videoUnavailableMessage => '此设备无法生成视频。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -385,4 +456,75 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get sizeXLargeLabel => '特大';
+
+  @override
+  String get videoButton => '视频';
+
+  @override
+  String get videoAspectTitle => '视频格式';
+
+  @override
+  String get videoAspectLandscape => '16:9 横屏 1080p';
+
+  @override
+  String get videoAspectVertical => '9:16 竖屏（短视频）';
+
+  @override
+  String get videoStartButton => '开始';
+
+  @override
+  String get videoRenderingLabel => '正在生成视频…';
+
+  @override
+  String videoProgressLabel(int index, int total) {
+    return '正在生成视频，第 $index 段，共 $total 段';
+  }
+
+  @override
+  String get videoPreviewLabel => '视频预览';
+
+  @override
+  String get videoStopConfirmTitle => '停止生成视频？';
+
+  @override
+  String get videoStopConfirmMessage => '该视频不会被保存。';
+
+  @override
+  String get videoLeaveTitle => '离开视频页面？';
+
+  @override
+  String get videoLeaveMessage => '在点击保存之前不会保留任何内容。';
+
+  @override
+  String get videoSavedMessage => '视频已保存';
+
+  @override
+  String get videoNotSavedMessage => '视频未保存';
+
+  @override
+  String get videoReplacedMessage => '已替换之前的视频';
+
+  @override
+  String get videoShareButton => '分享';
+
+  @override
+  String get videoShareTitle => '分享视频';
+
+  @override
+  String get videoPlayButton => '播放视频';
+
+  @override
+  String get videoDeleteButton => '删除视频';
+
+  @override
+  String get videoDeleteConfirmTitle => '删除该视频？';
+
+  @override
+  String get videoGoneMessage => '该视频已不存在';
+
+  @override
+  String get videoRenderFailedMessage => '无法生成视频，请检查存储空间后重试。';
+
+  @override
+  String get videoUnavailableMessage => '此设备无法生成视频。';
 }

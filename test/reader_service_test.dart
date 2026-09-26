@@ -18,6 +18,18 @@ class FakeTtsBackend implements TtsBackend {
   VoidCallback? _handler;
   Completer<void>? _pending;
 
+  /// Every file the render asked the engine to write, in order (spec 012).
+  final List<({String text, String file})> synths = [];
+
+  /// How many times the plugin was told to hold the future until the engine
+  /// reports the file finished — the spike-S1 trap, asserted rather than
+  /// assumed.
+  int synthAwaitSets = 0;
+
+  /// When true the engine refuses the file, the way an engine with no space or
+  /// no voice for the language does.
+  bool refuseSynth = false;
+
   FakeTtsBackend({required this.voicesRaw, this.autoComplete = true});
 
   @override
@@ -51,6 +63,20 @@ class FakeTtsBackend implements TtsBackend {
 
   @override
   Future<dynamic> awaitSpeakCompletion(bool v) async {}
+
+  @override
+  Future<dynamic> awaitSynthCompletion(bool v) async {
+    if (v) synthAwaitSets++;
+  }
+
+  @override
+  Future<dynamic> synthesizeToFile(String text, String fileName) async {
+    synths.add((text: text, file: fileName));
+    // 1 means written; anything else is the engine refusing, which the service
+    // must not mistake for success (an engine with no space, or no voice for
+    // the language).
+    return refuseSynth ? 0 : 1;
+  }
 
   @override
   void setCompletionHandler(VoidCallback cb) {
@@ -463,6 +489,77 @@ void main() {
       ]);
 
       expect(backend.spoken, ['Two.', 'Three.']);
+    });
+  });
+
+  group('writing a sentence to a file (spec 012 T012, FR-003)', () {
+    test('the voice step comes first, then the file, at the caller\'s path',
+        () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices);
+      final svc = ReaderService(backend);
+
+      await svc.synthesizeToFile(
+        text: '清晨的阳光。',
+        filePath: '/tmp/klhu_sentence_0.wav',
+        language: 'zh-Hans',
+        voice: const VoiceChoice(
+          language: 'zh-Hans',
+          name: 'zh-a',
+          locale: 'zh-Hans-CN',
+        ),
+      );
+
+      // The spike-S1 trap: without this the file is not written yet when the
+      // call returns, and the render would read a half-written header.
+      expect(backend.synthAwaitSets, greaterThan(0));
+      // The same voice step the read applies, before the file is asked for: the
+      // picked voice's OWN locale, then the voice itself.
+      expect(backend.languages, ['zh-Hans-CN']);
+      expect(backend.setVoices.single['name'], 'zh-a');
+      expect(backend.setVoices.single['locale'], 'zh-Hans-CN');
+      expect(backend.synths.single.text, '清晨的阳光。');
+      expect(backend.synths.single.file, '/tmp/klhu_sentence_0.wav');
+      // Writing a file is not a read: nothing was spoken.
+      expect(backend.spoken, isEmpty);
+    });
+
+    test('a picked voice the engine does not have falls back to the language',
+        () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices);
+      final svc = ReaderService(backend);
+
+      await svc.synthesizeToFile(
+        text: 'Hola.',
+        filePath: '/tmp/klhu_sentence_1.wav',
+        language: 'es',
+        voice: const VoiceChoice(
+          language: 'es',
+          name: 'not-installed',
+          locale: 'es-ES',
+        ),
+      );
+
+      // The language is set once and no voice is forced: the engine's own
+      // default for that language speaks (002's rule, kept here).
+      expect(backend.languages, hasLength(1));
+      expect(backend.setVoices, isEmpty);
+      expect(backend.synths.single.file, '/tmp/klhu_sentence_1.wav');
+    });
+
+    test('an engine that refuses the file throws instead of pretending',
+        () async {
+      final backend = FakeTtsBackend(voicesRaw: cannedVoices)
+        ..refuseSynth = true;
+      final svc = ReaderService(backend);
+
+      await expectLater(
+        svc.synthesizeToFile(
+          text: 'Hello.',
+          filePath: '/tmp/klhu_sentence_2.wav',
+          language: 'en',
+        ),
+        throwsA(isA<ReaderException>()),
+      );
     });
   });
 }

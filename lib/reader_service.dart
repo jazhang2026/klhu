@@ -119,6 +119,18 @@ abstract class TtsBackend {
   Future<dynamic> speak(String text);
   Future<dynamic> stop();
   Future<dynamic> awaitSpeakCompletion(bool awaitCompletion);
+
+  /// Hold the returned future until the engine reports the utterance finished.
+  /// Off by default on Android (`FlutterTtsPlugin.kt`): without it, a call
+  /// returns before the work is done — which for a file means before the file
+  /// exists (spike S1, T003).
+  Future<dynamic> awaitSynthCompletion(bool awaitCompletion);
+
+  /// Write [text] to [fileName] as an audio file, and complete only once that
+  /// file is whole. [fileName] is a full path, not a name the engine places:
+  /// the caller decides where its working files live (spike S1).
+  Future<dynamic> synthesizeToFile(String text, String fileName);
+
   void setCompletionHandler(VoidCallback callback);
 }
 
@@ -150,8 +162,35 @@ class FlutterTtsBackend implements TtsBackend {
       _tts.awaitSpeakCompletion(awaitCompletion);
 
   @override
+  Future<dynamic> awaitSynthCompletion(bool awaitCompletion) =>
+      _tts.awaitSynthCompletion(awaitCompletion);
+
+  @override
+  Future<dynamic> synthesizeToFile(String text, String fileName) =>
+      _tts.synthesizeToFile(text, fileName, true);
+
+  @override
   void setCompletionHandler(VoidCallback callback) =>
       _tts.setCompletionHandler(callback);
+}
+
+/// The engine capability a READ does not have: writing a sentence's audio to a
+/// file (spec 012's render).
+///
+/// Deliberately narrower than [Reader] rather than a method on it: the render is
+/// this capability's only caller, and [Reader] has thirteen implementations in
+/// the test suite alone. [ReaderService] implements both, so production hands
+/// the same object to the page and to the renderer.
+abstract class SentenceSynthesizer {
+  /// Write [text] — in [language], with [voice] when the reader picked one — to
+  /// [filePath], and complete only once the file is whole and its length can be
+  /// read out of it (FR-003).
+  Future<void> synthesizeToFile({
+    required String text,
+    required String filePath,
+    required String language,
+    VoiceChoice? voice,
+  });
 }
 
 /// One utterance handed to the engine: a whole sentence of a paragraph, in
@@ -190,7 +229,7 @@ class _Utterance {
 ///
 /// Language follows the reading content: `en-US` for English,
 /// `zh-Hans-CN` for Simplified Chinese. No rate/pitch UI in v1 (API defaults).
-class ReaderService implements Reader {
+class ReaderService implements Reader, SentenceSynthesizer {
   final TtsBackend _tts;
   bool _speaking = false;
   bool _paused = false;
@@ -353,6 +392,58 @@ class ReaderService implements Reader {
     await _run(_generation);
   }
 
+  /// Writes one sentence's audio to a file, through the same voice step the read
+  /// uses — so a video cannot voice a sentence differently from a read (FR-003,
+  /// research D5).
+  @override
+  Future<void> synthesizeToFile({
+    required String text,
+    required String filePath,
+    required String language,
+    VoiceChoice? voice,
+  }) async {
+    // The plugin holds this future until the engine is done only when this flag
+    // is on; without it the file is not yet written when the call returns
+    // (spike S1). Set before every call because nothing else may turn it off.
+    await _tts.awaitSynthCompletion(true);
+    await _applyVoice(language: language, voice: voice);
+    final result = await _tts.synthesizeToFile(text, filePath);
+    if (result != 1 && result != true) {
+      throw ReaderException('Could not write $filePath');
+    }
+  }
+
+  /// Puts the engine in the state the read puts it in before speaking a
+  /// sentence: the picked voice's OWN locale when a voice was picked and the
+  /// engine has it (Cantonese `yue-HK` reads Chinese text; a picked `es-ES`
+  /// differs from the Spanish default), the language's default otherwise, and
+  /// the voice itself when the engine offers it.
+  ///
+  /// Shared by [speakParagraphs] and [synthesizeToFile] so a read and a render
+  /// cannot drift apart. [installed] lets a caller that already listed the
+  /// voices pass its list in rather than listing them per sentence.
+  Future<void> _applyVoice({
+    required String language,
+    VoiceChoice? voice,
+    List<VoiceEntry>? installed,
+  }) async {
+    final available = installed ?? await voicesForAll();
+    final picked = voice != null &&
+            available.any(
+              (v) => v.name == voice.name && v.locale == voice.locale,
+            )
+        ? voice
+        : null;
+    await _tts.setLanguage(picked?.locale ?? localeFor(language));
+    if (picked != null) {
+      try {
+        await _tts.setVoice({'name': picked.name, 'locale': picked.locale});
+      } catch (_) {
+        // Fall through to the OS default voice.
+      }
+    }
+  }
+
   /// One read: the queue from [_cursor] to the end, at [gen]. Shared by
   /// [speakParagraphs] (from the top) and [resume] (from where it stopped).
   Future<void> _run(int gen) async {
@@ -371,20 +462,11 @@ class ReaderService implements Reader {
         // the engine the voice's OWN locale is what makes it honor the voice
         // instead of the list's default.
         final voice = unit.voice;
-        final picked = voice != null &&
-                _installed.any(
-                  (v) => v.name == voice.name && v.locale == voice.locale,
-                )
-            ? voice
-            : null;
-        await _tts.setLanguage(picked?.locale ?? localeFor(unit.language));
-        if (picked != null) {
-          try {
-            await _tts.setVoice({'name': picked.name, 'locale': picked.locale});
-          } catch (_) {
-            // Fall through to the OS default voice.
-          }
-        }
+        await _applyVoice(
+          language: unit.language,
+          voice: voice,
+          installed: _installed,
+        );
         if (gen != _generation) return;
         // The tracking callback reports the sentence about to be spoken, with
         // its offsets (011 FR-020). A resume reports its interrupted sentence

@@ -200,4 +200,77 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get sizeXLargeLabel => 'Muy grande';
+
+  @override
+  String get videoButton => 'Vídeo';
+
+  @override
+  String get videoAspectTitle => 'Formato del vídeo';
+
+  @override
+  String get videoAspectLandscape => '16:9 horizontal 1080p';
+
+  @override
+  String get videoAspectVertical => '9:16 vertical (Shorts)';
+
+  @override
+  String get videoStartButton => 'Empezar';
+
+  @override
+  String get videoRenderingLabel => 'Generando el vídeo…';
+
+  @override
+  String videoProgressLabel(int index, int total) {
+    return 'Generando el vídeo, frase $index de $total';
+  }
+
+  @override
+  String get videoPreviewLabel => 'Vista previa del vídeo';
+
+  @override
+  String get videoStopConfirmTitle => '¿Detener la creación del vídeo?';
+
+  @override
+  String get videoStopConfirmMessage => 'El vídeo no se guardará.';
+
+  @override
+  String get videoLeaveTitle => '¿Salir del vídeo?';
+
+  @override
+  String get videoLeaveMessage => 'No se guarda nada hasta que pulses Guardar.';
+
+  @override
+  String get videoSavedMessage => 'Vídeo guardado';
+
+  @override
+  String get videoNotSavedMessage => 'Vídeo no guardado';
+
+  @override
+  String get videoReplacedMessage => 'Se reemplazó el vídeo anterior';
+
+  @override
+  String get videoShareButton => 'Compartir';
+
+  @override
+  String get videoShareTitle => 'Compartir vídeo';
+
+  @override
+  String get videoPlayButton => 'Reproducir vídeo';
+
+  @override
+  String get videoDeleteButton => 'Eliminar vídeo';
+
+  @override
+  String get videoDeleteConfirmTitle => '¿Eliminar este vídeo?';
+
+  @override
+  String get videoGoneMessage => 'Este vídeo ya no existe';
+
+  @override
+  String get videoRenderFailedMessage =>
+      'No se pudo crear el vídeo. Comprueba el espacio de almacenamiento e inténtalo de nuevo.';
+
+  @override
+  String get videoUnavailableMessage =>
+      'Este dispositivo no puede crear vídeos.';
 }

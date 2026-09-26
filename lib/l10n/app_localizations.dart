@@ -454,6 +454,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Extra large'**
   String get sizeXLargeLabel;
+
+  /// No description provided for @videoButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get videoButton;
+
+  /// No description provided for @videoAspectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Video format'**
+  String get videoAspectTitle;
+
+  /// No description provided for @videoAspectLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'16:9 landscape 1080p'**
+  String get videoAspectLandscape;
+
+  /// No description provided for @videoAspectVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'9:16 vertical (Shorts)'**
+  String get videoAspectVertical;
+
+  /// No description provided for @videoStartButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get videoStartButton;
+
+  /// No description provided for @videoRenderingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rendering video…'**
+  String get videoRenderingLabel;
+
+  /// No description provided for @videoProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rendering video, sentence {index} of {total}'**
+  String videoProgressLabel(int index, int total);
+
+  /// No description provided for @videoPreviewLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Video preview'**
+  String get videoPreviewLabel;
+
+  /// No description provided for @videoStopConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop making the video?'**
+  String get videoStopConfirmTitle;
+
+  /// No description provided for @videoStopConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The video will not be saved.'**
+  String get videoStopConfirmMessage;
+
+  /// No description provided for @videoLeaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave the video?'**
+  String get videoLeaveTitle;
+
+  /// No description provided for @videoLeaveMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is saved until you tap Save.'**
+  String get videoLeaveMessage;
+
+  /// No description provided for @videoSavedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Video saved'**
+  String get videoSavedMessage;
+
+  /// No description provided for @videoNotSavedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Video not saved'**
+  String get videoNotSavedMessage;
+
+  /// No description provided for @videoReplacedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The earlier video was replaced'**
+  String get videoReplacedMessage;
+
+  /// No description provided for @videoShareButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get videoShareButton;
+
+  /// No description provided for @videoShareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share video'**
+  String get videoShareTitle;
+
+  /// No description provided for @videoPlayButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Play video'**
+  String get videoPlayButton;
+
+  /// No description provided for @videoDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete video'**
+  String get videoDeleteButton;
+
+  /// No description provided for @videoDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this video?'**
+  String get videoDeleteConfirmTitle;
+
+  /// No description provided for @videoGoneMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This video is gone'**
+  String get videoGoneMessage;
+
+  /// No description provided for @videoRenderFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not make the video. Check storage space and try again.'**
+  String get videoRenderFailedMessage;
+
+  /// No description provided for @videoUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This device cannot make videos.'**
+  String get videoUnavailableMessage;
 }
 
 class _AppLocalizationsDelegate
