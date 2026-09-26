@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/l10n/app_localizations.dart';
+import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/services/content_store.dart';
 
@@ -81,13 +82,6 @@ class _ContentListScreenState extends State<ContentListScreen> {
       _rows = _loadRows();
     });
   }
-
-  String _languageLabel(AppLocalizations l10n, String language) =>
-      switch (language) {
-        'zh-Hans' => l10n.chineseNative,
-        'es' => l10n.spanishNative,
-        _ => l10n.englishNative,
-      };
 
   Future<void> _confirmDelete(SavedContent entry) async {
     final l10n = AppLocalizations.of(context)!;
@@ -170,7 +164,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
                 ),
                 subtitle: Text(entry.damaged
                     ? l10n.damagedContentMessage
-                    : '${_languageLabel(l10n, entry.language)} · '
+                    : '${languageLabelOf(l10n, entry.language)} · '
                         '${MaterialLocalizations.of(context).formatShortDate(entry.updatedAt.toLocal())}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline),

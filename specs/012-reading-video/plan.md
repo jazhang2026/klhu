@@ -29,9 +29,11 @@ One pipeline, three stories on top of it (FR-001–FR-019).
    FR-019): from the page's own start point — the highlighted sentence, else the first — every sentence is
    synthesised to an audio file (the reader's chosen voice per language, the read's own fallback), each
    file's exact length becomes that sentence's slot, the sentence's frames are painted by the same text
-   engine the page uses with the highlight on the spoken sentence, and a Kotlin encoder+muxer turns those
-   frames and that audio into one mp4. While it runs the page shows the video's own picture advancing —
-   the highlight moving sentence by sentence, the text scrolling (FR-020) — beside a single Stop, with the
+   engine the page uses — the sentence alone at the reader's own size, wrapped and scrolled inside its own
+   frame when it is too tall, over the reader's own pictures and their scrim (FR-025–FR-029) — and a Kotlin
+   encoder+muxer turns those frames and that audio into one mp4. While it runs the page shows the video's
+   own picture advancing — the sentence being written into the video, one sentence at a time (FR-020) —
+   beside a single Stop, with the
    text inert and leaving asking first (FR-019).
 2. **The video is shaped for watching** (P2, FR-006–FR-008, FR-014, FR-016): the frame carries no app
    chrome and no device UI — it is rendered, never recorded — and its text is the reader's own typeface
@@ -146,7 +148,10 @@ lib/
 │   ├── video_player.dart          # NEW  the playback view widget + its channel (the review, and later plays)
 │   └── video_availability.dart    # NEW  whether this platform can render (D8: iOS reports no)
 ├── video_renderer.dart            # NEW  the orchestrator: timeline, pass 1 (audio), pass 2 (frames), cancel
-├── video_painter.dart             # NEW  one frame: the column, the highlight, the title card — the page's own text engine
+├── video_painter.dart             # NEW  one frame: the sentence at the reader's size, wrapped and scrolled
+│                                  #      by line (D14), over the picture and its scrim — the page's text engine
+├── video_pictures.dart            # NEW  the schedule in the video's frames and the picked pictures' copies
+│                                  #      (D15, FR-025–FR-028)
 ├── video_aspect.dart              # NEW  the aspect choice and its remembered store (D6)
 ├── video_record.dart              # NEW  which content owns which kept video, and its staleness rules (D11)
 ├── video_review.dart              # NEW  the working copy and its three decisions: keep, throw away, share (D11)
@@ -163,11 +168,17 @@ android/app/src/main/AndroidManifest.xml   #  WRITE_EXTERNAL_STORAGE maxSdkVersi
 
 test/
 ├── video_timeline_test.dart       # NEW  quickstart 1–6: slots from the segmenter, durations, start point, the hold
-├── video_painter_test.dart        # NEW  quickstart 7–11: a frame per slot, the highlight, both aspects, no chrome
+├── video_painter_test.dart        # NEW  quickstart 7–11: a frame per slot, the spoken sentence and no other,
+│                                  #      the wrapped-and-scrolled sentence, both aspects, no chrome
+├── video_pictures_test.dart       # NEW  the equal-share schedule in frames, no pictures at all,
+│                                  #      the pictures' copies and their cleanup with the working directory
 ├── video_renderer_test.dart       # NEW  quickstart 12–17: order, per-sentence voice, the picture shown, cancel leaves nothing
 ├── video_aspect_test.dart         # NEW  quickstart 18: the remembered choice's rules
-├── video_record_test.dart         # NEW  quickstart 19–22: keep/throw away/share, replacement, staleness, delete
-├── reading_view_video_test.dart   # NEW  quickstart 23–27: the RENDERING state, the review, the confirmations, unavailable platforms
+├── video_record_test.dart         # NEW  quickstart 19–24 + 39's case: keep/replace, throw away, share,
+│                                  #      staleness, delete, and the app's existing content delete
+├── reading_view_video_test.dart   # NEW  quickstart 28–29 and the PAGE halves of 19–24's rows
+│                                  #      (19's replace, 20's offers, 22's "gone", 23/24's warned delete),
+│                                  #      plus 25–27: the RENDERING state, the confirmations, unavailable platforms
 ├── reader_service_test.dart       #      the engine fake gains `synthesizeToFile` (signature + one case)
 ├── cantonese_dialect_test.dart, spanish_localization_test.dart #  same fake, signature only
 └── (unchanged)                    #      the remaining 25 files; see the ripple notes
@@ -218,6 +229,21 @@ already ships for deleting a content (F11: a titled dialog with the "cannot be u
 filled Delete), so the implement stage adds ARB keys in that shape rather than a second dialog idiom, and
 the validation rows assert both deletes warn (the video's, and the content's still doing so). The rule is
 stated once, in the spec, so a later feature cannot quietly drop it.
+
+**Ripple note 7 — the picture changed, so the painter's tests are replaced rather than extended (added
+2026-09-26)**: the reader's review of the first render replaced the picture model: one sentence per frame at
+the reader's own size, no highlight band, no page window, no scrolling of the page — a tall sentence wraps
+and scrolls inside its own frame instead (D14, FR-002/FR-014/FR-029), with the reader's own pictures behind
+it and a scrim over them (D15/D16). Code built to the old picture is therefore **deleted, not extended**:
+`video_painter.dart` loses the window, the highlight geometry and the column mapping, and its test file's
+rows assert a picture the spec no longer asks for, so they are replaced by the new contract's rows. That
+deletion is named here so it is expected in review rather than read as someone quietly dropping coverage.
+What does **not** move: the timeline (a slot per sentence, its frames, the hold), the audio pass, the
+platform encoder, the file's life cycle and the page's states — the amendment changes what a frame *shows*,
+not when frames are written or how the file is made. `video_pictures.dart` is the one new module: the
+schedule in the video's frames, the chosen pictures' copies, and their cleanup with the working directory.
+The reader's follow-up that the scrim and the frame ranges become editable later (FR-026) is **not** part of
+this feature.
 
 ## Complexity Tracking
 

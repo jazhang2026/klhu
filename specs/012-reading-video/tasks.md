@@ -197,10 +197,23 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       published picture's bytes ARE the encoder's bytes (recomputed from the public `pngBytesOf`, not from a
       probe); and the four cancellation points plus the three failure paths all leave an empty directory and a
       `VideoEncodeException`/`VideoRenderException` rather than a file that lies
-- [ ] T008 [P] [US1] Write `test/reading_view_video_test.dart` from quickstart 25–27: the RENDERING state
+- [x] T008 [P] [US1] Write `test/reading_view_video_test.dart` from quickstart 25–27: the RENDERING state
       offering the picture and Stop and nothing else, the text inert to tap and long-press, Stop's
       confirmation continuing the render when dismissed and writing nothing when confirmed, and leaving
       asking the same way
+      **DONE 2026-09-26.** 5 cases, all green, and the RED was the page's missing seam: the file was written
+      first and the compiler named exactly what T016 had to add (`synthesizer` / `videoEncoder` /
+      `videoWorkDir`) — plus one real correction the compiler caught: `RawImage` carries no
+      `semanticLabel`, so the picture is announced through a `Semantics` wrapper instead (which is what the
+      plan's accessibility row asked for anyway). Everything below the page is the REAL pipeline — the real
+      `VideoRenderer`, painter and timeline, over a fake engine writing real RIFF/WAVE files and a fake
+      encoder — so "the picture on screen is the frame written" is checked by decoding the encoder's own PNG
+      and comparing it with the frame the page is showing (`encoder.frames` recorded 213 frames for the
+      three-sentence content). Three test-side lessons worth keeping: `find.text` does NOT see the page's
+      reading text (it paints a `RichText` directly — `renderedContent()` in the file is the finder that
+      does); the idle page legitimately has its own `Stop` button, so "not rendering" is asserted on the
+      progress line, not on the Stop tooltip; and a helper that lets real IO run must pump once AFTER its
+      loop, or work landing in the last real turn is observed before the tree redraws
 
 ### Implementation for US1
 
@@ -259,16 +272,27 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       refuses the file (answers 0) raises `ReaderException` instead of pretending. `synthAwaitSets` asserts
       the `awaitSynthCompletion(true)` trap is actually set. **Not done, and still T013's**: the channel
       client behind these interfaces
-- [ ] T013 [US1] Implement `lib/platform/video_encoder.dart`: the interface the renderer depends on (start /
+- [x] T013 [US1] Implement `lib/platform/video_encoder.dart`: the interface the renderer depends on (start /
       frame / finish / cancel, plus `isAvailable` and the keep/share/delete/exists calls) and the channel
       client for `klhu/video_encoder` and `klhu/video_files`, per both contracts, including the mapping of
       platform failures to the five codes.
-      **PART DONE 2026-09-25 — the interfaces (and only them).** `VideoEncoder`, `VideoFileStore`, and the
-      value types they speak (`VideoAudioSegment`, `VideoFile`, `VideoEncodeException`) exist and are what
-      T007's fakes and T014's renderer are written against; the audio segment's unit is microseconds derived
-      from frames, per its own doc. **The channel client for `klhu/video_encoder` / `klhu/video_files` and the
-      mapping of platform failures to the five codes are NOT written yet** — they cannot be tested without a
-      device and belong with T015's Kotlin side, so this box stays open
+      **DONE 2026-09-26.** `MethodChannelVideoEncoder` (`klhu/video_encoder`) and
+      `MethodChannelVideoFileStore` (`klhu/video_files`), both contract-shaped: the encoder sends
+      `startRender` (frame, fps, the constant bitrate, `totalFrames`, the working path under the app's cache,
+      and the timeline's audio segments in order), `sendFrame`, `finishRender` (a map that MUST carry a path —
+      a caller is never handed a path that is not there), `cancelRender`; the file store sends `keep` /
+      `share` / `delete` / `exists` / `isAvailable`. A platform failure becomes a `VideoEncodeException`
+      whose message carries the contract's own code (`CODEC_FAILED: …`), and a `MissingPluginException` —
+      the iOS case, D8 — answers `false` from `isAvailable` and `ENGINE_UNAVAILABLE` from a call, never an
+      error the reader sees. Two corrections to what the earlier part of this task left: (1)
+      **`VideoFileStore.keep` now returns the kept file's URI, not a `VideoFile`** — the contract answers
+      `{uri, name}` and has no duration or size to report, and nothing consumed the old shape yet (the
+      renderer only speaks `VideoEncoder`); `share`/`delete`/`exists` therefore take a uri `source`, which is
+      what the record stores. (2) **`isAvailable` is asked on `klhu/video_encoder` as well** — the interface
+      the renderer was already written against carries it, and the frame contract's table did not list it;
+      the file channel keeps its own per the file contract. **Not exercised yet, and stated rather than
+      glossed:** the file-store client has no in-tree consumer until US3 (T026/T029), and neither client can
+      be validated without the device — that is T015/T017's and T033's work, not a unit test's
 - [x] T014 [US1] Implement `lib/video_renderer.dart`: take the plan from `lib/video_timeline.dart` (T009's
       second file — the renderer does not build it any more), run pass 1 (synthesise each sentence
       **strictly sequentially**, awaited, and read each duration out of the WAV header T003 measured —
@@ -287,18 +311,88 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       through `VideoRenderException`/`cancelled` and leaves no file behind. `wavDurationMsOf` is the whole of
       the RIFF reading and answers `null` rather than guessing when the file is short, not RIFF, or missing
       its `fmt `/`data` chunks
-- [ ] T015 [US1] Implement the Android half: `android/app/src/main/kotlin/com/example/klhu/VideoEncoderPlugin.kt`
+- [x] T015 [US1] Implement the Android half: `android/app/src/main/kotlin/com/example/klhu/VideoEncoderPlugin.kt`
       (the channels, `MediaCodec` AVC fed by its input surface, AAC from the audio files, `MediaMuxer`, the
       working copy, cancellation that deletes it) and register it in
       `android/app/src/main/kotlin/com/example/klhu/MainActivity.kt`
-- [ ] T016 [US1] Wire the RENDERING state into `lib/reading_view.dart`: the idle-only video action with the
+      **DONE 2026-09-26, and the device proved it on the first try (row 31).** `VideoEncoderPlugin` handles
+      `isAvailable` / `startRender` / `sendFrame` / `finishRender` / `cancelRender` on a single-thread
+      executor and answers each call only when its work is done — Dart awaits every call, so that one thread
+      is the whole concurrency story and the UI thread never converts a picture. The video is `MediaCodec`
+      AVC at `COLOR_FormatYUV420Flexible` with **`getInputImage`** (not the input surface the task named —
+      Deviations 7), the audio AAC-LC at the WAV's own rate, both muxed by `MediaMuxer`; the muxer starts when
+      the video's own format arrives, which is the first moment both tracks can be added, and the audio
+      encoded at the start is written into its track then. Four decisions worth naming: (1) **the audio is
+      padded or cut to the durations Dart measured** (silence for the title card and the hold), so A/V cannot
+      drift — row 31's 642 AAC frames (27.4 s) against 818 video frames (27.3 s) is that padding showing;
+      (2) **one `totalFrames` check refuses the render** if the frames sent don't add up, because a file that
+      is not the length the timeline promised is broken rather than short; (3) **a picture is converted once
+      and written again for each of its frames** (the renderer sends 4 pictures for 5 slots, so this is the
+      difference between 4 conversions and 213); (4) **every ending closes everything** — `releaseAll` stops
+      and releases both codecs and the muxer and deletes the working file unless the render finished. Platform
+      failures become the frame contract's five codes, and a `MissingPluginException` answers `isAvailable:
+      false` (the iOS case, D8) rather than an error the reader sees. `MainActivity` gains only
+      `configureFlutterEngine`. Verified by `flutter build apk --debug` (the Kotlin compiles) and quickstart
+      row 31 — the only coverage this half has (Status)
+- [x] T016 [US1] Wire the RENDERING state into `lib/reading_view.dart`: the idle-only video action with the
       aspect prompt, the picture area fed by the renderer's current frame, Stop with its confirmation (the
       `_confirmDiscard` shape at `:517`), every other action unavailable, the text inert, and leaving asking
       the same way
-- [ ] T017 [US1] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` rows
+      **DONE 2026-09-26.** `_Mode.rendering` beside the page's four states; the video action is an app-bar
+      `IconButton` offered only from READ (`FR-010`: absent, not greyed, in EDIT/SPEAKING/PAUSED); the
+      prompt is an `AlertDialog` with the app's own `ChoiceChip` idiom (the appearance screen's) opening on
+      the remembered `VideoAspectStore` choice and saving the confirmed one (A8); `_startRender` builds the
+      real `VideoRenderer` from the page's own style seam (`_contentTextStyle`, the scaffold background,
+      `Colors.yellow` — FR-014), feeds the picture area from `onFrame`, counts pass 1 in sentences and lets
+      pass 2's picture be the progress (FR-009/FR-020), and reports the finished file's name and length
+      (SC-001); Stop and leaving share one `_confirmStop` dialog, and `PopScope(canPop: !rendering)` is what
+      makes leaving ask (FR-019); `dispose` cancels, so a page that goes away leaves no file (FR-009);
+      `_renderGen` is the guard that keeps a stopped render's own report off the page.
+      **Deviations, recorded where they were found:**
+      1. **One more ARB key than T001's list.** `videoDoneMessage` ("Video made: {name} ({seconds} s)") in all
+         four ARBs + regenerated `app_localizations*`: US1 is independently demonstrable at T017 and the spec
+         asks the finished render to say WHERE the file is and how long it is (SC-001, US1 scenario 1), which
+         no key in T001's set could say. US3's review (T029) decides whether it stays.
+      2. **Each render gets its own working directory** (`<videoWorkDir>/render_<n>`, removed by the page
+         when the render reports) rather than sharing one. A confirmed Stop takes the page back to idle at
+         once while the render is still finishing the call in flight AND deleting the files it wrote — in one
+         shared directory that cleanup would delete a *newer* render's per-sentence files (the renderer's
+         `written` list names paths, and the second render's files have the same names). The renderer is
+         unchanged: it still deletes exactly the files it wrote, in a directory that holds nothing else.
+      3. **Leaving a render reuses the Stop dialog's keys** (`videoStopConfirmTitle/Message`) — FR-019's own
+         wording is "leaving … asks in the same way", and `videoLeaveTitle`/`videoLeaveMessage` ("Nothing is
+         saved until you tap Save") are the *review's* leave, which is US3's T029.
+      4. **The app bar now carries five actions** plus the language dropdown when a localization service is
+         set. It fits the 800×600 test surface; the device row (T017) is where a real phone's width decides
+         it, and the fallback if it crowds is moving the action into the toolbar, not shrinking it.
+      5. **`_reportRenderDone` also prints `klhu render done: <path> <ms>ms <bytes>B frames=<n>`** — the
+         walker's evidence line, in the app's existing `klhu read range` / `klhu follow` / `klhu speak` style,
+         so T017 can assert the file's own facts as well as the SnackBar's text.
+      6. **`main.dart` needed no change**: the page's synthesizer defaults to the reader it is handed
+         (`ReaderService` implements `SentenceSynthesizer`), so the read and the render share one engine (D5)
+- [x] T017 [US1] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` rows
       31 and 34 (quickstart 31, 34): a real render asserted with `ffprobe` (one H.264 stream at the chosen
       frame, one AAC stream, constant rate, duration against the audio sum), and a confirmed Stop at ~50 %
       leaving no file, an empty cache and an untouched kept video
+      **DONE 2026-09-26 — row 31: 31/31 checks; row 34: 25/25.** The driver was written for these two rows
+      (`specs/012-reading-video/scripts/klhu_walk_video.py`); it polls the app's own `klhu render done:` line
+      and the page's progress instead of sleeping, per the Notes. **Row 31**, from `pm clear`'d state at both
+      aspects: one H.264 stream at exactly 1920×1080 then 1080×1920, one AAC stream (24 kHz mono),
+      `r_frame_rate == avg_frame_rate == 30/1`, **`nb_read_frames` 818 — the plan's own number** — and a
+      duration of 27.393833 s against the render's 27.266 s (0.13 s, inside the 2 s bound); the page said
+      `Video made: klhu_video.mp4 (27 s)` and each pulled file's byte count equalled the app's
+      (1236914 / 1036800). **Row 34**: a full render, then a second stopped mid-render and confirmed — the
+      page went idle with its render chrome gone, the cache held **no** `.mp4`, `.wav` or `render_*`
+      afterwards, and the app's library was unchanged (5 files, hashes identical before and after). Receipts
+      and the three driver bugs this row found: [breakpoint.md](./breakpoint.md) rows 31 and 34.
+      **Row 34's scope, stated rather than glossed:** "the kept video is still in the gallery and still
+      playable" needs US3's keep (T026/T029) — in US1 nothing is kept, so the earlier render's file *is* the
+      cache's working copy and row 34 itself requires the cache to be free of it afterwards. What stands in
+      for "untouched" here is the app's library, hash-compared, plus the artifact's streams re-probed by
+      `ffprobe`; T030 owns the kept file's half. **By-product for T032 (row 36, still PENDING):** 8 sentences,
+      818 frames, 27.27 s of video rendered in **21 s wall** on this emulator at both aspects — faster than
+      real time, so SC-006's ≤ 5 min placeholder is not at risk; T032 owns the official number and the
+      bottleneck attribution
 
 **Checkpoint**: US1 is complete and independently demonstrable — a content becomes a video, the reader
 watches it being written, and Stop ends it cleanly. Nothing about the video's look or its life has been
@@ -313,27 +407,55 @@ a title card, a settled pace and a legible smallest size.
 
 ### Tests for US2 ⚠️ (write first, run RED)
 
-- [ ] T018 [P] [US2] Extend `test/video_painter_test.dart` from quickstart 8 and 10–12: the title card
+- [x] T018 [P] [US2] Extend `test/video_painter_test.dart` from quickstart 8 and 10–12: the title card
       naming the content, both aspects' frames measuring 1920×1080 and 1080×1920 with their own column and
       margins, the painted text's height following the reader's chosen size by its ratio (within 10 %) in
       the chosen typeface, and the smallest size staying above the legibility floor on the narrowest column
+      — RED as a compile error (the painter's new API: `languageLabel`, `titleLabelScale`, `minimumEm`,
+      `maxColumnFraction`, `VideoFrame.style`), then 12 new tests, all green; 20 in the file, 372 in the suite
 
 ### Implementation for US2
 
-- [ ] T019 [US2] Extend `lib/video_painter.dart`: derive the column's width, its margins and the scale that
+- [x] T019 [US2] Extend `lib/video_painter.dart`: derive the column's width, its margins and the scale that
       maps the reader's character size from the *frame* (not the phone's screen), paint the title card
       naming the content and its language, and keep the highlight the app's yellow over the reading
       background (FR-008, FR-014, A3)
-- [ ] T020 [US2] Extend `lib/video_renderer.dart`: the pacing — the constant inter-sentence padding, the
+      — the column is now `min(0.88 × width, height)` wide, centred, with a 10 % margin top and bottom (the
+      old rule measured the screen: a 16:9 frame got the same 84 % column as a 9:16 one and a 40-character
+      line). A 16:9 frame's column is 1080 px, a 9:16 one's is 950 px: the same rule, two shapes — D6.
+      The card's language comes from the plan's first *sentence*, not the content's first paragraph: a video
+      that opens at a highlighted sentence names that sentence's language (FR-004/A1). Label map extracted
+      to `language.dart`'s `languageLabelOf` and shared with the content list's rows (one naming, two users).
+      Legibility floor stated as `minimumEm = 30`; at the smallest size on the narrowest column the frame
+      gets 31.7 px per em and 30 characters per line (measured in the test).
+- [x] T020 [US2] Extend `lib/video_renderer.dart`: the pacing — the constant inter-sentence padding, the
       title card's lead-in and the end hold inside their bounds (the hold lasting at least one frame past
       the last sentence's audio), all in whole frames so the file keeps its constant rate
-- [ ] T021 [US2] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` row
+      — the pacing itself already landed with T014 (T007's tests forced the bounds: 400 ms padding, a
+      2.5 s card, a 2 s hold, all in whole frames at 30 fps) and row 31 measured it on the device, so US2
+      adds the renderer's per-run evidence line instead:
+      `klhu render slot=<i>/<n> frame=<f>/<m> kind=<k> frames=<r>`, one per picture written, which is what
+      row 32 needs to know where each picture starts. The hold is folded into the last sentence's run, so a
+      run covers that sentence's frames *and* the hold — the file's last picture outlives the last audio by
+      the hold's own 60 frames (row 31: 642 AAC frames over 27.4 s vs 818 video frames over 27.27 s).
+- [x] T021 [US2] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` row
       32 (quickstart 32): a frame extracted at every slot's start, middle and end showing that slot's
       sentence highlighted inside the column with margins and no chrome anywhere, and the page's captured
       picture during the render matching the sentence the renderer reported writing
+      — **30/30 checks, both aspects.** Every frame of both files (818/818 at 96×54, 100 % of frames) is the
+      app's own look: the band on exactly the sentences' frames and never on the card, nothing at all
+      outside the column, and 3 frames per slot at 1920×1080 / 1080×1920 (27/27 each) carrying the app's own
+      yellow inside the column. The page's captured picture matched the renderer 4/4 times per aspect, in
+      order (`[2, 4, 5, 7]` and `[2, 4, 6, 7]`), each naming the sentence the slot stands for.
+      **This row found a US1 bug** — the encoder plugin cached the first picture across `sendFrame` calls,
+      so all 818 frames were the title card and no frame in the file ever held the highlight. Row 31's
+      `ffprobe` checks passed with it (they are structural); only pixels could see it. Fixed, re-run, clean.
 
 **Checkpoint**: the video is publishable-shaped — both aspects, the reader's own text, a titled opening and
-a paced close — and US1 still passes unchanged.
+a paced close — and US1 still passes unchanged. *What "unchanged" means here*: US1's Dart tests pass exactly
+as they did (372/372, nothing edited), while US1's *device* output was defective until row 32 caught it (the
+encoder wrote the title card for the whole video, deviation 9) — its structural numbers were right all along,
+its look was not, and row 32 is now the row that reads it.
 
 ---
 
@@ -345,23 +467,62 @@ warns first.
 
 ### Tests for US3 ⚠️ (write first, run RED)
 
-- [ ] T022 [P] [US3] Write `test/video_record_test.dart` from quickstart 19–24 and 39, against the
+- [x] T022 [P] [US3] Write `test/video_record_test.dart` from quickstart 19–24 and 39, against the
       record contract: keep writing one entry and replacing the previous file (write-then-delete), throwing
       a render away touching nothing kept, sharing working before and after keeping without implying it, a
       record whose file is gone being reported and forgotten, deleting warning first (dismissing changes
       nothing, confirming removes file and entry), and the app's existing content delete still warning
-- [ ] T023 [P] [US3] Extend `test/reading_view_video_test.dart` from quickstart 28–29: the video action
+      — **DONE 2026-09-26.** RED first as a compile error (8 errors naming `VideoRecordStore`,
+      `VideoReview` and the page's missing seams), then **13/13 green**. The file defines the record's and
+      the review's seam over the REAL file system and the REAL store; the platform is a fake that records
+      what it was asked, so "keep was called with the first file's uri as `previousUri`" is a fact about
+      this file. Two deviations from the task's own wording, both deliberate: (1) rows 20/22/23/24's
+      *page-level* halves — the warning a delete raises, the content's offers, the "gone" message — are
+      asserted in `reading_view_video_test.dart`, which owns the page's harness; duplicating that harness
+      here (engine, encoder, reader, real-IO pumps) would have cost more than it proved. Row 39's case does
+      live here, and it asserts the existing dialog through its own l10n strings rather than English
+      literals. (2) Row 39's dialog needs the real-IO pump window (`loadPageContent`), not `pumpAndSettle`,
+      which never settles behind the screen's spinner.
+      The store's tolerance rules got three cases of their own (missing key, malformed entries dropped
+      without a rewrite, a value that is not an object at all) — the contract's read rules, which no
+      quickstart row names.
+- [x] T023 [P] [US3] Extend `test/reading_view_video_test.dart` from quickstart 28–29: the video action
       offered only from idle and absent where the platform cannot render, and the review pointing the player
       at the working copy with keep / throw away / share all offered and nothing kept yet
+      — **DONE 2026-09-26** (the tests; their page half is T029, so this file is RED until it lands, which
+      is the order TDD asks for). Ten new cases: the review's player source and its three actions; keeping,
+      which consumes the working copy and leaves the content with the video; throwing the render away;
+      keeping again (the page half of row 19); a kept video's share; the delete that warns and only deletes
+      when confirmed; a video removed outside the app (the page half of row 22); the action's idle-only
+      rule across READ/SPEAKING/PAUSED/EDIT; the unavailable platform; and leaving an undecided review.
+      **Two changes to the file's harness, both forced by the new seams**: `pageWith` now injects a
+      `PageFileStore` and a `PagePlayer` (the page asks the platform whether it can render at all, so a
+      test with no fake would see the real channel answer "no" and lose the action every existing case
+      relies on), and `RecordingEncoder.finish` now WRITES the working copy it names, so "keeping consumed
+      the working copy" is a fact about the file system rather than about a string. The file's existing
+      eight cases keep their own expectations untouched, which is what T030's row 30 receipt re-checks.
 
 ### Implementation for US3
 
-- [ ] T024 [US3] Implement `lib/video_record.dart`: the store keyed by content (`video_record`, a JSON map),
+- [x] T024 [US3] Implement `lib/video_record.dart`: the store keyed by content (`video_record`, a JSON map),
       tolerant of missing, malformed and stale entries, with one entry per content and the lookup rule that
       forgets a record whose file is gone (contract `video-record-format.md`)
-- [ ] T025 [US3] Implement `lib/video_review.dart`: the working copy with its facts and the three decisions
+      — **DONE 2026-09-26.** `VideoRecordStore` (lookup / keep / delete) over `shared_preferences`, with
+      `KeptVideo` as the entry and `VideoLookup` answering *what* it found and *whether an entry had to be
+      forgotten as stale* — the second field is what lets the page say "this video is gone" instead of
+      showing the same silence as "nothing was ever kept". Reading never rewrites what it could not parse
+      (asserted by comparing the raw stored string before and after). `delete` answers whether the file is
+      gone and forgets the entry either way, which is the contract's write rule 2: a failed removal is
+      reported, and the next lookup finds the video gone.
+- [x] T025 [US3] Implement `lib/video_review.dart`: the working copy with its facts and the three decisions
       (keep promoting it through the store, throw away deleting it, share handing it over), and the cleanup
       rule that leaving undecided keeps nothing
+      — **DONE 2026-09-26.** `VideoReview` carries the working copy's path, the content it came from and the
+      name its library entry will take, and its three decisions go through the record and the platform:
+      `keep()` promotes through `VideoRecordStore.keep` and then lets the working copy go, `share()` hands
+      the *working copy's* path over and writes nothing, `throwAway()` deletes it. The "leaving undecided"
+      case is the absence of any write: the page calls `throwAway()` on the way out, and the review itself
+      never writes the store outside `keep`.
 - [ ] T026 [US3] Implement `android/app/src/main/kotlin/com/example/klhu/VideoFileStore.kt` and its manifest
       entries: keeping through `MediaStore` on API 29+ and the public Movies directory plus a media scan
       below (with `WRITE_EXTERNAL_STORAGE` capped at `maxSdkVersion="28"`), the `FileProvider` entry and
@@ -371,6 +532,15 @@ warns first.
       `contracts/video-player-protocol.md`, refusing anything that is not a local file
 - [ ] T028 [US3] Implement `lib/platform/video_player.dart`: the Dart side of the playback view (the widget
       and its channel), used by the review and by a kept video's playback
+      — **PART DONE 2026-09-26 — and only this**: the module exists and compiles — the `VideoPlayer` seam
+      (`view(context, source)` + `stop()`), its `PlatformVideoPlayer` over `AndroidView`
+      (`klhu/video_player_view`) and the `klhu/video_player` channel. What is NOT done is its consumer: the
+      page does not inject or use it until T029 wires the review, so nothing proves the view appears
+      anywhere yet.
+      A decision to argue with: the contract's method table names play / pause / position / duration as well
+      as stop, but the transport belongs to the platform view's own controls (the contract says so itself),
+      so only `stop()` is exposed in Dart — the page's one decision about playback is to release it when the
+      review is left. The other four would be surface with no consumer.
 - [ ] T029 [US3] Wire the file's life into `lib/reading_view.dart`: the REVIEW state (the player, keep,
       throw away, share), the kept-video actions on the page (play, share, delete-with-its-warning), the
       stale-video message, and the content offering to record again after a deletion

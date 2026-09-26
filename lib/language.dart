@@ -1,6 +1,23 @@
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/voice_store.dart';
+
+/// Names a language the way the app does on screen — `'zh-Hans'` →
+/// `'中文（简体）'` — for the two places a content's language is shown: the list's
+/// rows, and the video's title card (spec 012 FR-008).
+///
+/// [l10n] is nullable because the reading page can be built without
+/// localisations; the raw code is what it falls back to, so a label is never
+/// invented.
+String languageLabelOf(AppLocalizations? l10n, String language) {
+  if (l10n == null) return language;
+  return switch (language) {
+    'zh-Hans' => l10n.chineseNative,
+    'es' => l10n.spanishNative,
+    _ => l10n.englishNative,
+  };
+}
 
 /// Per-paragraph language detection for mixed-language reads (002).
 ///

@@ -146,6 +146,7 @@ class VideoRenderer {
     required this.readingStyle,
     required this.background,
     required this.highlight,
+    this.languageLabel,
   });
 
   final SentenceSynthesizer synthesizer;
@@ -164,6 +165,11 @@ class VideoRenderer {
   final TextStyle readingStyle;
   final Color background;
   final Color highlight;
+
+  /// Names a language for the title card, from the app's own copy. Absent, the
+  /// card carries the name alone (the painter's own default), which is what the
+  /// unit tests want.
+  final String Function(String language)? languageLabel;
 
   bool _cancelled = false;
 
@@ -297,12 +303,22 @@ class VideoRenderer {
         readingStyle: readingStyle,
         background: background,
         highlight: highlight,
+        languageLabel: languageLabel,
       );
 
       for (var i = 0; i < runs.length; i++) {
         if (_cancelled) return await _abandon(written);
         final run = runs[i];
         final frame = await painter.paint(content: content, slot: run.slot);
+        // Which slot this picture is for, in the frames' own terms: the device
+        // row (quickstart 32) samples the file at these starts and pairs them
+        // with the page, and it has nothing else to go on.
+        debugPrint('klhu render slot=${plan.slots.indexOf(run.slot)}'
+            '/${plan.slots.length} frame=${run.slot.startFrame}'
+            '/${plan.totalFrames} kind=${run.slot.kind.name} frames=${run.frames}'
+            ' band=${frame.highlight == null ? "none" : "${frame.highlight!.width.toStringAsFixed(0)}x${frame.highlight!.height.toStringAsFixed(0)}"}'
+            ' range=${frame.highlightRange?.start}..${frame.highlightRange?.end}'
+            ' span=${run.slot.start}..${run.slot.end} text=${frame.paintedText.length}');
         // Shown and written from the same picture, in that order (FR-020).
         onFrame?.call(frame);
         try {

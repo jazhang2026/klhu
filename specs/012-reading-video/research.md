@@ -42,13 +42,15 @@ breaking FR-003).
 Each frame is painted in Dart: the same text engine the page uses (`TextPainter`, fed the same
 `TextStyle` seam as F8) draws into a `PictureRecorder` canvas sized to the video's frame, the picture
 becomes an image, and the image's bytes go to the platform channel as one frame. A frame is produced
-**only when the visual state changes** (the highlight moves, the page scrolls) and carries a repeat
-count; the encoder emits that frame's bytes `repeat` times so the file keeps a constant frame rate
-(FR-007/SC-002). A 60 s reading at 30 fps is ~1800 frames but only a few dozen unique ones, which is
-what makes this transport affordable.
+**only when the visual state changes** and carries a repeat count; the encoder emits that frame's bytes
+`repeat` times so the file keeps a constant frame rate (FR-007/SC-002). A sentence that fits the frame is
+one visual state and one unique frame; a sentence whose wrapped text is taller than the frame scrolls
+(D14), and its scroll is quantised to the text's own line height — a step per line, not per pixel — so a
+tall sentence is two to five unique frames instead of one paint per frame. A 60 s reading at 30 fps is
+~1800 frames but only a few dozen unique ones, which is what makes this transport affordable.
 
-*Why*: one text engine. Because the video's wrapping, highlight geometry and typeface come from the same
-`TextPainter` the page uses, FR-005 (highlight on the spoken sentence) and FR-014 (the reader's own
+*Why*: one text engine. Because the video's wrapping, typeface and character size come from the same
+`TextPainter` the page uses, FR-002/FR-005 (the frame carries the spoken sentence and no other) and FR-014 (the
 typeface and size) hold by construction rather than by a second implementation agreeing with the first.
 
 *Rejected*: Android `StaticLayout` in Kotlin — a second text engine whose line breaking, CJK metrics and
@@ -139,12 +141,13 @@ trust is worse than an honest gap. The interface is in place so the iOS implemen
 ### D9 — How this gets verified
 
 - **Dart, on the host**: timeline arithmetic and slot mapping (`segmenter` ranges → slots), the frame
-  painter's per-slot highlight, progress and cancellation, the RENDERING state's controls and the Stop
+  painter's per-slot sentence, its wrap and scroll, progress and cancellation, the RENDERING state's
+  controls and the Stop
   confirmation, the aspect store — all against a fake engine (F3) and a fake encoder, with no device.
 - **Device, on `emulator-5554`**: a new walker script drives a render and then the host asserts on the
   file with `ffprobe` (F6): stream count, codec, the exact frame size per aspect (SC-012), the constant
   frame rate, the duration against the audio sum (SC-002), a frame extracted at each slot boundary
-  showing that sentence highlighted and inside the column (SC-003), no chrome in any sampled frame
+  showing that sentence's own text as the frame's text (SC-003), no chrome in any sampled frame
   (SC-004), and the file present in the gallery under the content's name (SC-008/SC-011).
 - **The Kotlin half has no unit tests** and is covered only by those rows. That is a stated limit of
   this feature, not an oversight: it is the price of a platform encoder, and it is why D4 keeps the
@@ -220,6 +223,44 @@ records the app's existing delete confirmation, which is the same "the app alrea
 
 ## Spikes (must run before the plan's numbers are trusted)
 
+### D14 — The frame is one sentence, and a tall sentence scrolls a line at a time
+
+The picture is the sentence being spoken, alone, in the reader's own typeface and size, over the scheduled
+picture. The painter no longer draws the reading page: no highlight band and no page window, because with
+one sentence in the frame there is nothing to highlight and nothing to scroll to (2026-09-26, FR-002).
+A sentence whose wrapped text is taller than the frame's text area (FR-029) is drawn **whole** and scrolled
+upward inside its own frame; the position is the elapsed fraction of the slot applied to the block's own
+height, **quantised to the text's line height**, so the block moves a line at a time. *Why the
+quantisation*: a pixel-smooth scroll would need a paint per frame on a 1920×1080 canvas — exactly the cost
+S2 measures and the one thing that could push this transport over. *The estimate*: the position is
+proportional to the slot, not read from the voice, because the engine speaks a sentence as one utterance
+and exposes no word timings; the reader chose scrolling over splitting knowing that (FR-029, 2026-09-26).
+*Rejected*: splitting the sentence across frames (the first cut, withdrawn by the reader); shrinking the
+text to fit ("no smaller char"); a horizontal slide (never what the page does, and the sentence is never
+all on screen at once).
+
+### D15 — The pictures are the reader's own, chosen before the render and copied into its working directory
+
+The picker is the platform's own photo picker (no in-app gallery, no new permission — S3 checks what it
+returns on the reference device). Chosen pictures are copied once into the render's working directory
+before pass 2 starts, so the render reads them at its own pace instead of depending on a gallery URI
+staying readable for the length of the job, and the copies are deleted with the working copy under D11's
+rules. The schedule is a list of (picture, inclusive start frame, inclusive end frame) in the video's own
+frame numbers, equal shares in the order chosen for the first cut (FR-026); moving a start or end frame is
+the reader's later good-to-have, and it re-renders rather than editing the file. No pictures is a valid
+schedule: the plain background (FR-028). *Rejected*: an in-app gallery (a screen to build for a phone that
+already has one); keeping the gallery URI live through the render (that turns "the reader rotated a photo"
+into a failed render).
+
+### D16 — The scrim is one layer, and its depth is a measured number
+
+One full-frame black layer at 40 % sits between the picture and the text (FR-027): one composite, no
+per-word background, no text stroke. It is the layer the reader later edits together with a picture's frame
+range (FR-026). The number is provisional until S4 measures SC-004's 4.5:1 over real photos with both of the
+app's text colours; if it fails, D16 becomes "40 % plus a shadow under the glyphs" and SC-004 stays as the
+spec wrote it. *Why not a band, or a shadow alone*: a band only protects the lines it covers (a wrapped
+sentence has three or four), and a shadow alone does nothing for a busy photo's mid-tones.
+
 - **S1 — does the emulator's engine write a usable audio file?** Call `synthesizeToFile` with a sentence
   of the shipped English pre-set on `emulator-5554` and inspect the result: does a file appear, is it
   RIFF/WAV, what sample rate and channel count, and does the length match the text? If the engine
@@ -228,9 +269,17 @@ records the app's existing delete confirmation, which is the same "the app alrea
   `TextToSpeech.synthesizeToFile` API called from Kotlin directly, which is what the plugin wraps).
   (F5 leaves this genuinely open.)
 - **S2 — how fast is a real render on the reference device?** With D2/D3 in place, measure a one-minute
-  reading end to end: total wall time, frames encoded per second, and whether PNG rasterisation in Dart
-  or the encoder is the bottleneck. This number replaces SC-006's assumed ≤ 5 minutes and decides
-  whether D2's fallback transport is needed.
+  reading end to end (including at least one long sentence that scrolls, D14): total wall time, frames
+  encoded per second, and whether PNG rasterisation in Dart or the encoder is the bottleneck. This number
+  replaces SC-006's assumed ≤ 5 minutes and decides whether D2's fallback transport is needed.
+- **S3 — what does the platform's photo picker actually give back (D15)?** On `emulator-5554`: does the
+  picker open and return readable URIs at this API level, is a copy into the app's own working directory
+  needed to read a picture twice, and how long does copying a handful of full-resolution photos take?
+  If the URIs are not stable, D15's copy is mandatory rather than merely careful.
+- **S4 — does the 40 % scrim hold SC-004's contrast (D16)?** Composite a bright photo, a mid photo and a
+  dark photo under the scrim with both of the app's text colours, and measure text-to-background contrast
+  each way. Any pairing under 4.5:1 means a second layer (a shadow under the glyphs) or a deeper scrim, and
+  the number goes into the plan before the painter is written.
 
 ## Carried forward from the spec (not re-decided here)
 

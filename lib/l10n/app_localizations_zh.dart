@@ -258,6 +258,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get videoDeleteConfirmTitle => '删除该视频？';
 
   @override
+  String get videoDeleteConfirmMessage => '视频将从相册中移除，此操作无法撤销。';
+
+  @override
   String get videoGoneMessage => '该视频已不存在';
 
   @override
@@ -265,6 +268,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get videoUnavailableMessage => '此设备无法生成视频。';
+
+  @override
+  String videoDoneMessage(String name, int seconds) {
+    return '已制作视频：$name（$seconds 秒）';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -520,6 +528,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get videoDeleteConfirmTitle => '删除该视频？';
 
   @override
+  String get videoDeleteConfirmMessage => '视频将从相册中移除，此操作无法撤销。';
+
+  @override
   String get videoGoneMessage => '该视频已不存在';
 
   @override
@@ -527,4 +538,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get videoUnavailableMessage => '此设备无法生成视频。';
+
+  @override
+  String videoDoneMessage(String name, int seconds) {
+    return '已制作视频：$name（$seconds 秒）';
+  }
 }

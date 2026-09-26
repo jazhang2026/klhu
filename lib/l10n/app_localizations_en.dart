@@ -263,6 +263,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoDeleteConfirmTitle => 'Delete this video?';
 
   @override
+  String get videoDeleteConfirmMessage =>
+      'The video will be removed from your gallery. This cannot be undone.';
+
+  @override
   String get videoGoneMessage => 'This video is gone';
 
   @override
@@ -271,4 +275,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoUnavailableMessage => 'This device cannot make videos.';
+
+  @override
+  String videoDoneMessage(String name, int seconds) {
+    return 'Video made: $name ($seconds s)';
+  }
 }

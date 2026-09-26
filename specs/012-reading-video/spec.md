@@ -80,14 +80,68 @@ exactly that: one content, its reading, on video.
   `deleteConfirmTitle` "Delete this content?" and `deleteConfirmMessage` "This cannot be undone."), and the
   validation rows assert both.
 
+### Session 2026-09-26
+
+- **Q**: The reader, on seeing the first render's preview: "I see the preview frame on video rendering show
+  different view compare to the continue page read. I like the vedio will show same content page as reading
+  and same sentence by sentence high lighting. and auto scroll when needed. Is this what you are building?"
+  **A**: it was not. The plan's own decisions (research D2/A3) had the video *paint the text onto the frame*:
+  the paragraph a sentence belongs to, on a column derived from the frame (`min(0.88 × width, height)`), with
+  a highlight band on that sentence and a window that moved only inside a paragraph taller than the frame. So
+  the video was a re-flow of the content rather than a view of the page, and no scroll settled. That gap was
+  the plan's to surface when the preview first differed, and it was not surfaced; the answers below are the
+  reader's, not the plan's.
+- **Q**: "I drop my pick #5." (Option 5 was: capture the reading page's own surface into the video.) The
+  reader's reasons: "the app tool bar and header shouldn't in. the video quality may be not good for
+  publishing."
+  **A**: dropped. The capture is out; FR-006's "the video MUST NOT be a recording of the phone's screen"
+  stands, and no screen capture of the app's own tree is built either.
+- **Q**: "I like to verify a new design: show only the one reading sentence in one frame. no high light and no
+  scroll needed. So one new sentence need one new frame. add background images on the video(due to the empty
+  view. and more like a real video). images uploaded into the image lib. images can be selected for the video.
+  the image should be rendered to fit the video size. each image take average time for now. to set the
+  start/end time of each image later."
+  **A**: adopted (FR-002, FR-005, FR-014, FR-025–FR-029, US4), with the reader's own follow-ups:
+  **A long sentence is kept whole** — "Long sentence, split it." was the first answer, and the reader
+  replaced it later in this same session: "for now I like to keep whole sentence. one sentence in multiple
+  line is acceptable. scroll up if it's too long. no smaller char." So a sentence that does not fit is drawn
+  whole at the reader's own size, wrapped over as many lines as it needs, and scrolled upward inside its own
+  frame when that block is taller than the frame's text area — never shrunk, never split (FR-014/FR-029). The
+  scroll's position is proportional to the slot, the one estimate this feature admits: the voice is one
+  utterance per sentence, so no finer timing exists to read a scroll from.
+  **Timing by frame, not seconds** — "I mean start/end(inclusive) by frame, not by seconds." The schedule is
+  each picture's inclusive start and end frame in the video's own frame numbers; the first cut shares the
+  frames equally, and moving a start/end frame is a good-to-have for later (FR-026).
+  **Pictures from the phone's gallery** — "images can use the phone's gallery. like other apps." The
+  platform's own photo picker, no in-app gallery to build and no new permission (FR-025).
+  **Legibility** — a full-frame dark scrim at 40 % between the picture and the text, chosen over a band or a
+  shadow (FR-027), so the reader's own text colour keeps reading over any photo.
+  **The reading page is unchanged** (FR-018/SC-009): it keeps its yellow tracking highlight, its follow and
+  its scroll. The video is a different picture of the same reading, not a change to the reading.
+- **Q**: The scrim, and how much of this is editable later.
+  **A**: "the scrim: do what you do for now. later I like it editable same as image start/end frame. those
+  will need to view the video first then make changes." — the 40 % scrim ships as decided (FR-027), and the
+  later good-to-have (FR-026) grows to cover it: the reader watches a finished render, moves a picture's
+  start/end frame and the scrim, then renders again. Editing the finished file stays out of scope.
+- **Q**: A sentence too long or too tall for the frame — shrink it, split it, or move it?
+  **A**: "for now I like to keep whole sentence. one sentence in multiple line is acceptable. scroll up if it's
+  too long. no smaller char." — so the reader's own size is absolute. A sentence is wrapped over as many lines
+  as it needs and, if that block is taller than the frame's text area, it scrolls upward inside its own frame
+  over its slot. No shrinking, no splitting and no horizontal slide, and no escape hatch is needed: scrolling
+  absorbs any length, so the first cut's split (FR-029) is withdrawn.
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A content becomes one video I can play anywhere (Priority: P1)
 
 While the reading page is idle it offers a video action. Using it turns the content on screen into a
-single video file: the same text, the same voice, the same sentence-by-sentence yellow highlight and the
-same self-scrolling page — framed as a video of a reading rather than a picture of a phone screen. When
-the render finishes the app says where the video is and how long it is.
+single video file: the same text, the same voice, and — sentence by sentence — the sentence being spoken
+alone in the frame, with the reader's own pictures behind it (US4). There is no highlight and no scrolling
+in the video, because the frame *is* the sentence being heard; a sentence too long to fit wraps over several
+lines and scrolls upward inside its own frame, never shrunk and never split. When the render finishes the app
+says where the video is and how long it is.
 
 **Why this priority**: without this the feature does not exist, and it is the whole of the request
 ("record the content reading into a mp4 video … contents, highlights, auto-scroll and reading voice").
@@ -96,8 +150,9 @@ Every other story decorates this one.
 **Independent Test**: take the shipped English pre-set (8 sentences, 334 characters), use the video
 action, wait for the render, then play the file and inspect it with a standard media analyser: one video
 stream at the chosen resolution and frame rate, one audio stream, a duration equal to the reading plus
-the title card and the end hold; extract a frame inside each sentence's slot and find that sentence
-highlighted and inside the visible text; with nothing highlighted the video opens at the content's first
+the title card and the end hold; extract a frame inside each sentence's slot and find that sentence's text
+alone as the frame's text (a long one showing its whole text over its slot, FR-029); with nothing highlighted
+the video opens at the content's first
 sentence and with a sentence highlighted it opens at that sentence (FR-004), and in both cases its last
 voice segment is the content's last sentence.
 
@@ -108,12 +163,14 @@ voice segment is the content's last sentence.
    it opens at the content's first sentence, and with a sentence or paragraph highlighted it opens at that
    sentence — either way it ends after the content's last sentence.
 2. **Given** that video, **When** it plays, **Then** the voice is the app's voice for each paragraph (the
-   language the page would speak that paragraph in), the highlight sits on the sentence being spoken,
-   and no voice is heard while its sentence is out of view.
-3. **Given** a content longer than one screen, **When** its video plays, **Then** the page inside the
-   video scrolls by itself so the spoken sentence stays visible, exactly as the reading page does.
+   language the page would speak that paragraph in), the frame's text is the sentence being spoken at that
+   moment, and no voice is heard while its sentence is not the frame's text.
+3. **Given** a content longer than one screen, **When** its video plays, **Then** its sentences follow one
+   another in the order the page reads them, each whole in the frame that carries it — the video needs no
+   scrolling, because no frame carries text other than the sentence being heard.
 4. **Given** a content that mixes English and Chinese paragraphs, **When** it is recorded, **Then** each
-   paragraph is voiced in its own language and highlighted per sentence, as the page would read it.
+   paragraph is voiced in its own language and each sentence appears in its own paragraphs' script, as the
+   page would read it.
 5. **Given** a render in progress, **When** the user cancels it or leaves the recording screen, **Then**
    no file is left behind and the content's own state (text, reading position, appearance) is unchanged.
 6. **Given** a read is playing or parked, **When** the user looks for the video action, **Then** it is not
@@ -128,9 +185,9 @@ voice segment is the content's last sentence.
    aspect/resolution is offered first (16:9 landscape 1080p preselected, 9:16 vertical as the other
    choice), and the finished file has exactly the chosen shape.
 10. **Given** a render in progress, **When** the user watches the reading page, **Then** the page shows
-   the video's own picture as it is produced — the highlight moving sentence by sentence and the text
-   scrolling — and that picture is the render's progress (FR-020): the sentence on the page is the
-   sentence being written into the video.
+   the video's own picture as it is produced — the sentence being written into the video, whole, one
+   sentence at a time, over whatever picture that frame carries — and that picture is the render's progress
+   (FR-020): the sentence on the page is the sentence being written into the video.
 
 ---
 
@@ -138,8 +195,8 @@ voice segment is the content's last sentence.
 
 The video looks like a video and not like a phone screen: the frame is the video's own (no app bar, no
 buttons, no hints, no dialogs, no phone status bar, no notifications, no keyboard), it opens with a
-title card naming the content, the text is set at a size that is legible at 100 % and laid out for that
-frame, the highlight is the app's yellow, the scroll settles rather than jumps, and the reading's own
+title card naming the content, the text is set at the reader's own size, every sentence whole and alone in
+its frame over the reader's own picture with a dark scrim so the words read, and the reading's own
 pace is kept — no long silences between sentences — before a short hold on the last sentence.
 
 **Why this priority**: "make it good as a youtube video" is the second half of the request. P1 alone
@@ -147,7 +204,8 @@ would produce something functional and unwatchable.
 
 **Independent Test**: inspect frames — the title card names the content; no frame contains any of the
 app's controls or the device's status bar/navigation; the text block sits inside the frame with margins
-at every sampled frame; the highlight band is the app's yellow. Then measure, across the whole video, the
+at every sampled frame; the sentence's own glyphs are the frame's text, with no highlight band (the
+sentence alone in the frame is what the frame highlights). Then measure, across the whole video, the
 gap between the end of one sentence's voice and the start of the next, and the lead-in and end hold.
 
 **Acceptance Scenarios**:
@@ -155,14 +213,15 @@ gap between the end of one sentence's voice and the start of the next, and the l
 1. **Given** a finished video, **When** any frame is inspected, **Then** the app's own controls, hints,
    dialogs and the device's status bar/navigation are nowhere in it.
 2. **Given** a finished video, **When** it opens, **Then** a title card names the content before the
-   reading starts, and the first sentence is highlighted and voiced after it.
+   reading starts, and the first sentence is voiced after it.
 3. **Given** a finished video, **When** the gap between two consecutive sentences is measured, **Then**
    it is within the bound in FR-016, and the video ends holding the last sentence rather than cutting it
    off.
 4. **Given** the reader has chosen a typeface and a character size (011 US2), **When** the video is made,
-   **Then** the video's text is that typeface at that size, mapped onto the frame — and recording the same
-   content again after changing the choice shows the new one, so two renders of one content differ in the
-   text they carry rather than in the video's layout.
+   **Then** the video's text is that typeface, in that size, always — no sentence is ever shrunk to fit, a
+   long one wrapping and scrolling in its own frame instead (FR-029) — and recording the same content again
+   after changing the choice shows the new one, so two renders of one content differ in the text they carry
+   rather than in the video's layout.
 
 ---
 
@@ -207,8 +266,52 @@ new one away, and find the old one untouched.
 
 ---
 
+### User Story 4 - My video has my own pictures behind the text (Priority: P2)
+
+With one sentence alone in the frame there is a lot of empty space, and a reading over a plain colour does
+not look like a video. The reader picks pictures from the phone's own gallery before the render starts; the
+video draws them behind the sentence, each filling the frame, with a dark scrim between the picture and the
+text so the words still read over any photo. As a first cut the chosen pictures share the video's length
+equally, and the schedule is counted in the video's own frames — start frame and end frame — so a later
+version can let the reader move a picture's start or end frame.
+
+**Why this priority**: it is what makes the result look like a video rather than a caption card (US2's
+"good enough to publish"), and it is the reader's own request. The feature works without it: no pictures
+chosen renders on the plain background, refused for nothing.
+
+**Independent Test**: render one content twice, once with nothing chosen and once with three pictures. In
+the second, sample a frame inside each picture's range and find that picture filling the frame behind the
+sentence; sample the seams between ranges and find no frame carrying a picture outside its own range; and
+measure the sentence's contrast against what is behind it. In the first, find the plain background and a
+video that rendered without pictures, no slower and nothing refused.
+
+**Acceptance Scenarios**:
+
+1. **Given** a content on the idle reading page, **When** the reader opens the video action, **Then** they
+   can choose pictures from the phone's gallery with the platform's own picker and see what is chosen before
+   the render starts.
+2. **Given** chosen pictures, **When** the video is made, **Then** each picture fills the frame it is drawn
+   in — covering it, without bars — and the sentence is drawn over it with a dark scrim between them, so the
+   text still reads.
+3. **Given** chosen pictures and a finished video, **When** its frames are inspected, **Then** each picture
+   appears only inside its own inclusive start/end frame range, and every frame is covered by one chosen
+   picture or by the plain background.
+4. **Given** no pictures chosen, **When** the video is made, **Then** it renders on the plain background
+   exactly as it would have before this story, refused for nothing and delayed for nothing.
+5. **Given** a sentence too long to fit the frame, **When** the video is made, **Then** it is drawn whole at
+   the reader's own size, wrapped over several lines and scrolled upward inside its own frame, and its slot's
+   frames are all that one sentence — never split, never smaller.
+
+---
+
 ### Edge Cases
 
+- **More pictures chosen than the video has frames**: equal shares still partition the video, so a picture
+  that would get no frames is simply not drawn — no frame is shared by two pictures, none left uncovered
+  (FR-026/FR-028).
+- **A sentence too long or too tall for the frame**: it is neither shrunk nor split — it wraps at the reader's
+  own size and scrolls upward inside its own frame (FR-029), so its slot always carries that one sentence and
+  its whole text is seen over the slot.
 - **A content long enough that the render is minutes of work**: progress is shown and cancel works at any
   point; cancelling leaves no file (FR-009, SC-006).
 - **The phone runs out of space, or the render fails halfway**: the failure is reported and no partial
@@ -260,9 +363,11 @@ new one away, and find the old one untouched.
 
 - **FR-001**: The reading page MUST offer, while it is idle, a control that produces a video of the
   content being read.
-- **FR-002**: The video MUST show the content's own text, the highlight moving over the sentence being
-  spoken, and the page scrolling by itself to keep that sentence visible — the same three things the
-  reading page shows (011 FR-001/FR-020/FR-024).
+- **FR-002**: Each frame of the video MUST show the sentence being spoken at that moment — alone in the
+  frame and whole (wrapped, and scrolled within the frame when it is too tall, per FR-029) — over the
+  reader's own picture when pictures are chosen (FR-026/FR-027). The video MUST NOT show the content's other
+  sentences, a highlight band, or a scrolling page: with one sentence in the frame, that sentence is what the
+  frame highlights.
 - **FR-003**: The voice in the video MUST be the app's own synthesised speech for each sentence, in the
   paragraph's own language and in the voice the reader chose for that language (002's picker) — the same
   voice and the same sentence-by-sentence order the page uses. It MUST NOT be a recording of the phone's
@@ -271,8 +376,8 @@ new one away, and find the old one untouched.
   names when a sentence or paragraph is highlighted (010/011), and at the content's first sentence when
   nothing is highlighted. It MUST run from that start to the content's last sentence and then stop —
   there is no end position, and no video of a selection on its own.
-- **FR-005**: The highlight in the video MUST be the sentence whose voice is being heard at that moment,
-  and no sentence's voice may be heard while its text is outside the visible text area in the video.
+- **FR-005**: The text in the video at any moment MUST be the sentence whose voice is being heard at that
+  moment, and no sentence's voice may be heard while its text is not what the frame shows.
 - **FR-006**: The video frame MUST be the video's own: it MUST NOT contain the app's chrome (app bar,
   buttons, hints, dialogs, keyboard) or the device's own UI (status bar, notifications, navigation), and
   the video MUST NOT be a recording of the phone's screen.
@@ -295,10 +400,11 @@ new one away, and find the old one untouched.
   content, and it is the new one.
 - **FR-013**: The video MUST be produced on the device: no account, no backend, no upload and no network
   use (constitution IV), and the render MUST NOT depend on the phone being connected to anything.
-- **FR-014**: The video's text MUST use the reader's selected typeface and character size (011 US2), with
-  the app's highlight colour, by mapping the reading column onto the video's frame at a scale that keeps
-  that text legible. The frame size and the margins are the plan's to choose; the typeface and the
-  character size are the reader's, and the video MUST NOT quietly override them.
+- **FR-014**: The video's text MUST use the reader's selected typeface and character size (011 US2): that
+  size is the size the video sets every sentence in — the video MUST NOT shrink it, and a sentence that does
+  not fit wraps and scrolls within its own frame instead (FR-029). The frame size and the margins are the
+  plan's to choose; the typeface and the character size are the reader's, and the video MUST NOT quietly
+  override them.
 - **FR-015**: An empty or whitespace-only content MUST be refused with the app's existing message and MUST
   produce no file.
 - **FR-016**: The video's pacing MUST follow the voice: each sentence's frames MUST last exactly as long
@@ -342,16 +448,47 @@ new one away, and find the old one untouched.
   without such a warning, and the same rule already governs the app's other destructive delete (a content,
   `content_list_screen.dart:92`), which MUST keep warning.
 
+- **FR-025**: Before a render starts the reader MUST be able to choose pictures for the video from the
+  phone's own gallery through the platform's photo picker — no in-app gallery to build and no new
+  permission — and MUST see what is chosen before the render begins.
+- **FR-026**: Each chosen picture MUST occupy an inclusive run of the video's frames: its start frame and
+  its end frame, counted in the video's own frame numbers rather than in seconds. As a first cut the chosen
+  pictures MUST share the video's frames equally. Moving a picture's start or end frame is a later
+  good-to-have, expressed in those same frame numbers, together with the scrim's depth (FR-027) — both
+  changed after watching a render, by rendering again (2026-09-26).
+- **FR-027**: A picture MUST be drawn to fill the frame it is in — covering it, without bars, cropping what
+  does not fit — with the sentence drawn over it and a dark scrim (40 %) between the picture and the text,
+  so the reader's own text colour still reads over any picture.
+- **FR-028**: With no pictures chosen, and for any frame outside every picture's range, the frame MUST be
+  the app's plain background. A render MUST NOT be refused or delayed for want of pictures.
+- **FR-029**: A sentence that does not fit the frame MUST be drawn whole at the reader's own character size
+  and wrapped over as many lines as it needs. It MUST NOT be shrunk, split across its own frames, truncated
+  or cut. When the wrapped text is taller than the frame's text area it MUST scroll upward inside its own
+  frame over that sentence's slot, so that every line of the sentence is inside the text area for part of the
+  slot and no line is ever left clipped; a sentence that fits is drawn still, with no scroll. The scroll's
+  position MUST be proportional to the elapsed fraction of the slot — the voice is one utterance per sentence,
+  so it is an estimate by construction, which the reader has accepted (2026-09-26). The content's own text
+  MUST NOT be changed.
+
 ### Key Entities *(include if feature involves data)*
 
 - **Reading video**: the finished file for one content — the content it was made from, its name, its
   aspect/resolution, frame rate, duration and where it lives on the device. One per content (FR-012).
 - **Render plan**: the video's timeline as the renderer builds it — one slot per sentence (its text
   range, its paragraph, its language/voice, its spoken length in frames) plus the title card and the end
-  hold. This is what makes the video checkable: a slot's frames must show that sentence highlighted.
-- **The video's layout**: how the video puts its frame together — the reading column's scale and margins,
-  the background, the highlight colour, the title card, the end hold. It carries the reader's appearance
-  (typeface and character size) rather than replacing it (FR-014).
+  hold. This is what makes the video checkable: a
+  slot's frames must show that sentence's own text alone.
+- **The video's layout**: how the video puts its frame together — the sentence at the reader's own size,
+  wrapped over as many lines as it needs and scrolled inside the frame when that block is too tall (FR-029),
+  the picture behind it and the 40 % scrim over it (FR-027), the plain background, the title card, the end
+  hold, and the margins. It carries the reader's appearance (typeface and character size) rather than
+  replacing it (FR-014).
+- **Picture schedule**: which picture is on screen when — the chosen pictures in order, each with its
+  inclusive start frame and end frame in the video's own frame numbers (FR-026). Empty is a valid schedule:
+  the plain background (FR-028).
+- **A sentence's scroll**: where inside its own frame a wrapped sentence's text sits at a moment — from its
+  first line at the top of the text area to its last line at the bottom, by the elapsed fraction of the
+  sentence's slot (FR-029). A sentence that fits has no scroll: its text is still.
 - **Kept video record**: which video belongs to which content — the content's identity, the file's name and
   where it lives — so a kept video can be found, played, shared or deleted later (FR-022). One record per
   content; it is what FR-012's "exactly one" is enforced against, and it can go stale when the library
@@ -364,11 +501,13 @@ new one away, and find the old one untouched.
 - **SC-002**: The video plays from start to end in the device's own player and in a desktop player: one
   video stream at the chosen resolution and constant frame rate, one audio stream, and a duration equal
   to the reading plus the title card and end hold (within 2 s).
-- **SC-003**: Every sentence's highlight is visible while its voice is heard: sampling each sentence's
-  slot (a frame at its start, its middle and its end) finds that sentence highlighted and inside the
-  visible text area in 100 % of samples.
+- **SC-003**: The text in a frame is the sentence being spoken at that moment: sampling each sentence's
+  slot (a frame at its start, its middle and its end) finds that sentence's own text as the frame's text in
+  100 % of samples — and finds no other sentence's text in the frame (FR-002/FR-005).
 - **SC-004**: No frame contains the app's controls or the device's status bar/navigation, and the text
-  block has margins on all sides at every sampled frame.
+  block has margins on all sides at every sampled frame. Where a picture is behind the text, the sentence's
+  contrast against the scrimmed picture measures at least 4.5:1 at every sampled frame, so the reader's own
+  text colour still reads over any picture (FR-027).
 - **SC-005**: The video is publishable-shaped — video and audio codecs a video platform accepts, a
   constant frame rate, the chosen aspect/resolution — verified with a standard media analyser rather than
   by eye.
@@ -384,8 +523,9 @@ new one away, and find the old one untouched.
   is that sentence; with nothing highlighted, both name the content's first sentence; and the video always
   ends after the content's last sentence (FR-004).
 - **SC-011**: Two videos of one content made at two different character sizes carry text whose rendered
-  heights differ by the ratio of those sizes (within 10 %), each in the typeface chosen — the reader's
-  choice reaches the video instead of being overridden by it (FR-014).
+  heights differ by the ratio of those sizes (within 10 %) — every sentence, however long, in the typeface
+  chosen and never below the reader's size: the reader's choice reaches the video instead of being overridden
+  by it, and no sentence is shrunk to fit (FR-014/FR-029).
 - **SC-012**: Both offered aspects render and are exactly what the file is: a 16:9 render measures 1920×1080
   and a 9:16 render 1080×1920 in a standard media analyser, each at the constant frame rate, with the
   reader's choice made before the render and visible in the result (FR-007).
@@ -411,6 +551,16 @@ new one away, and find the old one untouched.
 - **SC-018**: Deleting a kept video warns first: dismissing the warning leaves the video in the library and
   still playable, confirming it removes the file from the library and the app's record, and the app's other
   delete (a content) still warns as it does today (FR-024).
+
+- **SC-019**: Pictures cover the video as scheduled: sampling every chosen picture's range finds that
+  picture filling the frame behind the sentence, and sampling the seams between consecutive ranges finds no
+  frame carrying a picture outside its own range (FR-026/FR-027).
+- **SC-020**: A long sentence is neither split nor shrunk: every frame of its slot carries that sentence's
+  own text, the whole of the sentence (every line of it) appears inside the frame's text area at some point
+  in the slot with no line ever drawn outside it, and no other sentence's text is in those frames
+  (FR-002/FR-029).
+- **SC-021**: A render with no pictures chosen produces the video it would have produced without this change
+  at all: the plain background, nothing refused and nothing delayed (FR-028).
 
 ## Assumptions
 
@@ -475,6 +625,14 @@ new one away, and find the old one untouched.
 - Editing the video: no trimming, cuts, transitions, background music, sound effects, filters or
   per-sentence re-recording.
 - Subtitle/caption files (SRT/VTT), thumbnails, chapters, playlists.
+- Pictures as anything but a still behind the sentence: no bundled or downloaded image sets (the reader's
+  own gallery is the only source, FR-025), no video clips or animated GIFs as backgrounds, no transitions,
+  motion or pan-and-zoom between pictures, and no image search or download of any kind.
+- Editing the picture schedule in the finished file: the schedule is chosen before a render and the file is
+  never edited afterwards, so moving a picture's start or end frame later (FR-026's good-to-have) means
+  rendering again. Trimming, cuts, transitions and the rest of video editing stay out (above).
+- Per-word timing read from the voice: the app has one utterance per sentence and no finer timing exists, so
+  a wrapping sentence's scroll position is proportional by construction (FR-029).
 - More than one video per content, batch rendering of several contents, a screen that browses every video
   the app has made (a content offers play/share/delete for its own video, US3), or a queue.
 - Bitrate, quality-tier, codec and frame-rate pickers, formats beyond the two aspects, and both aspects

@@ -79,7 +79,9 @@
   "videoPlayButton": "播放视频",
   "videoDeleteButton": "删除视频",
   "videoDeleteConfirmTitle": "删除该视频？",
+  "videoDeleteConfirmMessage": "视频将从相册中移除，此操作无法撤销。",
   "videoGoneMessage": "该视频已不存在",
   "videoRenderFailedMessage": "无法生成视频，请检查存储空间后重试。",
-  "videoUnavailableMessage": "此设备无法生成视频。"
+  "videoUnavailableMessage": "此设备无法生成视频。",
+  "videoDoneMessage": "已制作视频：{name}（{seconds} 秒）"
 }

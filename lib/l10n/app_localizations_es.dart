@@ -264,6 +264,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get videoDeleteConfirmTitle => '¿Eliminar este vídeo?';
 
   @override
+  String get videoDeleteConfirmMessage =>
+      'El vídeo se eliminará de tu galería. Esta acción no se puede deshacer.';
+
+  @override
   String get videoGoneMessage => 'Este vídeo ya no existe';
 
   @override
@@ -273,4 +277,9 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get videoUnavailableMessage =>
       'Este dispositivo no puede crear vídeos.';
+
+  @override
+  String videoDoneMessage(String name, int seconds) {
+    return 'Vídeo creado: $name ($seconds s)';
+  }
 }

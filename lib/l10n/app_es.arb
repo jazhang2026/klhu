@@ -79,7 +79,9 @@
   "videoPlayButton": "Reproducir vídeo",
   "videoDeleteButton": "Eliminar vídeo",
   "videoDeleteConfirmTitle": "¿Eliminar este vídeo?",
+  "videoDeleteConfirmMessage": "El vídeo se eliminará de tu galería. Esta acción no se puede deshacer.",
   "videoGoneMessage": "Este vídeo ya no existe",
   "videoRenderFailedMessage": "No se pudo crear el vídeo. Comprueba el espacio de almacenamiento e inténtalo de nuevo.",
-  "videoUnavailableMessage": "Este dispositivo no puede crear vídeos."
+  "videoUnavailableMessage": "Este dispositivo no puede crear vídeos.",
+  "videoDoneMessage": "Vídeo creado: {name} ({seconds} s)"
 }

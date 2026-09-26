@@ -96,7 +96,19 @@
   "videoPlayButton": "Play video",
   "videoDeleteButton": "Delete video",
   "videoDeleteConfirmTitle": "Delete this video?",
+  "videoDeleteConfirmMessage": "The video will be removed from your gallery. This cannot be undone.",
   "videoGoneMessage": "This video is gone",
   "videoRenderFailedMessage": "Could not make the video. Check storage space and try again.",
-  "videoUnavailableMessage": "This device cannot make videos."
+  "videoUnavailableMessage": "This device cannot make videos.",
+  "videoDoneMessage": "Video made: {name} ({seconds} s)",
+  "@videoDoneMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -575,6 +575,12 @@ abstract class AppLocalizations {
   /// **'Delete this video?'**
   String get videoDeleteConfirmTitle;
 
+  /// No description provided for @videoDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The video will be removed from your gallery. This cannot be undone.'**
+  String get videoDeleteConfirmMessage;
+
   /// No description provided for @videoGoneMessage.
   ///
   /// In en, this message translates to:
@@ -592,6 +598,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This device cannot make videos.'**
   String get videoUnavailableMessage;
+
+  /// No description provided for @videoDoneMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Video made: {name} ({seconds} s)'**
+  String videoDoneMessage(String name, int seconds);
 }
 
 class _AppLocalizationsDelegate

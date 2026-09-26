@@ -36,6 +36,7 @@ class VideoFrame {
     required this.highlight,
     required this.highlightRange,
     required this.paintedText,
+    required this.style,
   });
 
   /// The slot this frame belongs to.
@@ -56,8 +57,13 @@ class VideoFrame {
   final TextRange? highlightRange;
 
   /// What the frame actually shows: the paragraph of the slot's sentence, or the
-  /// content's name on the title card.
+  /// content's name (and its language) on the title card.
   final String paintedText;
+
+  /// The style that text was painted in — the reader's own, mapped onto this
+  /// frame (FR-014/SC-011). On the title card this is the name's style; the
+  /// language under it is [VideoPainter.titleLabelScale] of it.
+  final TextStyle style;
 }
 
 /// Paints one frame per slot at the plan's frame size.
@@ -67,6 +73,7 @@ class VideoPainter {
     required this.readingStyle,
     required this.background,
     required this.highlight,
+    this.languageLabel,
   });
 
   final VideoPlan plan;
@@ -77,19 +84,50 @@ class VideoPainter {
   final Color background;
   final Color highlight;
 
+  /// Names a language for the title card (`'en'` → `'English'`). The page
+  /// supplies it from the app's own copy; without it the card carries the name
+  /// alone, which is what the tests and any context-free caller get.
+  final String Function(String language)? languageLabel;
+
   /// The reading width the app lays its text out on (011's own viewport, a
-  /// 360 dp phone). The video's scale is the frame's column against this, so a
-  /// typeface and size keep the proportion the reader chose (A3).
+  /// 360 dp phone — the reference device's screen minus the page's padding).
+  /// The video's scale is this frame's column against it, so the reader's
+  /// typeface and character size keep the proportion they chose (A3).
   static const double referenceColumnWidth = 360;
 
-  /// The text column as a fraction of the frame's width; the rest is margin.
-  static const double columnFraction = 0.84;
+  /// The widest the column may be, as a fraction of the frame's width.
+  static const double maxColumnFraction = 0.88;
+
+  /// The margin above and below the column, as a fraction of the frame's height:
+  /// the vertical space is what a text block is laid out inside.
+  static const double marginYFraction = 0.10;
+
+  /// The smallest em the video may paint at the reader's smallest size, in frame
+  /// pixels — A3's consequence, stated so it can be tested (quickstart 12): the
+  /// video carries the size the reader chose, so the 1080-wide frame has to be
+  /// generous enough that 12 pt still clears this.
+  static const int minimumEm = 30;
+
+  /// The title card's language under its name, relative to the name's size.
+  static const double titleLabelScale = 0.55;
+
+  /// The text column, in frame coordinates.
+  ///
+  /// Its width is `min(maxColumnFraction × width, height)`: never the whole
+  /// frame, and never wider than the frame is tall. The second bound is what
+  /// makes a 16:9 frame's column narrower than a 9:16 one's (research D6) — a
+  /// column wider than its own height sets a line the eye cannot take in at one
+  /// go, and it is the vertical extent a text block is really laid out inside.
+  double get columnWidth {
+    final byWidth = plan.width * maxColumnFraction;
+    return byWidth < plan.height ? byWidth : plan.height.toDouble();
+  }
 
   /// The reader's character size, mapped onto this frame.
-  double get scale => plan.width * columnFraction / referenceColumnWidth;
+  double get scale => columnWidth / referenceColumnWidth;
 
-  double get _marginX => plan.width * (1 - columnFraction) / 2;
-  double get _marginY => plan.height * 0.10;
+  double get _marginX => (plan.width - columnWidth) / 2;
+  double get _marginY => plan.height * marginYFraction;
 
   Rect get column => Rect.fromLTRB(
       _marginX, _marginY, plan.width - _marginX, plan.height - _marginY);
@@ -115,12 +153,25 @@ class VideoPainter {
     canvas.clipRect(column);
 
     final text = slot.isSentence ? _paragraphOf(content, slot) : null;
-    final paintedText = text ?? plan.title;
+    final label = slot.isSentence ? null : _titleLanguageLabel();
+    final paintedText =
+        text ?? (label == null ? plan.title : '${plan.title}\n$label');
     final style = readingStyle.copyWith(
       fontSize: (readingStyle.fontSize ?? 14) * scale,
     );
+    // The card is two sizes — the name, and its language under it. Everything
+    // else is one span, so the highlight's offsets are offsets into it.
     final painter = TextPainter(
-      text: TextSpan(text: paintedText, style: style),
+      text: TextSpan(
+        children: [
+          TextSpan(text: text ?? plan.title, style: style),
+          if (label != null)
+            TextSpan(
+              text: '\n$label',
+              style: style.copyWith(fontSize: style.fontSize! * titleLabelScale),
+            ),
+        ],
+      ),
       textDirection: TextDirection.ltr,
       textAlign: slot.isSentence ? TextAlign.start : TextAlign.center,
     )..layout(maxWidth: column.width);
@@ -192,7 +243,24 @@ class VideoPainter {
       highlight: highlight,
       highlightRange: range,
       paintedText: paintedText,
+      style: style,
     );
+  }
+
+  /// The language the video opens in — its first spoken sentence's — named for
+  /// the reader, or null when there is nothing to name it with.
+  ///
+  /// The title card's language is the language of the sentence the video starts
+  /// on (FR-004/A1), which is why it comes from the plan's first sentence rather
+  /// than from the content's first paragraph: a video that opens at a
+  /// highlighted sentence names *that* sentence's language.
+  String? _titleLanguageLabel() {
+    final label = languageLabel;
+    if (label == null || plan.sentences.isEmpty) return null;
+    final language = plan.sentences.first.language;
+    if (language.isEmpty) return null;
+    final name = label(language);
+    return name.isEmpty ? null : name;
   }
 
   /// The same frame's bytes, for the encoder (FR-020: the picture shown is the
