@@ -10,12 +10,33 @@ file's life cycle, P3).
 
 ## Status
 
-**In progress.** T001–T003 are done — the ARB keys, the baseline receipt and spike S1. Implementation
-proper starts at T004; nothing under `lib/`, `test/` or `android/` has been touched beyond
-`lib/l10n/*.arb` (T001), and the specs themselves.
+**In progress — re-cut 2026-09-27 to the amended picture.** T001–T025, T028, T029, **T036** (the pictures'
+keys), **T038** (spike S4), **T044** (the picker is flutter.dev's `file_selector`) and **T045** (the picker's
+seam over it) are done; T026, T027 and T030 (the file store, the player view and US3's device row) are not. The 2026-09-26 amendment replaced what a
+frame *shows*: one sentence per frame at the reader's own size, over the reader's own pictures with the scrim
+between them, with each picture's schedule counted in the video's own frames (FR-002, FR-014, FR-025–FR-029,
+US4). The
+rows written to the withdrawn picture — T006, T010, T018, T019 and T021 — are marked **superseded in place**
+and their work is re-cut by T039–T048 rather than renumbered: their ticks are the record of what was built and
+measured at the time, and the amendment's own rule is that the old picture's code is deleted, not extended
+(plan ripple note 7).
 
-Baseline to protect: **301 tests green, `flutter analyze` clean**, re-taken 2026-09-25 16:53:58 on
-`54ff4f3 "specs/011"` (T002) — these numbers, not 011's, are what every later task is measured against.
+**The scrim's direction and depth were settled by measurement, not by assumption (T038, 2026-09-27).** On the
+reader's own four pictures at both aspects, the 40 % *black* layer the amendment assumed left **42–100 %** of the
+glyph pixels under SC-004's 4.5:1, a 45 % layer left 2–42 %, and 50 % left up to 51 % — while a **55 % layer of
+the frame's own background colour passes everywhere (min 4.90:1, 0 % under the floor)**, and passes *by
+construction*: over a pure-black picture that layer is the background's own 4.90:1 against the reader's text. The
+painter (T042) and its rows (T039), plus the numbers in `spec.md`, `quickstart.md` (row 42's) `data-model.md` and
+`research.md` D16, were re-cut to it in the same pass; the stills harness is kept beside S1's probe.
+
+Receipt to protect: **395 tests green, `flutter analyze` clean** (measured 2026-09-27 on `b76c452 "012 +"`,
+`flutter test --concurrency=2`, emulator up) — 301 at T002's baseline, re-taken 2026-09-25 16:53:58 on
+`54ff4f3 "specs/011"`, which is the number every earlier tick in this list was measured against. T002's
+reordering still holds: the receipt predates every edit of this stage.
+
+The requirement checker was red on exactly the amendment's seven new ids — `FR-026`, `FR-027`, `FR-028`,
+`FR-029`, `SC-019`, `SC-020`, `SC-021` — which is what this re-cut exists to fix: the coverage table below names
+them now, and `check_tasks_format.py` reports **OK** (48 tasks, 26 done, 15 `[P]`) as of 2026-09-27.
 
 **Spike S1 answered (T003): the engine writes RIFF/WAVE, PCM 16-bit mono at 24 kHz, and the duration is in
 the file's own header** (within a millisecond of `ffprobe`), so T014 keeps the shape the plan gave it — no
@@ -24,18 +45,25 @@ case at the audio layer) and produced two traps for T011/T014, both recorded in 
 [breakpoint.md](./breakpoint.md). T032 (spike S2) still replaces SC-006's placeholder ≤ 5 minutes with a
 measured number, and it cannot run before a render exists.
 
+**Three spikes now gate work rather than being decided inside it**: S2 (T032) still replaces SC-006's
+placeholder, S3 (T037) decides what the file dialog hands back and what converting it costs — which is what
+T043/T045 wait on —
+and S4 (T038) sets the scrim's number, which T039's contrast row and T042's painter wait on.
+
 **One thing this list states plainly**: the Kotlin half has no unit tests and none can be added that run in
-`flutter test` (research D9). Its entire coverage is the six `[device]` rows T017, T021, T030, T031 and the
-two spikes — which is why the platform half is kept logic-free.
+`flutter test` (research D9). Its entire coverage is the `[device]` rows T017, T021, T030 and T048 plus the
+spikes — which is why the platform half is kept logic-free, and why the picker (T044) is flutter.dev's own
+plugin handing back a name and bytes, rather than a screen.
 
 ## Grounding notes (decisions these tasks implement)
 
 1. **The video is rendered, never recorded** (D1, FR-006): no `MediaProjection`, no microphone. Frames are
    painted by the app; audio is the engine's own file synthesis.
 2. **Dart paints the frames, Kotlin encodes them** (D2, FR-014/FR-020): one `TextPainter`, fed the page's
-   own style seam (`reading_view.dart:927-928`), rasterises a frame into a `PictureRecorder`; the same
+   own style seam, rasterises a frame into a `PictureRecorder`; the same
    `ui.Image` is shown to the reader as the render's progress and its bytes go to the encoder. A frame is
-   produced only when the visual state changes and carries a repeat count (Σ repeats = `totalFrames`).
+   produced only when the visual state changes — the sentence, its line step, or the picture covering it
+   (note 11) — and carries a repeat count (Σ repeats = `totalFrames`).
    There is no second text engine.
 3. **The voice is the clock** (D3, A5, FR-016): pass 1 synthesises every sentence to its own file and reads
    the exact length out of it; pass 2 emits frames to that timeline. The picture can therefore never drift
@@ -45,7 +73,8 @@ two spikes — which is why the platform half is kept logic-free.
    audio as files, and knows nothing about text, sentences, languages or voices. Every decision worth
    testing stays in Dart, behind the fakes (F3).
 5. **The render owns the page** (D10, FR-019): RENDERING and REVIEW are states of `lib/reading_view.dart`,
-   not new routes, and their ownership rule is 011's FR-025 sibling — whichever of a read, a render or a
+   not new routes, and their ownership rule is the sibling of the rule 011 wrote as its own FR-025 (a different
+   requirement from this feature's FR-025) — whichever of a read, a render or a
    review owns the page keeps it until it ends or the reader confirms ending it.
 6. **The file has a life cycle** (D11, FR-021/FR-022): a render produces a working copy in the app's cache;
    keeping promotes it into the device's library (and is the only thing that does); deleting takes it out
@@ -60,6 +89,29 @@ two spikes — which is why the platform half is kept logic-free.
    `breakpoint.md`; they are nobody's task to silently fix here.
 10. **New copy lands in all four ARBs at once** (ripple note 3): `test/l10n_keys_test.dart` fails in both
     directions, so a partially translated addition cannot pass.
+11. **The frame is one sentence (amended 2026-09-26)** (D14, FR-002/FR-005/FR-014): the painter draws the
+    sentence being spoken, alone, at the reader's own character size — no highlight band, no window around a
+    paragraph and no scrolling of the page, because with one sentence in the frame there is nothing left to
+    highlight. A sentence taller than the frame's text area is drawn **whole** and scrolled upward inside its
+    own frame, quantised to a **line** step (one paint per line, not per pixel — the cost S2 measures), with
+    the position proportional to the elapsed fraction of the slot. The one estimate this feature admits, and
+    the reader accepted it: the engine speaks a sentence as one utterance, so no finer timing exists.
+12. **The pictures are the reader's own** (D15, FR-025–FR-028): chosen through the platform's own **file**
+    dialog — flutter.dev's `file_selector`, the reader's decision of 2026-09-27, because the pictures are files
+    made anywhere and the file dialog is the one selection UI every target has; no in-app gallery, no new
+    permission, and no platform half of ours — then copied once into the render's working directory before pass 2
+    reads them, and cleaned up with the working copy. Their schedule is each picture's **inclusive start and
+    end frame in the video's own numbering** — equal shares in the order chosen for this cut — and an empty
+    schedule is valid: the plain background, nothing refused and nothing delayed.
+13. **The scrim is one layer at a measured depth** (D16, FR-027, SC-004): one full-frame layer **in the frame's
+    own background colour** between the picture and the text, at **55 %** — the depth S4 (T038) measured, not the
+    40 % *black* layer the amendment assumed: on the reader's own pictures the black layer left 42–100 % of the
+    glyph pixels under 4.5:1, 45 % left 2–42 %, 50 % left up to 51 %, and 55 % of the background colour passes
+    everywhere (min 4.90:1, 0 % under the floor) because that layer's floor *is* the background's own 4.90:1.
+    The reversal is recorded in research D16 and `breakpoint.md` row 42 instead of being absorbed.
+14. **The amended picture's rows are appended, never renumbered** (Tasks-stage rule): T004–T035 keep their
+    numbers and their ticks, the tasks written to the withdrawn picture say so in place, and the amendment's
+    own work takes the next numbers (T036–T048) even where it belongs physically to an earlier story.
 
 ## Path conventions
 
@@ -98,6 +150,10 @@ dependency and no asset (plan § Technical Context).
       directions; `flutter analyze` clean. `app_zh.arb` and `app_zh_Hans.arb` carry identical strings
       (they differ only in `@@locale`, as shipped), and only the template carries the `@`-metadata block
 
+*The amended picture also needs keys of its own — T036, which belongs to this phase and is cut in **Phase 7**:
+the format checker requires the task ids to run sequentially through the file, and the reviewed rows may not be
+renumbered, so every task added after 2026-09-26 carries the next number and is appended at the end.*
+
 **Checkpoint**: `flutter analyze` clean; `flutter test test/l10n_keys_test.dart` green (key parity in both
 directions across the four ARBs).
 
@@ -105,7 +161,8 @@ directions across the four ARBs).
 
 ## Phase 2: Foundational (blocking prerequisite)
 
-**Purpose**: the receipt to protect, and the one measurement the audio design depends on.
+**Purpose**: the receipt to protect, and the three measurements the audio design and the amended picture
+depend on (S1's is answered; S3 and S4 were added 2026-09-26).
 
 - [x] T002 Record the baseline over the whole `test/` tree before touching anything: `flutter analyze`
       (clean) and `flutter test --concurrency=2` (expect 301 passing, 0 failing), then write both numbers
@@ -130,8 +187,14 @@ directions across the four ARBs).
       sequential and awaited. Raw output, method and deviations: [breakpoint.md](./breakpoint.md) row 35;
       the probe stays at `specs/012-reading-video/scripts/probe_synthesize.dart`
 
-**Checkpoint**: baseline receipt in hand, S1's answer recorded, and nothing under `lib/` touched except the
-ARB files T001 added to (and nothing under `android/` at all).
+*The amended picture also needs two measurements of its own — spikes S3 and S4, cut as **T037/T038** in
+**Phase 7**: the format checker requires the task ids to run sequentially through the file, and the reviewed
+rows keep their numbers, so every task added after 2026-09-26 is appended at the end. They gate the painter
+(T042) and the picker (T044/T045), so in build order they run before Phase 7's test and implementation
+batches, not after them.*
+
+**Checkpoint**: baseline receipt in hand and S1's answer recorded — and, at the time this phase ran, nothing
+under `lib/` touched except the ARB files T001 added to (and nothing under `android/` at all).
 
 ---
 
@@ -174,7 +237,11 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       column are the background to the frame's edges, and the highlight colour appears inside its band and
       nowhere outside the column. Sampling is on a stride and the reason string says so. One expectation was
       wrong and the painter was right: `清晨的阳光。` is six characters, so its sibling sentence's span starts
-      at 6, not 5 — the test was corrected, not the code
+      at 6, not 5 — the test was corrected, not the code.
+      **SUPERSEDED 2026-09-27 — this row's picture is withdrawn.** Its cases assert the highlight band inside
+      the column, which the 2026-09-26 amendment removed (FR-002, plan ripple note 7). The file's rows are
+      **replaced** by T039's, not extended; the tick above stands as the record of what the painter did before
+      the amendment (8 tests, suite 372 at the time)
 - [x] T007 [P] [US1] Write `test/video_renderer_test.dart` from quickstart 13–17: one `synthesizeToFile` per
       sentence preceded by that slot's language and voice, the published picture being the frame whose bytes
       the encoder received, progress that never goes backwards, cancellation at four points leaving no file
@@ -243,7 +310,12 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       and a paragraph taller than the frame is windowed around the sentence being heard, which is the
       video's own self-scroll (FR-002) — the band is centred and the offset clamped so the text never runs
       past its own ends. The style is a constructor parameter, not an ambient `Theme`, so 011's seam stays
-      the only place the reader's style is built and a frame can be painted without a `BuildContext`
+      the only place the reader's style is built and a frame can be painted without a `BuildContext`.
+      **SUPERSEDED 2026-09-27 — the painter is rewritten, not extended.** The band, the page window and the
+      column mapping come out (with one sentence in the frame there is nothing to highlight and nothing to
+      scroll to); the sentence at the reader's own size, its wrapped-and-scrolled-by-line layout, the picture
+      layer and the scrim go in — T042, per research D14/D15/D16. What survives untouched is the frame size,
+      the style-as-a-parameter seam and `pngOf`
 - [x] T011 [US1] Add `synthesizeToFile(text, fileName)` to the engine seam in `lib/reader_service.dart`
       (the interface at `:116-153` and the `FlutterTts`-backed implementation), applying the slot's language
       and voice exactly as the read does before each call (D5) — the block at `:373-387`: the language is the
@@ -412,7 +484,11 @@ a title card, a settled pace and a legible smallest size.
       margins, the painted text's height following the reader's chosen size by its ratio (within 10 %) in
       the chosen typeface, and the smallest size staying above the legibility floor on the narrowest column
       — RED as a compile error (the painter's new API: `languageLabel`, `titleLabelScale`, `minimumEm`,
-      `maxColumnFraction`, `VideoFrame.style`), then 12 new tests, all green; 20 in the file, 372 in the suite
+      `maxColumnFraction`, `VideoFrame.style`), then 12 new tests, all green; 20 in the file, 372 in the suite.
+      **SUPERSEDED 2026-09-27 — the geometry, not the whole row.** Its column, its margins and its "both
+      aspects" cases measure the withdrawn picture (plan ripple note 7); what survives into T039 is the title
+      card (FR-008), the size-ratio case (SC-011) and the legibility floor, now measured against the frame's
+      text area. `languageLabelOf` (extracted here into `language.dart`) is untouched and still shared
 
 ### Implementation for US2
 
@@ -428,6 +504,10 @@ a title card, a settled pace and a legible smallest size.
       to `language.dart`'s `languageLabelOf` and shared with the content list's rows (one naming, two users).
       Legibility floor stated as `minimumEm = 30`; at the smallest size on the narrowest column the frame
       gets 31.7 px per em and 30 characters per line (measured in the test).
+      **SUPERSEDED 2026-09-27 — the column rule is replaced by the text area.** The floor's *numbers* stand
+      (they are the frame's own scale, which the amendment kept), but the geometry they were measured against
+      — a column of `min(0.88 × width, height)` with a band and a window — is the withdrawn picture: T042
+      re-derives the text area from the frame and re-measures the floor there
 - [x] T020 [US2] Extend `lib/video_renderer.dart`: the pacing — the constant inter-sentence padding, the
       title card's lead-in and the end hold inside their bounds (the hold lasting at least one frame past
       the last sentence's audio), all in whole frames so the file keeps its constant rate
@@ -450,12 +530,21 @@ a title card, a settled pace and a legible smallest size.
       **This row found a US1 bug** — the encoder plugin cached the first picture across `sendFrame` calls,
       so all 818 frames were the title card and no frame in the file ever held the highlight. Row 31's
       `ffprobe` checks passed with it (they are structural); only pixels could see it. Fixed, re-run, clean.
+      **SUPERSEDED 2026-09-27 as the row's *claims*, kept as its evidence.** Every check this row makes was
+      written for the withdrawn picture (a band on the sentences' frames, nothing outside the column), so it is
+      re-cut and re-run by T048 — row 32 as `quickstart.md` now states it. The tick above is what the
+      pre-amendment video measured, and the encoder bug it found (deviation 9) stays a finding of that run
+
+*The amendment's own US2 work — `T039` (the painter's rows), `T042` (the rewrite) and `T046` (the renderer's frames) — belongs to this phase and is cut in **Phase 7** by the ordering rule stated there.*
 
 **Checkpoint**: the video is publishable-shaped — both aspects, the reader's own text, a titled opening and
 a paced close — and US1 still passes unchanged. *What "unchanged" means here*: US1's Dart tests pass exactly
 as they did (372/372, nothing edited), while US1's *device* output was defective until row 32 caught it (the
 encoder wrote the title card for the whole video, deviation 9) — its structural numbers were right all along,
-its look was not, and row 32 is now the row that reads it.
+its look was not, and row 32 is now the row that reads it. *And "nothing edited" needs a date on it as of
+2026-09-27*: the amended picture rewrites the **painter's** rows (T039/T042, the file T010/T018 built) and
+re-cuts row 32 (T048). US1's own tests — the timeline, the renderer, the encoder — are still unedited, and the
+painter's rewrite is the amendment's declared cost, not drift.
 
 ---
 
@@ -541,9 +630,16 @@ warns first.
       as stop, but the transport belongs to the platform view's own controls (the contract says so itself),
       so only `stop()` is exposed in Dart — the page's one decision about playback is to release it when the
       review is left. The other four would be surface with no consumer.
-- [ ] T029 [US3] Wire the file's life into `lib/reading_view.dart`: the REVIEW state (the player, keep,
+- [x] T029 [US3] Wire the file's life into `lib/reading_view.dart`: the REVIEW state (the player, keep,
       throw away, share), the kept-video actions on the page (play, share, delete-with-its-warning), the
       stale-video message, and the content offering to record again after a deletion
+      — **DONE 2026-09-26, verified here 2026-09-27** (this session only read it; the tick was owed because the
+      commit landed after the previous handback). The wiring is present and green: the review state and its
+      player (`reading_view.dart:1220`), the three decisions (keep `:1145`, share `:1156`, the warned delete
+      `:1172`), the stale-video message (`:1056`), the aspect prompt (`:1257`), and the kept-video actions
+      (share `:1685`, delete `:1690`). Evidence: `flutter test --concurrency=2` → **395 passing, 0 failing**,
+      which includes `reading_view_video_test.dart`'s ten review cases that T023 wrote RED; `flutter analyze`
+      clean. What T029 does **not** cover and T030 still owns: nothing here is exercised on the device.
 - [ ] T030 [US3] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` row
       33 (quickstart 33): play the review before keeping, throw one away and keep another, find it in the
       gallery under the content's name, share it through the phone's list, delete it behind the warning, and
@@ -556,22 +652,171 @@ kept, shared, deleted — is exercised on the device.
 
 ## Phase 6: Polish & cross-cutting concerns
 
-- [ ] T031 [P] Commit the walk driver `specs/012-reading-video/scripts/klhu_walk_video.py` (rows 31–36, one
-      function per row, argv dispatch, `RESULT: PASS|FAIL`, importing 010's device helpers) and record every
-      row with its evidence and divergences in `specs/012-reading-video/breakpoint.md`
+- [ ] T031 [P] Commit the walk driver `specs/012-reading-video/scripts/klhu_walk_video.py` (rows 31–36, plus
+      rows 41, 42 and 49 from the 2026-09-26 amendment, one function per row, argv dispatch,
+      `RESULT: PASS|FAIL`, importing 010's device helpers) and record every row with its evidence and
+      divergences in `specs/012-reading-video/breakpoint.md`
 - [ ] T032 [P] Run spike S2 per `specs/012-reading-video/quickstart.md` row 36 and replace the placeholder in
       `specs/012-reading-video/spec.md`: measure a one-minute render end to end on the reference device (wall
       time, frames per second, which side is the bottleneck) and put the measured number into SC-006 and into
-      quickstart row 36 — the spec keeps ≤ 5 minutes only until this runs
+      quickstart row 36 — the spec keeps ≤ 5 minutes only until this runs. *The amendment changed the economy
+      this number is measured on*: a frame is now produced per sentence (and per line step of a tall one)
+      rather than per repaint of the page, and painting a picture under it adds one image decode per range —
+      the measurement stands, the shape it measures does not
 - [ ] T033 [P] Update `README.md`: the 012 row in the spec index (drop any "spec only" wording) and the note
       that this is the repository's first feature with a platform-specific half
 - [ ] T034 Tick the boxes in `specs/012-reading-video/tasks.md`, recording every deviation from this list
-      inline beside the task it belongs to (a divergence found is written down where it was found)
+      inline beside the task it belongs to (a divergence found is written down where it was found) — including
+      the 2026-09-26 amendment's re-cut, whose tasks (T036–T048) are appended rather than renumbered
 - [ ] T035 Run the structural rows in `specs/012-reading-video/quickstart.md` (37–40) and write the final
-      report: quickstart 37 (no dependency added), 38 (four ARBs), 39 (the content delete still warns) and 40
-      (011's receipt still green, with its `android/`-is-empty row scoped to 011), then report what shipped,
-      the receipt, the measured S2 number, and — restated, not buried — the iOS gap and the pre-existing
-      platform-floor gap
+      report: quickstart 37 (`file_selector` is the one dependency added, on the reader's file-picker decision),
+      38 (four ARBs, the picture keys included), 39 (the content delete still warns) and 40 (011's receipt still
+      green, with its `android/`-is-empty row scoped to 011), then report what shipped, the receipt, the
+      measured S2 number, the measured scrim depth and contrast (S4), and — restated, not buried — the iOS gap
+      and the pre-existing platform-floor gap
+---
+
+## Phase 7: The amended picture (2026-09-26) — US2's rewrite and US4's pictures
+
+**Goal**: the reader picks pictures from the phone's own gallery before a render starts; the video draws
+them behind the sentence, each filling the frame, with the scrim between the picture and the text — the frame's
+own background colour at D16's measured 55 % — so the words still read; the schedule is each picture's
+**inclusive start and end frame** in the video's own
+numbering, equally shared for this cut, and no pictures is a valid schedule. Beside it, US2's frame is
+rewritten: one sentence per frame at the reader's own size, wrapped and scrolled a line at a time when it
+is taller than the text area (FR-002/FR-014/FR-025–FR-029).
+
+**Why this phase is last in the file and not last in the build**: the format checker requires the task ids
+to run `T001..T048` in file order, and the rows above keep their numbers because a tick is the record of
+what was built and measured at the time — so every task the amendment adds takes the next number and is
+appended here. **In build order it sits between Phase 4 and Phase 5**: the spikes first, then the amended
+US2 work beside US4's, then Phase 6's close-out (`T034`/`T035`) last of all. The insertion point is stated
+in `## Dependencies & ordering` so the numbering cannot be read as the build order.
+
+### Setup (T036 — Phase 1's own work)
+
+- [x] T036 [P] [US4] Add the pictures' message keys to the template `lib/l10n/app_en.arb` and the three
+      translations `lib/l10n/app_zh.arb`, `lib/l10n/app_zh_Hans.arb`, `lib/l10n/app_es.arb` — the "choose
+      pictures" action, how many are chosen, choosing again, and the picker's own failure — then
+      `flutter gen-l10n` and confirm the diff is exactly the four ARBs plus the regenerated
+      `lib/l10n/app_localizations*.dart` (ripple note 3). *Added 2026-09-26 with the amended picture*: the
+      pictures have no UI without these strings, and the template key must exist before T041's page cases
+      compile against it. **This task belongs to Phase 1** and is cut here by this phase's ordering rule, above
+      (DONE 2026-09-27: `videoPicturesButton`, `videoPicturesChosen` with an ICU plural on `{count}`,
+      `videoPicturesChooseAgain`, `videoPicturesFailed` in all four ARBs (84 → 88 keys, parity both ways),
+      `flutter gen-l10n`, and the diff is exactly the four ARBs plus the four regenerated
+      `app_localizations*.dart`; `flutter analyze` clean, `l10n_keys_test.dart` green, the suite re-run
+      **395 passing, 0 failing**)
+
+### The two spikes, before anything is written (T037, T038)
+
+- [ ] T037 [US4] Run spike S3 into `specs/012-reading-video/breakpoint.md` (quickstart 41): on
+      `emulator-5554`, through the app's own file dialog, browse into a folder, pick two or three pictures and
+      record what comes back — what a pick *is* here, whether its bytes can be read once right after choosing,
+      how long copying a handful of full-resolution files takes, and what a cancel leaves behind. *Re-cut
+      2026-09-27: the dialog is the FILE picker, not the photo one (D15, the reader's decision).* *Added 2026-09-26 with the amended picture*, and it
+      gates T042/T045: if the URIs are not stable the copy into the working directory (D15) is mandatory
+      rather than merely careful, and that verdict rewrites those two tasks' text instead of being absorbed.
+      **This task belongs to Phase 2**, before the batches below
+      (2026-09-27: **BLOCKED** — the emulator's `/sdcard/DCIM` and `/sdcard/Pictures` are both empty, so there
+      is nothing to pick, and no channel yet opens a picker (T044/T045 are what S3 gates). Cheapest honest
+      route: run S3 as T044's first cut instead of gating it — see breakpoint row 41)
+- [x] T038 [US4] Run spike S4 into `specs/012-reading-video/breakpoint.md` (quickstart 42): composite a bright,
+      a mid and a dark photo under a 40 % black scrim with both of the app's text colours and measure the
+      text-to-background contrast each way. *Added 2026-09-26 with the amended picture*, and it gates T039's
+      contrast case and T042's painter: every pairing must measure at least 4.5:1 (SC-004), and any pairing
+      below it changes the design (a glyph shadow or a deeper scrim, research D16) rather than lowering the
+      floor. **This task belongs to Phase 2**, beside T037 (sequential with it: one evidence file)
+      (RAN 2026-09-27 → `breakpoint.md` row 42: **the 40 % black layer does not hold** — the app's own text
+      colour `#161D1C` misses 4.5:1 for every photo tone below ~205 (200 → 3.88:1, mid grey → 2.03:1), because
+      a black veil moves the picture toward a text that is nearly black; the app has **one** text colour, not
+      two, so D16's "both of the app's text colours" is wrong too. The direction and depth are a design call:
+      recorded in row 42 with the measured options, deliberately **not** absorbed into T039/T042 until chosen).
+      Then measured on the reader's own four pictures at both aspects, through
+      `specs/012-reading-video/scripts/probe_scrim_stills.dart` (kept beside S1's probe; outside `test/`): the
+      40 % black layer leaves **42–100 %** of the glyph pixels under 4.5:1, 45 % **2–42 %**, 50 % **0.4–27.5 %**
+      (51 % in one portrait crop) — and a **55 % veil of the frame's own background passes everywhere, 0 % under
+      the floor, min 4.90:1**, because that veil's floor *is* the background's own 4.90:1, i.e. it passes by
+      construction for any picture. 60 % reaches 5.77:1. Stills and `measurements.tsv`:
+      `~/Documents/GitHub/Multi-Media/klhu_scrim/`)
+
+### Tests ⚠️ (write first, run RED — T039–T041)
+
+- [ ] T039 [US2] Rewrite the rows of `test/video_painter_test.dart` from quickstart 7–12 and 44–46: the frame's
+      text is the slot's sentence alone at the reader's own size (no band, no window, no other sentence's text),
+      the wrapped-and-stepped-by-line case for a sentence taller than the text area, the picture filling the
+      frame with the scrim between it and the text — the frame's own background colour at D16's measured 55 % —
+      the plain background when nothing is scheduled, both
+      aspects' frames and text areas, the reader's size honoured with no shrink, and no chrome — *added
+      2026-09-26 with the amended picture*: T006's and T018's rows are **replaced**, not extended (ripple note
+      7), and the contrast case uses T038's measured scrim depth. Run it RED before T042
+- [ ] T040 [P] [US4] Write `test/video_pictures_test.dart` from quickstart 43 and 48: the equal-share schedule
+      in the video's own frames (inclusive ranges that partition the video, more pictures than frames, an empty
+      schedule), the picks' copies into the render's working directory, their cleanup after a finish, a cancel
+      and a failure, and a picture that cannot be copied failing the render before any frame is written —
+      *added 2026-09-26 with the amended picture* (D15). Run it RED before T043
+- [ ] T041 [P] [US4] Extend `test/reading_view_video_test.dart` from quickstart 47: the page names how many
+      pictures are chosen and lets the reader choose again, the render starts only on the reader's own confirm,
+      and choosing none still renders the plain-background video — *added 2026-09-26 with the amended picture*.
+      Run it RED before T047
+
+### Implementation (T042–T047)
+
+- [ ] T042 [US2] Rewrite `lib/video_painter.dart` to the amended picture: delete the highlight band, the page
+      window and the column mapping (with one sentence in the frame there is nothing to highlight and nothing
+      to scroll to), and paint instead the sentence alone at the reader's own size inside the frame's text
+      area, wrapped over as many lines as it needs and stepped upward one line at a time by the elapsed
+      fraction of the slot (D14) — with the scheduled picture drawn to fill the frame and the scrim over it:
+      the frame's own background colour at D16's measured 55 % (T038), and the plain background where nothing is
+      scheduled (FR-027/FR-028). The title
+      card, the frame size and the style-as-a-parameter seam stay — *added 2026-09-26 with the amended picture*:
+      this is the rewrite T010's row declared, not an extension of it
+- [ ] T043 [US4] Implement `lib/video_pictures.dart`: the schedule builder (equal shares of `totalFrames` in the
+      order chosen, each picture's **inclusive** start and end frame — FR-026), the copies of the picks into the
+      render's working directory before pass 2 reads them, and their cleanup with the working copy however the
+      render ended — *added 2026-09-26 with the amended picture* (D15). It consumes the picker's own seam
+      (T045) rather than declaring one
+- [x] T044 [US4] `pubspec.yaml` gains `file_selector: ^1.1.0` with the comment that says why: the picker's
+      platform half is **flutter.dev's own plugin**, not Kotlin of ours — no `PicturePickerPlugin.kt`, no
+      channel, no activity result, no new permission, no gallery screen (D15). *Re-cut 2026-09-27 on the
+      reader's decision*: the **file** dialog rather than the photo picker, because the reader's pictures are
+      files made on the phone, on a PC or by an AI tool, and the file dialog is the one selection UI with
+      folders that every target the app builds for has (Android, iOS, desktop, web). (DONE 2026-09-27:
+      `flutter pub get` → 11 packages changed, the seven `file_selector*` ones and their transitive peers,
+      `flutter analyze` clean, nothing added under `android/`) — *added 2026-09-26 with the amended picture*
+- [x] T045 [US4] Implement `lib/platform/picture_picker.dart`: the picker seam's Dart half — the `PicturePicker`
+      interface the page and the tests fake, plus `FilePicturePicker` over `file_selector`, whose per-platform
+      `XTypeGroup` carries what each platform accepts (`uniformTypeIdentifiers` on iOS/macOS, `extensions` on
+      Windows, extensions **and** `mimeTypes` on Android/Linux — the plugin throws on a filter a platform cannot
+      honour) and whose pick is a `PickedPicture` of a name and a one-shot `read` of the bytes, so no uri, blob
+      or path ever leaves the seam — *added 2026-09-26 with the amended picture*. (DONE 2026-09-27:
+      `flutter analyze` clean; **not** device-verified — T037 answers what it actually returns, and the interface
+      is what the tests fake until then)
+- [ ] T046 [US2] Extend `lib/video_renderer.dart` to the amended picture: produce one `RenderedFrame` per
+      visual state — the slot's sentence, its line step, and the picture covering it — so the scroll's line
+      steps and each picture range's first frame are their own frames with their own repeats (Σ repeats still
+      equals `totalFrames`), and copy the chosen pictures before pass 2 reads anything (T043), while the audio
+      pass, the pacing and the cancellation stay exactly as they are — *added 2026-09-26 with the amended
+      picture* (D14/D15)
+- [ ] T047 [US4] Wire the pictures into `lib/reading_view.dart`: the choose-pictures step before a render starts
+      (the picker, how many are chosen, choosing again, the picker's failure), the picks held for the render and
+      not remembered after it, and the schedule handed to the renderer beside the aspect prompt — the page's
+      shipped behaviour untouched (FR-018) — *added 2026-09-26 with the amended picture*
+
+### Device row (T048)
+
+- [ ] T048 [US4] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` rows 32
+      and 49 (quickstart 32, 49): re-walk row 32 against the amended picture — every sampled frame carrying its
+      slot's sentence alone at the reader's own size, the long one scrolled and never shrunk or split — then
+      choose three pictures from the phone's gallery and render, checking each range's frames against each seam
+      (the picture filling the frame behind the sentence, the scrim, 4.5:1 against what is behind the text) and
+      a no-picture render producing the plain-background video. The driver gains rows 41, 42 and 49 (T037/T038
+      own 41 and 42), and every claim lands in `breakpoint.md` — *added 2026-09-26 with the amended picture*
+
+**Checkpoint**: US2's amended frame and US4 are complete and independently demonstrable — a reader picks
+pictures from their own gallery, the video carries each one behind the sentence with the scrim over it,
+a tall sentence is never shrunk and never split, and choosing none still produces the video the feature
+would have made without them (SC-021).
 
 ---
 
@@ -581,9 +826,18 @@ kept, shared, deleted — is exercised on the device.
 - **T002 → all implementation** (the baseline), **T003 → T014** (S1 decides how the audio's length is read).
 - **US1 → US2 and US3**: US2 refines the painter US1 introduces; US3's keep depends on a file existing.
   Within US1: T009/T010/T011 → T013 → T014 → T015 → T016, with T012 alongside T011.
-- The six `[device]` rows (T017, T021, T030 and the driver they live in, T031/T032) come after the code
-  they exercise, and are the only coverage the Kotlin half has (Status).
-- **T034/T035 last**: the report quotes receipts, not intentions.
+- **The amended picture's chain (2026-09-26)**: T036 → T041/T047 (the picture keys are what those cases compile
+  against); T037 → T044/T045 (S3 says whether the copy is mandatory and what a URI can be read for);
+  T038 → T039's contrast case and T042's scrim depth; T039 → T042 (the file's rows are the RED for the rewrite);
+  T040 → T043 → T046 (pass 2 reads the copies T043 makes); T041 → T047; T042/T046/T047 → T048, whose rows read
+  what the painter, the renderer and the page produce. T043 consumes T045's seam, so those two are sequential;
+  T044 is Kotlin and independent of both.
+- The `[device]` rows (T017, T021, T030, T037, T038, T048 and the driver they live in, T031/T032) come after the
+  code they exercise, and are the only coverage the Kotlin half has (Status).
+- **Where Phase 7 runs**: between Phase 4 and Phase 5 in the build order — its spikes before its test and
+  implementation batches, and before Phase 6's close-out. Its place at the end of the FILE is the id-sequencing
+  rule (`T001..T048` in order), not its place in the work.
+- **T034/T035 last of all**: the report quotes receipts, not intentions — including Phase 7's.
 
 ## Parallel opportunities
 
@@ -593,6 +847,11 @@ kept, shared, deleted — is exercised on the device.
   RED before T019/T020 land.
 - The two US3 test files (T022, T023) are independent of each other.
 - T031–T033 are three different artifacts (the driver, the spec's number, the README).
+- The amendment's test tasks are on separate files — T039 (`test/video_painter_test.dart`), T040
+  (`test/video_pictures_test.dart`) and T041 (`test/reading_view_video_test.dart`) can go side by side, and all
+  RED before the implementation batch. T044 (Kotlin) can go beside the Dart tasks; T043 waits on T045.
+- T037 and T038 are **not** parallel with each other even though the spikes are independent: both append to
+  `specs/012-reading-video/breakpoint.md`, and two writers to one evidence file are sequential by construction.
 
 ## Implementation strategy
 
@@ -604,14 +863,28 @@ life cycle is trivial once a file exists and unknowable before.
 **Ordering rule inside each story**: write that story's tests, run them RED, then implement. A story's
 device row is its acceptance test — a story is not done because its unit tests pass.
 
+**The amendment's increment (2026-09-26, Phase 7)**: T036–T048 walk the same ladder again on the new picture — the ARB
+keys and the two spikes first (S3 and S4 decide the two things the code may not guess: what a pick from the
+file dialog can be read for, and how deep the scrim must be), then the three test files RED (T039–T041), then the
+painter (T042), the pictures and their copies (T043), the picker (T044/T045), the renderer's frames (T046) and the page (T047),
+then the device rows (T048). US3's remaining work (T026/T027/T030) is independent of it in files except
+`lib/reading_view.dart`, which T047 and T029 both edit — so the two land one after the other, never together.
+
 **What to do when the platform half misbehaves**: the Kotlin half is the part with no unit tests, so a bug
 there is found by a device row, and the fix belongs in Kotlin (not as a workaround in Dart). If a workaround
 in Dart seems necessary, that is a signal the split in D4 is wrong — report it rather than papering over it.
 
 ## Notes
 
-- `[P]` is about files, not attention: `lib/reading_view.dart` is edited by T016 and T029 in that order,
-  `lib/video_painter.dart` by T010 then T019, and `lib/video_renderer.dart` by T014 then T020.
+- `[P]` is about files, not attention: `lib/reading_view.dart` is edited by T016, T029 and T047 in that order,
+  `lib/video_painter.dart` by T010 and then T042 (the rewrite), and `lib/video_renderer.dart` by T014, then
+  T020, then T046. `test/reading_view_video_test.dart` is edited by T008, T023 and T041.
+- **The amended picture's own note**: a frame is now painted once per sentence and once per **line step** of a
+  tall one, and a picture range needs its image decoded once — so the economy is measured on a different shape
+  of work than row 31's numbers were, and T032 re-measures it rather than inheriting them.
+- **The picks are copies**: after T043 the render's working directory holds the pictures beside the per-sentence
+  audio and the working copy, and all three must be gone after any ending — quickstart 48's cases assert the
+  copy's own life, and T048 asserts the directory on the device (which is where row 34's check now reads it).
 - Never let the renderer hold a whole video in memory: frames are sent as they are painted, and the audio is
   files on disk. A ten-minute content must not need a ten-minute buffer.
 - The working copy and the per-sentence audio live in the app's cache directory and must be gone after any
@@ -632,44 +905,52 @@ in Dart seems necessary, that is a signal the split in D4 is wrong — report it
 | Requirement | Tasks |
 |---|---|
 | FR-001 the idle page offers a video action | T016, T023 |
-| FR-002 the video shows the text, the moving highlight and the self-scroll | T010, T017 |
+| FR-002 each frame carries the sentence being spoken, alone and whole at the reader's own size | T039, T042, T048 |
 | FR-003 the voice is the app's own synthesis, per paragraph's language and chosen voice | T011, T014 |
 | FR-004 start at the highlighted sentence, else the content's first; run to the last | T004, T009, T014 |
-| FR-005 the highlight is the sentence being heard, inside the visible text | T006, T010, T021 |
-| FR-006 the frame is the video's own — no chrome, no device UI, never a recording | T006, T010, T015, T021 |
+| FR-005 the text in the frame is the sentence whose voice is heard, and no other sentence's text | T039, T042, T048 |
+| FR-006 the frame is the video's own — no chrome, no device UI, never a recording | T015, T039, T042, T048 |
 | FR-007 the aspect/resolution chosen before the render, exactly as chosen | T005, T009, T017 |
-| FR-008 a title card naming the content; a hold at the end | T018, T019, T020 |
+| FR-008 a title card naming the content; a hold at the end | T020, T039, T042 |
 | FR-009 progress and cancellation; nothing left behind | T007, T014, T017 |
 | FR-010 the action is idle-only and a touch never interrupts | T008, T016, T023 |
 | FR-011 a kept video lives where the galleries look, under the content's name | T026, T029, T030 |
 | FR-012 keeping again leaves exactly one video for that content | T022, T024, T026 |
 | FR-013 produced on the device — no account, no backend, no upload, no network | T015, T026, T035 |
-| FR-014 the video's text is the reader's typeface and size, mapped to the frame | T018, T019, T020 |
+| FR-014 the video's text is the reader's typeface and size — never shrunk, wrapped and scrolled when tall | T039, T042, T046 |
 | FR-015 an empty content is refused with the existing message and no file | T004, T014 |
 | FR-016 pacing follows the voice, within the stated bounds | T004, T020 |
 | FR-017 the audio is complete, in order, nothing dropped or repeated | T004, T007, T011 |
-| FR-018 the reading page's shipped behaviour is untouched | T008, T016, T035 |
+| FR-018 the reading page's shipped behaviour is untouched | T008, T016, T047, T035 |
 | FR-019 the render owns the page; Stop asks first | T008, T016, T029 |
-| FR-020 the page shows the video's own picture as the render's progress | T007, T010, T014, T021 |
+| FR-020 the page shows the video's own picture — the amended frame — as the render's progress | T007, T014, T046, T048 |
 | FR-021 a finished render is played, then kept, thrown away or shared | T022, T023, T025, T029 |
 | FR-022 a kept video is reachable again, and deleting it removes file and record | T022, T024, T029, T030 |
 | FR-023 sharing through the platform's own list; no SDK, no account, no upload | T022, T026, T028, T030 |
 | FR-024 deleting warns first, and never on a single tap | T022, T026, T029, T030 |
+| FR-025 the reader chooses pictures from the phone's own gallery before a render, and sees what is chosen | T036, T037, T041, T044, T045, T047 |
+| FR-026 each chosen picture occupies an inclusive run of the video's own frames, shared equally | T040, T043, T046, T048 |
+| FR-027 a picture fills the frame it is in, with the scrim between it and the text — the frame's own background colour at 55 %, which holds 4.90:1 over any picture | T038, T039, T042, T048 |
+| FR-028 no pictures chosen — and any frame outside every range — is the app's plain background | T040, T042, T048 |
+| FR-029 a sentence too tall for the frame is drawn whole at the reader's own size, wrapped and scrolled by line | T039, T042, T046 |
 | SC-001 a reader makes a video in the app, no network, and is told the file's name and length | T017, T031 |
 | SC-002 it plays start to end: one video stream, one audio stream, the duration within 2 s | T017, T031 |
-| SC-003 every sentence's highlight is visible while its voice is heard (100 % of samples) | T006, T021 |
-| SC-004 no frame carries the app's controls or the device's UI; margins on all sides | T006, T021 |
+| SC-003 the text in a frame is the sentence being spoken, in 100 % of samples, and no other sentence's | T039, T048 |
+| SC-004 no frame carries the app's controls or the device's UI, margins on all sides, 4.5:1 over the scrim | T038, T039, T042, T048 |
 | SC-005 publishable-shaped, verified with a media analyser rather than by eye | T017, T031 |
 | SC-006 the render's time on the reference device, with cancellation leaving nothing | T017, T032 |
 | SC-007 a mixed-language content is voiced per paragraph exactly as the page voices it | T004, T007 |
 | SC-008 two renders leave exactly one video for that content, and it is the second | T022, T030 |
 | SC-009 the reading page behaves exactly as 011's receipt shows | T008, T035 |
 | SC-010 with a highlight the video starts there; otherwise at the first sentence; always ends last | T004, T014 |
-| SC-011 two renders at two sizes differ by their ratio, in the chosen typeface | T018, T019 |
+| SC-011 two renders at two sizes differ by their ratio, in the chosen typeface, never below the reader's size | T039, T042 |
 | SC-012 each aspect measures as rendered (1920×1080 / 1080×1920) at the constant rate | T005, T017 |
 | SC-013 while rendering only Stop is reachable; both Stop and leaving ask before acting | T008, T016 |
-| SC-014 the picture shown during the render is the frame being written | T007, T014, T021 |
+| SC-014 the picture shown during the render is the frame being written, page and file agreeing | T007, T014, T046, T048 |
 | SC-015 a review plays before anything is kept; keep, throw away and share each land as stated | T022, T025, T029, T030 |
 | SC-016 a kept video is reachable, playable, shareable and deletable; a stale record is reported gone | T022, T024, T029 |
 | SC-017 the share list is the device's own, and nothing is uploaded by the app | T026, T030 |
 | SC-018 deleting warns: dismissing keeps the video, confirming removes it; the content delete still warns | T022, T026, T030 |
+| SC-019 pictures cover the video as scheduled; no frame carries one outside its own range | T040, T042, T048 |
+| SC-020 a long sentence is neither split nor shrunk; its whole text is inside its slot's frames | T039, T042, T048 |
+| SC-021 a render with no pictures produces the video the feature would have made without them | T040, T042, T048 |

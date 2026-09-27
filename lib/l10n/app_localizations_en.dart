@@ -280,4 +280,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String videoDoneMessage(String name, int seconds) {
     return 'Video made: $name ($seconds s)';
   }
+
+  @override
+  String get videoPicturesButton => 'Choose pictures';
+
+  @override
+  String videoPicturesChosen(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pictures chosen',
+      one: '1 picture chosen',
+      zero: 'No pictures chosen',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoPicturesChooseAgain => 'Choose again';
+
+  @override
+  String get videoPicturesFailed => 'Could not open your pictures. Try again.';
 }

@@ -112,15 +112,22 @@ exactly that: one content, its reading, on video.
   **Timing by frame, not seconds** — "I mean start/end(inclusive) by frame, not by seconds." The schedule is
   each picture's inclusive start and end frame in the video's own frame numbers; the first cut shares the
   frames equally, and moving a start/end frame is a good-to-have for later (FR-026).
-  **Pictures from the phone's gallery** — "images can use the phone's gallery. like other apps." The
-  platform's own photo picker, no in-app gallery to build and no new permission (FR-025).
-  **Legibility** — a full-frame dark scrim at 40 % between the picture and the text, chosen over a band or a
-  shadow (FR-027), so the reader's own text colour keeps reading over any photo.
+  **Pictures from the phone's gallery** — "images can use the phone's gallery. like other apps." Amended
+  2026-09-27 on the reader's decision: the platform's own **file** dialog, then, not the photo picker — the
+  pictures are files, made on the phone, on a PC or by an AI tool, so the file dialog is the one that finds
+  them, and the only one with folders that every target has. No in-app gallery to build, no new permission,
+  and every pick is read once and copied into the render's working directory (FR-025, D15).
+  **Legibility** — one full-frame scrim between the picture and the text, in the frame's own background colour
+  (the app's plain reading background), chosen over a band or a shadow (FR-027), so the reader's own text colour
+  keeps reading over any photo. Its depth is a measured number, not an assumed one: spike S4 measured the
+  alternatives on the reader's own pictures and **the dark layer fails where the light one holds** (D16,
+  breakpoint.md row 42).
   **The reading page is unchanged** (FR-018/SC-009): it keeps its yellow tracking highlight, its follow and
   its scroll. The video is a different picture of the same reading, not a change to the reading.
 - **Q**: The scrim, and how much of this is editable later.
   **A**: "the scrim: do what you do for now. later I like it editable same as image start/end frame. those
-  will need to view the video first then make changes." — the 40 % scrim ships as decided (FR-027), and the
+  will need to view the video first then make changes." — the scrim ships as decided — one layer, in the frame's
+  own background colour, at the depth S4 measured (FR-027) — and the
   later good-to-have (FR-026) grows to cover it: the reader watches a finished render, moves a picture's
   start/end frame and the scrim, then renders again. Editing the finished file stays out of scope.
 - **Q**: A sentence too long or too tall for the frame — shrink it, split it, or move it?
@@ -196,7 +203,7 @@ voice segment is the content's last sentence.
 The video looks like a video and not like a phone screen: the frame is the video's own (no app bar, no
 buttons, no hints, no dialogs, no phone status bar, no notifications, no keyboard), it opens with a
 title card naming the content, the text is set at the reader's own size, every sentence whole and alone in
-its frame over the reader's own picture with a dark scrim so the words read, and the reading's own
+its frame over the reader's own picture with the scrim so the words read, and the reading's own
 pace is kept — no long silences between sentences — before a short hold on the last sentence.
 
 **Why this priority**: "make it good as a youtube video" is the second half of the request. P1 alone
@@ -269,9 +276,9 @@ new one away, and find the old one untouched.
 ### User Story 4 - My video has my own pictures behind the text (Priority: P2)
 
 With one sentence alone in the frame there is a lot of empty space, and a reading over a plain colour does
-not look like a video. The reader picks pictures from the phone's own gallery before the render starts; the
-video draws them behind the sentence, each filling the frame, with a dark scrim between the picture and the
-text so the words still read over any photo. As a first cut the chosen pictures share the video's length
+not look like a video. The reader picks pictures from their own files before the render starts; the
+video draws them behind the sentence, each filling the frame, with the scrim between the picture and the text
+— the frame's own background colour — so the words still read over any photo. As a first cut the chosen pictures share the video's length
 equally, and the schedule is counted in the video's own frames — start frame and end frame — so a later
 version can let the reader move a picture's start or end frame.
 
@@ -288,10 +295,10 @@ video that rendered without pictures, no slower and nothing refused.
 **Acceptance Scenarios**:
 
 1. **Given** a content on the idle reading page, **When** the reader opens the video action, **Then** they
-   can choose pictures from the phone's gallery with the platform's own picker and see what is chosen before
-   the render starts.
+   can choose pictures from their own files with the platform's own file dialog and see what is chosen
+   before the render starts.
 2. **Given** chosen pictures, **When** the video is made, **Then** each picture fills the frame it is drawn
-   in — covering it, without bars — and the sentence is drawn over it with a dark scrim between them, so the
+   in — covering it, without bars — and the sentence is drawn over it with the scrim between them, so the
    text still reads.
 3. **Given** chosen pictures and a finished video, **When** its frames are inspected, **Then** each picture
    appears only inside its own inclusive start/end frame range, and every frame is covered by one chosen
@@ -423,10 +430,10 @@ video that rendered without pictures, no slower and nothing refused.
   and dismissing the confirmation leaves the render running untouched — showing the confirmation MUST NOT
   pause the render, so the picture keeps advancing while the box is up. Leaving the recording screen MUST
   ask in the same way.
-- **FR-020**: While a render runs, the page MUST show the video's own picture as it is produced — the
-  highlight moving sentence by sentence over the content's text, the text scrolling — and that picture IS
-  the render's progress, not a bar beside it. The picture the reader sees MUST be the frame being written
-  into the video.
+- **FR-020**: While a render runs, the page MUST show the video's own picture as it is produced — each
+  frame the sentence being spoken, alone in the frame at the reader's own character size as the amended
+  picture draws it (FR-002/FR-014/FR-029) — and that picture IS the render's progress, not a bar beside it.
+  The picture the reader sees MUST be the frame being written into the video.
 - **FR-021**: A finished render MUST be playable before anything is kept, and the reader MUST then be able
   to keep it, throw it away, or share it — all three from that one review. Only keeping writes a file into
   the device's library (FR-011): throwing it away MUST leave no file for that content and MUST leave an
@@ -448,17 +455,20 @@ video that rendered without pictures, no slower and nothing refused.
   without such a warning, and the same rule already governs the app's other destructive delete (a content,
   `content_list_screen.dart:92`), which MUST keep warning.
 
-- **FR-025**: Before a render starts the reader MUST be able to choose pictures for the video from the
-  phone's own gallery through the platform's photo picker — no in-app gallery to build and no new
-  permission — and MUST see what is chosen before the render begins.
+- **FR-025**: Before a render starts the reader MUST be able to choose pictures for the video from their own
+  files through the platform's own file dialog — no in-app gallery to build and no new permission — and MUST
+  see what is chosen before the render begins. *(Amended 2026-09-27: the file dialog rather than the photo
+  picker, so that the pictures can be files made anywhere — on the phone, on a PC, or by an AI tool — and so
+  that the same selection works on every target the app builds for, folders included. D15.)*
 - **FR-026**: Each chosen picture MUST occupy an inclusive run of the video's frames: its start frame and
   its end frame, counted in the video's own frame numbers rather than in seconds. As a first cut the chosen
   pictures MUST share the video's frames equally. Moving a picture's start or end frame is a later
   good-to-have, expressed in those same frame numbers, together with the scrim's depth (FR-027) — both
   changed after watching a render, by rendering again (2026-09-26).
 - **FR-027**: A picture MUST be drawn to fill the frame it is in — covering it, without bars, cropping what
-  does not fit — with the sentence drawn over it and a dark scrim (40 %) between the picture and the text,
-  so the reader's own text colour still reads over any picture.
+  does not fit — with the sentence drawn over it and one full-frame scrim between the picture and the text, in
+  the frame's own background colour at the depth spike S4 measured (55 %; D16), so the reader's own text colour
+  still reads over any picture.
 - **FR-028**: With no pictures chosen, and for any frame outside every picture's range, the frame MUST be
   the app's plain background. A render MUST NOT be refused or delayed for want of pictures.
 - **FR-029**: A sentence that does not fit the frame MUST be drawn whole at the reader's own character size
@@ -480,7 +490,8 @@ video that rendered without pictures, no slower and nothing refused.
   slot's frames must show that sentence's own text alone.
 - **The video's layout**: how the video puts its frame together — the sentence at the reader's own size,
   wrapped over as many lines as it needs and scrolled inside the frame when that block is too tall (FR-029),
-  the picture behind it and the 40 % scrim over it (FR-027), the plain background, the title card, the end
+  the picture behind it and the scrim over it, in the frame's own background colour (FR-027), the plain
+  background, the title card, the end
   hold, and the margins. It carries the reader's appearance (typeface and character size) rather than
   replacing it (FR-014).
 - **Picture schedule**: which picture is on screen when — the chosen pictures in order, each with its
@@ -535,8 +546,9 @@ video that rendered without pictures, no slower and nothing refused.
   confirmation is up, dismissing it leaves the render to finish normally, and confirming it writes no file
   for that content and leaves the page idle (FR-019, FR-009).
 - **SC-014**: While a render runs, the page shows the video's own picture and it advances sentence by
-  sentence: sampling the page at two moments finds the sentence highlighted and the visible text scrolled
-  exactly as the frame being written at that moment, and the render's own frames bear it out (FR-020).
+  sentence: sampling the page at two moments finds the sentence being spoken alone in the frame at the
+  reader's own size, over the picture scheduled there where there is one, exactly as the frame being
+  written at that moment, and the render's own frames bear it out (FR-020).
 - **SC-015**: A finished render is playable in the app before anything is kept: with the reader playing it,
   the device's video library holds no video for that content; after keeping, it holds exactly one, playable
   under the content's name; after throwing the render away, it holds none and an earlier kept video for that
@@ -569,13 +581,16 @@ video that rendered without pictures, no slower and nothing refused.
   covers a selection on its own and never stops before the content's end (FR-004).
 - **A2 — the render is silent and in-app.** The render does not play the audio aloud (the point is the
   file); it runs while the user stays in the app, and leaving the recording screen cancels it (FR-009).
-- **A3 — the video carries the reader's appearance (clarified 2026-09-25).** The video's text is the
-  reader's selected typeface at their selected character size, with the app's highlight colour and reading
-  background; what the video decides for itself is the frame, the scale that maps the reading column onto
-  it, and the margins. The consequence to accept: at the smallest offered size the video's text is
-  genuinely small, because it is the size the reader asked for — the frame must therefore be sized
-  generously enough that the smallest size is still legible at 100 %, and the plan proves it on the
-  smallest size rather than the largest.
+- **A3 — the video carries the reader's appearance (clarified 2026-09-25; amended 2026-09-26 with the
+  picture).** The video's text is the reader's selected typeface at their selected character size; what the
+  video decides for itself is the frame, the text area and the margins it gives the sentence, the scale that
+  maps the reader's size onto that text area, and how a sentence taller than the text area scrolls inside its
+  own frame (FR-029). Its background is the app's plain reading background, or the reader's own picture behind
+  the scrim (FR-027/FR-028): the frame no longer paints the reading page, so there is no highlight for the
+  app's highlight colour to fill. The consequence to accept: at the smallest offered size the video's text is
+  genuinely small, because it is the size the reader asked for and it is never shrunk — the text area must
+  therefore be sized generously enough that the smallest size is still legible at 100 %, and the plan proves it
+  on the smallest size rather than the largest.
 - **A4 — the phone's screen stays on.** The render keeps the screen awake while it runs. Because the
   video is not a screen recording, nothing about the phone's screen state appears in it either way.
 - **A5 — the voice is the clock.** A sentence's slot is exactly as long as its spoken audio, plus a short

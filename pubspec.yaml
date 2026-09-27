@@ -43,6 +43,17 @@ dependencies:
   # contents/<id>.txt. Text does not belong in SharedPreferences (whole map is
   # parsed into memory at launch); see specs/008-content-storage/research.md D1.
   path_provider: ^2.1.6
+  # The reader's own pictures (spec 012 FR-025): the platform's own FILE picker
+  # rather than the photo picker, because the reader's images are files — made
+  # on the phone, on a PC, or by an AI tool — and the file dialog is the one
+  # selection UI that exists on every target the app builds for (Android, iOS,
+  # desktop, web), with folders to browse on each. flutter.dev's own plugin, so
+  # there is no Kotlin half of our own; the render copies every pick into its
+  # working directory immediately (D15), so a URI grant's lifetime never
+  # matters. Platform-specific type filters are set in
+  # `lib/platform/picture_picker.dart` — `extensions` is not accepted on iOS and
+  # `mimeTypes` is not accepted on Windows, and the plugin throws on both.
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

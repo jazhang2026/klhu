@@ -89,10 +89,11 @@ disturb a kept video (FR-009/FR-012); the Stop control and the review's three ac
 target, and the player's picture is reachable by TalkBack as the video it is.
 
 **Scale/Scope**: one new platform half (3 Kotlin files + a registration in `MainActivity` and a
-`FileProvider` entry in the manifest), ~7 new Dart files, ~35 new localization keys across the four ARBs
-(en/es/zh/zh_Hans) and their regenerated `app_localizations*`, one new aspect store and one new kept-video
-record, two new states on an existing screen (rendering and review), ~6 new test files, one new walker
-script. The shipped content set (three pre-sets) is the validation corpus.
+`FileProvider` entry in the manifest), ~9 new Dart files (the pipeline modules plus two platform seams),
+~38 new localization keys across the four ARBs (en/es/zh/zh_Hans) and their regenerated `app_localizations*`,
+one new aspect store and one new kept-video record, two new states on an existing screen (rendering and
+review), ~7 new test files, one new walker script. The shipped content set (three pre-sets) is the validation
+corpus.
 
 ## Constitution Check
 
@@ -146,6 +147,7 @@ lib/
 ├── platform/                      # NEW directory — the constitution's home for platform halves
 │   ├── video_encoder.dart         # NEW  the encoder interface + the channel client (protocol: contracts/)
 │   ├── video_player.dart          # NEW  the playback view widget + its channel (the review, and later plays)
+│   ├── picture_picker.dart        # NEW  the file dialog's seam over `file_selector` (D15, FR-025)
 │   └── video_availability.dart    # NEW  whether this platform can render (D8: iOS reports no)
 ├── video_renderer.dart            # NEW  the orchestrator: timeline, pass 1 (audio), pass 2 (frames), cancel
 ├── video_painter.dart             # NEW  one frame: the sentence at the reader's size, wrapped and scrolled
@@ -160,23 +162,27 @@ lib/
 └── l10n/                          #      four ARBs (+~30 keys) and the 4 regenerated app_localizations*
 
 android/app/src/main/kotlin/com/example/klhu/
-├── MainActivity.kt                #      registers the channel and the player view (today: a bare FlutterActivity)
+├── MainActivity.kt                #      registers the encoder's channel and the player view (today: a
+│                                  #      bare FlutterActivity)
 ├── VideoEncoderPlugin.kt          # NEW  the channel + MediaCodec (AVC/AAC) + MediaMuxer, no app logic (D4)
+│                                  #      (no picker file of ours: flutter.dev's `file_selector` is the picker's
+│                                  #      platform half on every target — the reader's decision, 2026-09-27, D15)
 ├── VideoFileStore.kt              # NEW  the working copy, keeping it, replacing it, deleting it, sharing it (D7/D11)
 └── VideoPlayerView.kt             # NEW  the platform view over the framework's player (D12)
 android/app/src/main/AndroidManifest.xml   #  WRITE_EXTERNAL_STORAGE maxSdkVersion="28" + the FileProvider (D7/D11)
 
 test/
 ├── video_timeline_test.dart       # NEW  quickstart 1–6: slots from the segmenter, durations, start point, the hold
-├── video_painter_test.dart        # NEW  quickstart 7–11: a frame per slot, the spoken sentence and no other,
-│                                  #      the wrapped-and-scrolled sentence, both aspects, no chrome
-├── video_pictures_test.dart       # NEW  the equal-share schedule in frames, no pictures at all,
-│                                  #      the pictures' copies and their cleanup with the working directory
+├── video_painter_test.dart        # NEW  quickstart 7–12 and 44–47: the spoken sentence alone at the reader's
+│                                  #      size, the wrapped-and-scrolled sentence, the picture and its scrim,
+│                                  #      the plain background, both aspects, no chrome
+├── video_pictures_test.dart       # NEW  quickstart 43 and 48: the equal-share schedule in frames, no pictures
+│                                  #      at all, the pictures' copies and their cleanup with the working directory
 ├── video_renderer_test.dart       # NEW  quickstart 12–17: order, per-sentence voice, the picture shown, cancel leaves nothing
 ├── video_aspect_test.dart         # NEW  quickstart 18: the remembered choice's rules
 ├── video_record_test.dart         # NEW  quickstart 19–24 + 39's case: keep/replace, throw away, share,
 │                                  #      staleness, delete, and the app's existing content delete
-├── reading_view_video_test.dart   # NEW  quickstart 28–29 and the PAGE halves of 19–24's rows
+├── reading_view_video_test.dart   # NEW  quickstart 28–29, 47 and the PAGE halves of 19–24's rows
 │                                  #      (19's replace, 20's offers, 22's "gone", 23/24's warned delete),
 │                                  #      plus 25–27: the RENDERING state, the confirmations, unavailable platforms
 ├── reader_service_test.dart       #      the engine fake gains `synthesizeToFile` (signature + one case)

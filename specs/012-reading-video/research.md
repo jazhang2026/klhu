@@ -108,12 +108,13 @@ resolution makes "the video and the page never disagree about the voice" structu
 
 `shared_preferences` key (`video_aspect`), defaulting to 16:9 1920×1080, offered before a render starts
 (FR-007), read by the plan the same way `ReadPositionStore`/`voice_store` are read today. 9:16 is
-1080×1920. The frame size drives the layout: the reading column's width, the margins and the scale that
-maps the reader's chosen type size onto the frame are derived from it (FR-014/A3) rather than hardcoded
-for one aspect.
+1080×1920. The frame size drives the layout: the text area's width, the margins and the scale that
+maps the reader's chosen type size onto the frame's text area are derived from it (FR-014/A3) rather than
+hardcoded for one aspect. The amended picture (D14) changes what is *in* that area — one sentence, wrapped
+and scrolled a line at a time — not the rule that derives the area from the frame.
 
-*Why*: A8, and because the two aspects need different column widths — a 16:9 frame wants a narrower
-column than a 9:16 one, and the smallest offered size must still be legible on both (A3's consequence).
+*Why*: A8, and because the two aspects need different text-area widths — a 16:9 frame wants a narrower
+text area than a 9:16 one, and the smallest offered size must still be legible on both (A3's consequence).
 
 ### D7 — Where the file lands, and how it is shared
 
@@ -241,25 +242,42 @@ all on screen at once).
 
 ### D15 — The pictures are the reader's own, chosen before the render and copied into its working directory
 
-The picker is the platform's own photo picker (no in-app gallery, no new permission — S3 checks what it
-returns on the reference device). Chosen pictures are copied once into the render's working directory
-before pass 2 starts, so the render reads them at its own pace instead of depending on a gallery URI
-staying readable for the length of the job, and the copies are deleted with the working copy under D11's
-rules. The schedule is a list of (picture, inclusive start frame, inclusive end frame) in the video's own
+The picker is the platform's own **file** dialog, through flutter.dev's `file_selector` — the reader's own
+decision on 2026-09-27, and their reason: the pictures are *files*, made on the phone, on a PC or by an AI
+tool, so the dialog that browses files is the one that finds them, and it is the one selection UI with folders
+that every target the app builds for has (Android, iOS, Linux, macOS, web, Windows). No in-app gallery, no new
+permission, and no platform half of ours — the plugin *is* the platform half (S3 checks what it hands back on
+the reference device). What it hands back is each platform's own idea of a chosen file — a content uri on
+Android, a blob on web, a path on desktop — which is why the next sentence carries the design: chosen pictures
+are copied once into the render's working directory before pass 2 starts, so the render reads them at its own
+pace instead of depending on a file handle whose read grant may end with the activity that produced it, and the
+copies are deleted with the working copy under D11's rules. The schedule is a list of (picture, inclusive start frame, inclusive end frame) in the video's own
 frame numbers, equal shares in the order chosen for the first cut (FR-026); moving a start or end frame is
 the reader's later good-to-have, and it re-renders rather than editing the file. No pictures is a valid
 schedule: the plain background (FR-028). *Rejected*: an in-app gallery (a screen to build for a phone that
-already has one); keeping the gallery URI live through the render (that turns "the reader rotated a photo"
-into a failed render).
+already has one); keeping the picked file live through the render (that turns "the reader moved a photo" into
+a failed render); the OS **photo** picker (2026-09-27 — it selects pictures, not files: on the reference
+emulator its Albums view listed only Favorites/Camera/Videos and never the reader's own folders, and it exists
+on Android and iOS only while the app builds for desktop and web too).
 
-### D16 — The scrim is one layer, and its depth is a measured number
+### D16 — The scrim is one light layer, and its depth is measured, not chosen
 
-One full-frame black layer at 40 % sits between the picture and the text (FR-027): one composite, no
-per-word background, no text stroke. It is the layer the reader later edits together with a picture's frame
-range (FR-026). The number is provisional until S4 measures SC-004's 4.5:1 over real photos with both of the
-app's text colours; if it fails, D16 becomes "40 % plus a shadow under the glyphs" and SC-004 stays as the
-spec wrote it. *Why not a band, or a shadow alone*: a band only protects the lines it covers (a wrapped
-sentence has three or four), and a shadow alone does nothing for a busy photo's mid-tones.
+One full-frame layer **of the frame's own background colour** (`scaffoldBackgroundColor`, `#F4FBF8`) at **55 %**
+sits between the picture and the text (FR-027): one composite, no per-word background, no text stroke. It is the
+layer the reader later edits together with a picture's frame range (FR-026). *Why not a band, or a shadow
+alone*: a band only protects the lines it covers (a wrapped sentence has three or four), and a shadow alone does
+nothing for a busy photo's mid-tones.
+
+**S4 answered the number, and it reversed the colour.** The first cut was a 40 % *black* layer, on the
+assumption that darkening the picture is what makes text read. It is the wrong way round for this app: the
+reader's text is `#161D1C`, and a black layer moves the picture *toward* it. Measured on the reader's own four
+pictures at both aspects (breakpoint row 42): a 40 % black layer leaves **42–100 %** of the glyph pixels under
+4.5:1, 45 % leaves 2–42 %, 50 % leaves 0.4–27.5 % (51 % in one portrait crop) — and a **55 % layer of the
+frame's own background passes everywhere, 0 % under the floor, min 4.90:1**, which it reaches *by construction*:
+over a pure-black picture that layer is `#868B88`, and 4.90:1 is exactly the background's own contrast against
+the reader's text. 60 % reaches 5.77:1 and buys nothing but a paler picture. The other direction — a black layer
+with light text — needs ≥ 60.6 % and gives up the reader's own colour. What the reader pays for the light layer
+is in the same table: the picture keeps `100 − depth` per cent of its own colour range.
 
 - **S1 — does the emulator's engine write a usable audio file?** Call `synthesizeToFile` with a sentence
   of the shipped English pre-set on `emulator-5554` and inspect the result: does a file appear, is it
@@ -272,14 +290,18 @@ sentence has three or four), and a shadow alone does nothing for a busy photo's 
   reading end to end (including at least one long sentence that scrolls, D14): total wall time, frames
   encoded per second, and whether PNG rasterisation in Dart or the encoder is the bottleneck. This number
   replaces SC-006's assumed ≤ 5 minutes and decides whether D2's fallback transport is needed.
-- **S3 — what does the platform's photo picker actually give back (D15)?** On `emulator-5554`: does the
-  picker open and return readable URIs at this API level, is a copy into the app's own working directory
-  needed to read a picture twice, and how long does copying a handful of full-resolution photos take?
-  If the URIs are not stable, D15's copy is mandatory rather than merely careful.
-- **S4 — does the 40 % scrim hold SC-004's contrast (D16)?** Composite a bright photo, a mid photo and a
-  dark photo under the scrim with both of the app's text colours, and measure text-to-background contrast
-  each way. Any pairing under 4.5:1 means a second layer (a shadow under the glyphs) or a deeper scrim, and
-  the number goes into the plan before the painter is written.
+- **S3 — what does the file dialog give back, and what does converting it cost (D15)? — PARTLY ANSWERED
+  2026-09-27.** The dialog itself: on `emulator-5554` it is DocumentsUI, whose folder tree exists and lists
+  the reader's own folders (breakpoint row 41), and it needs no permission. Still unproven, and it is what
+  T045's shape rests on: what `file_selector` returns on Android for a picked picture, whether its bytes can
+  be read once right after choosing (the render copies them immediately — D15) and how long copying a handful
+  of full-resolution files takes. Run through the app, with the page wired (T047).
+- **S4 — which scrim holds SC-004's contrast (D16)? — ANSWERED 2026-09-27.** The stills harness
+  (`specs/012-reading-video/scripts/probe_scrim_stills.dart`) composited the reader's own four pictures under
+  each candidate layer with the app's real geometry and text style, at both aspects, and measured the WCAG ratio
+  at the glyph pixels themselves: the dark layer fails (42–100 % of glyph pixels under 4.5:1), the light layer at
+  55 % passes everywhere by construction (min 4.90:1). D16 carries the numbers; the device half — sampling a
+  finished render's frames — is row 49's.
 
 ## Carried forward from the spec (not re-decided here)
 

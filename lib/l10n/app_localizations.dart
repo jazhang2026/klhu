@@ -604,6 +604,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Video made: {name} ({seconds} s)'**
   String videoDoneMessage(String name, int seconds);
+
+  /// No description provided for @videoPicturesButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose pictures'**
+  String get videoPicturesButton;
+
+  /// No description provided for @videoPicturesChosen.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0 {No pictures chosen} =1 {1 picture chosen} other {{count} pictures chosen}}'**
+  String videoPicturesChosen(int count);
+
+  /// No description provided for @videoPicturesChooseAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose again'**
+  String get videoPicturesChooseAgain;
+
+  /// No description provided for @videoPicturesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open your pictures. Try again.'**
+  String get videoPicturesFailed;
 }
 
 class _AppLocalizationsDelegate

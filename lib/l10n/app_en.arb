@@ -110,5 +110,16 @@
         "type": "int"
       }
     }
-  }
+  },
+  "videoPicturesButton": "Choose pictures",
+  "videoPicturesChosen": "{count, plural, =0 {No pictures chosen} =1 {1 picture chosen} other {{count} pictures chosen}}",
+  "@videoPicturesChosen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoPicturesChooseAgain": "Choose again",
+  "videoPicturesFailed": "Could not open your pictures. Try again."
 }

@@ -8,7 +8,7 @@
 | | |
 |---|---|
 | Device | `emulator-5554` (AVD `klhu`, API 36, `sdk_gphone64_x86_64`, 1080×2400), package `com.example.klhu` |
-| Build | `flutter analyze` clean; `flutter test --concurrency=2` → **372 passing, 0 failing** (2026-09-26, emulator up; 301 at T002's baseline on `54ff4f3 "specs/011"`, 360 after US1) |
+| Build | `flutter analyze` clean; `flutter test --concurrency=2` → **395 passing, 0 failing** (2026-09-27, emulator up; 372 on 2026-09-26, 301 at T002's baseline on `54ff4f3 "specs/011"`, 360 after US1) |
 | Driver | `specs/012-reading-video/scripts/klhu_walk_video.py` — rows 31, 32 and 34 walked below; rows 33/35/36 are T030–T032's |
 | Spike S1 | `specs/012-reading-video/scripts/probe_synthesize.dart` — run on the device, read back with `adb shell run-as com.example.klhu cat /data/data/com.example.klhu/cache/s1_report.txt`, audio pulled with `adb exec-out run-as … cat …/s1_<case>.wav` and analysed with the host's `/usr/bin/ffprobe` |
 | Engine | Google TTS (`com.google.android.tts`), 472 voices installed; `logcat` tag `GoogleTTSServiceImpl` says which voice actually spoke |
@@ -33,8 +33,10 @@ existing suite) are closed below and in the suite's own receipt.
 | 34 | A confirmed Stop at about half way cleans up and leaves the library alone | **WALKED — PASS** | **25/25** checks (below) |
 | 35 | Spike S1: does the engine write a usable audio file, and does it carry its own length? | **WALKED — PASS** | Three cases, one engine, one run (below) |
 | 36 | Spike S2: a one-minute render's wall time, which replaces SC-006's placeholder | **PENDING** | a render exists (row 31: 21 s for 27.27 s of video); T032 owns the measurement |
+| 41 | Spike S3: what the phone's own picker gives back (D15) | **BLOCKED** | nothing to pick — the emulator's `/sdcard/DCIM` and `/sdcard/Pictures` are empty — and nothing that opens a picker yet (T044/T045 are what it gates); see below |
+| 42 | Spike S4: does the 40 % scrim hold SC-004's contrast (D16)? | **RAN — FAILS** | the app's own text colour misses 4.5:1 for every photo tone below ~205 (200 → **3.88:1**, mid grey → 2.03:1); numbers and options below |
 | 33, 37–40 | US3's life cycle | **PENDING** | that story is not implemented |
-| 1–29 | The feature's `[unit]` rows | **[unit]** | `flutter test --concurrency=2` → **372 passing, 0 failing** (60 of them 012's own, 20 in `video_painter_test.dart`) |
+| 1–29 | The feature's `[unit]` rows | **[unit]** | `flutter test --concurrency=2` → **395 passing, 0 failing** (2026-09-27; 60 of them 012's own, 20 in `video_painter_test.dart`) |
 
 ### Row 31 — a real render produces a real video, in full
 
@@ -245,6 +247,175 @@ Two pitfalls the spike produced, both recorded for T011/T014:
    time, never a batch.
 3. **`getDefaultVoice` is not evidence of which voice spoke**: it answered `en-US-language` while the engine
    was synthesising `zh-CN`. The evidence is the engine's own log line.
+
+### Row 41 — spike S3, blocked, and what would unblock it
+
+Two things are missing, and neither is a surprise the task text can absorb:
+
+- **The emulator has no pictures.** `adb shell ls /sdcard/DCIM /sdcard/Pictures` → both empty, so there is
+  nothing for a picker to return. Fixtures have to be pushed first (`adb push … /sdcard/Pictures/`), and the
+  e2e rows (41 and 49) need them for the same reason.
+- **Nothing opens a picker yet.** S3's whole point is what the *platform* hands back to *this app* — the URI
+  scheme, whether a grant survives the activity, what a copy costs — and the app only gets an answer through a
+  channel that asks the platform. That channel is T044/T045, which S3 was written to gate. The honest routes
+  are: (a) run S3 as **the first cut of T044** — the smallest Kotlin plugin that launches `ACTION_PICK` and
+  logs what comes back — and let the spike's answer rewrite T045's expectations instead of gating them; or
+  (b) write a throwaway probe activity, run it, and delete it, which duplicates T044's work to keep the gate
+  intact. (a) is cheaper and loses nothing: the gate exists to keep a *guess* out of T045, and it still does.
+
+**Added the same day — what the two pickers do with folders, on this emulator.** The four pictures were pushed to
+`/sdcard/Pictures/归真/{1,10,images_gen}/` (the user's own tree) and indexed with
+`content call --uri content://media --method scan_volume --arg external_primary`, which returned MediaStore rows
+with `relative_path=Pictures/归真/1/` and `bucket_display_name=1` — so **the media layer's notion of a folder is
+the leaf folder's name**, not its path.
+
+- **The photo picker** (`ACTION_PICK_IMAGES`, `com.google.android.photopicker` — what D15/T044 planned): its
+  Photos tab **does** list all four pushed pictures, and its Albums tab is a real album view — but on this
+  emulator it showed only `Favorites`, `Camera` and `Videos`, and our pushed buckets (`1`, `10`, `images_gen`)
+  never appeared as albums across three scrolls, even though their pictures are in the grid. The picker selects
+  *pictures*, and its albums are its own idea of albums.
+- **The file picker** (`ACTION_GET_CONTENT` / `OPEN_DOCUMENT`, `com.google.android.documentsui`): lists all four
+  pictures under "Recent images" at once, and it is the one with a real folder tree — its toolbar has the
+  "Show roots" drawer (`content-desc="Show roots"`) leading to Images / Downloads / Internal storage, and from
+  there `Pictures → 归真 → 1`. The drawer did not open under synthetic taps, so the tree beyond that node is
+  **asserted from the UI's own affordance, not yet walked**.
+
+**Consequence, and the decision it produced (2026-09-27)**: the reader chose the **file picker** — "it applies
+to all devices (phone, pc, web), and the images can be created by AI", which is the same finding from the other
+end: the pictures are *files*, made anywhere, and the file dialog is the one selection UI with folders that every
+target has. So FR-025 now names the file dialog, D15 carries the reasoning, T044 is flutter.dev's
+`file_selector` rather than a Kotlin plugin of ours, and T045 is the seam over it (both done, both recorded in
+`tasks.md`). What the plugin actually hands back on Android — bytes readable at once, or a uri that has to be
+converted — is still T037's question, now run through the app (row 41) once T047 wires the page.
+
+### Row 42 — spike S4, in full: the 40 % black scrim does not hold, and the app's text is dark
+
+**What was measured** — the colours the app actually builds, read from the theme it builds
+(`lib/main.dart:83-86`: one `ColorScheme.fromSeed(seedColor: Colors.teal)`, Material 3, **no dark theme**)
+through a throwaway test that printed them and was deleted afterwards:
+
+| what the frame uses | where it comes from | value |
+|---|---|---|
+| the video's text | `_contentTextStyle().color` (`textTheme.bodyMedium.color` = `colorScheme.onSurface`) | **`#FF161D1C`** |
+| the frame's plain background | `scaffoldBackgroundColor` (`colorScheme.surface`) | **`#FFF4FBF8`** |
+| the title card's text | the same style (one colour for every frame) | `#FF161D1C` |
+| the highlight band (being deleted) | `Colors.yellow`, `reading_view.dart:1334` | `#FFFFFF00` |
+
+The shipped pairing — the app's text on the frame's plain background — measures **16.31:1**, and the same text
+on the yellow band **15.94:1**.
+
+**Method**: the veil is composited per channel in sRGB, which is what Skia does on an N32 sRGB surface
+(`out8 = round(o·veil + (1−o)·photo)`), and the contrast ratio is WCAG 2.x over the composited pixel. Every row
+is a **bound**: a photo's pixels span tones, so the number for the darkest tone that can sit under a glyph is
+the one that decides. A real photo holds mid and dark pixels under *some* glyph, so a table that passes only in
+its brightest row has not passed.
+
+**The declared design — one 40 % black layer — against the app's own text:**
+
+| photo tone under the text | after 40 % black | contrast with `#161D1C` | SC-004 (4.5:1) |
+|---|---|---|---|
+| 255 blown highlight | 153 | 6.01:1 | pass |
+| 230 bright sky | 138 | 4.96:1 | pass |
+| 200 sunlit wall | 120 | 3.88:1 | **FAIL** |
+| 128 mid grey | 77 | 2.03:1 | **FAIL** |
+| 64 shadowed | 38 | 1.13:1 | **FAIL** |
+| 25 night | 15 | 1.12:1 | **FAIL** |
+| 0 pure black | 0 | 1.23:1 | **FAIL** |
+
+**Verdict**: at the declared depth the app's own text colour fails 4.5:1 for **every photo tone below about
+205**, and passes only on a near-blown highlight. D16 as written does **not** meet SC-004.
+
+**Why — and it is not a matter of a few per cent**: a *black* veil moves the picture's range **toward** the
+text, which is itself nearly black. The app's own convention runs the other way: a yellow band under the same
+text measures 15.94:1. **For a dark text the veil has to be light.**
+
+**The mirror direction, measured for completeness** (a black scrim *and* light text): 4.5:1 over a blown-white
+photo needs **≥ 53.6 %** with pure white text, **≥ 60.6 %** with the light text a dark theme would use
+(`#E6E0E9`); the declared 40 % gives 2.85:1 and 2.20:1.
+
+**The light direction, measured** (a veil of the frame's own background `#F4FBF8` over the photo):
+
+| veil | photo 0 | photo 25 | photo 128 | photo 200 | photo 255 | SC-004 |
+|---|---|---|---|---|---|---|
+| 40 % | 2.87:1 | 3.58:1 | 7.92:1 | 12.43:1 | 16.76:1 | fails below tone 52 |
+| 52 % | 4.46:1 | 5.23:1 | 9.31:1 | 13.22:1 | 16.69:1 | fails on tone 0–1 only |
+| **55 %** | **4.90:1** | **5.65:1** | **9.71:1** | **13.34:1** | **16.69:1** | **passes for every tone** |
+| 66.4 % | 7.58:1 | 8.32:1 | 11.53:1 | 15.09:1 | 16.56:1 | passes at 7:1 |
+
+The price is in the same table: the picture keeps `100 − opacity` per cent of its own colour range.
+
+**Premise corrected**: D16 and quickstart 42 measure the pairing "with both of the app's text colours". The app
+has exactly **one**: one light theme, no `darkTheme`, and no per-reader text colour (the appearance seam is
+typeface and size — `_contentTextStyle`, `reading_view.dart:1580-1593`). That phrase is re-cut whichever
+direction wins.
+
+**What this does not decide**: the veil's colour and depth — i.e. what T042's painter draws and what T039's
+contrast row asserts. It changes what the video *looks like*, which is not a spike's call, so it is recorded
+here and deliberately **not** absorbed into `tasks.md`: T042 and T039 still carry the 40 % black design until
+the direction is chosen, and the choice rewrites both (the spike's own rule).
+
+**The options, with what each looks like and what it costs**
+
+1. **A light veil — the frame's own background at 52–55 %.** Looks: the photo sits behind frosted glass, pale,
+   colours bleached, the reading text unchanged and as legible as it is on the plain background. Cost: the
+   photo keeps 45 % of its colour range; SC-004 passes at 55 % (worst case a pure-black photo, 4.90:1) and 7:1
+   needs 66 % — a visibly washed-out picture. One composite, one layer, no chrome, no wording of FR-014 or of
+   the reader's colour changes: FR-027's "scrim" becomes "a veil in the frame's own background colour".
+2. **Keep a black veil and let the frame's text turn light over a picture.** Needs ≥ 60.6 % black and a text
+   colour that is no longer the reader's: the spec's "the reader's own text colour keeps reading over any
+   photo" (FR-014/SC-004) has to be re-cut, and a video with pictures no longer matches one without. The
+   declared 40 % fails this direction too (2.20:1 over a blown highlight).
+3. **A veil plus a solid panel behind the wrapped text** (the text sits on the frame's background colour, the
+   picture shows around it). Looks: a card of plain background over a photo — the most legible of the three
+   (nothing depends on what is under a glyph) and the furthest from "the sentence over your picture". Cost: an
+   extra rectangle sized to the wrapped text, so the composition changes per sentence; FR-006's "no chrome"
+   needs an exception for the video's own panel, and the picture is partly hidden by design.
+4. **The picture never shares a frame with a glyph** (the picture gets frames of its own, or a band the text
+   does not enter). Cost: that is no longer FR-027 — it is a slideshow with separate text frames, and FR-027,
+   FR-028 and the frame's whole composition are re-cut. Not recommended: it removes the amendment's own point.
+5. **Evidence first: render the variants as stills and look.** Three real photos (bright, mid, dark), the
+   app's real text at both sizes, three variants — 40 % black, 55 % light veil, 61 % black with light text —
+   written as PNGs beside the per-pixel contrast of each. Cost: the photos have to be fetched (the emulator and
+   this machine hold none), a throwaway compositing script, ~15 minutes, no code committed. Recommended before
+   choosing 1 or 2, because "how washed out is 55 %" is a judgement, and the table cannot make it.
+
+**State**: `tasks.md` is **not** changed by this row yet. The chosen direction rewrites T042's painter, T039's
+contrast case, quickstart 42/44 and research D16 in one pass.
+
+**Stills on real pictures (added the same day, at the reader's own size)**: the four pictures the user supplied
+(`归真/1/02_发现银光虫.png`, `归真/1/05_夕阳山坡.png`, `归真/1/images_gen/scene_08.png`, `归真/10/10_04.jpg`) were
+composited with the app's real geometry (column = min(88 % of the width, the height), ±10 % margins, the
+reader's 14 pt × the frame's scale — 42 px at 1920×1080, 37 px at 1080×1920) and its real text style, in both
+aspects, and the WCAG ratio was measured **at the glyph pixels themselves** against the picture-and-veil plate
+underneath them (the composited pixels ARE the text colour, so measuring those would report 1.00:1 everywhere —
+the plate is what SC-004 asks about). Stills and the raw table:
+`~/Documents/GitHub/Multi-Media/klhu_scrim/` (`measurements.tsv` beside the PNGs). The harness is kept as
+`specs/012-reading-video/scripts/probe_scrim_stills.dart` — beside S1's probe, and outside `test/` so the suite
+does not run it — so any of these numbers can be reproduced or re-measured on another picture.
+
+The run earned its keep twice over. First, the harness anchored itself: the frame the app ships today — no
+picture, no veil — measures **16.31:1 with 0 % of glyph pixels below 4.5**, exactly the closed-form number, and
+the same frame with light text measures 1.00:1. Second, the real pictures confirm the closed form — and correct
+my own earlier guess (see the last paragraph):
+
+| variant, 1920×1080, worst of the four pictures | min contrast | glyph pixels under 4.5:1 | verdict |
+|---|---|---|---|
+| the declared 40 % **black** | 1.00:1 | 42 % – 100 % | fails outright |
+| 45 % light veil | 3.47:1 | 2.1 % – 42 % | fails |
+| 50 % light veil | 4.16:1 | 0.4 % – 27.5 % (51 % in the 9:16 crop of 02_发现银光虫) | fails |
+| **55 % light veil** | **4.90:1** | **0 %**, every picture and both aspects | **passes** |
+| 60 % light veil | 5.77:1 | 0 % | passes |
+| 61 % black + light text | 5.75:1 | 0 % | passes, at the cost of the reader's own colour |
+| the frame the app ships today (no picture) | 16.31:1 | 0 % | for reference |
+
+Per picture at 55 %, landscape / portrait: 02_发现银光虫 4.90 / 4.91, 05_夕阳山坡 4.91 / 12.49, scene_08 4.90 /
+11.10, 10_04 5.00 / 5.85, and the synthetic 0–255 ramp 6.71 / 5.36 — nothing under the floor anywhere.
+
+A pure-black photo is the floor: the veiled background is then `0.55 × #F4FBF8` = #868B88, which is exactly the
+4.90:1 the 55 % row shows — so a 55 % veil passes **by construction** for any picture at all, not merely these
+four. Last turn I said a 45 % veil "would pass over anything realistic"; the real pictures say otherwise (42 % of
+the glyph pixels below 4.5:1 on the first picture, and it fails on all four). That is why it was worth measuring
+instead of reasoning.
 
 ## Deviations
 

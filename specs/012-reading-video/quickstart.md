@@ -58,7 +58,8 @@ adb -s emulator-5554 shell content query --uri content://media/external/video/me
 | `flutter analyze` | no new lints (`video_renderer.dart`, `video_painter.dart`, `video_aspect.dart`, `video_record.dart`, `video_review.dart`, `reading_view.dart`, `reader_service.dart`, `lib/platform/*`) |
 | `flutter test --concurrency=2` | every `[unit]` scenario below, plus the 301-test baseline as a regression gate |
 | `flutter test test/video_timeline_test.dart` | the plan: slots, start point, durations, gaps, bounds (rows 1–6) |
-| `flutter test test/video_painter_test.dart` | the frames: highlight, title card, chrome, both aspects, the reader's appearance (rows 7–12) |
+| `flutter test test/video_painter_test.dart` | the frames: one sentence alone, the title card, chrome, both aspects, the reader's appearance, the scroll, the picture and its scrim (rows 7–12, 44–47) |
+| `flutter test test/video_pictures_test.dart` | the schedule in the video's own frames, the picks, their copies and their cleanup (rows 43, 48) |
 | `flutter test test/video_renderer_test.dart` | the render: per-sentence voice, the picture shown, progress, cancel, failure (rows 13–17) |
 | `flutter test test/video_aspect_test.dart` | the remembered choice's read/write rules (row 18) |
 | `flutter test test/video_record_test.dart` | the file's life cycle: keep/replace, throw away, share, stale, delete (rows 19–24) |
@@ -79,6 +80,9 @@ python3 klhu_walk_video.py 33     # play → keep → gallery → share list →
 python3 klhu_walk_video.py 34     # cancel at ~50%: no file, empty cache, an earlier video untouched
 python3 klhu_walk_video.py 35     # spike S1: the engine's audio file, measured
 python3 klhu_walk_video.py 36     # spike S2: a one-minute render's wall time
+python3 klhu_walk_video.py 41     # spike S3: what the file dialog returns on the device
+python3 klhu_walk_video.py 42     # spike S4 on the device: the scrim's depth sampled from a render
+python3 klhu_walk_video.py 49     # a render with pictures: each range its own, the seams none
 ```
 
 `ADB_SERIAL` (default `emulator-5554`), `KLHU_REPO` (default this repo) and `KLHU_OUT` (default
@@ -136,49 +140,53 @@ Expected: every slot names its paragraph's language and the voice the read would
 there is one, the read's own fallback where there is not — so the video and the page cannot disagree.
 Proves FR-003, SC-007.
 
-### 7. A frame highlights its slot's sentence, inside the column — [unit]
+### 7. The frame is the sentence being spoken, alone and whole — [unit]
 
-Test: `test/video_painter_test.dart`, "the highlight is the slot's sentence".
+Test: `test/video_painter_test.dart`, "the frame is the slot's sentence".
 Steps: paint one frame per slot for every slot of a multi-sentence plan.
-Expected: each frame's painted highlight band covers exactly the slot's sentence span (measured from the
-`TextPainter`'s boxes) and lies inside the column's width, with the sentence's text inside the frame's
-margins. Proves FR-005, SC-003.
+Expected: the frame's text is exactly that slot's sentence — measured from the `TextPainter`'s own boxes —
+and no other sentence's text appears anywhere in the frame: there is no highlight band, no page and no window
+around a paragraph, because with one sentence in the frame that sentence is what the frame shows (FR-002,
+2026-09-26). Proves FR-002, FR-005, SC-003.
 
 ### 8. The video opens with a title card naming the content — [unit]
 
 Test: `test/video_painter_test.dart`, "the title card".
 Steps: paint the title card's frame and the first sentence slot's frame.
-Expected: the card carries the content's name (and its language where the content has one) and no highlight;
-the first sentence's frame carries the first sentence highlighted. Proves FR-008.
+Expected: the card carries the content's name (and its language where the content has one) and no sentence's
+text; the first sentence's frame carries that sentence alone. Proves FR-008.
 
 ### 9. No frame carries the app or the device — [unit]
 
 Test: `test/video_painter_test.dart`, "the frame is the video's own".
 Steps: paint every slot's frame for both aspects and assert on what the painter was asked to draw.
-Expected: no app bar, button, hint, dialog or keyboard is drawn; no status or navigation area is drawn; the
-text block sits inside the frame with margins on all four sides — the frame is rendered, never a recording.
-Proves FR-006, SC-004.
+Expected: no app bar, button, hint, dialog or keyboard is drawn; no status or navigation area is drawn;
+nothing of the reading page is drawn either (its highlight band and its scrolled window are gone with the
+amended picture); the sentence's text sits inside the frame with margins on all four sides — the frame is
+rendered, never a recording. Proves FR-006, SC-004.
 
 ### 10. Each aspect's frames are that aspect's frame — [unit]
 
 Test: `test/video_painter_test.dart`, "both aspects".
 Steps: paint the same slot as `landscape` and as `vertical`.
-Expected: the frames measure 1920×1080 and 1080×1920, the column and margins differ accordingly, and the
-highlight and text are correct in both. Proves FR-007, SC-012.
+Expected: the frames measure 1920×1080 and 1080×1920, the text area and margins differ accordingly, and the
+sentence and its scroll are correct in both. Proves FR-007, SC-012.
 
 ### 11. The video's text is the reader's own typeface and size — [unit]
 
 Test: `test/video_painter_test.dart`, "the appearance carries over".
-Steps: paint the same slot at `small`, `medium`, `large` and `xlarge`, and at each of the three typefaces.
+Steps: paint the same slot at `small`, `medium`, `large` and `xlarge`, and at each of the three typefaces —
+including one sentence far longer than the text area.
 Expected: the painted text's height differs by the ratio of the sizes (within 10 %) and the family in the
-style is the chosen one — the reader's choice reaches the video instead of being overridden. Proves FR-014,
-SC-011.
+style is the chosen one — the reader's choice reaches the video instead of being overridden — and no sentence,
+however long, is drawn smaller than the size the reader chose (a long one wraps and scrolls instead, row 46).
+Proves FR-014, SC-011.
 
-### 12. The smallest size is still legible on the smallest column — [unit]
+### 12. The smallest size is still legible on the narrowest text area — [unit]
 
 Test: `test/video_painter_test.dart`, "legibility floor".
-Steps: paint at `small` in a `vertical` frame (the narrowest column) and measure the glyph height and the
-column's characters per line.
+Steps: paint at `small` in a `vertical` frame (the narrowest text area) and measure the glyph height and the
+area's characters per line.
 Expected: the glyph height and the line length stay at or above the plan's stated floor for legibility at
 100 % — A3's consequence needs to be proven on the smallest size, not the largest. Proves FR-014, A3.
 
@@ -329,14 +337,16 @@ stream, a constant frame rate, and a duration equal to the sum of the sentences'
 the hold, within 2 s; the app reports the file's name and length when the render is done. Proves FR-002,
 FR-007, SC-001, SC-002, SC-005, SC-012.
 
-### 32. Every slot's frames carry its highlight, and the screen matched them — [device]
+### 32. Every slot's frames carry its own sentence, and the screen matched them — [device]
 
 Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 32`.
 Steps: extract a frame at each slot's start, middle and end with `ffprobe`/`ffmpeg`; while the render ran,
 capture the page and the reported current slot.
-Expected: 100 % of sampled frames show that slot's sentence highlighted inside the column with margins and no
-app chrome anywhere in any frame; and each capture of the page shows the same sentence that the renderer
-reported writing at that moment. Proves FR-005, FR-006, FR-020, SC-003, SC-004, SC-014.
+Expected: 100 % of sampled frames show that slot's sentence alone in the frame at the reader's own size, with
+margins and no app chrome anywhere in any frame; a slot whose sentence is taller than the text area shows its
+later lines in its later frames (the scroll) and never a line shrunk to fit or a split sentence; and each
+capture of the page shows the same sentence the renderer reported writing at that moment. Proves FR-002,
+FR-005, FR-006, FR-020, SC-003, SC-004, SC-014, SC-020.
 
 ### 33. The file's life cycle on the device — [device]
 
@@ -375,13 +385,16 @@ Expected: a measured wall time, and a note of which side is the bottleneck (Dart
 encoder). **This number replaces SC-006's ≤ 5 minutes**, which the spec carries as a placeholder until it is
 measured. Proves SC-006.
 
-### 37. No dependency was added — [structural]
+### 37. Exactly one dependency was added, and it is the picker — [structural]
 
-Check: `git diff --stat pubspec.yaml android/app/build.gradle.kts android/settings.gradle.kts` is empty, and
-`git diff pubspec.lock` shows no new package.
-Expected: empty — the feature uses what is installed plus the framework itself (A7, constitution V). The one
-third-party piece it leans on, AndroidX's `FileProvider`, arrives transitively and adds no line (F10). Nothing
-in the diff names a network client, an account or a key: the video is produced on the device (FR-013).
+Check: `git diff pubspec.yaml pubspec.lock` — the additions are `file_selector` and the platform packages it
+needs (`file_selector_android`, `_ios`, `_linux`, `_macos`, `_web`, `_windows`, the platform interface and
+what they pull in), and nothing else.
+Expected: that and only that. The video itself is still made on the device with the framework and what was
+already installed (FR-013, A7) — no network client, no account, no key in the diff — and AndroidX's
+`FileProvider` still arrives transitively without a line of ours (F10). *Re-cut 2026-09-27*: A7's "no new
+dependency" is superseded for the picker alone by the reader's decision (the file dialog, which is a plugin
+rather than a Kotlin half of ours — D15).
 
 ### 38. Every new key exists in all four locales — [structural]
 
@@ -407,3 +420,110 @@ Expected: the reading page's follow, its appearance and its new-content path beh
 records; this feature changes none of them (FR-018, SC-009). Note: 011's row 18 asserts `git status --short
 android/` is empty — true of 011 and **not** a repository invariant, since this feature adds platform code by
 design (plan ripple note 4); that row is scoped to 011 and is not re-run against this feature.
+
+---
+
+*Scenarios 41–49 are the amended picture's own rows (2026-09-26: one sentence per frame at the reader's size,
+the reader's own pictures behind it with a scrim, the schedule in the video's own frames — FR-025–FR-029,
+SC-019–SC-021). Rows 7–12 and 32 were rewritten in place for the same amendment; the numbering is unchanged
+and the new rows take the next numbers, exactly as `FR-`/`SC-` ids do. Row 42's answer (2026-09-27) fixes the
+scrim as **the frame's own background colour at 55 %** — the dark layer failed, see that row and D16.*
+
+### 41. Spike S3 — what the file dialog gives back, and what converting it costs — [device]
+
+Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 41` (through the app, so the page has to be
+wired — T047).
+Steps: open the app's own file dialog on `emulator-5554`, browse into a folder, pick two or three pictures, and
+log what comes back: what a pick *is* on this platform, whether its bytes can be read once right after
+choosing (the render copies them immediately — D15), and how long copying a handful of full-resolution files
+takes. Then cancel once and log what the page says.
+Expected: the dialog opens with no new permission and browses the device's folders, the picks are readable
+straight away, the copy's cost is a number, and a cancel leaves nothing behind and no error (research D15).
+Whatever it turns out to be — a content uri, a cached path, a blob — is written into `breakpoint.md` and into
+T045/T043's own text, not absorbed. *Half answered before the app could ask (2026-09-27)*: the dialog is
+DocumentsUI and its folder tree exists, with the reader's own folders in it (breakpoint row 41). Proves
+FR-025.
+
+### 42. Spike S4 — which scrim holds the contrast floor (ANSWERED 2026-09-27) — [unit, measured]
+
+Test: `flutter test specs/012-reading-video/scripts/probe_scrim_stills.dart` (the harness S4 ran; it composes
+the frame at both aspects with the app's real geometry and text style and measures the WCAG ratio **at the glyph
+pixels**, against the picture-and-scrim plate underneath them).
+Result: **the dark layer fails and the light one holds.** A 40 % *black* scrim leaves **42–100 %** of the glyph
+pixels under 4.5:1 on the reader's own four pictures — the reader's text is `#161D1C`, so a black layer moves the
+picture toward it. 45 % leaves 2–42 %, 50 % leaves 0.4–27.5 % (51 % in one portrait crop). A **55 % layer of the
+frame's own background colour passes everywhere: min 4.90:1, 0 % under the floor** — by construction, since that
+layer's floor *is* the background's own 4.90:1 against the reader's text. 60 % reaches 5.77:1.
+Numbers, stills and the raw table: `breakpoint.md` row 42 and `~/Documents/GitHub/Multi-Media/klhu_scrim/`.
+Proves FR-027, SC-004, and sets research D16's number. The `[device]` half — the same ratio sampled from a
+finished render's frames, pictures on the phone — is row 49's.
+
+### 43. The schedule is the video's own frames, shared equally — [unit]
+
+Test: `test/video_pictures_test.dart`, "the schedule is the video's frames".
+Steps: build a schedule for three chosen pictures over a plan of a known length, in whole frames.
+Expected: each picture carries an inclusive start and end frame in the video's own numbering (not in seconds),
+the ranges partition the video with no overlap and no gap, the shares are equal in the order chosen, and a
+picture that would receive no frame at all (more pictures than frames) is simply not drawn while every frame
+stays covered by one picture or the plain background. Proves FR-026, SC-019.
+
+### 44. The picture fills the frame it is in, with the scrim between it and the text — [unit]
+
+Test: `test/video_painter_test.dart`, "the picture fills the frame".
+Steps: paint one slot's frame with a picture behind it, in both aspects, and sample the frame's own pixels.
+Expected: the picture covers the whole frame — no bars, cropped where the shapes differ — the scrim (the
+frame's own background colour, at D16's measured 55 %) sits between the picture and the text, and the sentence
+is drawn over it; a frame outside every range draws no picture at all. Proves FR-027, SC-019.
+
+### 45. With nothing chosen, the frame is the plain background — [unit]
+
+Test: `test/video_painter_test.dart`, "nothing chosen is a valid schedule".
+Steps: paint one slot's frame with an empty schedule and compare its background with the app's own reading
+background.
+Expected: the frame is the app's plain background with the sentence over it, and a render with no pictures is
+neither refused nor delayed — it is the video this feature would have made without the pictures at all.
+Proves FR-028, SC-021.
+
+### 46. A sentence taller than the text area wraps and scrolls, line by line — [unit]
+
+Test: `test/video_painter_test.dart`, "a tall sentence scrolls a line at a time".
+Steps: paint a sentence far longer than the text area at every step of its own slot and read each frame's own
+lines.
+Expected: the whole sentence is drawn at the reader's own size, wrapped over as many lines as it needs, at
+successive **line** steps from its first line at the top of the text area to its last line at the bottom —
+every line inside the text area at some point in the slot, no line ever clipped, no line smaller, and no other
+sentence's text in those frames; a sentence that fits is drawn still, with no scroll. The step is quantised to
+the text's own line height (research D14), and the position is proportional to the elapsed fraction of the slot
+— the one estimate this feature admits. Proves FR-002, FR-029, SC-020.
+
+### 47. The chosen pictures are seen before the render starts — [unit]
+
+Test: `test/reading_view_video_test.dart`, "the chosen pictures are shown before the render".
+Steps: open the video action, choose two pictures through the picker seam's fake, and read the page before the
+render is confirmed.
+Expected: the page names how many pictures are chosen and offers to choose again, the render starts only on
+the reader's own confirm, and a reader who chooses none still gets the plain-background video. Proves FR-025,
+FR-028.
+
+### 48. The picks' copies live and die with the working directory — [unit]
+
+Test: `test/video_pictures_test.dart`, "the copies go with the working copy".
+Steps: prepare a schedule of two pictures through a fake picker whose files are real, then run a render to
+completion, cancel one halfway and fail a third.
+Expected: each chosen picture is copied into the render's working directory once, before the frames are
+written, and the copies are gone after any ending — finished, cancelled or failed — so the app's cache holds
+nothing afterwards (FR-009's rule, extended to the picks); a picture that cannot be copied fails the render
+before any frame is written rather than producing a video with a hole in it. Proves FR-025, FR-009.
+
+### 49. A render with pictures on the device: each range carries its own — [device]
+
+Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 49`.
+Steps: choose three pictures through the app's file dialog (it browses the device's folders), render the
+shipped pre-set, pull the file and extract a
+frame inside each picture's range and at each seam between two ranges.
+Expected: every sampled frame inside a range carries that picture filling the frame behind the sentence, with
+the scrim between them — the frame's own background colour at 55 % — and the sentence measuring at least 4.5:1
+against what is behind it; no frame at a seam
+carries a picture outside its own range, or two pictures at once; and a render with nothing chosen, run the
+same way, produces the plain-background video unchanged (row 32's picture). Proves FR-026, FR-027, FR-028,
+SC-004, SC-019, SC-021.

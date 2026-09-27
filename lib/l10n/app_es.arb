@@ -83,5 +83,9 @@
   "videoGoneMessage": "Este vídeo ya no existe",
   "videoRenderFailedMessage": "No se pudo crear el vídeo. Comprueba el espacio de almacenamiento e inténtalo de nuevo.",
   "videoUnavailableMessage": "Este dispositivo no puede crear vídeos.",
-  "videoDoneMessage": "Vídeo creado: {name} ({seconds} s)"
+  "videoDoneMessage": "Vídeo creado: {name} ({seconds} s)",
+  "videoPicturesButton": "Elegir imágenes",
+  "videoPicturesChosen": "{count, plural, =0 {Ninguna imagen elegida} =1 {1 imagen elegida} other {{count} imágenes elegidas}}",
+  "videoPicturesChooseAgain": "Elegir de nuevo",
+  "videoPicturesFailed": "No se pudieron abrir tus imágenes. Inténtalo de nuevo."
 }

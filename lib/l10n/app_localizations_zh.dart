@@ -273,6 +273,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String videoDoneMessage(String name, int seconds) {
     return '已制作视频：$name（$seconds 秒）';
   }
+
+  @override
+  String get videoPicturesButton => '选择图片';
+
+  @override
+  String videoPicturesChosen(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已选择 $count 张图片',
+      zero: '未选择图片',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoPicturesChooseAgain => '重新选择';
+
+  @override
+  String get videoPicturesFailed => '无法打开图片，请重试。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -543,4 +563,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String videoDoneMessage(String name, int seconds) {
     return '已制作视频：$name（$seconds 秒）';
   }
+
+  @override
+  String get videoPicturesButton => '选择图片';
+
+  @override
+  String videoPicturesChosen(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已选择 $count 张图片',
+      zero: '未选择图片',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get videoPicturesChooseAgain => '重新选择';
+
+  @override
+  String get videoPicturesFailed => '无法打开图片，请重试。';
 }

@@ -83,5 +83,9 @@
   "videoGoneMessage": "该视频已不存在",
   "videoRenderFailedMessage": "无法生成视频，请检查存储空间后重试。",
   "videoUnavailableMessage": "此设备无法生成视频。",
-  "videoDoneMessage": "已制作视频：{name}（{seconds} 秒）"
+  "videoDoneMessage": "已制作视频：{name}（{seconds} 秒）",
+  "videoPicturesButton": "选择图片",
+  "videoPicturesChosen": "{count, plural, =0 {未选择图片} other {已选择 {count} 张图片}}",
+  "videoPicturesChooseAgain": "重新选择",
+  "videoPicturesFailed": "无法打开图片，请重试。"
 }
