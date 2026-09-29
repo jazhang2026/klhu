@@ -1,14 +1,16 @@
 # Data Model: Reading Video
 
 **Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Decisions**:
-[research.md](./research.md) D1–D16 | **Date**: 2026-09-25 (amended 2026-09-26 with the picture)
+[research.md](./research.md) D1–D19 | **Date**: 2026-09-25 (amended 2026-09-26 with the picture,
+amended 2026-09-28 with the plate's band tone, the stored picks and the order change — and again the same day, on the
+reader's own phone test: the sentence bound withdrawn, and the picture window following a hold at its end)
 
 Seven things this feature introduces — two of them persisted — plus one shipped value it **changes** (the
 reading page's state machine gains RENDERING and REVIEW, whose rules are the read's own ownership rule
 extended), and four it reads but leaves alone (the content, its text, the reader's appearance, the reading
 position). The seventh — the picture schedule (7) — and the frame's own shape in (2) and (3) come from the
 2026-09-26 amendment: one sentence per frame at the reader's own size, over the reader's own pictures with a
-scrim — one full-frame layer in the frame's own background colour, at D16's measured 55 % (FR-002,
+**white plate behind each painted line** and no veil over the picture (D16, amended 2026-09-28) (FR-002,
 FR-025–FR-029).
 
 ---
@@ -75,8 +77,8 @@ makes the result checkable frame by frame.
 | `titleCard` | `Slot` — a fixed lead-in slot | no | FR-008 |
 | `endHold` | `Slot` — a fixed closing slot | no | FR-008 |
 | `totalFrames` | `int` — Σ of every slot's frames | no | derived |
-| `pictures` | `PictureSchedule` (7) — the reader's picks with the frame range each is drawn in; empty is a valid schedule | no | the reader's picks before the render (FR-025–FR-028) |
-| `style` | the reader's typeface and character size, the app's plain background, and the scrim's own colour and measured depth (the background colour, 0.55) | no | `AppearanceStore` + the app's theme (FR-014, A3; D16) |
+| `pictures` | `PictureSchedule` (7) — the reader's held pictures with the frame range each is drawn in; empty is a valid schedule | no | the reader's pictures before the render (FR-025–FR-028) |
+| `style` | the reader's typeface and character size, the app's plain background, and the plate's own colour (white, `#FFFFFF`) | no | `AppearanceStore` + the app's theme (FR-014, A3; D16) |
 
 **Slot** (one sentence, or the title card, or the end hold)
 
@@ -102,6 +104,8 @@ content edited between renders yields a different plan and never a half-old one.
 | A sentence slot's frames equal its own audio's length in frames (so the picture cannot drift from the voice) | A5, FR-016 |
 | A slot's frames always show that sentence's own text as the frame's text — at the reader's own size, inside the frame's text area — and no other sentence's text | FR-002, FR-005, FR-014 |
 | A slot whose sentence is taller than the text area scrolls it upward by whole lines, every line inside the text area at some point in the slot and none clipped | FR-029, SC-020 |
+| A sentence that **fits** its text area sits at the bottom of it: the last line's box ends where the text area ends, and the picture has the frame above the words | FR-029, D22 |
+| A line carries up to `lineLengthGain` (1.4) times the reader's own reading column of characters — the column's width is `min(0.92 × frame width, 1.4 × frame height)` — while the letters keep the size their own frame has always set them (`lettersColumnFraction`, 0.88): 16:9 gets 1512 px of column with 1.400× a line, 9:16 gets 994 px with 1.045×, and neither gets different letters | A3, D6 (amended 2026-09-28) |
 | The frames inside a picture's range carry that picture behind the text; the frames outside every range carry the plain background | FR-026, FR-027, FR-028 |
 | An empty or whitespace-only content yields no plan at all | FR-015 |
 
@@ -148,7 +152,7 @@ get wrong.
 | The picture the reader sees during the render is a `RenderedFrame`'s image, and its bytes are what the encoder got | FR-020, SC-014 |
 | A frame is produced when the visual state changes — the slot's sentence, its scroll step, or the picture covering it — not once per frame time | D2 (the cost), D14 |
 | A frame's text is the slot's sentence alone, at the reader's own size, inside the picture area with margins on all sides | FR-002, FR-006, FR-014, SC-003/SC-004 |
-| A frame's picture fills it — no bars, cropped — with the scrim between it and the text: the frame's own background colour at 55 %, which holds 4.90:1 over any picture | FR-027, SC-019 |
+| A frame's picture fills it — no bars, cropped — with a white plate behind each painted line and nothing else between the picture and the text: the plate holds 17.1:1 against the reader's text, and the picture's own colours are unchanged outside the plates | FR-027, SC-019 |
 
 **Worked example**: a 4-second sentence at 30 fps whose wrapped text occupies four lines produces five
 `RenderedFrame`s over its slot — one per line step, from its first line at the top to its last at the bottom —
@@ -255,7 +259,10 @@ D10), so the page's ownership rule stays the read's own rule rather than a secon
 | `plan` | `RenderPlan` | yes | present only in RENDERING |
 | `progress` | `(slotIndex, frameIndex, totalFrames)` | yes | the renderer's own count (FR-009) |
 | `frame` | `RenderedFrame` | yes | the picture shown while rendering (FR-020) |
-| `pictures` | `PictureSchedule` | yes | the reader's picks, held from the picker until the render starts (FR-025) |
+| `pictures` | `PictureSchedule` | yes | the reader's held pictures, from the picker until the render starts (FR-025) |
+| `held` | `List<HeldPicture>` — every picture chosen so far, in the order chosen, each **stored as a file at its own pick** (name + path) | no (empty is valid) | accumulated across picks: a second pick adds to the first, and **nothing is capped** (FR-025, SC-022). The stored files are what FR-030 shows and what the render copies (D17/D18) |
+| `picturesDir` | `Directory` — the prompt's own directory of stored picks, one directory per prompt | no | created before the prompt opens and removed once the render that used it is over, however it ended (FR-025, D18, SC-024) |
+| `pickFailure` | `String?` — the page's own message where a pick could not be stored | no (null when the last pick was stored) | a pick whose own read failed is not half a choice, and the page says so rather than showing a picture nothing can open (FR-031) |
 | `review` | `VideoReview` | yes | present only in REVIEW |
 
 **Validation rules**
@@ -266,7 +273,13 @@ D10), so the page's ownership rule stays the read's own rule rather than a secon
 | Stop asks first; dismissing continues the render; confirming writes nothing | FR-019, FR-024 (the same dialog shape) |
 | Leaving asks in the same way, from either state | FR-019 |
 | The video action is offered only from the idle state, and only where the platform can render | FR-010, D8 |
-| The reader sees which pictures are chosen before the render starts, and the picks are not remembered once the render ends | FR-025, D15 |
+| The reader sees which pictures are chosen before the render starts — as the files the app stored for this prompt — and they are not remembered once the render ends | FR-025, D15/D18 |
+| Choosing again ADDS to the choice — the count the page names is the sum of every pick, and the button that does it is named for what it does (*Choose more*) — and **nothing is capped or trimmed**: every picture chosen has its own cell and its own remove, however many that is | FR-025, FR-031, SC-022 |
+| A choice larger than the video's sentences is silent and startable: the prompt names no limit and offers the render as it stands, and the pictures that found no sentence are simply not drawn | FR-026, SC-022 |
+| Every chosen picture is shown as a thumbnail in the order chosen, each with its own remove; taking one back lowers the count by one and leaves the rest of the choice and the render startable | FR-030, SC-023 |
+| Holding a picture and dropping it on another picture's cell puts it where that one was and leaves every other picture in place; a drop on its own cell changes nothing, and the order on screen is the order the render draws | FR-032, SC-025 |
+| A hold at either end of the picture window scrolls the window while the hold stays there — so a cell that was not on screen can be dropped on — and the scrolling stops when the hold leaves or ends | FR-032, D21 |
+| The stored picks exist only while the prompt and the render that used them exist: the directory is gone once the render is over, however it ended | FR-025, D18, SC-024 |
 | The page's shipped behaviour (003/005/010/011) is untouched by the two new states | FR-018, SC-009 |
 
 **Worked example**: the reader taps the video action, chooses `vertical`, watches the picture advance and
@@ -294,32 +307,48 @@ than a special case in the painter.
 | Name | Type | Nullable | Source |
 |---|---|---|---|
 | `pictures` | `List<PictureSlot>` — in the order the reader chose them | no (an empty list is valid) | the phone's picker, before the render (FR-025) |
-| `scrimDepth` | `double` — `0.55` | no | the plan's own constant, its number set by spike S4 (D16, FR-027); the layer's colour is the frame's own background |
+| `plateColour` | `Color` — white (`#FFFFFF`) over a light picture, black (`#000000`) over a dark one: the plate behind each painted line | no | the picture's own tone decides it, and the reader's rule of 2026-09-28 fixes the pair (D16, FR-027) |
+| `inkColour` | `Color` — black over a light picture, white over a dark one; the reader's own colour where the frame has no picture | no | the pair with `plateColour`, 21:1 either way (FR-027/FR-028) |
+| `tone` | `PictureTone?` — `light` or `dark`: read over **the band the painted lines cover**, at a floor of 0.5; null with no picture | yes where a picture is drawn | measured from the picture's own pixels, band by band, with the picture's pixels converted once; the plate follows the band actually behind the words (D16 as amended 2026-09-28) |
+| `pictureCount` | `int` — how many pictures the schedule holds | no | the reader's choice, bounded by the plan's own sentences rather than by a number: a choice with more pictures than sentences is not startable (FR-025/FR-026, D18; the former `maxPictures = 20` is withdrawn) |
 
 **PictureSlot** (one chosen picture)
 
 | Name | Type | Nullable | Source |
 |---|---|---|---|
-| `sourceUri` | `String` — what the picker returned | no | the picker (FR-025) |
-| `copyPath` | `String` — the picture's copy inside the render's working directory | no | copied once before pass 2 reads it (D15) |
-| `startFrame` / `endFrame` | `int` — **inclusive**, in the video's own frame numbers | no | equal shares of `totalFrames` in the order chosen (FR-026) |
+| `name` | `String` — what the picker called it, kept for the copy's own name | no | the picker's seam (T045, FR-025) |
+| `storedPath` | `String` — the file the app wrote the picture into at the pick, inside the prompt's own directory | no | `storePicks` at the pick, while the picker's grant is alive: the page showed this file and the render copies this file (D18, SC-024) |
+| `copyPath` | `String` — the picture's copy inside the render's working directory | no | copied once before pass 2 reads it (D15/D18) |
+| `startFrame` / `endFrame` | `int` — **inclusive**, in the video's own frame numbers | no | equal shares of the plan's **sentences** in the order chosen: the first sentence's first frame to the frame before the next picture's first sentence (FR-026) |
+
+**HeldPicture** (one picture the reader chose, as the page holds it between the pick and the render)
+
+| Name | Type | Nullable | Source |
+|---|---|---|---|
+| `name` | `String` — the file's own name, with any directory part stripped | no | the pick's own name, sanitised by `storePicks` (D18) |
+| `path` | `String` — the file inside the prompt's own directory that holds this picture | no | written at the pick, read by the page's thumbnails and copied by the render (D18, SC-024) |
 
 **Relationships**: one schedule per render, held by the plan (2); each `PictureSlot`'s range names frames in
-that plan's timeline; the copies live beside the working copy and end with it (D11's rules, D15).
+that plan's timeline; the copies live beside the working copy and end with it (D11's rules, D15); and the
+schedule's order is the order of the reader's own cells, which FR-032 lets them change (D19).
 
 **Validation rules**
 
 | Rule | Requirement |
 |---|---|
 | An empty schedule is valid: the plain background, nothing refused and nothing delayed for want of a picture | FR-028, SC-021 |
-| Each range is inclusive and in the video's own frame numbers, and the ranges partition the video — no frame in two ranges, none left uncovered | FR-026, SC-019 |
-| The shares are equal in the order chosen, and a picture whose share rounds to no frame is not drawn at all | FR-026 |
-| A picture is drawn to fill the frame it is in — covering it, cropped where the shapes differ — with the scrim between it and the text | FR-027, SC-019 |
+| Each range is inclusive and in the video's own frame numbers, and the ranges partition the spoken part — from the first sentence's first frame to the video's last — with no frame in two ranges and none left uncovered; the title card's frames are in no range | FR-026, SC-019 |
+| **A range begins at a sentence's own first frame and ends immediately before the next range's first sentence: no boundary falls inside a sentence**, so no picture lands or lifts while a sentence is on screen | FR-026 |
+| The shares are equal over the plan's sentences in the order chosen — so their frame lengths may differ — and a picture whose share holds no sentence at all is not drawn | FR-026 |
+| A picture is drawn to fill the frame it is in — covering it, cropped where the shapes differ — with a **white plate behind each painted line** carrying the words; nothing else is drawn between the picture and the text | FR-027, SC-019 |
 | Each chosen picture is copied into the working directory once, before any frame is written, and the copies are gone when the render ends, however it ended | FR-009, D15 |
 
-**Worked example**: the reader picks three pictures and renders a 900-frame video → 300 frames each: A covers
-0–299, B 300–599, C 600–899; the frame at 300 carries B and not A, and the frame at 599 carries B and not C. A
-reader who picks nothing leaves the schedule empty and gets the plain-background video at the same speed.
+**Worked example**: the reader picks three pictures for a six-sentence content → two sentences each: A covers
+sentence 1's first frame up to the frame before sentence 3 (the gap after sentence 2 included), B takes
+sentences 3 and 4, C takes sentences 5 and 6 **and the end hold**, and the title card stays plain. The frame
+at the seam carries B and not A, and no seam sits inside a sentence: the reader never sees the picture change
+mid-sentence. A reader who picks nothing leaves the schedule empty and gets the plain-background video at the
+same speed.
 
 **States**
 

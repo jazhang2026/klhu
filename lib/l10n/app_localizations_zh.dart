@@ -289,7 +289,13 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get videoPicturesChooseAgain => '重新选择';
+  String get videoPicturesChooseMore => '再选更多';
+
+  @override
+  String get videoPicturesReorder => '按住一张图拖到另一张上即可换序；拖到窗口边缘可继续滚动。';
+
+  @override
+  String get videoPicturesRemove => '移除这张图片';
 
   @override
   String get videoPicturesFailed => '无法打开图片，请重试。';
@@ -579,7 +585,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get videoPicturesChooseAgain => '重新选择';
+  String get videoPicturesChooseMore => '再选更多';
+
+  @override
+  String get videoPicturesReorder => '按住一张图拖到另一张上即可换序；拖到窗口边缘可继续滚动。';
+
+  @override
+  String get videoPicturesRemove => '移除这张图片';
 
   @override
   String get videoPicturesFailed => '无法打开图片，请重试。';

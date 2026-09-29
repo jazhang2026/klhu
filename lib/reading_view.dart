@@ -10,6 +10,7 @@ import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
 import 'package:klhu/read_position_store.dart';
@@ -18,6 +19,7 @@ import 'package:klhu/segmenter.dart';
 import 'package:klhu/services/content_store.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_painter.dart';
+import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_record.dart';
 import 'package:klhu/video_renderer.dart';
 import 'package:klhu/video_review.dart';
@@ -83,6 +85,11 @@ class ReadingView extends StatefulWidget {
   /// review plays.
   final Directory? videoWorkDir;
 
+  /// The reader's own pictures, chosen from their files (FR-025): the
+  /// platform's file dialog, behind its own seam. The real one is the app's; a
+  /// test's own keeps the dialog out of the test.
+  final PicturePicker picturePicker;
+
   final Function(String)? onLanguageChanged;
   final dynamic localizationService;
 
@@ -96,6 +103,7 @@ class ReadingView extends StatefulWidget {
     VideoFileStore? videoFileStore,
     VideoPlayer? videoPlayer,
     this.videoWorkDir,
+    PicturePicker? picturePicker,
     this.onLanguageChanged,
     this.localizationService,
   })  : reader = reader ?? ReaderService(),
@@ -106,7 +114,8 @@ class ReadingView extends StatefulWidget {
         synthesizer = synthesizer ?? _synthesizerOf(reader),
         videoEncoder = videoEncoder ?? MethodChannelVideoEncoder(),
         videoFileStore = videoFileStore ?? MethodChannelVideoFileStore(),
-        videoPlayer = videoPlayer ?? PlatformVideoPlayer();
+        videoPlayer = videoPlayer ?? PlatformVideoPlayer(),
+        picturePicker = picturePicker ?? const FilePicturePicker();
 
   /// The engine a render speaks through — the reader's own when it can write
   /// files, else a fresh service (D5: the read and the render share one voice
@@ -215,6 +224,76 @@ class _ReadingViewState extends State<ReadingView> {
   /// renders must never share one: a stopped render is still finishing its last
   /// write (and deleting its own files) while a new one may already be running.
   static int _renderDirSeq = 0;
+
+  /// One directory of stored picks per video prompt ([_openVideoPrompt]).
+  int _pictureDirSeq = 0;
+
+  /// The picture window's own scroll position, where it sits on screen, and the
+  /// repeat that keeps it moving while a picture is held at one of its ends
+  /// (FR-032, D21).
+  final ScrollController _pictureWindow = ScrollController();
+  final GlobalKey _pictureWindowKey = GlobalKey();
+  Timer? _windowScroll;
+  int? _windowScrollDirection;
+
+  /// How near an end of the picture window counts as "at the end", and how far
+  /// one step of its own scroll moves.
+  static const double _windowEdge = 36;
+  static const double _windowStep = 24;
+
+  /// Scrolls the picture window while a picture is held near either of its ends,
+  /// so a picture can be moved to a cell that is not on screen (FR-032, D21) —
+  /// the reader's own report from the phone of 2026-09-28: the hold worked, but
+  /// "only can move in displayed rows. need to able to move out of the disabled
+  /// rows. use auto scroll."
+  ///
+  /// The step repeats on a timer while the pointer stays in the band, because
+  /// holding still at the end *is* how a reader asks for more: a step per pointer
+  /// move would stop the window the moment they stopped moving.
+  void _autoScrollWindow(Offset pointer) {
+    final box =
+        _pictureWindowKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !_pictureWindow.hasClients) return;
+    final window = box.localToGlobal(Offset.zero) & box.size;
+    final int direction;
+    if (pointer.dy < window.top + _windowEdge) {
+      direction = -1;
+    } else if (pointer.dy > window.bottom - _windowEdge) {
+      direction = 1;
+    } else {
+      _stopWindowScroll();
+      return;
+    }
+    if (_windowScrollDirection == direction) return;
+    _stopWindowScroll();
+    _windowScrollDirection = direction;
+    _windowScroll = Timer.periodic(
+      const Duration(milliseconds: 80),
+      (_) => _stepWindow(direction),
+    );
+    // The first step is immediate: a reader who holds at the end sees the window
+    // move rather than waiting for the timer's first beat.
+    _stepWindow(direction);
+  }
+
+  /// One step of the window's own scroll, never past either end.
+  void _stepWindow(int direction) {
+    if (!_pictureWindow.hasClients) return;
+    final position = _pictureWindow.position;
+    final next = (_pictureWindow.offset + direction * _windowStep).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if (next == _pictureWindow.offset) return;
+    _pictureWindow.jumpTo(next);
+  }
+
+  /// The hold is over, or away from the window's ends: nothing keeps scrolling.
+  void _stopWindowScroll() {
+    _windowScroll?.cancel();
+    _windowScroll = null;
+    _windowScrollDirection = null;
+  }
 
   /// Whether this platform can make, keep and play videos at all (FR-010, D8):
   /// both halves of the platform must answer yes, and the answer is what
@@ -481,6 +560,9 @@ class _ReadingViewState extends State<ReadingView> {
 
   @override
   void dispose() {
+    // Nothing keeps scrolling a window that is going away (FR-032).
+    _stopWindowScroll();
+    _pictureWindow.dispose();
     // An abandoned render leaves nothing behind (FR-009): the page going away
     // is the reader leaving it, and the renderer cleans up what it wrote as
     // soon as it notices.
@@ -1244,16 +1326,77 @@ class _ReadingViewState extends State<ReadingView> {
     );
   }
 
-  /// The video action (FR-001): the format is asked for first, and the prompt
-  /// opens on the remembered choice (A8).
+  /// The video action (FR-001): the format is asked for first, the prompt
+  /// opens on the remembered choice (A8), and the reader's own pictures are
+  /// chosen beside it (FR-025) — named before the render can start, and
+  /// re-choosable until the reader's own confirm.
   Future<void> _openVideoPrompt() async {
     final l10n = AppLocalizations.of(context);
-    var chosen = await _aspects.load();
+    final remembered = await _aspects.load();
     if (!mounted) return;
+    // Where this prompt's pictures are stored (FR-025, D18): a directory of the
+    // app's own, holding a file per picture, so the page shows files and the
+    // render copies files rather than the app holding a phone photo's megabytes
+    // in memory for as long as the prompt is open.
+    final base = widget.videoWorkDir ?? await getTemporaryDirectory();
+    final picturesDir = Directory(
+      '${base.path}${Platform.pathSeparator}picks_${_pictureDirSeq++}',
+    );
+    await picturesDir.create(recursive: true);
+    if (!mounted) return;
+    try {
+      final answer = await _askVideoFormat(
+        l10n: l10n,
+        remembered: remembered,
+        picturesDir: picturesDir,
+      );
+      if (answer == null || !mounted) return;
+      await _aspects.save(answer.aspect);
+      await _startRender(answer.aspect, pictures: answer.pictures);
+    } finally {
+      // The render copies the stored pictures into its own directory as it works
+      // and takes the copies with it (FR-009): once the render is over — however
+      // it ended — what the app stored for the prompt is nobody's (FR-025).
+      await discardPictures(picturesDir);
+    }
+  }
+
+  /// Asks the reader for the video's format and its pictures (FR-001/FR-007/
+  /// FR-025) and answers what they confirmed, or null when they cancelled.
+  ///
+  /// The format is asked for first, on the remembered choice (A8); the pictures
+  /// are chosen beside it, are shown as the pictures they are, can be taken back
+  /// and can be moved (FR-030/FR-032), and are **stored** as they are chosen
+  /// (D18) — in [picturesDir], which the caller owns and removes.
+  ///
+  /// A choice may hold more pictures than the video has sentences — the reader's
+  /// own answer from the phone of 2026-09-28, after watching for one: "超限提示、no
+  /// need. not show." So the page says nothing about it and offers Start either
+  /// way: each picture draws a sentence's own run of frames (FR-026), so the
+  /// pictures past the last sentence are simply not drawn — the same answer the
+  /// schedule has always given a picture that found no sentence.
+  Future<({VideoAspect aspect, List<HeldPicture> pictures})?> _askVideoFormat({
+    required AppLocalizations? l10n,
+    required VideoAspect remembered,
+    required Directory picturesDir,
+  }) async {
+    var chosen = remembered;
+    // The pictures this prompt holds, stored at the pick: nothing here keeps them
+    // once the render is done (FR-025), and nothing caps how many the reader may
+    // keep — every picture chosen is kept, in the order chosen, and one they no
+    // longer want is taken back by its own remove (2026-09-28: "remove max 20
+    // images limit. keep all 30 images for now. user can delete images.").
+    var held = const <HeldPicture>[];
+    String? pickFailure;
     final start = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
+          // The prompt's own content grows with the reader's pictures and can
+          // carry the message that says a choice is too large (FR-026): on a
+          // short screen the actions must stay reachable, so the content scrolls
+          // and the actions stay pinned.
+          scrollable: true,
           title: Text(l10n?.videoAspectTitle ?? 'Video format'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1267,6 +1410,94 @@ class _ReadingViewState extends State<ReadingView> {
                   selected: chosen.name == aspect.name,
                   onSelected: (_) => setDialog(() => chosen = aspect),
                 ),
+              const Divider(height: 24),
+              // What is chosen, said here before the render starts (FR-025) —
+              // the sum of every pick, since choosing again adds (FR-025).
+              Text(l10n?.videoPicturesChosen(held.length) ??
+                  '${held.length} pictures chosen'),
+              if (pickFailure != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    pickFailure!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              // The chosen pictures themselves, each with its own remove and its
+              // own place the reader can change (FR-030, FR-032): the reader
+              // sees what the render will use — and in which order — before it
+              // starts.
+              if (held.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  // A small window that scrolls (FR-030): two rows of
+                  // thumbnails, so thirty pictures do not make the prompt
+                  // thirty rows tall — the reader's own shape of 2026-09-28,
+                  // "use scroll. small show window, scroll to show others".
+                  child: ConstrainedBox(
+                    key: _pictureWindowKey,
+                    constraints:
+                        const BoxConstraints(maxHeight: pictureWindowHeight),
+                    child: SingleChildScrollView(
+                      // A stable name for the window, so its own scroll can be
+                      // read and driven in the page's tests (FR-030/FR-032).
+                      key: const ValueKey('video picture window'),
+                      controller: _pictureWindow,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (var i = 0; i < held.length; i++)
+                            MovableThumbnail(
+                              picture: held[i],
+                              index: i,
+                              removeLabel: l10n?.videoPicturesRemove ??
+                                  'Remove this picture',
+                              onRemove: () => setDialog(() {
+                                held = [...held]..removeAt(i);
+                                pickFailure = null;
+                              }),
+                              onMoveTo: (from) => setDialog(() {
+                                held = movePicture(held, from, i);
+                              }),
+                              // A hold near either end of the window scrolls it,
+                              // so a picture can be moved to a cell that is not
+                              // on screen (FR-032, D21).
+                              onDragUpdate: _autoScrollWindow,
+                              onDragEnd: _stopWindowScroll,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    l10n?.videoPicturesReorder ??
+                        'Hold a picture and move it left or right to change '
+                            'the order.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+              TextButton.icon(
+                onPressed: () => _choosePictures(
+                  l10n: l10n,
+                  picturesDir: picturesDir,
+                  held: held,
+                  onChosen: (next) => setDialog(() {
+                    held = next;
+                    pickFailure = null;
+                  }),
+                  onFailure: (message) =>
+                      setDialog(() => pickFailure = message),
+                ),
+                icon: const Icon(Icons.image_outlined),
+                label: Text(held.isEmpty
+                    ? l10n?.videoPicturesButton ?? 'Choose pictures'
+                    : l10n?.videoPicturesChooseMore ?? 'Choose more'),
+              ),
             ],
           ),
           actions: [
@@ -1282,9 +1513,41 @@ class _ReadingViewState extends State<ReadingView> {
         ),
       ),
     );
-    if (start != true || !mounted) return;
-    await _aspects.save(chosen);
-    await _startRender(chosen);
+    return start == true ? (aspect: chosen, pictures: held) : null;
+  }
+
+  /// Asks the platform for the reader's pictures (FR-025) and answers with the
+  /// choice the render will use.
+  ///
+  /// A dialog the reader cancelled changes nothing: what was chosen stands, so
+  /// "choose again" is always a repick and never a quiet reset. A picker that
+  /// failed says so with the app's own message and leaves the choice as it was —
+  /// the render is still the reader's to confirm.
+  ///
+  /// The picks are **stored here**, once each, while the picker's own read grant
+  /// is alive (D15/D18) — that is what lets the page show them (FR-030) and why
+  /// the render never reads a pick again. What comes back is added to what the
+  /// reader already had, in the order chosen (FR-025): there is no cap, so a pick
+  /// is never refused and never trimmed.
+  Future<void> _choosePictures({
+    required AppLocalizations? l10n,
+    required Directory picturesDir,
+    required List<HeldPicture> held,
+    required void Function(List<HeldPicture> held) onChosen,
+    required void Function(String) onFailure,
+  }) async {
+    try {
+      final chosen = await widget.picturePicker.pick();
+      if (chosen.isEmpty) return;
+      onChosen(mergePicks(
+        held,
+        await storePicks(picks: chosen, dir: picturesDir),
+      ));
+    } on Exception {
+      onFailure(
+        l10n?.videoPicturesFailed ?? 'Could not open your pictures. Try again.',
+      );
+    }
   }
 
   /// Runs one render to the end, in its own working directory, and back to
@@ -1293,7 +1556,10 @@ class _ReadingViewState extends State<ReadingView> {
   /// Nothing of the content's own state moves (FR-009/FR-018): the text, the
   /// position in force and the appearance are read, never written, and a
   /// cancelled or failed render leaves them exactly as they were.
-  Future<void> _startRender(VideoAspect aspect) async {
+  Future<void> _startRender(
+    VideoAspect aspect, {
+    List<HeldPicture> pictures = const [],
+  }) async {
     final l10n = AppLocalizations.of(context);
     if (_content.trim().isEmpty) {
       // FR-015: refused with the app's existing message, and no render at all.
@@ -1328,12 +1594,16 @@ class _ReadingViewState extends State<ReadingView> {
       aspect: aspect,
       title: title,
       // The reader's own look reaches the frame (FR-014): the page's one style
-      // seam, the app's background, and the app's yellow highlight.
+      // seam, the app's background, and the card's language named by the app.
       readingStyle: _contentTextStyle(context),
       background: Theme.of(context).scaffoldBackgroundColor,
-      highlight: Colors.yellow,
       // The card's language, named by the app's own copy (FR-008).
       languageLabel: (language) => languageLabelOf(l10n, language),
+      // The reader's own pictures for this render (FR-025). They are copied into
+      // the render's working directory before the first frame is painted — which
+      // is the only place that can happen, because where a picture lands depends
+      // on the sentences the render's own synth pass finds (FR-026).
+      pictures: pictures,
     );
     setState(() {
       _mode = _Mode.rendering;
@@ -1385,8 +1655,12 @@ class _ReadingViewState extends State<ReadingView> {
           workingPath: result.path,
           contentKey: contentKey,
           // The library entry this render's file will take if it is kept
-          // (FR-012).
-          displayName: result.path.split('/').last,
+          // (FR-012), named for the **content** (FR-011). The file the render
+          // wrote is named for the working directory's own file, which is the
+          // same for every content — and the gallery is where the reader comes
+          // back to this, so the name has to be the one they know it by. The
+          // extension is the record's too: the app is what says this is an mp4.
+          displayName: '$title.mp4',
           files: widget.videoFileStore,
           records: _recordStore,
         );
@@ -1863,6 +2137,168 @@ class _VideoPlaybackScreenState extends State<_VideoPlaybackScreen> {
     appBar: AppBar(title: Text(widget.video.name)),
     body: Center(
       child: widget.player.view(context, source: widget.video.uri),
+    ),
+  );
+}
+
+/// How tall the window the chosen pictures are reviewed in is (FR-030): two rows
+/// of thumbnails and the space between them — a small window the reader scrolls
+/// inside, so the prompt stays a prompt however many pictures are kept
+/// (2026-09-28: "use scroll. small show window, scroll to show others").
+const double pictureWindowHeight = 152;
+
+/// One chosen picture, as the reader sees it before the render (FR-030): the
+/// picture itself, at thumbnail size, with its own remove.
+///
+/// The file comes from the pick's own read, stored in the app's own directory
+/// when the picture was chosen (D18), so what the reader sees here is exactly
+/// what the render will copy — and the decode is bounded by [cacheWidth], since a
+/// phone photo is many megapixels and this is a thumbnail.
+class ChosenThumbnail extends StatelessWidget {
+  const ChosenThumbnail({
+    super.key,
+    required this.picture,
+    required this.removeLabel,
+    required this.onRemove,
+  });
+
+  final HeldPicture picture;
+
+  /// What the remove button says, from the app's own copy (FR-031).
+  final String removeLabel;
+
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 72,
+    height: 72,
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            File(picture.path),
+            fit: BoxFit.cover,
+            cacheWidth: 144,
+            // A picture the platform handed over but nothing can decode is shown
+            // as what it is — a hole in the choice — rather than crashing the
+            // prompt the reader is standing in.
+            errorBuilder: (context, error, stack) => ColoredBox(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: const Icon(Icons.broken_image_outlined, size: 20),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.topRight,
+          child: IconButton(
+            tooltip: removeLabel,
+            onPressed: onRemove,
+            iconSize: 14,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.black54,
+              foregroundColor: Colors.white,
+              // A padded tap target is 48×48 — two thirds of the cell — and it
+              // would take the hold that moves the picture with it: the corner
+              // button is the size it looks, and the rest of the cell is the
+              // reader's own to move (FR-032).
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: const Icon(Icons.close),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// One chosen picture in the review window (FR-030) with the reader's own way of
+/// moving it (FR-032): hold it and drop it on another picture's cell to put it
+/// where that one was.
+///
+/// The order the cells stand in **is** the order the video draws the pictures in
+/// (FR-026), so a move here is a different video and not a different view of one.
+/// A drop on the picture's own cell is not a move at all — [movePicture] hands
+/// the choice back as it was, and a reader who let go where they started sees
+/// nothing happen rather than a reorder they did not ask for.
+class MovableThumbnail extends StatelessWidget {
+  const MovableThumbnail({
+    super.key,
+    required this.picture,
+    required this.index,
+    required this.removeLabel,
+    required this.onRemove,
+    required this.onMoveTo,
+    this.onDragUpdate,
+    this.onDragEnd,
+  });
+
+  final HeldPicture picture;
+
+  /// Where this picture stands in the choice, which is what the drag carries.
+  final int index;
+
+  /// What the remove button says, from the app's own copy (FR-031).
+  final String removeLabel;
+
+  final VoidCallback onRemove;
+
+  /// Move the picture at [from] to this cell.
+  final void Function(int from) onMoveTo;
+
+  /// Where the held picture is, while it is being moved: the page uses it to
+  /// scroll the window when the hold reaches either end of it (FR-032, D21).
+  final void Function(Offset globalPosition)? onDragUpdate;
+
+  /// The hold is over, however it ended — dropped, cancelled or refused.
+  final VoidCallback? onDragEnd;
+
+  @override
+  Widget build(BuildContext context) => DragTarget<int>(
+    onWillAcceptWithDetails: (details) => details.data != index,
+    onAcceptWithDetails: (details) => onMoveTo(details.data),
+    builder: (context, candidate, rejected) => LongPressDraggable<int>(
+      data: index,
+      // Where the finger is while it moves, so a hold at either end of the
+      // picture window can scroll it (FR-032, D21) — and so whatever that
+      // started stops when the hold does.
+      onDragUpdate: onDragUpdate == null
+          ? null
+          : (details) => onDragUpdate!(details.globalPosition),
+      onDragEnd: (_) => onDragEnd?.call(),
+      // What follows the finger is the picture alone: a thumbnail's own remove
+      // is not what is being moved, and the drag has nowhere to put it.
+      feedback: Material(
+        color: Colors.transparent,
+        child: ChosenThumbnail(
+          picture: picture,
+          removeLabel: removeLabel,
+          onRemove: () {},
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: ChosenThumbnail(
+          picture: picture,
+          removeLabel: removeLabel,
+          onRemove: onRemove,
+        ),
+      ),
+      // The cell has to answer the pointer for the hold to start anywhere on it:
+      // an `Image` answers no pointer on its own, so without this only the button
+      // in the corner would start a drag (FR-032).
+      child: ColoredBox(
+        color: Colors.transparent,
+        child: ChosenThumbnail(
+          picture: picture,
+          removeLabel: removeLabel,
+          onRemove: onRemove,
+        ),
+      ),
     ),
   );
 }

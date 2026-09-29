@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""klhu device walk — 012 quickstart rows 31 and 34.
+"""klhu device walk — 012 quickstart rows 31, 32, 33 and 34.
 
 Row 31: a real render produces a real video (landscape, then vertical), asserted
 with the host's `ffprobe`.
+Row 32: the amended picture on the device — a frame per slot boundary, each one
+its slot's sentence alone, and the on-screen picture is the frame written.
+Row 33: the file's whole life — the review played before keeping, one thrown
+away, one kept into the gallery under the content's name, played back, shared
+through the phone's own list, then deleted behind its warning.
 Row 34: a confirmed Stop at about half way leaves no file, an empty cache, and
 the earlier video untouched.
 
@@ -12,7 +17,9 @@ sleep for a moment that lasts seconds:
 and the page's own dump shows `Rendering video, sentence i of n` while it runs.
 
 Usage:  python3 klhu_walk_video.py 31
+        python3 klhu_walk_video.py 33
         python3 klhu_walk_video.py 34
+        KLHU_DEV=37e102a0 python3 klhu_walk_video.py 49   # a physical device
 Artifacts land in $KLHU_OUT (default /tmp/klhu_out) — never in the repository.
 """
 import hashlib
@@ -24,7 +31,7 @@ import subprocess
 import sys
 import time
 
-DEV = "emulator-5554"
+DEV = os.environ.get("KLHU_DEV", "emulator-5554")
 PKG = "com.example.klhu"
 XML = "/sdcard/klhu_walk.xml"
 LOCAL = "/tmp/klhu_walk.xml"
@@ -64,12 +71,19 @@ def dump(retries=3):
                 return a.group(1) if a else ""
 
             desc, bounds = attr("content-desc"), attr("bounds")
-            if not desc or not bounds:
+            text = attr("text")
+            # A label is a content-desc **or** a text: the app's own widgets come
+            # through Flutter's semantics as content-descs, but another app's
+            # window — the phone's share sheet, a system dialog — names its
+            # buttons in `text`. Keeping only the former makes a chooser that is
+            # right there on screen read as an empty screen, which is a probe
+            # lying, not a feature missing.
+            if not bounds or not (desc or text):
                 continue
             n = [int(x) for x in re.findall(r"\d+", bounds)]
             rows.append({
                 "desc": desc.replace("&#10;", "\n"),
-                "text": attr("text"),
+                "text": text,
                 "enabled": attr("enabled") != "false",
                 "x": (n[0] + n[2]) // 2,
                 "y": (n[1] + n[3]) // 2,
@@ -203,6 +217,208 @@ def pull(path, dest):
     return data, ok
 
 
+ALBUM = "/sdcard/Movies/Klhu"
+
+
+def gallery_videos():
+    """What the phone's own video library holds of the app's (FR-011): the files
+    in its album, and the MediaStore entries that make them the gallery's.
+
+    `keep` promises both halves — the file in Movies/Klhu and the entry that
+    says it is a video — so a check that reads only one of them could pass while
+    the reader saw nothing in their gallery."""
+    listing = adb("shell", "ls", ALBUM).stdout
+    files = sorted(
+        l.strip() for l in listing.splitlines()
+        if l.strip() and not l.strip().startswith("ls:")
+    )
+    query = adb(
+        "shell", "content", "query",
+        "--uri", "content://media/external/video/media",
+        "--projection", "_display_name:relative_path",
+    )
+    entries = []
+    album_path = f"Movies/{ALBUM.rsplit('/', 1)[-1]}"
+    for line in query.stdout.splitlines():
+        if album_path not in line:
+            continue
+        # `_display_name=<the content's own name>, relative_path=Movies/Klhu/` —
+        # and a content's name can hold spaces and commas, so the name ends where
+        # the next column starts, not at the first space or comma (`\S+?` read a
+        # kept video as "The" and dropped the row: a parse that silently loses
+        # rows is worse than one that fails).
+        m = re.search(r"_display_name=(.*?), relative_path=", line)
+        if m:
+            entries.append(m.group(1).strip())
+    if not entries and query.stdout.strip():
+        print("   media query answered:", query.stdout.strip()[:200])
+    if query.stderr.strip():
+        print("   media query refused:", query.stderr.strip()[:200])
+    return files, sorted(entries)
+
+
+def clear_album():
+    """A fresh install state for the gallery.
+
+    `pm clear` empties the app's own store but not the phone's video library, so
+    a row about the library has to clear that itself — otherwise it can pass
+    because an earlier run left a file behind, or fail for the same reason."""
+    adb("shell", "rm", "-rf", ALBUM)
+    listed = adb("shell", "content", "query",
+                 "--uri", "content://media/external/video/media",
+                 "--projection", "_id:_display_name:relative_path")
+    for line in listed.stdout.splitlines():
+        if f"Movies/{ALBUM.rsplit('/', 1)[-1]}" not in line:
+            continue
+        m = re.search(r"_id=(\d+)", line)
+        if m:
+            adb("shell", "content", "delete", "--uri",
+                f"content://media/external/video/media/{m.group(1)}")
+    adb("shell", "cmd", "media", "scan", ALBUM)
+
+
+def players_started():
+    """The phone's own audio players that are running.
+
+    A video whose sound is playing is an `AudioTrack` in `started` state, and
+    every render carries the reader's voice — so this is what "it plays" looks
+    like from outside the app, rather than a claim about a pause button's
+    label that the platform never sets (D12)."""
+    out = adb("shell", "dumpsys", "audio").stdout
+    return [
+        l.strip() for l in out.splitlines()
+        if re.search(r"state[:=]\s*started", l)
+    ]
+
+
+def raw_nodes():
+    """Every node in the dump, with its class and bounds.
+
+    The video's transport controls are the platform's own Android views inside
+    the platform view, so they carry no content-desc the app sets — the labelled
+    dump cannot see them, which is exactly why the review's playback needs a
+    look at the raw tree."""
+    subprocess.run(["rm", "-f", LOCAL])
+    adb("shell", "uiautomator", "dump", XML)
+    adb("pull", XML, LOCAL)
+    try:
+        xml = open(LOCAL, encoding="utf-8").read()
+    except OSError:
+        return []
+    nodes = []
+    for m in re.finditer(r"<node[^>]*>", xml):
+        tag = m.group(0)
+
+        def attr(k):
+            a = re.search(k + r'="([^"]*)"', tag)
+            return a.group(1) if a else ""
+
+        bounds = attr("bounds")
+        if not bounds:
+            continue
+        n = [int(x) for x in re.findall(r"\d+", bounds)]
+        nodes.append({
+            "cls": attr("class").split(".")[-1],
+            "id": attr("resource-id").split("/")[-1],
+            "desc": attr("content-desc"),
+            "text": attr("text"),
+            "x": (n[0] + n[2]) // 2,
+            "y": (n[1] + n[3]) // 2,
+            "w": n[2] - n[0],
+            "h": n[3] - n[1],
+        })
+    return nodes
+
+
+def screen_size():
+    m = re.search(r"(\d+)x(\d+)", adb("shell", "wm", "size").stdout)
+    return (int(m.group(1)), int(m.group(2))) if m else (1080, 2400)
+
+
+def screen_density():
+    """Pixels per dp: what turns the platform's own button sizes into places on
+    this screen (the transport controls are the platform's, not the app's)."""
+    m = re.search(r"(\d+)", adb("shell", "wm", "density").stdout)
+    return (int(m.group(1)) / 160.0) if m else 2.75
+
+
+def surfaces_of(package=PKG):
+    """The surfaces the platform compositor is showing for the app.
+
+    A Flutter platform view is a real Android view inside a surface of its own,
+    which is what "the picture is on screen" looks like from outside the app —
+    Flutter's own accessibility tree stops at the platform view's edge, so the
+    labelled dump cannot show that it is there."""
+    out = adb("shell", "dumpsys", "SurfaceFlinger", "--list").stdout
+    return [l.strip() for l in out.splitlines() if package in l]
+
+
+def wait_for(predicate, seconds, every=1.0):
+    """Waits for [predicate] to answer something true, and answers it (or None).
+
+    The app's own evidence lines and the phone's own state are the clock here:
+    nothing waits a fixed time for something that takes a while."""
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        answer = predicate()
+        if answer:
+            return answer
+        time.sleep(every)
+    return predicate()
+
+
+def play_in_view(tag, rows):
+    """Plays what the page is showing, and answers whether the phone's sound is
+    running afterwards.
+
+    The picture is a Flutter platform view, and Flutter's accessibility tree
+    stops at its edge: `uiautomator` never shows the platform's own transport
+    controls (a run of this row proved that — the raw tree holds the page's three
+    buttons and nothing of the player). So the control is reached by where it
+    *is*, and what is checked afterwards is the phone's own sound, never the tap.
+
+    Where it is: the page gives the picture the whole area above its own action
+    row, and the platform anchors its controller bar to that view's bottom edge
+    with the three buttons at the left of the bar — rewind, play, forward. So the
+    bar is just above the action row, and play is the middle of the first three
+    button widths from the left.
+    """
+    width, _ = screen_size()
+    density = screen_density()
+    actions = [r["y"] for r in rows
+               if (r["desc"] or r["text"]).strip() in
+               ("Discard", "Share", "Save", "Play video")]
+    if not actions:
+        # The kept video plays on a screen of its own, without the review's three
+        # decisions: the page's own action row then sits at the bottom of the
+        # screen, which is where the picture's area ends.
+        _, height = screen_size()
+        print("   no page actions on screen: placing the picture from the screen")
+        area_bottom = height - int(105 * density)
+    else:
+        area_bottom = min(actions) - 60
+    centre = area_bottom // 2
+    play_x = int(80 * density)
+    print(f"   picture area bottom {area_bottom}; controller bar sits at it, "
+          f"play button about x={play_x}")
+
+    # Raise the controls (a tap on the picture toggles them), then press play.
+    adb("shell", "input", "tap", str(width // 2), str(centre))
+    time.sleep(1.2)
+    for dy in (30, 60, 100):
+        y = area_bottom - int(dy * density / 2.625)
+        for x in (play_x, int(150 * density)):
+            adb("shell", "input", "tap", str(x), str(y))
+            time.sleep(2.5)
+            started = players_started()
+            if started:
+                print(f"   play control answered at ({x}, {y}): {started[0][:80]}")
+                return started
+            print(f"   ({x}, {y}) started nothing")
+    print("   nothing started: the controls were not where the layout says")
+    return []
+
+
 def probe(path):
     """One call, every field the checks below assert on — an `-show_entries`
     that omits a field reads as None, which looks like a broken video."""
@@ -300,16 +516,21 @@ def render(where, aspect_label, pair=None):
     print(f"   done: path={path} {ms}ms {size}B frames={frames}")
 
     # SC-001: the reader is told the file's name and its length.
+    # The message is the review screen's own bottom bar, and it appears with the
+    # review rather than with the render — so the wait is on the message itself,
+    # and what the page was showing is kept for the failure line.
     snack = None
-    for _ in range(6):
+    seen = []
+    for _ in range(12):
         rows = dump()
         hits = [l for l in labels(rows) if l.startswith("Video made")]
         if hits:
             snack = hits[0]
             break
+        seen = labels(rows)[:6]
         time.sleep(1)
     check(f"{where}: the page reported the file's name and length",
-          snack is not None, repr(snack))
+          bool(snack), snack or f"the page showed: {seen}")
     if snack:
         m = re.search(r"\((\d+) s\)", snack)
         check(f"{where}: the reported length is the render's own",
@@ -468,7 +689,11 @@ def _grow(box, add):
 
 
 def column_of(w, h):
-    col_w = min(0.88 * w, h)
+    """The app's own text column, in this grid's own pixels — the same rule the
+    painter uses (`min(0.92 × width, 1.4 × height)`, from 2026-09-28, when the
+    reader asked for longer lines) and the same tenth-of-the-frame margins. It is
+    a mirror: when the painter's rule changes, this changes with it."""
+    col_w = min(0.92 * w, 1.4 * h)
     return (w - col_w) / 2.0, 0.10 * h, col_w
 
 
@@ -506,6 +731,15 @@ def row_31():
         print(f"   artifact: {dest} sha256={sha256_of(data)[:16]}…")
         ffprobe_checks(f"31/{name}", dest, ms, frames, w, h)
 
+        # A review left up is state the next aspect inherits: the page's own
+        # toolbar is behind it, so the next render's tap on 'Video' finds only
+        # the review's three decisions and the row reads as "the render failed".
+        # Discarding is also what this row wants — a check of one aspect leaves
+        # nothing of its own behind.
+        rows = dump()
+        if tap(rows, "Discard", label="discard the review"):
+            time.sleep(1.5)
+
 
 def row_34():
     step("34 setup: fresh install state")
@@ -530,11 +764,19 @@ def row_34():
     print("   NOTE: 'still in the gallery, still playable' is US3's keep (T030);"
           " with nothing kept yet the earlier file is the cache's working copy,")
     print("   which row 34 itself requires the cache to be free of afterwards.")
+    # Taking the review down is what discards that working copy, so the baseline
+    # the cancel is judged against is taken here, after it, not before.
+    if tap(dump(), "Discard", label="discard the earlier review"):
+        time.sleep(1.5)
+    baseline = [l.strip() for l in shell_files(CACHE).splitlines() if l.strip()]
+    print("   cache before the second render:", baseline or "(none)")
 
     step("34: render again, and stop it about half way")
     clear_logcat()
     rows = dump()
     if not tap(rows, "Video", label="the video action"):
+        check("34: the video action is there for the second render", False,
+              f"visible: {labels(rows)[:8]}")
         return
     time.sleep(1.5)
     rows = dump()
@@ -542,7 +784,10 @@ def row_34():
         check("34: the aspect prompt opened", False, f"visible: {labels(rows)[:8]}")
         return
     # The remembered choice (A8) is already landscape; Start confirms it.
-    tap(rows, "Start", label="Start")
+    if not tap(rows, "Start", label="Start"):
+        check("34: the aspect prompt offers Start", False,
+              f"visible: {labels(rows)[:8]}")
+        return
     half = wall / 2.0
     time.sleep(half)
 
@@ -554,6 +799,8 @@ def row_34():
     # sit in the middle: the two Stops are told apart by where they are.
     if not tap(rows, "Stop", label="Stop (the toolbar's)", below=1800,
                exact=True):
+        check("34: the toolbar's Stop is reachable while it renders", False,
+              f"visible: {labels(rows)[:10]}")
         return
     time.sleep(1.5)
     rows = dump()
@@ -561,6 +808,8 @@ def row_34():
           repr([l for l in labels(rows) if "Stop" in l][:4]))
     if not tap(rows, "Stop", label="Stop (the confirmation's)", above=1800,
                exact=True):
+        check("34: the confirmation's Stop is reachable", False,
+              f"visible: {labels(rows)[:10]}")
         return
     time.sleep(3)
     rows = dump()
@@ -597,6 +846,204 @@ def row_34():
     check("34: the earlier video's own streams still parse", ok)
 
 
+
+
+PREF = f"/data/data/{PKG}/shared_prefs/FlutterSharedPreferences.xml"
+
+
+def kept_record():
+    """The app's own record of the video it kept: `{name, uri, keptAt}` per
+    content, under `shared_preferences`' key `video_record`.
+
+    This is the name the gallery entry has to bear, read from the app that wrote
+    it — the page's own "Video made: …" line names the *file the render wrote*,
+    which is the working directory's, and reading that instead would be checking
+    the wrong name (SC-001's line is about the file, FR-011's rule is about the
+    content)."""
+    raw = adb("shell", "run-as", PKG, "cat", PREF).stdout
+    m = re.search(r'name="flutter\.video_record"[^>]*>([^<]*)<', raw)
+    if not m:
+        return None
+    # `shared_preferences` escapes the JSON's quotes in the XML.
+    text = m.group(1).replace("&quot;", '"').replace("&amp;", "&")
+    try:
+        entries = json.loads(text)
+    except ValueError:
+        return None
+    return next(iter(entries.values()), None)
+
+
+def row_33():
+    step("33 setup: a fresh install and an empty gallery")
+    hard_restart()
+    clear_album()
+    files_before, entries_before = gallery_videos()
+    check("33: the gallery starts without a video of the app's",
+          not files_before and not entries_before,
+          f"files={files_before} entries={entries_before}")
+
+    # ---- one render, watched, then thrown away --------------------------
+    step("33: render a video, and watch it before keeping it")
+    first = render("33/first", "16:9 landscape 1080p")
+    check("33: the render produced a file", first is not None)
+    if not first:
+        return
+    path, ms, size, frames, wall = first
+    rows = dump()
+    show(rows, 10)
+    check("33: the review offers the three decisions",
+          on_screen(rows, "Discard") and on_screen(rows, "Share")
+          and on_screen(rows, "Save"), repr(labels(rows)[:10]))
+    appsurfaces = surfaces_of()
+    check("33: the review's picture is on screen (a surface of its own)",
+          bool(appsurfaces), repr(appsurfaces[:4]))
+
+    step("33: play the working copy inside the review")
+    if SKIP_PLAY:
+        print("   SKIPPED (KLHU_SKIP_PLAY=1): the player is this box's memory "
+              "peak and the emulator dies under it")
+    else:
+        clear_logcat()
+        played = play_in_view("33/review", rows)
+        check("33: the review's video plays (the phone has its sound running)",
+              bool(played), f"started players: {played}")
+        errors = [l for l in logcat().splitlines()
+                  if PKG in l and ("MediaPlayer" in l or "IllegalState" in l)]
+        check("33: playing it reported no error", not errors, repr(errors[:3]))
+
+    step("33: throw this one away")
+    if not tap(dump(), "Discard", label="Discard", exact=True):
+        return
+    time.sleep(2)
+    rows = dump()
+    check("33: the page is idle again after the throw-away",
+          on_screen(rows, "Video") and not on_screen(rows, "Video preview"),
+          repr(labels(rows)[:8]))
+    files_after, entries_after = gallery_videos()
+    check("33: throwing a render away kept nothing in the gallery",
+          files_after == files_before and entries_after == entries_before,
+          f"files={files_after} entries={entries_after}")
+
+    # ---- another render, kept ------------------------------------------
+    step("33: render again and keep it")
+    second = render("33/second", "16:9 landscape 1080p")
+    check("33: the second render produced a file", second is not None)
+    if not second:
+        return
+    path2, ms2, size2, frames2, wall2 = second
+    rows = dump()
+    if not tap(rows, "Save", label="Save", exact=True):
+        return
+    kept_files = wait_for(lambda: gallery_videos()[0], 25)
+    kept_entries = gallery_videos()[1]
+    print(f"   gallery after keeping: {kept_files} / {kept_entries}")
+    record = wait_for(lambda: kept_record() or None, 20)
+    name = (record or {}).get("name")
+    check("33: the app's own record names the kept video", bool(name),
+          repr(record))
+    if not name:
+        return
+    check("33: the name is the content's, not the render's own file",
+          name != path2.split("/")[-1],
+          f"record name {name!r}, the render wrote {path2.split('/')[-1]!r}")
+    check("33: the gallery holds the file the record names",
+          f"{name}" in kept_files, f"wanted {name!r} in {kept_files}")
+    check("33: the library holds it as a video, under that name",
+          f"{name}" in kept_entries, f"entries={kept_entries}")
+
+    dest = os.path.join(OUT, "33_kept.mp4")
+    subprocess.run(["adb", "-s", DEV, "pull", f"{ALBUM}/{name}", dest],
+                   capture_output=True)
+    got = os.path.getsize(dest) if os.path.exists(dest) else 0
+    check("33: the kept file came off the device and is the render's own bytes",
+          got == size2, f"{got}B pulled, the render wrote {size2}B")
+    ok = ffprobe_checks("33/kept", dest, ms2, frames2, 1920, 1080)
+    check("33: the kept video's own streams parse", ok)
+
+    rows = dump()
+    check("33: the content now offers the video's own actions",
+          on_screen(rows, "Play video") and on_screen(rows, "Delete video"),
+          repr(labels(rows)[:10]))
+
+    step("33: play the kept video, from the gallery's own entry")
+    if SKIP_PLAY:
+        print("   SKIPPED (KLHU_SKIP_PLAY=1), and so is opening its screen")
+    elif tap(rows, "Play video", label="the content's play"):
+        time.sleep(2.5)
+        played = play_in_view("33/kept", dump())
+        check("33: the kept video plays", bool(played), f"started players: {played}")
+        adb("shell", "input", "keyevent", "4")   # back to the page
+        time.sleep(1.5)
+
+    step("33: share it — the phone's own list, and nothing kept by sharing")
+    files_shared, entries_shared = gallery_videos()
+    rows = dump()
+    if not tap(rows, "Share", label="Share"):
+        return
+    # The phone's chooser is another app's window and animates in: a dump taken
+    # while it is still coming up holds nothing at all, which reads as "no list
+    # appeared" when the list is right there a moment later.
+    shown = []
+    for _ in range(6):
+        time.sleep(2)
+        shown = labels(dump())
+        if shown:
+            break
+    print(f"   share sheet: {shown[:12]}")
+    if not shown:
+        # An empty dump is not "no list": whatever is up holds nothing the
+        # accessibility service can name. The classes are what say what it is.
+        print("   nothing nameable is up; the raw tree holds:",
+              [(n["cls"], n["id"], n["desc"][:20], n["w"], n["h"])
+               for n in raw_nodes()][:8])
+    check("33: the phone's own share list appeared",
+          any("share" in l.lower() for l in shown) or len(shown) > 3,
+          repr(shown[:12]))
+    files_now, entries_now = gallery_videos()
+    check("33: sharing kept nothing new and removed nothing",
+          files_now == files_shared and entries_now == entries_shared,
+          f"files={files_now} entries={entries_now}")
+    adb("shell", "input", "keyevent", "4")
+    time.sleep(1.5)
+
+    step("33: delete it, behind its warning")
+    rows = dump()
+    if not tap(rows, "Delete video", label="Delete video"):
+        return
+    time.sleep(2)
+    rows = dump()
+    check("33: deleting warns first",
+          on_screen(rows, "Delete this video?")
+          and on_screen(rows, "removed from your gallery"),
+          repr(labels(rows)[:8]))
+    if not tap(rows, "Cancel", label="Cancel", exact=True):
+        return
+    time.sleep(1.5)
+    still = gallery_videos()[0]
+    check("33: cancelling the warning deletes nothing", still == files_shared,
+          f"files={still}")
+
+    rows = dump()
+    if not tap(rows, "Delete video", label="Delete video"):
+        return
+    time.sleep(2)
+    rows = dump()
+    if not tap(rows, "Delete", label="Delete (the dialog's)", exact=True):
+        return
+    gone = wait_for(lambda: not gallery_videos()[0], 25)
+    check("33: the gallery no longer lists the file", gone,
+          f"files={gallery_videos()[0]}")
+    entries = gallery_videos()[1]
+    check("33: the library has no entry for it either", not entries,
+          f"entries={entries}")
+    rows = dump()
+    check("33: the content offers to record again, and nothing else",
+          on_screen(rows, "Video") and not on_screen(rows, "Play video")
+          and not on_screen(rows, "Delete video"),
+          repr(labels(rows)[:10]))
+
+
+
 def has_colour(rgb, w, h, colour, tol=BAND_TOL, stride=2):
     """Whether any sampled pixel is [colour], within the encoder's own slack."""
     for y in range(0, h, stride):
@@ -619,6 +1066,12 @@ def row_32():
         ("9:16 vertical (Shorts)", "vertical", 1080, 1920),
     ):
         step(f"32: a real render at {aspect}, watching the page as it paints")
+        # A review left up from the previous aspect hides the page's own toolbar,
+        # and then this row reads "the render produced no file" for a render it
+        # never started. This row keeps nothing, so taking it down is its own.
+        rows = dump()
+        if on_screen(rows, "Discard") and tap(rows, "Discard", label="the earlier review"):
+            time.sleep(1.5)
         pairs = []
         result = render(f"32/{name}", aspect, pair=pairs)
         if not result:
@@ -767,8 +1220,395 @@ def row_32():
 
 
 # --------------------------------------------------------------------------
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+APK = os.path.join(ROOT, "build", "app", "outputs", "flutter-apk", "app-debug.apk")
+
+# The playback steps are the memory peak of this walk (a platform view plus the
+# video's own player), and this development box kills the emulator under it. With
+# this set, the steps are skipped and *said* to be skipped — the rest of the row
+# (keep, share, delete) still runs, and the gap is on the record rather than
+# papered over.
+SKIP_PLAY = os.environ.get("KLHU_SKIP_PLAY") == "1"
+
+
+def preflight():
+    """The walk is only as good as the device it runs on.
+
+    Two failures look exactly like the app behaving oddly and cost a whole run:
+    an emulator that is not there (this box kills it under the render's memory
+    peak), and an app older than the APK on disk (an AVD snapshot restores last
+    week's build, and then the walk drives a version nobody is working on)."""
+    devices = adb("devices").stdout
+    if DEV not in devices or "offline" in devices:
+        print(f"{DEV} is not available.\n"
+              "  start it first:  emulator -avd klhu -no-window")
+        sys.exit(2)
+    if os.path.exists(APK):
+        built = time.strftime("%Y-%m-%d %H:%M:%S",
+                              time.localtime(os.path.getmtime(APK)))
+        m = re.search(r"lastUpdateTime=(\S+)",
+                      adb("shell", "dumpsys", "package", PKG).stdout)
+        if m and m.group(1) < built:
+            print(f"the app on {DEV} is older than the APK built at {built}\n"
+                  f"  device has {m.group(1)} — install it first:\n"
+                  f"  adb install -r {os.path.relpath(APK, ROOT)}")
+            sys.exit(2)
+
+
+# --------------------------------------------------------------------------
+# The reader's own pictures on the device (row 49). The row brings its own
+# pictures, chooses them through the platform's own **file dialog** — driven
+# from here, which is what makes this row unattended — and then reads the
+# frames of a real render for what each range carries.
+
+PICTURE_DIR = "/sdcard/Pictures/klhu_walk"
+
+
+def row_pictures():
+    """The pictures this row pushes: (name, rgb, band rgb or None, the ink).
+
+    The ink is what a frame gives away: the plate is the tone's own colour (the
+    words read in its opposite), so over a light picture the ink is black and
+    over a dark one it is white — the reader's own two cases from the phone
+    ('white text black background, black text white background. all works.').
+
+    Every colour here is unambiguous under any tone threshold between 0.1 and
+    0.8: the light ones are near-white and the dark ones are near-black, so the
+    check does not depend on where the app draws its own line. **kw02** is the
+    one that matters most: dark all over, with a **bright band under the words**,
+    so its band tone and its average tone disagree — D16's own case. If the app
+    plated by the picture's average, kw02's ink would be white and this row would
+    say so.
+    """
+    return [
+        ("kw00.png", (255, 255, 255), None, (0, 0, 0)),          # a white picture
+        ("kw01.png", (0, 0, 0), None, (255, 255, 255)),          # a black picture
+        # kw02's bright band is where the words land — the bottom of the text
+        # area since 2026-09-28 — which is the picture's own y 340..470 once the
+        # cover crop into a 16:9 frame is accounted for.
+        ("kw02.png", (40, 40, 40), (255, 255, 255), (0, 0, 0)),  # dark, bright band
+        ("kw03.png", (255, 240, 200), None, (0, 0, 0)),
+        ("kw04.png", (60, 30, 30), None, (255, 255, 255)),
+        ("kw05.png", (200, 255, 200), None, (0, 0, 0)),
+        ("kw06.png", (30, 60, 30), None, (255, 255, 255)),
+        ("kw07.png", (255, 200, 255), None, (0, 0, 0)),
+        ("kw08.png", (30, 30, 60), None, (255, 255, 255)),       # the ninth: over the count
+    ]
+
+
+def make_pictures():
+    """Writes the row's pictures to $OUT/pics and answers their paths.
+
+    kw02's bright band is placed where the render's own text column will land:
+    a 3:4 picture in a 16:9 frame is cropped to the picture's middle, and the
+    column's first line sits just inside that, so the band spans the picture's
+    own x 105..375 (the column's x, once scaled) and y 200..400.
+    """
+    out = os.path.join(OUT, "pics")
+    os.makedirs(out, exist_ok=True)
+    paths = []
+    for name, rgb, band, _ink in row_pictures():
+        path = os.path.join(out, name)
+        colour = "0x%02x%02x%02x" % rgb
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi",
+               "-i", f"color=c={colour}:s=480x640", "-frames:v", "1"]
+        if band:
+            band_colour = "0x%02x%02x%02x" % band
+            # The picture's own x 105..375 is the column's x once the 3:4 picture
+            # is scaled to a 16:9 frame (×4); its y 340..470 is the column's lower
+            # part once the vertical crop is accounted for. Both follow from the
+            # painter's own geometry — see the walk's `column_of`.
+            cmd += ["-vf", f"drawbox=x=105:y=405:w=270:h=30"
+                           f":color={band_colour}:t=fill"]
+        subprocess.run(cmd + [path], check=True)
+        paths.append(path)
+    print(f"   {len(paths)} pictures written, e.g. {os.path.basename(paths[0])}")
+    return paths
+
+
+def push_pictures(paths):
+    """Pushes them into the device's Pictures/ and asks the gallery to look."""
+    adb("shell", "mkdir", "-p", PICTURE_DIR)
+    adb("push", *paths, PICTURE_DIR + "/")
+    for path in paths:
+        name = os.path.basename(path)
+        adb("shell", "am", "broadcast",
+            "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+            "-d", f"file://{PICTURE_DIR}/{name}")
+    time.sleep(2)
+    listing = adb("shell", "ls", PICTURE_DIR).stdout.split()
+    check("49: the row's own pictures are on the device",
+          len(listing) >= len(paths), f"{len(listing)} files in {PICTURE_DIR}")
+
+
+def choose_pictures(names):
+    """Chooses [names] in the platform's own file dialog, in this order.
+
+    The dialog is the system's Files app in its Recent view. A **long press** on
+    the first name is what starts its selection mode — the toolbar then reads
+    'N selected' and carries the button that confirms, 'Select' — then one tap
+    per other name, then that button, which hands the files back to the app.
+    """
+    rows = dump()
+    first = find(rows, names[0])
+    if not first:
+        check(f"49: the dialog shows {names[0]}", False,
+              f"offered: {[l for l in labels(rows) if '.png' in l][:6]}")
+        return False
+    row = first[0]
+    adb("shell", "input", "swipe", str(row["x"]), str(row["y"]),
+        str(row["x"]), str(row["y"]), "900")
+    print(f"   long press on {names[0]} @{row['x']},{row['y']} "
+          "(this is what opens selection mode)")
+    time.sleep(1.5)
+    rows = dump()
+    for name in names[1:]:
+        if not tap(rows, name, label=name):
+            return False
+        time.sleep(0.8)
+        rows = dump()
+    print("   the dialog says:",
+          [l for l in labels(rows) if l.endswith("selected")])
+    for label in ("Select", "Open", "Done"):
+        if tap(rows, label, label=f"the dialog's own {label}"):
+            break
+    else:
+        check("49: the dialog offers a way to confirm", False,
+              f"visible: {labels(rows)[:12]}")
+        return False
+    time.sleep(3)
+    return True
+
+
+def cache_entries():
+    """The app's own working entries (`picks_*`, `render_*`), by name: what
+    SC-024 says must not outlive the prompt and the render that used it."""
+    names = []
+    for path in shell_files(CACHE).split():
+        base = os.path.basename(path)
+        if base.startswith("picks_") or base.startswith("render_"):
+            names.append(base)
+    return sorted(names)
+
+
+def off_column(w, h):
+    """Points outside the text column (frame coordinates): where only the
+    picture itself can be, if a picture is there at all.
+
+    Derived from the column itself rather than from fixed fractions of the frame:
+    the column's width follows the painter's rule, and a sample point that was
+    outside a 1080-wide column is inside a 1512-wide one. Six points around it —
+    both ends of the middle, the middle of the top and the bottom, and the two
+    upper/lower corners of the frame."""
+    left, top, col_w = column_of(w, h)
+    return [(left / 2.0, 0.5 * h), (w - left / 2.0, 0.5 * h),
+            (left / 2.0, h - top / 2.0), (w - left / 2.0, h - top / 2.0),
+            (0.5 * w, top / 2.0), (0.5 * w, top / 4.0)]
+
+
+def picture_at(rgb, w, h, pictures, tol=24):
+    """Which of the row's pictures fills this frame, or None: the frame's
+    pixels outside the column are the picture's own colour (FR-027's 'the
+    picture fills the frame'), so they name it."""
+    for x, y in off_column(w, h):
+        px = at(rgb, w, int(x), int(y))
+        # The **nearest** of the row's own colours, not the first within reach:
+        # two of them (a dark grey and a dark red) are close enough that a loose
+        # match names the wrong picture, and then every check about it is a
+        # check about the wrong picture.
+        best, best_d = None, None
+        for name, colour, _band, _ink in pictures:
+            d = sum((a - b) ** 2 for a, b in zip(px, colour))
+            if best_d is None or d < best_d:
+                best, best_d = name, d
+        if best_d is not None and best_d <= tol * tol * 3:
+            return best
+        return None
+    return None
+
+
+def ink_in_column(rgb, w, h, colour):
+    """(count, box) of one ink colour inside the text column, sampled every other
+    pixel.
+
+    One colour rather than both: a solid white picture is near-white through the
+    whole column and a solid black one is near-black, so counting both makes the
+    picture itself the biggest pile of "ink" and the box the whole column. The
+    colour asked for is the one the words are read in over *this* picture, which
+    the row knows from the picture's own band — and its box is where the words
+    are, which is what says the block sits at the bottom of the frame since the
+    reader's own request of 2026-09-28.
+    """
+    left, top, col_w = column_of(w, h)
+    near_white = colour == (255, 255, 255)
+    count = 0
+    box = None
+    for y in range(int(top), int(h - top), 2):
+        for x in range(int(left), int(left + col_w), 2):
+            px = at(rgb, w, x, y)
+            hit = (all(c >= 240 for c in px) if near_white
+                   else all(c <= 15 for c in px))
+            if not hit:
+                continue
+            count += 1
+            box = (x, y, x, y) if box is None else (
+                min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y))
+    return count, box
+
+
+def row_49():
+    step("49: the row's own pictures, pushed into the device's Pictures/")
+    hard_restart()
+    sentences = preset_sentences()
+    print(f"   the pre-set's {len(sentences)} sentences")
+    before = cache_entries()
+    print(f"   the app's own working entries before anything: {before}")
+    push_pictures(make_pictures())
+    pictures = row_pictures()
+
+    # ---- the choice over the count (FR-026's re-cut from the phone) ----
+    step("49: five pictures, then five more through Choose more — one over the count")
+    rows = dump()
+    if on_screen(rows, "Discard") and tap(rows, "Discard", label="an earlier review"):
+        time.sleep(1.5)
+        rows = dump()
+    if not tap(rows, "Video", label="the video action"):
+        return
+    time.sleep(1.5)
+    rows = dump()
+    if not tap(rows, "16:9 landscape", label="the landscape format"):
+        return
+    time.sleep(0.6)
+    rows = dump()
+    if not tap(rows, "Choose pictures", label="Choose pictures"):
+        return
+    time.sleep(3)
+    if not choose_pictures([p[0] for p in pictures[:5]]):
+        return
+    rows = dump()
+    check("49: the first five are on the page",
+          on_screen(rows, "5 pictures chosen"), f"visible: {labels(rows)[:8]}")
+    if not tap(rows, "Choose more", label="Choose more"):
+        return
+    time.sleep(3)
+    if not choose_pictures([p[0] for p in pictures[5:9]]):
+        return
+    rows = dump()
+    check("49: Choose more adds to the choice rather than replacing it",
+          on_screen(rows, "9 pictures chosen"), f"visible: {labels(rows)[:8]}")
+    check("49: a choice one over the count is said nothing about",
+          not any("sentence" in (r["desc"] or r["text"]).lower() for r in rows),
+          "no label mentions the video's sentences")
+    start = find(rows, "Start")
+    check("49: and the render is offered as it stands",
+          bool(start) and start[0]["enabled"],
+          "Start is there and enabled — nothing to take back first")
+    if tap(rows, "Cancel", label="Cancel"):
+        time.sleep(1.5)
+    after_cancel = cache_entries()
+    check("49: a cancelled prompt leaves nothing behind (SC-024)",
+          after_cancel == before,
+          f"after the cancel: {after_cancel} (before: {before})")
+
+    # ---- the render, and what each of its ranges carries ----
+    step("49: eight pictures for eight sentences, rendered, frame by frame")
+    rows = dump()
+    if not tap(rows, "Video", label="the video action"):
+        return
+    time.sleep(1.5)
+    rows = dump()
+    if not tap(rows, "16:9 landscape", label="the landscape format"):
+        return
+    time.sleep(0.6)
+    rows = dump()
+    if not tap(rows, "Choose pictures", label="Choose pictures"):
+        return
+    time.sleep(3)
+    if not choose_pictures([p[0] for p in pictures[:8]]):
+        return
+    rows = dump()
+    check("49: all eight are on the page, one cell each",
+          on_screen(rows, "8 pictures chosen"), f"visible: {labels(rows)[:8]}")
+    result = render("49", None)
+    if not result:
+        check("49: the render produced a file", False)
+        return
+    path, ms, size, frames, wall = result
+    dest = os.path.join(OUT, "49_pictures.mp4")
+    data, pulled = pull(path, dest)
+    check("49: the file came off the device and is not empty",
+          pulled and len(data) > 10000, f"{len(data)}B, {frames} frames")
+
+    # What each frame shows outside the column names the picture it belongs to.
+    coarse = coarse_frames(dest)
+    print(f"   {len(coarse)} frames at {CW}x{CH}, looking for the pictures")
+    runs = []
+    for number, frame in enumerate(coarse):
+        name = picture_at(frame, CW, CH, pictures, tol=30)
+        if name and runs and runs[-1][0] == name:
+            runs[-1][1] = number
+        elif name:
+            runs.append([name, number, number])
+    drawn = [name for name, _a, _b in runs]
+    print(f"   the ranges the pictures cover: {drawn}")
+    check("49: every sentence's own run carries a picture, once each",
+          sorted(drawn) == sorted(p[0] for p in pictures[:8]),
+          f"drawn: {drawn}")
+    check("49: the ninth picture — the one over the count — is drawn nowhere",
+          pictures[8][0] not in drawn, f"{pictures[8][0]} appears in no range")
+
+    by_name = {p[0]: p for p in pictures}
+    for name, start, end in runs:
+        _n, colour, band, ink = by_name[name]
+        middle = (start + end) // 2
+        rgb = frame_rgb(dest, middle, 1920, 1080)
+        if rgb is None:
+            check(f"49/{name}: frame {middle} read", False, "ffmpeg gave nothing")
+            continue
+        outside = [at(rgb, 1920, int(x), int(y))
+                   for x, y in off_column(1920, 1080)]
+        check(f"49/{name}: the picture fills the frame — no bars, no letterbox",
+              all(all(abs(a - b) <= 16 for a, b in zip(px, colour))
+                  for px in outside),
+              f"outside the column: {outside[:3]}")
+        want = "white" if ink == (255, 255, 255) else "black"
+        count, box = ink_in_column(rgb, 1920, 1080, ink)
+        check(f"49/{name}: the words' ink is {want} (the band's own opposite)",
+              count >= 20,
+              f"{count} {want} pixels inside the column"
+              + (" — the bright band under the words, not the picture's average"
+                 if band else ""))
+        _left, margin, _w = column_of(1920, 1080)
+        check(f"49/{name}: the words sit at the bottom of the frame",
+              box is not None
+              # The box is the **glyphs'** own, so its bottom sits inside the last
+              # line's box by up to a descender's height; what the check is about
+              # is that the words are at the bottom rather than at the top, which
+              # the upper-half condition settles on its own.
+              and abs(box[3] - (1080 - margin)) <= 24
+              and box[1] > 1080 / 2,
+              f"the words' own box is {box} — the column's bottom is "
+              f"{1080 - margin:.0f} — so the picture has the frame above them "
+              f"(FR-029, the reader's own request of 2026-09-28)")
+
+    # ---- and the review taken down keeps nothing (SC-024) ----
+    rows = dump()
+    for label in ("Discard", "Keep"):
+        if on_screen(rows, label) and tap(rows, label, label=f"the review's {label}"):
+            time.sleep(2)
+            break
+    rows = dump()
+    if on_screen(rows, "Delete"):
+        tap(rows, "Delete", label="the warning's own Delete")
+        time.sleep(2)
+    after_render = cache_entries()
+    check("49: nothing the reader chose outlives the prompt (SC-024)",
+          after_render == before,
+          f"after the render: {after_render} (before: {before})")
+
+
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("31", "32", "34"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("31", "32", "33", "34", "49"):
         print(__doc__)
         sys.exit(2)
     row = sys.argv[1]
@@ -777,7 +1617,9 @@ def main():
     if not shutil.which("ffprobe") or not shutil.which("ffmpeg"):
         print("ffprobe and ffmpeg are required for this row")
         sys.exit(2)
-    {"31": row_31, "32": row_32, "34": row_34}[row]()
+    preflight()
+    {"31": row_31, "32": row_32, "33": row_33, "34": row_34,
+     "49": row_49}[row]()
 
     print("\n===== result =====")
     failed = [r for r in RESULTS if not r[1]]

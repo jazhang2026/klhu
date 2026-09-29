@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What a share may hand to another app (spec 012 US3, decision D11).
+
+  A render's working copy lives in the app's own cache directory, and that is
+  what is shared before the reader keeps it — so the cache is the one path that
+  has to be here. The public Movies folder is listed for the same reason on
+  devices below API 29, where keeping writes a file there rather than a
+  MediaStore entry: sharing one of those files goes through this provider too,
+  because a `file://` uri handed to another app is a `FileUriExposedException`.
+
+  Nothing else is exposed, and `content://` library uris (a kept video) do not
+  need a provider at all.
+-->
+<paths>
+    <cache-path
+        name="renders"
+        path="." />
+    <external-path
+        name="movies"
+        path="Movies/Klhu" />
+</paths>

@@ -86,7 +86,9 @@ exactly that: one content, its reading, on video.
   different view compare to the continue page read. I like the vedio will show same content page as reading
   and same sentence by sentence high lighting. and auto scroll when needed. Is this what you are building?"
   **A**: it was not. The plan's own decisions (research D2/A3) had the video *paint the text onto the frame*:
-  the paragraph a sentence belongs to, on a column derived from the frame (`min(0.88 × width, height)`), with
+  the paragraph a sentence belongs to, on a column derived from the frame (`min(0.88 × width, height)` — now
+  `min(0.92 × width, 1.4 × height)`, with the block at the bottom: the reader's own two changes of 2026-09-28),
+  with
   a highlight band on that sentence and a window that moved only inside a paragraph taller than the frame. So
   the video was a re-flow of the content rather than a view of the page, and no scroll settled. That gap was
   the plan's to surface when the preview first differed, and it was not surfaced; the answers below are the
@@ -136,6 +138,90 @@ exactly that: one content, its reading, on video.
   as it needs and, if that block is taller than the frame's text area, it scrolls upward inside its own frame
   over its slot. No shrinking, no splitting and no horizontal slide, and no escape hatch is needed: scrolling
   absorbs any length, so the first cut's split (FR-029) is withdrawn.
+
+### Session 2026-09-28
+
+- **Q**: The reader, after using the app on the phone (LE2115, API 34), reported four things: "1. select images:
+  only can select one image and re-select image. I like to select multiple images. set max images to 20.
+  2. video player is not working in phone. only show a black view. click play button, not playing.
+  3. video can be play from Files app's Videos folder. 4. like to have white background to the sentence
+  characters. Don't do any change to the background images's color."
+  **A**: (1) Several pictures at once, and choosing again **adds**: the app asks the platform for a
+  multi-select file dialog and holds at most **20** pictures — a pick that would bring more than 20 keeps the
+  first 20 and the page says so (FR-025, SC-022). Before this each pick replaced the last and nothing capped
+  the count. (2) A defect in the app's own playback view, not a design decision: the review showed black and
+  its controls did nothing, while the same file played from the device's Files app (3) — which says the file
+  and the keep path are sound, and the fault is in the app's player (FR-021/SC-015; fixed as a defect task,
+  not an amendment). (4) The full-frame scrim is **withdrawn**: instead of veiling the whole picture, a
+  **white plate behind each painted line** carries the words, and the picture's own colours are untouched
+  everywhere else — the reader's own words are the requirement (FR-027, SC-004). The plate's floor is the
+  reader's text against white, 17.1:1 by construction, so the 4.5:1 floor holds without a veil, and S4's
+  measured table (breakpoint row 42) stays as the record of the design it replaces.
+- **Q**: Choosing pictures again after a first pick, and what a pick larger than 20 should do.
+  **A**: "Choose again adds to the choice (batches accumulate), capped at 20" and "Keep the first 20 and say
+  so on the page" — so the cap trims rather than refusing the pick, and the page says the cap was reached
+  (FR-025/SC-022).
+- **Q**: What shape the white behind the sentence takes.
+  **A**: "A white plate behind each wrapped line's own box (picture visible everywhere else), only where a
+  picture is behind the text" — one plate per line box, no full-frame layer anywhere, and the
+  plain-background video (no pictures chosen) keeps the look it has today (FR-027/FR-028).
+- **Q**: The reader's own phone test of the picture step, in their words: "选读者自己的图片、works / 超限提示、no
+  need. not show. / 小窗口滚动、works / 长按换序, works. but only can move in displayed rows. need to able to move
+  out of the disabled rows. use auto scroll. / Need to change button: \"Choose again\" to \"Choose more\""
+  **A**: (1) Choosing through the platform's file dialog is **confirmed on the reader's own phone (LE2115)** —
+  the same dialog, the same stored picks, the same thumbnails the page shows. (2) The overshoot message is
+  **withdrawn**: the prompt says nothing about a choice larger than the video's sentences and offers the render
+  anyway; the pictures past the last sentence are simply not drawn (FR-026, SC-022) — a change of rule, not of
+  wording, and the sentence count the prompt used to resolve goes with it. (3) The small scrolling window is
+  **confirmed on the phone** (FR-030). (4) The hold-and-drop reorder is **confirmed on the phone**, with one
+  thing it could not do: reach a cell outside the two rows on screen — so a hold at either end of the window now
+  scrolls it (FR-032, D21). (5) The button that adds pictures is renamed: **Choose more** (FR-031) — the reader's
+  own words, and the copy in all four languages changed with it.
+- **Q**: The reader's answers to the review's own three points: "(a) 保留已选并提示 (b) 底板会与背后区域撞色
+  ——改为只统计文字所在条带； (c) use scrool. small show window, scroll to show others."
+  **A**: (a) A pick that cannot be taken keeps the choice the reader already has, untouched, and says so
+  (the refusal-and-warn rule, later withdrawn with the cap itself — see below). (b) The plate's tone is read
+  over **the band the painted lines cover**, not over the picture as a whole (FR-027, D16's amendment): the
+  plate then matches the strip it sits on, at the cost of a plate that may change between line steps inside
+  one sentence whose band crosses the floor. (c) The shown pictures live in a **small window — two rows tall —
+  that scrolls**, so a choice of thirty is one scroll rather than a dialog taller than the screen (FR-030,
+  SC-023).
+- **Q**: Choosing a large set of pictures over a short content, and where the picks live while the prompt is
+  open: "1. (2) 选图当下落盘到应用私有目录、页面与渲染从文件读 2. 图多于句子时：show error message! force user
+  to remove images. 3. OK." (with, before it, "remove max 20 images limit. keep all 30 images for now. user can
+  delete images.")
+  **A**: (1) The cap of 20 is **withdrawn** — every picture chosen is kept, the count on the page is the whole
+  choice, and the reader's own remove is what takes one back (FR-025, FR-030, SC-022). (2) A pick is now
+  **stored at the pick**: the bytes are read once, while the picker's own read grant is alive, and written into
+  a file in a directory of the app's own, one directory per prompt — so the page's thumbnails and the render's
+  copies are the same stored file and thirty photographs are thirty paths, not hundreds of megabytes in memory
+  (FR-025, D18, SC-024). The directory goes when the render that used it is over, however it ended: nothing the
+  reader chose outlives the prompt. (3) **Nothing bounds a choice** — not a count, and not the video's own
+  sentences: a choice larger than the video has is a choice with pictures it has nowhere to draw, and those
+  pictures are simply not drawn, exactly as the schedule has always treated a picture that found no sentence.
+  The prompt names no limit and offers the render as it stands — no trim, no silent drop, no message to clear
+  (FR-026, SC-022; the reader's own phone test of 2026-09-28: "超限提示、no need. not show."). The prompt's own
+  content still scrolls, so its buttons stay reachable on a small screen however many pictures it holds. The reader may also **change the order**: holding a picture and dropping it on
+  another picture's cell is what puts that picture there, and the order on screen is the order the video
+  draws (FR-032, SC-025). One more thing was reported and fixed with the same run: **the review's picture was
+  black** with the sound playing ("only show a black view. click play button, not playing") — a defect of the
+  view's container rather than a design decision: the picture now renders into a texture (D20), measured before
+  and after on the emulator (row 54) and confirmed by the reader on their own phone ("play button works on my
+  LE2115 phone.", 2026-09-28). A defect, so not an amendment.
+- **Q**: The reader's own follow-ups, after using the amended app on the phone: "remove 超限时保留前 20. add
+  worning when selected more then 20 images." / "now we have add more images. let's have thumbnail review and
+  image remove function." / "text background: black text on white background if background image has light
+  color. white text on black background if background image has dark color."
+  **A**: (1) The trim is **withdrawn**: a pick that would pass 20 is refused whole, the choice the reader
+  already has stands untouched, and the page names how many were chosen and that nothing was added — so
+  nothing the reader chose is ever dropped quietly (FR-025, SC-022). (2) The chosen pictures are shown as
+  **thumbnails**, in the order chosen, each with its own remove: the reader sees the choice and takes one back
+  before the render, without cancelling it (FR-030, SC-023). This is why a pick is read once at the pick —
+  the page has the bytes to show, and the render writes exactly what the reader saw (D15/D17). (3) The plate
+  is **the opposite of the picture's own tone**: black text on white over a light picture, white text on black
+  over a dark one (FR-027, D16). The tone is the picture's own average luminance, at a floor of half, so the
+  pair carries **21:1** either way and SC-004's floor is met without a veil and without measuring a picture
+  for contrast. With no picture the frame keeps the reader's own text colour (FR-028).
 
 ---
 
@@ -211,7 +297,9 @@ would produce something functional and unwatchable.
 
 **Independent Test**: inspect frames — the title card names the content; no frame contains any of the
 app's controls or the device's status bar/navigation; the text block sits inside the frame with margins
-at every sampled frame; the sentence's own glyphs are the frame's text, with no highlight band (the
+at every sampled frame — and, where the sentence fits, at the **bottom** of the text area, so the picture has
+the frame above the words to itself (the reader's own request of 2026-09-28); the sentence's own glyphs are the
+frame's text, with no highlight band (the
 sentence alone in the frame is what the frame highlights). Then measure, across the whole video, the
 gap between the end of one sentence's voice and the start of the next, and the lead-in and end hold.
 
@@ -313,9 +401,12 @@ video that rendered without pictures, no slower and nothing refused.
 
 ### Edge Cases
 
-- **More pictures chosen than the video has frames**: equal shares still partition the video, so a picture
-  that would get no frames is simply not drawn — no frame is shared by two pictures, none left uncovered
-  (FR-026/FR-028).
+- **More pictures chosen than the video has sentences**: equal shares still cover every sentence, so a picture
+  that would get no sentence is simply not drawn — no frame is shared by two pictures, none in the spoken part
+  left uncovered, and no picture change lands inside a sentence (FR-026/FR-028).
+- **A picture's share lands mid-sentence**: it cannot. A share is a whole number of sentences, so a picture
+  changes where a sentence changes — the reader never sees the picture swap while a sentence is on screen
+  (2026-09-27, FR-026).
 - **A sentence too long or too tall for the frame**: it is neither shrunk nor split — it wraps at the reader's
   own size and scrolls upward inside its own frame (FR-029), so its slot always carries that one sentence and
   its whole text is seen over the slot.
@@ -409,9 +500,14 @@ video that rendered without pictures, no slower and nothing refused.
   use (constitution IV), and the render MUST NOT depend on the phone being connected to anything.
 - **FR-014**: The video's text MUST use the reader's selected typeface and character size (011 US2): that
   size is the size the video sets every sentence in — the video MUST NOT shrink it, and a sentence that does
-  not fit wraps and scrolls within its own frame instead (FR-029). The frame size and the margins are the
-  plan's to choose; the typeface and the character size are the reader's, and the video MUST NOT quietly
-  override them.
+  not fit wraps and scrolls within its own frame instead (FR-029). The frame size, the margins **and how much
+  a line carries** are the plan's to choose — a line is 1.4× the width of the reader's own reading column, at the
+  reader's own request of 2026-09-28 ("make the text line to be longer, will has less lines"), so a sentence that
+  used to need four frames' worth of lines needs fewer. The **letters'** size is not what pays for that: a frame's
+  letters are the size its own natural column has always given them, so the width a frame gives is width the line
+  gets, and a frame with no width to give keeps its letters rather than shrinking them (the reader's own answer of
+  2026-09-28, shown what the line cost on a portrait frame: "竖屏也保持原来的字大小"). The typeface and the
+  character size are the reader's, and the video MUST NOT quietly override them.
 - **FR-015**: An empty or whitespace-only content MUST be refused with the app's existing message and MUST
   produce no file.
 - **FR-016**: The video's pacing MUST follow the voice: each sentence's frames MUST last exactly as long
@@ -438,6 +534,9 @@ video that rendered without pictures, no slower and nothing refused.
   to keep it, throw it away, or share it — all three from that one review. Only keeping writes a file into
   the device's library (FR-011): throwing it away MUST leave no file for that content and MUST leave an
   earlier kept video for that content untouched. Leaving the review without deciding MUST keep nothing.
+  **The picture MUST be drawn**: playing a render MUST show the video, not a black surface with its sound — where
+  the platform's own player is hosted in a view of ours it MUST render into a surface the app's own compositor
+  can draw (D20, the defect the reader reported from the phone and `breakpoint.md` row 54's measurement).
 - **FR-022**: The app MUST remember which video belongs to which content, so that a kept video can be
   played, shared or deleted later from that content. Deleting MUST ask first (FR-024) and MUST remove the
   file from the device's video library as well as from the app's record, after which that content offers to
@@ -457,18 +556,74 @@ video that rendered without pictures, no slower and nothing refused.
 
 - **FR-025**: Before a render starts the reader MUST be able to choose pictures for the video from their own
   files through the platform's own file dialog — no in-app gallery to build and no new permission — and MUST
-  see what is chosen before the render begins. *(Amended 2026-09-27: the file dialog rather than the photo
-  picker, so that the pictures can be files made anywhere — on the phone, on a PC, or by an AI tool — and so
-  that the same selection works on every target the app builds for, folders included. D15.)*
+  see what is chosen before the render begins. The dialog MUST let several pictures be chosen at once;
+  choosing again MUST **add** to what is already chosen rather than replace it; and **the choice MUST NOT be
+  capped**: every picture chosen is kept, in the order chosen, and the only way a picture leaves the choice is
+  the reader's own remove (FR-030). What can be *rendered* is bounded by the video itself rather than by a
+  count — the pictures may never outnumber the video's sentences (FR-026).
+  **Each pick MUST be stored as it is chosen**: the picker's own read is spent at the pick, while its grant is
+  alive, and the picture is written into a file in a **directory of the app's own** (the app's private cache,
+  one file per picture, named for the picture with any directory part stripped); the page's thumbnails and the
+  render's copies MUST both come from those stored files, so a choice of thirty photographs is thirty paths
+  rather than hundreds of megabytes held in memory. The stored files MUST NOT be remembered: the directory
+  MUST be removed once the render that used them is over — finished, stopped or failed — and MUST NOT survive
+  the prompt. The prompt's own content MUST scroll when it is taller than the dialog, so the reader's ways to
+  choose pictures and to start the render stay reachable on any screen.
+  *(Amended 2026-09-27: the file dialog rather than the photo picker, so that the pictures can be files made
+  anywhere — on the phone, on a PC, or by an AI tool — and so that the same selection works on every target the
+  app builds for, folders included. D15. Amended 2026-09-28: several pictures at once, a second pick adding to
+  the first, and the cap of 20 — the reader's own decisions after choosing pictures on the phone. Amended
+  2026-09-28 again: "remove 超限时保留前 20 … add warning when selected more then 20 images" — the trim is
+  withdrawn for a **refusal and a warning**, so nothing the reader chose is ever dropped quietly. Amended
+  2026-09-28 again — the cap itself is **withdrawn**: "remove max 20 images limit. keep all 30 images for now.
+  user can delete images." Every picture is kept and the reader's own remove is what takes one back (FR-030),
+  and what is refused is not a pick but a choice larger than the video can draw (FR-026). Amended 2026-09-28
+  again — the picks are **stored on disk at the pick** ("选图当下落盘到应用私有目录、页面与渲染从文件读", D18)
+  and the prompt scrolls, since it now carries a message that can be several lines tall.)*
 - **FR-026**: Each chosen picture MUST occupy an inclusive run of the video's frames: its start frame and
-  its end frame, counted in the video's own frame numbers rather than in seconds. As a first cut the chosen
-  pictures MUST share the video's frames equally. Moving a picture's start or end frame is a later
-  good-to-have, expressed in those same frame numbers, together with the scrim's depth (FR-027) — both
-  changed after watching a render, by rendering again (2026-09-26).
+  its end frame, counted in the video's own frame numbers rather than in seconds. **A picture MUST change
+  only where a sentence changes** (2026-09-27, the reader's own rule — "one sentence is the unit on screen;
+  no picture lands or lifts inside a sentence"): a picture's run begins at a sentence's own first frame and
+  ends immediately before the next picture's first sentence, so the frames a picture covers are whole
+  sentences and the gaps that follow them (and, for the video's last sentence, the end hold — FR-008's own
+  rule for the last sentence's run, D14). As a first cut the chosen pictures MUST share the video's
+  **sentences** equally, in the order chosen, and the video's frames before the first sentence — the title
+  card — MUST stay the plain background (FR-028). Moving a picture's start or end frame is a later
+  good-to-have, expressed as which sentence it starts at (and, with it, the look between the picture and the
+  text, FR-027) — both changed after watching a render, by rendering again (2026-09-26). **A choice MAY hold
+  more pictures than the video has sentences, and that is not an error**: a picture the sentences cannot carry
+  is simply not drawn, exactly as a schedule has always treated a picture that found no sentence. The prompt
+  MUST NOT refuse, block or count the choice, MUST NOT name any limit, and MUST offer the render whatever the
+  reader has chosen (the reader's own answer from the phone, 2026-09-28: "超限提示、no need. not show.").
+  *(Added 2026-09-28: "show error message! force user to remove images." — **withdrawn the same day**, after the
+  reader walked it on the phone: the message was not wanted, and what happens without it is the rule this
+  requirement now states. The count came from the video's own sentence resolution, the same call the render
+  makes — that work is withdrawn too, since nothing checks a choice against it any more. D18.)*
 - **FR-027**: A picture MUST be drawn to fill the frame it is in — covering it, without bars, cropping what
-  does not fit — with the sentence drawn over it and one full-frame scrim between the picture and the text, in
-  the frame's own background colour at the depth spike S4 measured (55 %; D16), so the reader's own text colour
-  still reads over any picture.
+  does not fit — with the sentence drawn over it. **The picture's own colours MUST NOT be veiled, tinted or
+  faded anywhere**: what sits between the picture and the text is a **plate behind each painted line** — the
+  line's own box, drawn from the picture up to the text — and no part of the frame outside those plates is
+  changed by it. **The picture's own tone decides the plate and the ink**: where the picture reads light the
+  text is **black on white**; where it reads dark the text is **white on black**. The tone MUST be read over
+  **the band the painted lines themselves cover** — each line's own box mapped back onto the picture — and
+  MUST NOT be read over the picture as a whole: a dark photograph whose sentence sits under a bright sky is
+  plated for what is behind the words, not for the picture's average, so the plate can never clash with the
+  strip it covers. With no picture the frame keeps the reader's own text colour (FR-028).
+  *(Amended 2026-09-28: the reader's own decision after watching a render on the phone — "like to have white
+  background to the sentence characters. Don't do any change to the background image's color." The full-frame
+  scrim of the frame's own background colour at S4's measured 55 % is **withdrawn**: it tinted the whole
+  picture, which is exactly what the reader did not want. Amended 2026-09-28 again: "black text on white
+  background if background image has light color. white text on black background if background image has dark
+  color" — the plate is the opposite of the picture's own tone, so the words read against a surface the
+  picture cannot camouflage. Light and dark are read from the picture's own average luminance, at a floor of
+  half; the pair is **21:1** either way, so the floor SC-004 asks for is met by construction, without a veil
+  or a per-picture measurement of the text's contrast. S4's measured table stays in the record as the withdrawn
+  design's numbers. D16. Amended 2026-09-28 again — after the reviewer's own point that a whole-picture average
+  clashes with the strip the words cover ("底板会与背后区域撞色——改为只统计文字所在条带"): the tone is read
+  over **the band the painted lines cover**, band by band, so the plate matches what it sits on. The cost is
+  named rather than hidden: inside one sentence whose band crosses the light/dark floor, the plate and the ink
+  may change from one line step to the next — the band actually behind the words is what decides, and the
+  frames of a step carry that step's own band.)*
 - **FR-028**: With no pictures chosen, and for any frame outside every picture's range, the frame MUST be
   the app's plain background. A render MUST NOT be refused or delayed for want of pictures.
 - **FR-029**: A sentence that does not fit the frame MUST be drawn whole at the reader's own character size
@@ -479,6 +634,32 @@ video that rendered without pictures, no slower and nothing refused.
   position MUST be proportional to the elapsed fraction of the slot — the voice is one utterance per sentence,
   so it is an estimate by construction, which the reader has accepted (2026-09-26). The content's own text
   MUST NOT be changed.
+- **FR-030**: The pictures chosen MUST be shown to the reader as **pictures** — each one a thumbnail, in the
+  order chosen — and each MUST carry its own **remove**, so the reader can see the choice and take one back
+  before the render starts. A removed picture MUST be gone from the render's own frames and from the count,
+  and removing MUST NOT cancel the render or clear the rest of the choice. The thumbnails MUST be the chosen
+  files themselves — the files the app stored for this prompt (FR-025, D18) — and MUST NOT be remembered once
+  the render ends.
+  *(Added 2026-09-28: "let's have thumbnail review and image remove function" — the reader's own follow-up to
+  choosing several pictures at once, when a count was all the page said. D17.)*
+- **FR-031**: Every string the reader reads MUST come from the app's own copy, in the app's own languages
+  (FR-001's own rule): a pick that could not be stored says so, in the app's own words, rather than leaving a
+  picture the render cannot open. The copy MUST also name the reader's own actions in the reader's own terms —
+  the button that adds pictures to the choice says **Choose more**, because that is what it does (the reader's
+  own correction from the phone, 2026-09-28: `"Choose again" to "Choose more"`).
+- **FR-032**: The reader MUST be able to **change the order of the chosen pictures** before the render starts:
+  holding a picture and dropping it on another picture's cell MUST put it where that one was, and the order the
+  cells then stand in MUST be the order the video draws them in (FR-026). A drop on the picture's own cell MUST
+  change nothing, and a move MUST NOT take a picture back, add one, cancel the prompt or change the count. The
+  hold MUST start anywhere on the picture's own cell — not only on its remove, whose own tap target MUST NOT
+  swallow the hold — and the reader MUST be told, in the app's own copy, that the order can be changed (FR-031).
+  **A hold that reaches either end of the picture window MUST scroll the window**, and MUST keep scrolling while
+  the hold stays there, so a picture can be moved to a cell that is not on screen: the whole choice is the
+  reader's to move within, not only the rows in sight.
+  *(Added 2026-09-28, the reader's own request that the review step let a picture be moved rather than only
+  removed. D19. Amended 2026-09-28, after the reader walked it on the phone — the hold worked, but "only can move
+  in displayed rows. need to able to move out of the disabled rows. use auto scroll." So the window follows the
+  hold: the repeat stops the moment the hold leaves the window's ends or ends, D21.)*
 
 ### Key Entities *(include if feature involves data)*
 
@@ -490,7 +671,7 @@ video that rendered without pictures, no slower and nothing refused.
   slot's frames must show that sentence's own text alone.
 - **The video's layout**: how the video puts its frame together — the sentence at the reader's own size,
   wrapped over as many lines as it needs and scrolled inside the frame when that block is too tall (FR-029),
-  the picture behind it and the scrim over it, in the frame's own background colour (FR-027), the plain
+  the picture behind it with a white plate behind each painted line (FR-027), the plain
   background, the title card, the end
   hold, and the margins. It carries the reader's appearance (typeface and character size) rather than
   replacing it (FR-014).
@@ -499,7 +680,8 @@ video that rendered without pictures, no slower and nothing refused.
   the plain background (FR-028).
 - **A sentence's scroll**: where inside its own frame a wrapped sentence's text sits at a moment — from its
   first line at the top of the text area to its last line at the bottom, by the elapsed fraction of the
-  sentence's slot (FR-029). A sentence that fits has no scroll: its text is still.
+  sentence's slot (FR-029). A sentence that fits has no scroll: its text is still, and it sits at the **bottom**
+  of the text area (the reader's own request of 2026-09-28: "move text block from top to bottom").
 - **Kept video record**: which video belongs to which content — the content's identity, the file's name and
   where it lives — so a kept video can be found, played, shared or deleted later (FR-022). One record per
   content; it is what FR-012's "exactly one" is enforced against, and it can go stale when the library
@@ -516,9 +698,12 @@ video that rendered without pictures, no slower and nothing refused.
   slot (a frame at its start, its middle and its end) finds that sentence's own text as the frame's text in
   100 % of samples — and finds no other sentence's text in the frame (FR-002/FR-005).
 - **SC-004**: No frame contains the app's controls or the device's status bar/navigation, and the text
-  block has margins on all sides at every sampled frame. Where a picture is behind the text, the sentence's
-  contrast against the scrimmed picture measures at least 4.5:1 at every sampled frame, so the reader's own
-  text colour still reads over any picture (FR-027).
+  block has margins on all sides at every sampled frame. Where a picture is behind the text, the words sit on
+  a plate — the line's own box — and their contrast against that plate measures at least 4.5:1 at every
+  sampled frame: black on white over a light picture, white on black over a dark one, so the pair carries
+  21:1 by construction and no picture can make the reader's own words fail (FR-027). The picture itself is
+  unchanged by the text: sampling the frame outside the plates finds the picture's own colours, neither
+  veiled nor tinted.
 - **SC-005**: The video is publishable-shaped — video and audio codecs a video platform accepts, a
   constant frame rate, the chosen aspect/resolution — verified with a standard media analyser rather than
   by eye.
@@ -573,6 +758,24 @@ video that rendered without pictures, no slower and nothing refused.
   (FR-002/FR-029).
 - **SC-021**: A render with no pictures chosen produces the video it would have produced without this change
   at all: the plain background, nothing refused and nothing delayed (FR-028).
+- **SC-022**: Choosing pictures twice in one sitting leaves the page holding both picks — the count it names
+  is the sum, not the last pick's — and nothing is capped or trimmed: every picture chosen is on the page with
+  its own cell and its own remove, however many that is. A choice larger than the video's sentences is startable
+  exactly as it stands — nothing is refused, named or blocked — and the render draws the pictures that found a
+  sentence, leaving the rest undrawn (FR-025, FR-026, FR-030).
+- **SC-023**: The page shows one thumbnail per chosen picture, in the order chosen, and each carries its own
+  remove; taking one back leaves the others, lowers the count by one and leaves the render startable, and the
+  render that follows draws the pictures that were left (FR-030).
+- **SC-025**: Holding a picture and dropping it on another picture's cell leaves the choice with that picture
+  in the position it was dropped on and every other picture keeping its own, with the count unchanged; the
+  render that follows draws the pictures in that order, and a drop on the picture's own cell leaves the order
+  exactly as it was (FR-032, FR-026). A hold taken to either end of the picture window scrolls the window while
+  the hold stays there, so a picture can be dropped on a cell that was not on screen when the hold began — and
+  the scrolling stops when the hold ends (FR-032).
+- **SC-024**: The pictures the reader chooses exist as files in a directory of the app's own — one file per
+  picture, in the order chosen, inside one directory per prompt — and the page shows those files and the render
+  copies those files, so a choice of thirty pictures holds no photograph's pixels in memory; once the render
+  that used them is over, however it ended, that directory is gone (FR-025, D18).
 
 ## Assumptions
 
@@ -583,10 +786,13 @@ video that rendered without pictures, no slower and nothing refused.
   file); it runs while the user stays in the app, and leaving the recording screen cancels it (FR-009).
 - **A3 — the video carries the reader's appearance (clarified 2026-09-25; amended 2026-09-26 with the
   picture).** The video's text is the reader's selected typeface at their selected character size; what the
-  video decides for itself is the frame, the text area and the margins it gives the sentence, the scale that
-  maps the reader's size onto that text area, and how a sentence taller than the text area scrolls inside its
-  own frame (FR-029). Its background is the app's plain reading background, or the reader's own picture behind
-  the scrim (FR-027/FR-028): the frame no longer paints the reading page, so there is no highlight for the
+  video decides for itself is the frame, the text area and the margins it gives the sentence — its width no
+  more than 1.4× the frame's height, so a line carries 1.4× the reader's own reading column of text (the reader's
+  own request of 2026-09-28) — the scale that maps the reader's size onto that text area (the frame's own natural
+  column, which is the size the letters have always had), where a sentence that fits sits (the bottom of the text
+  area), and how a sentence taller than the text area scrolls inside its own frame (FR-029). Its background is the app's plain reading background, or the reader's own picture in its
+  own colours with a white plate behind each painted line (FR-027/FR-028): the frame no longer paints the
+  reading page, so there is no highlight for the
   app's highlight colour to fill. The consequence to accept: at the smallest offered size the video's text is
   genuinely small, because it is the size the reader asked for and it is never shrunk — the text area must
   therefore be sized generously enough that the smallest size is still legible at 100 %, and the plan proves it

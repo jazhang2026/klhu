@@ -30,7 +30,8 @@ One pipeline, three stories on top of it (FR-001–FR-019).
    synthesised to an audio file (the reader's chosen voice per language, the read's own fallback), each
    file's exact length becomes that sentence's slot, the sentence's frames are painted by the same text
    engine the page uses — the sentence alone at the reader's own size, wrapped and scrolled inside its own
-   frame when it is too tall, over the reader's own pictures and their scrim (FR-025–FR-029) — and a Kotlin
+   frame when it is too tall, over the reader's own pictures and a plate behind each painted line (FR-025–FR-029,
+   re-cut 2026-09-28: the plate's tone is read over the band the words cover, D16) — and a Kotlin
    encoder+muxer turns those frames and that audio into one mp4. While it runs the page shows the video's
    own picture advancing — the sentence being written into the video, one sentence at a time (FR-020) —
    beside a single Stop, with the
@@ -151,8 +152,9 @@ lib/
 │   └── video_availability.dart    # NEW  whether this platform can render (D8: iOS reports no)
 ├── video_renderer.dart            # NEW  the orchestrator: timeline, pass 1 (audio), pass 2 (frames), cancel
 ├── video_painter.dart             # NEW  one frame: the sentence at the reader's size, wrapped and scrolled
-│                                  #      by line (D14), over the picture and its scrim — the page's text engine
-├── video_pictures.dart            # NEW  the schedule in the video's frames and the picked pictures' copies
+│                                  #      by line (D14), over the picture and the plate behind each painted line — the page's text engine
+├── video_pictures.dart            # NEW  the schedule in the video's frames — a picture changing only with a
+│                                  #      sentence — and the picked pictures' copies
 │                                  #      (D15, FR-025–FR-028)
 ├── video_aspect.dart              # NEW  the aspect choice and its remembered store (D6)
 ├── video_record.dart              # NEW  which content owns which kept video, and its staleness rules (D11)
@@ -174,9 +176,10 @@ android/app/src/main/AndroidManifest.xml   #  WRITE_EXTERNAL_STORAGE maxSdkVersi
 test/
 ├── video_timeline_test.dart       # NEW  quickstart 1–6: slots from the segmenter, durations, start point, the hold
 ├── video_painter_test.dart        # NEW  quickstart 7–12 and 44–47: the spoken sentence alone at the reader's
-│                                  #      size, the wrapped-and-scrolled sentence, the picture and its scrim,
+│                                  #      size, the wrapped-and-scrolled sentence, the picture and its plate,
 │                                  #      the plain background, both aspects, no chrome
-├── video_pictures_test.dart       # NEW  quickstart 43 and 48: the equal-share schedule in frames, no pictures
+├── video_pictures_test.dart       # NEW  quickstart 43 and 48: the schedule over sentences (no boundary inside
+│                                  #      one), no pictures
 │                                  #      at all, the pictures' copies and their cleanup with the working directory
 ├── video_renderer_test.dart       # NEW  quickstart 12–17: order, per-sentence voice, the picture shown, cancel leaves nothing
 ├── video_aspect_test.dart         # NEW  quickstart 18: the remembered choice's rules
@@ -240,16 +243,33 @@ stated once, in the spec, so a later feature cannot quietly drop it.
 2026-09-26)**: the reader's review of the first render replaced the picture model: one sentence per frame at
 the reader's own size, no highlight band, no page window, no scrolling of the page — a tall sentence wraps
 and scrolls inside its own frame instead (D14, FR-002/FR-014/FR-029), with the reader's own pictures behind
-it and a scrim over them (D15/D16). Code built to the old picture is therefore **deleted, not extended**:
+it and **a plate behind each painted line** (D15/D16 as amended 2026-09-28: the veil is withdrawn, and the
+plate's tone is read over the band the words cover). Code built to the old picture is therefore **deleted, not
+extended**:
 `video_painter.dart` loses the window, the highlight geometry and the column mapping, and its test file's
 rows assert a picture the spec no longer asks for, so they are replaced by the new contract's rows. That
 deletion is named here so it is expected in review rather than read as someone quietly dropping coverage.
 What does **not** move: the timeline (a slot per sentence, its frames, the hold), the audio pass, the
 platform encoder, the file's life cycle and the page's states — the amendment changes what a frame *shows*,
 not when frames are written or how the file is made. `video_pictures.dart` is the one new module: the
-schedule in the video's frames, the chosen pictures' copies, and their cleanup with the working directory.
-The reader's follow-up that the scrim and the frame ranges become editable later (FR-026) is **not** part of
-this feature.
+schedule in the video's frames — the pictures sharing the sentences equally, so no picture lands or lifts
+inside a sentence — the chosen pictures' copies, and their cleanup with the working directory.
+The reader's follow-up that the frame ranges become editable later (FR-026) is **not** part of this feature.
+
+**Ripple note 8 — the pictures' own life, bound and order (added 2026-09-28)**: three changes to the same
+module, each small and each with its own decision record. (1) **The picks are stored as files at the pick**
+(D18): `HeldPicture` becomes name + path, `storePicks` writes each pick into a directory of the app's own
+while the picker's read grant is alive, the page's thumbnails and the render's copy read those files, and the
+directory is removed in a `finally` around prompt-and-render — so the app holds paths rather than thirty
+photographs' bytes, and nothing outlives the prompt (FR-025, SC-024). (2) **The cap of 20 is withdrawn**, and nothing
+takes its place: the sentence count the first re-cut resolved went with the message it fed, so a choice larger
+than the video's sentences is startable as it stands and the pictures past the last sentence are simply not
+drawn (FR-026, SC-022) — 'no cap, and nothing dropped quietly' is the whole of it. (Taken back 2026-09-28 on
+the reader's own phone, T051.) (3) **The reader may set the order** by holding a cell and dropping it on another
+(FR-032, SC-025, D19), which is why the cells' order and the schedule's order are one thing rather than a view
+of one; a hold that reaches either end of the window scrolls it, so any cell can be reached (D21). The window
+the cells live in is two rows tall and scrolls (FR-030). Nothing here moves the timeline,
+the render's passes, the platform half or the page's states.
 
 ## Complexity Tracking
 

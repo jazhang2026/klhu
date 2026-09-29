@@ -297,7 +297,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get videoPicturesChooseAgain => 'Choose again';
+  String get videoPicturesChooseMore => 'Choose more';
+
+  @override
+  String get videoPicturesReorder =>
+      'Hold a picture and drop it on another to change the order; drag it to the window’s edge to reach the rest.';
+
+  @override
+  String get videoPicturesRemove => 'Remove this picture';
 
   @override
   String get videoPicturesFailed => 'Could not open your pictures. Try again.';

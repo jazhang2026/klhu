@@ -299,7 +299,14 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get videoPicturesChooseAgain => 'Elegir de nuevo';
+  String get videoPicturesChooseMore => 'Elegir más';
+
+  @override
+  String get videoPicturesReorder =>
+      'Mantén una imagen y suéltala sobre otra para cambiar el orden; arrástrala al borde de la ventana para ver el resto.';
+
+  @override
+  String get videoPicturesRemove => 'Quitar esta imagen';
 
   @override
   String get videoPicturesFailed =>

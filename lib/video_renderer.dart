@@ -19,12 +19,14 @@ library;
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_painter.dart';
+import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_timeline.dart';
 import 'package:klhu/voice_store.dart';
 
@@ -145,7 +147,7 @@ class VideoRenderer {
     required this.title,
     required this.readingStyle,
     required this.background,
-    required this.highlight,
+    this.pictures = const [],
     this.languageLabel,
   });
 
@@ -164,7 +166,12 @@ class VideoRenderer {
   /// The reader's own reading style (011's seam) and the frame's colours.
   final TextStyle readingStyle;
   final Color background;
-  final Color highlight;
+
+  /// The reader's picked pictures, read once at the pick and held for this
+  /// render only (FR-025). They are written into [workDir] before the first
+  /// frame is painted and deleted with everything else this render wrote (D15) —
+  /// the picks themselves are never remembered.
+  final List<HeldPicture> pictures;
 
   /// Names a language for the title card, from the app's own copy. Absent, the
   /// card carries the name alone (the painter's own default), which is what the
@@ -255,20 +262,48 @@ class VideoRenderer {
       );
 
       // ---- pass 2: the picture follows the clock --------------------------
-      // One picture per distinct visual state: the title card, each sentence,
-      // and the end hold — which holds the LAST SENTENCE's picture instead of
-      // painting an identical frame again (FR-008). A sentence's run of frames
-      // also covers the gap that follows it, so the highlight stays on the
-      // sentence just heard until the next one starts.
-      final runs = <({VideoSlot slot, int frames})>[];
+      // The reader's pictures are copied in first, so the frames that draw them
+      // are painted after the copies exist and the copies go with everything
+      // else this render deletes however it ends (D15).
+      final schedule = await _preparePictures(plan, written);
+      // The schedule in the video's own frames: the device row (quickstart 49)
+      // samples a frame inside each picture's range and at every seam between
+      // two, and the ranges exist nowhere else it can read them (FR-026). A
+      // picture the video is too short to reach is listed as `-`.
+      debugPrint('klhu render pictures=${schedule.pictures.length}'
+          ' ranges=${schedule.pictures.map((p) => p.isDrawn ? '${p.startFrame}..${p.endFrame}' : '-').join(',')}'
+          ' sentences=${sentences.length}');
+      // One decoded picture per copy, kept for the whole pass: the frames handed
+      // to the reader's preview hold them, so their lifetime is the frames' own
+      // — a handful of pictures, not one image per frame.
+      final decoded = <String, ui.Image>{};
+      final painter = VideoPainter(
+        plan: plan,
+        readingStyle: readingStyle,
+        background: background,
+        languageLabel: languageLabel,
+      );
+
+      // One picture per **visual state**: the title card, each sentence at each
+      // line step its text needs (D14) — and the end hold, which extends the
+      // last sentence's last step rather than painting an identical frame again
+      // (FR-008). A sentence's run of frames also covers the gap that follows
+      // it, so the picture behind it stays put until the next sentence starts;
+      // and since the schedule shares the *sentences* (FR-026), that is exactly
+      // where the picture changes — no picture boundary lands mid-run.
+      final runs = <({VideoSlot slot, int frames, double progress})>[];
       for (var i = 0; i < plan.slots.length; i++) {
         final slot = plan.slots[i];
         final span = _spanFrames(plan, i);
         if (slot.kind == VideoSlotKind.hold && runs.isNotEmpty) {
           final last = runs.removeLast();
-          runs.add((slot: last.slot, frames: last.frames + span));
+          runs.add((
+            slot: last.slot,
+            frames: last.frames + span,
+            progress: last.progress,
+          ));
         } else {
-          runs.add((slot: slot, frames: span));
+          runs.addAll(_stepsOf(painter, slot, span));
         }
       }
 
@@ -298,26 +333,23 @@ class VideoRenderer {
       }
       if (_cancelled) return await _abandon(written);
 
-      final painter = VideoPainter(
-        plan: plan,
-        readingStyle: readingStyle,
-        background: background,
-        highlight: highlight,
-        languageLabel: languageLabel,
-      );
-
       for (var i = 0; i < runs.length; i++) {
         if (_cancelled) return await _abandon(written);
         final run = runs[i];
-        final frame = await painter.paint(content: content, slot: run.slot);
+        final frame = await painter.paint(
+          slot: run.slot,
+          progress: run.progress,
+          picture: await _pictureFor(run.slot, schedule, decoded),
+        );
         // Which slot this picture is for, in the frames' own terms: the device
         // row (quickstart 32) samples the file at these starts and pairs them
         // with the page, and it has nothing else to go on.
         debugPrint('klhu render slot=${plan.slots.indexOf(run.slot)}'
             '/${plan.slots.length} frame=${run.slot.startFrame}'
             '/${plan.totalFrames} kind=${run.slot.kind.name} frames=${run.frames}'
-            ' band=${frame.highlight == null ? "none" : "${frame.highlight!.width.toStringAsFixed(0)}x${frame.highlight!.height.toStringAsFixed(0)}"}'
-            ' range=${frame.highlightRange?.start}..${frame.highlightRange?.end}'
+            ' scroll=${frame.scrollLines}'
+            ' picture=${frame.picture == null ? "none" : "yes"}'
+            ' tone=${frame.tone?.name ?? "-"}'
             ' span=${run.slot.start}..${run.slot.end} text=${frame.paintedText.length}');
         // Shown and written from the same picture, in that order (FR-020).
         onFrame?.call(frame);
@@ -361,6 +393,67 @@ class VideoRenderer {
       index + 1 < plan.slots.length
           ? plan.slots[index + 1].startFrame - plan.slots[index].startFrame
           : plan.slots[index].frames;
+
+  /// Copies the reader's pictures into this render's working directory and lays
+  /// out the schedule over the plan's sentences (FR-026, D15).
+  ///
+  /// The copies are recorded in [written] the moment they exist, so every ending
+  /// — a finish, a cancel, a failure — takes them with the render's own files.
+  Future<PictureSchedule> _preparePictures(
+    VideoPlan plan,
+    List<String> written,
+  ) async {
+    if (pictures.isEmpty) return PictureSchedule.none;
+    final copies = await copyPictures(pictures: pictures, workDir: workDir);
+    written.addAll(copies);
+    return buildPictureSchedule(plan: plan, paths: copies);
+  }
+
+  /// One run per line step of [slot]'s text: the block's own positions, each
+  /// holding an equal share of the slot's frames (D14).
+  ///
+  /// A step that gets no frame at all is not written — it is a picture nobody
+  /// could see — and the shares always add up to [frames], so the video is the
+  /// timeline's length whether the block had room for every step or not.
+  List<({VideoSlot slot, int frames, double progress})> _stepsOf(
+    VideoPainter painter,
+    VideoSlot slot,
+    int frames,
+  ) {
+    final positions = painter.scrollSteps(slot) + 1;
+    final each = frames ~/ positions;
+    final extra = frames % positions;
+    return [
+      for (var position = 0; position < positions; position++)
+        if (each + (position < extra ? 1 : 0) > 0)
+          (
+            slot: slot,
+            frames: each + (position < extra ? 1 : 0),
+            progress: position / positions,
+          ),
+    ];
+  }
+
+  /// The picture covering [slot]'s frames, decoded once and reused: the schedule
+  /// changes a picture only where a sentence changes (FR-026), so a slot's whole
+  /// run reads the same file — and one decode per picture, not per frame.
+  Future<ui.Image?> _pictureFor(
+    VideoSlot slot,
+    PictureSchedule schedule,
+    Map<String, ui.Image> decoded,
+  ) async {
+    final scheduled = schedule.at(slot.startFrame);
+    if (scheduled == null) return null;
+    final already = decoded[scheduled.path];
+    if (already != null) return already;
+    final codec = await ui.instantiateImageCodec(
+      await File(scheduled.path).readAsBytes(),
+    );
+    final frame = await codec.getNextFrame();
+    codec.dispose();
+    decoded[scheduled.path] = frame.image;
+    return frame.image;
+  }
 
   /// Stop the encoder, delete everything this render wrote, and report a
   /// cancelled render — which is not a failure: the reader asked for it.

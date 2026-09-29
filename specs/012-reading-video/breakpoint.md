@@ -8,7 +8,7 @@
 | | |
 |---|---|
 | Device | `emulator-5554` (AVD `klhu`, API 36, `sdk_gphone64_x86_64`, 1080×2400), package `com.example.klhu` |
-| Build | `flutter analyze` clean; `flutter test --concurrency=2` → **395 passing, 0 failing** (2026-09-27, emulator up; 372 on 2026-09-26, 301 at T002's baseline on `54ff4f3 "specs/011"`, 360 after US1) |
+| Build | `flutter analyze` clean; `flutter test --concurrency=2` → **438 passing, 0 failing** (2026-09-28 host run after Phase 8; 395 on 2026-09-27 with the emulator up, 372 on 2026-09-26, 360 after US1, 301 at T002's baseline on `54ff4f3 "specs/011"`) |
 | Driver | `specs/012-reading-video/scripts/klhu_walk_video.py` — rows 31, 32 and 34 walked below; rows 33/35/36 are T030–T032's |
 | Spike S1 | `specs/012-reading-video/scripts/probe_synthesize.dart` — run on the device, read back with `adb shell run-as com.example.klhu cat /data/data/com.example.klhu/cache/s1_report.txt`, audio pulled with `adb exec-out run-as … cat …/s1_<case>.wav` and analysed with the host's `/usr/bin/ffprobe` |
 | Engine | Google TTS (`com.google.android.tts`), 472 voices installed; `logcat` tag `GoogleTTSServiceImpl` says which voice actually spoke |
@@ -23,6 +23,9 @@ for the whole video (below). Row **33** (the file's life cycle) is **PENDING** b
 row **36** (spike S2) is **PENDING** even though a render now exists to time — its by-product is noted under
 row 31 and T032 owns the measurement. Rows **35** (S1) and **30** (the page's shipped behaviour, run as the
 existing suite) are closed below and in the suite's own receipt.
+Row **54** (2026-09-28) is closed as well — the review's picture draws, measured
+before and after on `emulator-5554`, and confirmed by the reader on their own LE2115 — and
+row **49** (a render with the reader's own pictures) is the device row still open.
 
 ## Validation results
 
@@ -91,7 +94,7 @@ Three things this row settles beyond the wording:
    video took **21 s wall** on this emulator, both aspects — faster than real time. T032 owns the official
    number and the bottleneck attribution; this is a note, not its receipt.
 
-### Row 32 — the video's own look, frame by frame, in full
+### Row 32 —  the video's own look, frame by frame, in full
 
 The look cannot be asserted structurally: `ffprobe` knew the frame size, the rate and the count, and nothing
 about what the pictures *contain*. So this row reads them — every frame of both files scaled to 96×54 so that
@@ -288,6 +291,104 @@ target has. So FR-025 now names the file dialog, D15 carries the reasoning, T044
 `tasks.md`). What the plugin actually hands back on Android — bytes readable at once, or a uri that has to be
 converted — is still T037's question, now run through the app (row 41) once T047 wires the page.
 
+### Row 49 — a render with the reader's own pictures, on the device — WALKED — PASS (2026-09-28)
+
+**Walked by this repo's own driver on emulator-5554, 40/40 checks, exit 0** (re-run the same day after the
+frame's own look changed — the block now at the bottom, the line 1.4× longer, D22/D6) — and the driver drives the
+platform's own file dialog itself, which is what makes the row unattended:
+
+```
+python3 specs/012-reading-video/scripts/klhu_walk_video.py 49      # ~4 minutes
+```
+
+*The method, and what each step is evidence of:* the row writes **nine of its own pictures** (a white one, a black
+one, one that is dark all over with a **bright band where the words land**, and six more in colours no two of
+which can be confused), pushes them into the device's `Pictures/` and asks the media scanner to look. It then
+opens the prompt and picks them in the system's Files app: a **long press** on the first name is what opens that
+dialog's selection mode (the toolbar then reads `5 selected` and carries the button that confirms, `Select`), one
+tap per other name, then `Select` — twice, because the first five are followed by **Choose more**.
+
+| What it showed | The evidence |
+|---|---|
+| Five pictures, then four more through **Choose more**: the page reads `5 pictures chosen`, then `9 pictures chosen` | FR-025/FR-031 on the device — the renamed button really adds |
+| Nine pictures over a video of **eight sentences**: no label on the page mentions the sentences at all, and Start is there and enabled | FR-026's re-cut, measured: nothing to take back first |
+| Cancel leaves the app's own working entries exactly as they were (`[]`) | SC-024 for the prompt that was abandoned |
+| A render with eight pictures for eight sentences: **eight ranges, one per sentence, each carrying a different one of the eight** — and `kw08` (the ninth) in **no** range | FR-026 — the picture over the count is not drawn |
+| Every range's frame outside the text column is that picture's own colour to ±1 | FR-027/FR-028 — the picture fills the frame, no bars |
+| Over the white picture the words' ink is **black** (231755 white / 896 black in the column); over the black picture it is **white** (850 / 232014) | the reader's own two cases from the phone, now measured in the file: `white text black background, black text white background` |
+| Over `kw02` — dark all over, bright band under the words — the ink is **black** (200829 white / 1287 black) although the picture's own average is dark | D16's band rule, on the device: the plate follows the band the words cover, not the picture's average. Had the app plated by the average, this ink would have been white |
+| Discard leaves the app's own working entries exactly as they were (`[]`) | SC-024 — nothing the reader chose outlives the prompt |
+| Every range's words sit at the **bottom** of the frame: the glyphs' own box runs y 924–964, 920–964 or 912–964 against a text area ending at y 972, with nothing but the picture above y 540 | the reader's own request of 2026-09-28 ("move text block from top to bottom") measured in the file — and the same measurement before that change put all eight boxes at y 120–160 |
+
+**One thing this walk found about the walk itself.** Row 32's frame checks still assert the app's **yellow
+highlight band** (`BAND_COLOUR = (255, 235, 59)`, `scan_frame`'s `band`) on a sentence's frame, and the **top** of
+the text area as the place a sentence sits. The frame's own look has moved twice since those checks were written:
+the plate amendment of 2026-09-26 replaced the yellow band with a **white or black plate** under each painted line
+(the painter draws no yellow at all), and the reader's own requests of 2026-09-28 put the block at the **bottom**
+of the area and made the line 1.4× longer (D22, D6's amendment). Row 32 wants all three re-cut before it can pass
+again; what the frames hold now is what row 49's checks and the numbers above measure. A frame of this row's own render holds
+**0 yellow-ish pixels** (every 7th pixel: 448 white, 295466 black, 0 yellow), so row 32 has not been re-run since
+the amendment and would fail on that line. What the frames hold now is what the plate checks above measure; row
+32 wants its own checks re-cut to match (its other lines — the corner, nothing outside the column, the ink inside
+it — still stand).
+
+Two things the run itself found and fixed, both in the walk's own machinery: a **loose colour match** named a dark
+red frame as the dark grey picture, so every check about it was a check about the wrong picture (now the nearest
+of the row's colours, not the first within reach); and the completion message was waited for over six dumps when
+it appears **with the review**, a few seconds after the render (now twelve, and the failure line says what the
+page was showing). The app's own message was never wrong: `Video made: klhu_video.mp4 (27 s)`, read off the
+review screen beside its own `Discard` / `Share` / `Save`.
+
+### Row 41 — spike S3's own question, answered by row 49's drive (2026-09-28)
+
+**What the platform's file dialog gives back, and what taking it costs** — recorded here because row 49's own walk
+is the drive this spike was written to be:
+
+- **Where it is**: the system's Files app (`com.android.documentsui` on the emulator), in its *Recent* view, over
+  the app's window.
+- **How it chooses**: a **long press** on a file opens its selection mode — the toolbar then reads `N selected`
+  and carries the button that confirms, **`Select`** — a tap adds each further file, and `Select` hands them back
+  to the app. `file_selector`'s `openFiles` is what the app calls, so this is the app's own path and not a stand-in
+  (FR-025, D15).
+- **What the app gets**: the file's own **name** and a way to read its bytes **once**, while the picker's read
+  grant is alive — which is what the app takes and no more: the bytes are copied straight into the prompt's own
+  directory at the pick (D18), so nothing downstream depends on the uri, the grant or the plugin.
+- **What it costs**: one read per pick, one file per pick on disk, and a directory that lives exactly as long as
+  the prompt and the render that used it (measured: `[]` before and `[]` after, twice, in row 49).
+- **What it does not give**: any ordering guarantee the app may rely on — the app's own order is the order the
+  picks come back in, which is why FR-025 says "the order chosen" and why row 49 checks the *set* of ranges rather
+  than a fixed order.
+
+**The reader's own phone walk, the same day**, which is the prompt half of this row and its two changes:
+
+
+**Walked by the reader on their own phone (LE2115), 2026-09-28 — the prompt's own steps**, in their own words:
+"选读者自己的图片、works" (choosing through the platform's file dialog works, and the stored picks show as the
+page's thumbnails); "小窗口滚动、works" (the two-row window scrolls its rest into view, FR-030); "长按换序, works.
+but only can move in displayed rows. need to able to move out of the disabled rows. use auto scroll." (the
+hold-and-drop reorder works, and its reach stopped at the window's own edge — **fixed the same day**, FR-032/D21,
+T054) and "Need to change button: "Choose again" to "Choose more"" (**renamed** in all four languages,
+FR-031/T052); and "超限提示、no need. not show." — the message about more pictures than sentences was not wanted,
+so it is **withdrawn** with its count and its blocked start (FR-026/T051).
+
+**What this row does not claim**: the *render* half was walked on the emulator, by the driver — the reader's own
+phone walked the prompt (above) and their own eyes confirmed the two plate cases (`white text black background,
+black text white background. all works.`), which is what the file's own pixels above say as well. The seven-step
+table it was written against stays here, as what the row must go on showing:
+
+| Step | What proves it |
+|---|---|
+| Push the row's own pictures into the device's `Pictures/` (`adb push … /sdcard/Pictures/`), with at least one light and one dark, and one whose *band under the text* is the opposite of its own average | the source is the reader's own files; the plate's band rule has a picture to be wrong about (FR-027, D16) |
+| Choose **more pictures than the content has sentences** (push enough to do it) | the prompt says nothing about it and offers the render as it stands; the pictures past the last sentence are simply not drawn — the reader's own rule of 2026-09-28, taken back the same day from the phone (FR-026) |
+| Take pictures back, then choose again so the choice is larger than 24 | nothing is capped or trimmed: every picture has its own cell and its own remove, and the window (two rows) scrolls to the last one (FR-025/FR-030) |
+| The reader's own eyes on the plates | `white text black background, black text white background` — both cases, over their own pictures (2026-09-28, their own words) |
+| Hold a picture and drop it on another cell | the picture lands there and the others keep their places (FR-032) |
+| Start, then watch the app's cache while the render runs: `adb shell run-as com.example.klhu ls -R cache/` | the picks' own directory exists while the prompt and the render do, and is **gone** once the render is over — finished, stopped, failed (FR-025, SC-024) |
+| Pull the file (`adb exec-out run-as … cat files/videos/<name>`), extract a frame per range with the host's `ffmpeg` | each range carries its picture, with the plate behind each painted line and the sentence ≥ 4.5:1 against it; the range order is the order the reader set (FR-026/FR-027/FR-032) |
+| Run the same walk with nothing chosen | the plain-background video, unchanged (row 32's picture) |
+
+The row's unit half is rows 50–53 of `quickstart.md` and is green; what is missing is the device evidence.
+
 ### Row 42 — spike S4, in full: the 40 % black scrim does not hold, and the app's text is dark
 
 **What was measured** — the colours the app actually builds, read from the theme it builds
@@ -299,7 +400,7 @@ through a throwaway test that printed them and was deleted afterwards:
 | the video's text | `_contentTextStyle().color` (`textTheme.bodyMedium.color` = `colorScheme.onSurface`) | **`#FF161D1C`** |
 | the frame's plain background | `scaffoldBackgroundColor` (`colorScheme.surface`) | **`#FFF4FBF8`** |
 | the title card's text | the same style (one colour for every frame) | `#FF161D1C` |
-| the highlight band (being deleted) | `Colors.yellow`, `reading_view.dart:1334` | `#FFFFFF00` |
+| the highlight band | `Colors.yellow` — **deleted 2026-09-27** with the band itself (T042) | `#FFFFFF00` |
 
 The shipped pairing — the app's text on the frame's plain background — measures **16.31:1**, and the same text
 on the yellow band **15.94:1**.
@@ -324,6 +425,10 @@ its brightest row has not passed.
 
 **Verdict**: at the declared depth the app's own text colour fails 4.5:1 for **every photo tone below about
 205**, and passes only on a near-blown highlight. D16 as written does **not** meet SC-004.
+
+*Withdrawn 2026-09-28 (D16's amendment): the veil is gone — the words sit on a plate behind each painted line,
+and its tone is read over the band the words cover. This row's tables stay as the record of the design the plate
+replaced.*
 
 **Why — and it is not a matter of a few per cent**: a *black* veil moves the picture's range **toward** the
 text, which is itself nearly black. The app's own convention runs the other way: a yellow band under the same
@@ -416,6 +521,41 @@ A pure-black photo is the floor: the veiled background is then `0.55 × #F4FBF8`
 four. Last turn I said a 45 % veil "would pass over anything realistic"; the real pictures say otherwise (42 % of
 the glyph pixels below 4.5:1 on the first picture, and it fails on all four). That is why it was worth measuring
 instead of reasoning.
+
+### Row 54 — the review's picture draws on the device (WALKED — PASS, 2026-09-28)
+
+**Why this row exists**: the reader's own report from the phone — "video player is not working in phone. only show
+a black view. click play button, not playing" — was a defect of the view, not of the file (the same file played
+from the device's Files app). This row is the measurement that found it, and the measurement that the fix holds.
+
+**Method.** A scratch probe (a separate app entrypoint plus two temporary platform view factories, both deleted
+afterwards) mounted **both** ways of showing a video inside a Flutter platform view on one screen, over one local
+file — a 4-second `ffmpeg` `testsrc` clip, pushed into the app's own private directory
+(`adb shell "cat /data/local/tmp/klhu_probe.mp4 | run-as com.example.klhu sh -c 'cat > files/probe.mp4'"`, so no
+permission is involved). One `adb exec-out screencap -p`, then the two 320×240 picture areas read pixel by pixel:
+
+| the view, the same file, the same screen | pixels below luma 30 | max saturation | distinct colours | mean luma |
+|---|---|---|---|---|
+| `VideoView` — **what the app shipped** | **0.98** | **0** | **2** | 0.8 |
+| `TextureView` + `MediaPlayer` | 10 % | 235 | 189 | 92.7 |
+
+`0.98` of the shipped view's own picture area below luma 30 with **saturation 0** is a black rectangle: the
+reader's report reproduced on `emulator-5554` (API 36) with no phone needed. The same file through a
+`TextureView` is a picture.
+
+**The fix, measured again the same way.** The shipping `VideoPlayerView` was rewritten to a `TextureView` (D20),
+rebuilt, installed, and the same file played through the shipping Dart seam (`PlatformVideoPlayer.view`): **10 % of
+pixels below luma 30, saturation 235, 189 distinct colours** — the picture draws. `flutter analyze` clean, the
+suite **438 passing, 0 failing**, and the app's own APK (not the probe) is what was left installed.
+
+**The reader's own phone, the same day (the half this repo's own driver could not reach).** The fixed APK was
+installed on the **LE2115 (API 34)** — the phone the black picture was first reported from — and the reader's own
+report is: "play button works on my LE2115 phone." That is the defect closed where it was found: the same
+file, the same app, the same reader, on the device that showed the black view.
+
+**What this row does *not* claim**: this repo's own driver has not walked the review end to end on a device (no
+render was made there after the fix), and pause/seek were not exercised — the reader's own report covers pressing
+play and watching.
 
 ## Deviations
 

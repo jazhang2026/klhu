@@ -1,7 +1,7 @@
 # Contract: the playback view (Dart → platform)
 
 **Feature**: `012-reading-video` | **Dart side**: `lib/platform/video_player.dart` | **Kotlin side**:
-`VideoPlayerView.kt` | **Spec**: FR-021, FR-022 | **Decisions**: D12
+`VideoPlayerView.kt` | **Spec**: FR-021, FR-022 | **Decisions**: D12, D20
 
 The video is watched inside the app — at the review, and later from the content's kept-video actions — so the
 keep / throw-away / share decision stays on one screen (FR-021).
@@ -17,6 +17,12 @@ A platform view registered as `klhu/video_player_view`, created with:
 The view hosts the platform's own player with its own transport controls (play/pause/seek), so the app does
 not re-implement a scrubber; the Dart side lays out where the picture goes and puts the reader's decisions
 beside it.
+
+**The picture is a `TextureView` (D20, 2026-09-28).** The view renders the video into a `TextureView` whose
+surface is handed to the platform player — never a `SurfaceView`, whose picture does not reach a Flutter platform
+view (the defect the reader reported, measured in `breakpoint.md` row 54). Two consequences the Dart side may
+rely on: the picture keeps the video's own shape inside whatever box the page gives it (letterboxed, not
+stretched), and the platform's transport bar appears on a tap of the picture.
 
 ## Methods (`klhu/video_player`)
 

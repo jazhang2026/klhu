@@ -20,7 +20,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/l10n/app_localizations.dart';
+import 'package:klhu/content_naming.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
 import 'package:klhu/reader_service.dart';
@@ -367,6 +369,7 @@ void main() {
     PageFileStore? files,
     PagePlayer? player,
     Reader? reader,
+    PicturePicker? picker,
   }) => MaterialApp(
     localizationsDelegates: const [
       AppLocalizations.delegate,
@@ -390,6 +393,10 @@ void main() {
       // from the file store, and the player is what the review is pointed at.
       videoFileStore: files ?? PageFileStore(),
       videoPlayer: player ?? PagePlayer(),
+      // The reader's own pictures (FR-025): faked here, because the real one
+      // opens the platform's file dialog. Quieter by default, so a row about
+      // anything else renders the plain-background video.
+      picturePicker: picker ?? QuietPicker(),
     ),
   );
 
@@ -419,7 +426,13 @@ void main() {
   /// [choice], and the render starts.
   Future<void> startRender(WidgetTester tester, {String? choice}) async {
     await tester.tap(find.byTooltip('Video'));
-    await tester.pump();
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
     expect(
       find.text('Video format'),
       findsOneWidget,
@@ -436,6 +449,27 @@ void main() {
   /// The picture on screen, as the page shows it.
   RawImage picture(WidgetTester tester) =>
       tester.widget<RawImage>(find.byType(RawImage));
+
+  /// Taps [button] — the reader's own way to choose pictures — and lets the page
+  /// do what follows: the picker's reads and the writing of every pick into the
+  /// app's own directory (D18) are real file work, so the real event loop drives
+  /// them, and the wait is for the pictures handed over to be the pictures on
+  /// screen. Never a fixed count and never pumpAndSettle: the page's reader ticks,
+  /// so the tree never goes quiet, and what has to land is the reader's pictures.
+  Future<void> choosePictures(
+    WidgetTester tester,
+    Finder button,
+    int Function() handedOver,
+  ) async {
+    // The prompt's content scrolls (it grows with the reader's pictures), so the
+    // reader's own way to choose is brought to where a finger could reach it.
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await letWorkRun(
+      tester,
+      () => find.byType(MovableThumbnail).evaluate().length == handedOver(),
+    );
+  }
 
   /// The page's reading text as a widget. It paints a `RichText` directly, so
   /// `find.text` does not see it.
@@ -1139,6 +1173,697 @@ void main() {
     expect(player.stops, greaterThan(0),
         reason: 'leaving stops playback (contract § Rules 4)');
   });
+
+  testWidgets('a kept video is named for the content, not for the render', (
+    tester,
+  ) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final files = PageFileStore();
+    await tester.pumpWidget(pageWith(engine, encoder, files: files));
+    await loadPageContent(tester);
+    await finishRender(tester, engine, encoder);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    // The content's own name, by the app's own rule for naming a content — the
+    // same rule the page names the render with. (SC-001's "Video made: …" line
+    // names the *file* the render wrote, which is the working directory's, so it
+    // is not this.)
+    final name = contentNameFrom(_text);
+
+    await tester.tap(offeredBy(l10n.saveButton));
+    await letReviewClose(tester, l10n.videoSavedMessage);
+
+    expect(files.keeps, hasLength(1));
+    expect(files.keeps.single.displayName, startsWith(name),
+        reason: 'the kept video is named for its content, not for the file the '
+            'encoder wrote (${files.keeps.single.workingPath})');
+    expect(files.keeps.single.displayName, isNot(contains('/')),
+        reason: 'a library name is a name, not a path');
+  });
+
+  testWidgets('choosing again adds to the choice, with nothing capped',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [for (var i = 0; i < 12; i++) picked('a$i.png', await redPng(tester))],
+      [for (var i = 0; i < 12; i++) picked('b$i.png', await bluePng(tester))],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+    expect(find.text(l10n.videoPicturesChosen(12)), findsOneWidget,
+        reason: 'twelve pictures chosen, one cell each (FR-030)');
+    expect(find.byType(MovableThumbnail), findsNWidgets(12));
+
+    // Choosing again ADDS (FR-025), and **nothing is capped**: the reader's own
+    // instruction of 2026-09-28 — "remove max 20 images limit. keep all 30
+    // images for now. user can delete images." — so the second pick is taken
+    // whole and every picture keeps its own cell.
+    await choosePictures(tester, find.text(l10n.videoPicturesChooseMore), () => picker.handedOver);
+
+    expect(picker.calls, 2, reason: 'the reader chose twice');
+    expect(find.text(l10n.videoPicturesChosen(24)), findsOneWidget,
+        reason: 'both picks are held: the count is the sum');
+    expect(find.byType(MovableThumbnail), findsNWidgets(24),
+        reason: 'and each one has its own cell — none is refused or trimmed');
+    expect(
+      tester
+          .widgetList<MovableThumbnail>(find.byType(MovableThumbnail))
+          .map((cell) => cell.picture.name)
+          .toList(),
+      <String>[
+        for (var i = 0; i < 12; i++) 'a$i.png',
+        for (var i = 0; i < 12; i++) 'b$i.png',
+      ],
+      reason: 'in the order chosen: the first pick keeps its place (FR-025)',
+    );
+  });
+
+  testWidgets('the review window is small, and scrolling shows the rest',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [for (var i = 0; i < 12; i++) picked('a$i.png', await redPng(tester))],
+      [for (var i = 0; i < 12; i++) picked('b$i.png', await bluePng(tester))],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+    await choosePictures(tester, find.text(l10n.videoPicturesChooseMore), () => picker.handedOver);
+
+    // FR-030: the review window is two rows tall whatever the count is — the
+    // reader's own shape of 2026-09-28, "use scroll. small show window, scroll
+    // to show others" — so the prompt stays the size of a prompt with thirty
+    // pictures in it.
+    final window = find
+        .ancestor(
+          of: find.byType(MovableThumbnail).first,
+          matching: find.byType(SingleChildScrollView),
+        )
+        .first;
+    final cells = find
+        .ancestor(
+          of: find.byType(MovableThumbnail).first,
+          matching: find.byType(Wrap),
+        )
+        .first;
+    expect(tester.getSize(window).height, pictureWindowHeight,
+        reason: 'the window is two rows of thumbnails tall');
+    expect(tester.getSize(cells).height, greaterThan(pictureWindowHeight),
+        reason: 'and the cells do not all fit — which is what the window is for');
+    final last = find.byType(MovableThumbnail).last;
+    final windowRect = tester.getRect(window);
+    expect(tester.getRect(last).top, greaterThan(windowRect.bottom),
+        reason: 'the last picture is below the window before the reader scrolls');
+
+    await tester.drag(window, const Offset(0, -400));
+    await tester.pump();
+
+    expect(tester.getRect(find.byType(MovableThumbnail).last).top,
+        lessThan(windowRect.bottom),
+        reason: 'scrolling inside the window brings the others into it');
+  });
+
+  testWidgets('holding a picture moves it, and the order reaches the render',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [
+        picked('one.png', await redPng(tester)),
+        picked('two.png', await bluePng(tester)),
+        picked('three.png', await greenPng(tester)),
+      ],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+    expect(
+      tester
+          .widgetList<MovableThumbnail>(find.byType(MovableThumbnail))
+          .map((cell) => cell.picture.name)
+          .toList(),
+      ['one.png', 'two.png', 'three.png'],
+      reason: 'the cells stand in the order the reader chose (FR-025)',
+    );
+
+    // FR-032: the reader holds a picture and moves it — the first onto the
+    // third, which is "move one image to the right" (2026-09-28: "use can
+    // tap+hold move one image to left/right"). Long enough for the long press
+    // to be recognised, then a move to the other cell.
+    final cells = find.byType(MovableThumbnail);
+    final gesture = await tester.startGesture(tester.getCenter(cells.first));
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveTo(tester.getCenter(cells.last));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(
+      tester
+          .widgetList<MovableThumbnail>(find.byType(MovableThumbnail))
+          .map((cell) => cell.picture.name)
+          .toList(),
+      ['two.png', 'three.png', 'one.png'],
+      reason: 'the moved picture took the cell it was dropped on, and the two '
+          'it passed moved up one',
+    );
+
+    // And the order is the video's own (FR-026): the renderer copies the
+    // pictures into its working directory in the order the cells stand, and the
+    // schedule it builds from them is the order they are drawn in. Parked on
+    // the first frame, the copies are still there to read.
+    encoder.hangOnFrame = 0;
+    await tester.tap(find.text(l10n.videoStartButton));
+    await tester.pump();
+    await letWorkRun(tester, () => encoder.startCalls.isNotEmpty);
+    final copies = work
+        .listSync(recursive: true)
+        .map((entity) => entity.uri.pathSegments.last)
+        .where((name) => name.startsWith('picture_'))
+        .toList()
+      ..sort();
+    expect(copies, ['picture_0_two.png', 'picture_1_three.png', 'picture_2_one.png'],
+        reason: 'the render writes them in the reader\'s own order');
+
+    encoder.release();
+    await letWorkRun(tester, () => encoder.finishes == 1);
+  });
+
+  testWidgets('a hold at the window\'s own end scrolls it (FR-032, D21)',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    // Twenty-four pictures in a window two rows tall: the rest are out of sight,
+    // and the reader's own report from the phone is that a hold could only move
+    // a picture between the rows on screen — "need to able to move out of the
+    // disabled rows. use auto scroll."
+    final picker = PickingPictures([
+      [for (var i = 0; i < 24; i++) picked('a$i.png', await redPng(tester))],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton),
+        () => picker.handedOver);
+    expect(find.byType(MovableThumbnail), findsNWidgets(24));
+
+    final window = find.byKey(const ValueKey('video picture window'));
+    double offset() => tester
+        .state<ScrollableState>(
+          find.descendant(of: window, matching: find.byType(Scrollable)),
+        )
+        .position
+        .pixels;
+    expect(offset(), 0, reason: 'the window opens at the first picture');
+
+    final cells = find.byType(MovableThumbnail);
+    final start = tester.getCenter(cells.first);
+    final gesture = await tester.startGesture(start);
+    await tester.pump(const Duration(milliseconds: 600)); // the hold itself
+    // The finger goes past the window's bottom edge and waits there: holding at
+    // the end is how a reader asks for more.
+    await gesture.moveTo(
+      Offset(start.dx, tester.getRect(window).bottom + 8),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(offset(), greaterThan(0),
+        reason: 'a hold at the end of the window scrolls it, so a picture can '
+            'reach a cell that is not on screen');
+
+    // And the picture is dropped on a cell the scroll brought into view.
+    await gesture.moveTo(tester.getCenter(cells.last));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    final order = tester
+        .widgetList<MovableThumbnail>(cells)
+        .map((cell) => cell.picture.name)
+        .toList();
+    expect(order, hasLength(24), reason: 'a move changes no count (FR-032)');
+    expect(order.first, isNot('a0.png'),
+        reason: 'the picture that was held left the first row it started in');
+    expect(order, contains('a0.png'));
+  });
+
+  testWidgets('a hold at the window\'s own top scrolls it back (FR-032, D21)',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [for (var i = 0; i < 24; i++) picked('a$i.png', await redPng(tester))],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton),
+        () => picker.handedOver);
+
+    final window = find.byKey(const ValueKey('video picture window'));
+    double offset() => tester
+        .state<ScrollableState>(
+          find.descendant(of: window, matching: find.byType(Scrollable)),
+        )
+        .position
+        .pixels;
+
+    // The reader scrolls the window down the ordinary way first, so the hold
+    // below has somewhere to come back from.
+    await tester.drag(window, const Offset(0, -80));
+    await tester.pump();
+    final scrolled = offset();
+    expect(scrolled, greaterThan(0),
+        reason: 'a plain drag scrolls the window, which is what FR-030 gives it');
+
+    // The hold has to start on a cell the scroll left **inside** the window — the
+    // first cells are above it now — so the one under the window's own top edge
+    // is the one held.
+    final cells = find.byType(MovableThumbnail);
+    final windowRect = tester.getRect(window);
+    final held = cells.evaluate().map((cell) {
+      final box = cell.renderObject! as RenderBox;
+      return box.localToGlobal(box.size.center(Offset.zero));
+    }).firstWhere(windowRect.contains);
+
+    final gesture = await tester.startGesture(held);
+    await tester.pump(const Duration(milliseconds: 600)); // the hold itself
+    // The finger goes past the window's top edge and waits there.
+    await gesture.moveTo(Offset(held.dx, windowRect.top - 8));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(offset(), lessThan(scrolled),
+        reason: 'a hold at the window\'s top end scrolls it back — the reader\'s '
+            'own phone test of 2026-09-28 confirms both directions: "自动滚动 '
+            'fixed up and down"');
+
+    await gesture.up();
+    await tester.pump();
+    final resting = offset();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(offset(), resting,
+        reason: 'and letting go stops it: nothing keeps scrolling a hold that '
+            'is over');
+  });
+
+  testWidgets('more pictures than sentences is accepted, the extras undrawn',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    // The fixture is three sentences, so four pictures is one the video has
+    // nowhere to draw — and the reader's own answer from the phone of
+    // 2026-09-28 is that this is fine and silent: "超限提示、no need. not show."
+    final picker = PickingPictures([
+      [
+        for (final name in ['a.png', 'b.png', 'c.png', 'd.png'])
+          picked(name, await redPng(tester)),
+      ],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton),
+        () => picker.handedOver);
+
+    expect(find.text(l10n.videoPicturesChosen(4)), findsOneWidget);
+    expect(find.byType(MovableThumbnail), findsNWidgets(4),
+        reason: 'all four are the reader\'s own, each with its own cell and '
+            'its own remove: nothing is refused, trimmed or blocked (FR-025)');
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, l10n.videoStartButton),
+          )
+          .onPressed,
+      isNotNull,
+      reason: 'the render is offered whatever the count: the picture past the '
+          'video\'s last sentence is simply not drawn (FR-026)',
+    );
+
+    await tester.tap(find.text(l10n.videoStartButton));
+    await letWorkRun(tester, () => encoder.startCalls.length == 1);
+    expect(encoder.startCalls, hasLength(1),
+        reason: 'and the render goes ahead — a choice over the sentence count is '
+            'not an error the reader has to fix');
+  });
+  testWidgets('the picks are stored where the app owns them, and are not kept',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [
+        picked('sunset.png', await redPng(tester)),
+        picked('hills.png', await bluePng(tester)),
+      ],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+
+    // D18: the picks are files in a directory of the app's own, one per prompt —
+    // the page shows those files, so thirty photographs are thirty paths and not
+    // a few hundred megabytes held in memory.
+    final picksDir = Directory('${work.path}/picks_0');
+    expect(picksDir.existsSync(), isTrue,
+        reason: 'the prompt owns a directory of its own for its pictures');
+    expect(
+      picksDir
+          .listSync()
+          .map((entity) => entity.uri.pathSegments.last)
+          .toList()
+        ..sort(),
+      ['pick_0_sunset.png', 'pick_1_hills.png'],
+      reason: 'one file per picture, in the order chosen, under the name it '
+          'came with',
+    );
+
+    // And what the reader sees is the stored file (FR-030), not a copy held in
+    // memory that the render would have to be given again.
+    final shown = tester.widgetList<Image>(
+      find.descendant(
+        of: find.byType(ChosenThumbnail),
+        matching: find.byType(Image),
+      ),
+    );
+    // The thumbnail bounds its own decode ([ChosenThumbnail]'s cacheWidth), so
+    // the provider on the widget is the resizing one around the file's.
+    String shownPath(Image image) {
+      final provider = image.image;
+      final file = provider is ResizeImage ? provider.imageProvider : provider;
+      return (file as FileImage).file.path;
+    }
+
+    expect(
+      shown.map(shownPath).toList(),
+      [
+        '${picksDir.path}${Platform.pathSeparator}pick_0_sunset.png',
+        '${picksDir.path}${Platform.pathSeparator}pick_1_hills.png',
+      ],
+      reason: 'every thumbnail shows the prompt\'s own stored file, in the order '
+          'the reader chose them (FR-030, D18)',
+    );
+
+    // The render copies them into its own directory and takes the copies with it;
+    // the stored picks belong to the prompt and go with it (FR-025).
+    await tester.tap(find.text(l10n.videoStartButton));
+    await letWorkRun(tester, () => encoder.finishes == 1);
+    await letWorkRun(tester, () => !picksDir.existsSync());
+    expect(picksDir.existsSync(), isFalse,
+        reason: 'the picks are never remembered once the render is over');
+  });
+
+  testWidgets('the chosen pictures are shown, and one can be taken back',
+      (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [
+        picked('sunset.png', await redPng(tester)),
+        picked('hills.png', await bluePng(tester)),
+      ],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+
+    // FR-030: the reader sees the pictures the render will use, each with its
+    // own remove — the picture itself, not just a count.
+    expect(find.byType(ChosenThumbnail), findsNWidgets(2));
+    expect(find.byTooltip(l10n.videoPicturesRemove), findsNWidgets(2));
+    expect(find.text(l10n.videoPicturesChosen(2)), findsOneWidget);
+
+    // Taking one back takes exactly one back, and the count follows.
+    await tester.tap(find.byTooltip(l10n.videoPicturesRemove).first);
+    await tester.pump();
+    expect(find.byType(ChosenThumbnail), findsOneWidget,
+        reason: 'the remove removes its own picture and no other');
+    expect(find.text(l10n.videoPicturesChosen(1)), findsOneWidget);
+
+    // And what is left is what renders: the reader's confirm still stands.
+    await tester.tap(find.text(l10n.videoStartButton));
+    await letWorkRun(tester, () => encoder.startCalls.length == 1);
+    expect(encoder.startCalls, hasLength(1),
+        reason: 'the removal is part of the choice, not a cancel');
+  });
+
+  testWidgets('the chosen pictures are shown before the render', (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [
+        picked('one.png', await redPng(tester)),
+        picked('two.png', await bluePng(tester)),
+      ],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+
+    // FR-025: the pictures are the reader's own files, chosen here, and the page
+    // names what is chosen before anything renders.
+    expect(find.text(l10n.videoPicturesChosen(0)), findsOneWidget,
+        reason: 'the step is up, with nothing chosen yet');
+    expect(find.text(l10n.videoPicturesButton), findsOneWidget,
+        reason: 'and it offers to choose');
+    expect(encoder.startCalls, isEmpty,
+        reason: 'opening the step renders nothing');
+
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+
+    expect(picker.calls, 1, reason: 'the picker is the reader\'s own dialog');
+    expect(find.text(l10n.videoPicturesChosen(2)), findsOneWidget,
+        reason: 'the page names how many pictures are chosen');
+    expect(find.text(l10n.videoPicturesChooseMore), findsOneWidget,
+        reason: 'and lets the reader choose again');
+    expect(find.text(l10n.videoPicturesButton), findsNothing);
+    expect(encoder.startCalls, isEmpty,
+        reason: 'choosing is not confirming: the render waits for the reader');
+  });
+
+  testWidgets('the render starts on the reader\'s own confirm, and the picks '
+      'are not remembered', (tester) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      [
+        picked('one.png', await redPng(tester)),
+        picked('two.png', await bluePng(tester)),
+      ],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+    expect(find.text(l10n.videoPicturesChosen(2)), findsOneWidget);
+
+    await tester.tap(find.text(l10n.videoStartButton));
+    await letWorkRun(tester, () => encoder.finishes == 1);
+    await letWorkRun(
+      tester,
+      () => find.byKey(const ValueKey('video player')).evaluate().isNotEmpty,
+    );
+
+    expect(encoder.startCalls, hasLength(1),
+        reason: 'the reader\'s own confirm is what renders (FR-025)');
+    // The picks reached the frames: the first sentence's frame carries its
+    // picture — its own colours away from the words, with the sentence on white
+    // plates (FR-027, D16 as amended on 2026-09-28), not the plain background.
+    final background = Theme.of(
+      tester.element(find.byType(ReadingView)),
+    ).scaffoldBackgroundColor.toARGB32();
+    final behindTheText =
+        await tester.runAsync(() => pixelOf(encoder.frames[1].png));
+    expect(behindTheText, isNot(background),
+        reason: 'the chosen picture fills the frame behind the sentence');
+
+    // Not remembered: the picks belonged to the render that used them, so the
+    // next one is asked for again from nothing (FR-025).
+    await tester.tap(offeredBy(l10n.discardButton));
+    await letReviewClose(tester, l10n.videoNotSavedMessage);
+    await tester.tap(offeredBy(l10n.videoButton));
+    // The prompt opens once the video's own sentences are resolved again.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    expect(find.text(l10n.videoPicturesChosen(0)), findsOneWidget,
+        reason: 'nothing is held after the render it was chosen for');
+    expect(find.text(l10n.videoPicturesButton), findsOneWidget,
+        reason: 'the reader is asked again, not told what they had');
+  });
+
+  testWidgets('choosing none still makes the plain-background video', (
+    tester,
+  ) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = QuietPicker();
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(
+      tester,
+      find.text(l10n.videoPicturesButton),
+      // Nothing was chosen, so there is nothing on screen to wait for: the
+      // wait's own closing pump lands the picker's own answer.
+      () => 0,
+    );
+    expect(find.text(l10n.videoPicturesChosen(0)), findsOneWidget,
+        reason: 'the dialog was opened and cancelled: still nothing chosen');
+
+    await tester.tap(find.text(l10n.videoStartButton));
+    await letWorkRun(tester, () => encoder.finishes == 1);
+
+    expect(encoder.frames, isNotEmpty);
+    final background = Theme.of(
+      tester.element(find.byType(ReadingView)),
+    ).scaffoldBackgroundColor.toARGB32();
+    for (final frame in encoder.frames) {
+      expect(
+        await tester.runAsync(() => pixelOf(frame.png)),
+        background,
+        reason: 'with nothing chosen every frame is the plain background '
+            '(FR-028)',
+      );
+    }
+  });
+
+  testWidgets('a picker that failed is said, and the reader can try again', (
+    tester,
+  ) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final picker = PickingPictures([
+      Exception('the file dialog could not be opened'),
+      [picked('one.png', await redPng(tester))],
+    ]);
+    await tester.pumpWidget(pageWith(engine, encoder, picker: picker));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+    await tester.tap(find.byTooltip('Video'));
+    // The prompt opens once the video's own sentences are resolved — the same
+    // store read a read's voice resolution makes (FR-026's count) — so the real
+    // event loop drives it rather than the test clock.
+    await letWorkRun(
+      tester,
+      () => find.text('Video format').evaluate().isNotEmpty,
+    );
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+
+    expect(find.text(l10n.videoPicturesFailed), findsOneWidget,
+        reason: 'the page says the picker failed rather than swallowing it');
+    expect(encoder.startCalls, isEmpty, reason: 'and nothing renders');
+    expect(find.text(l10n.videoPicturesChosen(0)), findsOneWidget,
+        reason: 'the reader is left exactly where they were');
+
+    // And the reader can try again: the step is still there.
+    await choosePictures(tester, find.text(l10n.videoPicturesButton), () => picker.handedOver);
+    expect(picker.calls, 2);
+    expect(find.text(l10n.videoPicturesChosen(1)), findsOneWidget,
+        reason: 'the second try\'s picture is the one chosen');
+    expect(find.text(l10n.videoPicturesFailed), findsNothing,
+        reason: 'and the failure is past');
+  });
 }
 
 /// The pixel size of [bytes] as an encoded image.
@@ -1150,4 +1875,91 @@ Future<(int, int)> _pngSize(Uint8List bytes) async {
   image.dispose();
   codec.dispose();
   return size;
+}
+
+/// One pixel of a frame the encoder received, as `0xAARRGGBB` — the same shape
+/// as `Color.toARGB32()`, and the frames are real PNGs, so this is the picture
+/// the render wrote rather than a claim about it.
+Future<int> pixelOf(Uint8List png, {int x = 6, int y = 6}) async {
+  final codec = await ui.instantiateImageCodec(png);
+  final frame = await codec.getNextFrame();
+  final image = frame.image;
+  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final offset = (y * image.width + x) * 4;
+  final bytes = data!.buffer.asUint8List();
+  final pixel = (bytes[offset + 3] << 24) |
+      (bytes[offset] << 16) |
+      (bytes[offset + 1] << 8) |
+      bytes[offset + 2];
+  image.dispose();
+  codec.dispose();
+  return pixel;
+}
+
+/// A real PNG of one colour, as a Uint8List — what the reader's own file holds.
+Future<Uint8List> pngOf(int argb, {int side = 8}) async {
+  final bytes = Uint8List(side * side * 4);
+  for (var i = 0; i < bytes.length; i += 4) {
+    bytes[i] = (argb >> 24) & 0xFF;
+    bytes[i + 1] = (argb >> 16) & 0xFF;
+    bytes[i + 2] = (argb >> 8) & 0xFF;
+    bytes[i + 3] = 0xFF;
+  }
+  final done = Completer<ui.Image>();
+  ui.decodeImageFromPixels(bytes, side, side, ui.PixelFormat.rgba8888, done.complete);
+  final image = await done.future;
+  final data = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  return data!.buffer.asUint8List();
+}
+
+/// The fixture pictures, built where the engine's own loop is running: a
+/// `testWidgets` body has a fake clock, and an image decode started inside it
+/// never calls back — which is a hang, not a failure.
+Future<Uint8List> redPng(WidgetTester tester) async =>
+    (await tester.runAsync(() => pngOf(0xFFFF0000)))!;
+
+Future<Uint8List> bluePng(WidgetTester tester) async =>
+    (await tester.runAsync(() => pngOf(0xFF0000FF)))!;
+
+Future<Uint8List> greenPng(WidgetTester tester) async =>
+    (await tester.runAsync(() => pngOf(0xFF00FF00)))!;
+
+/// A picture the reader chose: a name and the bytes it reads.
+PickedPicture picked(String name, Uint8List png) =>
+    PickedPicture(name: name, read: () async => png);
+
+/// The reader who chooses nothing: the dialog opens and is cancelled.
+class QuietPicker implements PicturePicker {
+  int calls = 0;
+
+  @override
+  Future<List<PickedPicture>> pick() async {
+    calls++;
+    return const [];
+  }
+}
+
+/// The reader's answers to the file dialog, in order (FR-025): each entry is
+/// either the pictures that round produced or an [Exception] the picker throws.
+class PickingPictures implements PicturePicker {
+  PickingPictures(this.answers);
+
+  final List<Object> answers;
+  int calls = 0;
+
+  /// How many pictures the reader's own dialog has handed over so far: the
+  /// pictures the page should be showing once its storing has landed.
+  int get handedOver => answers
+      .take(calls)
+      .whereType<List<PickedPicture>>()
+      .fold(0, (total, answer) => total + answer.length);
+
+  @override
+  Future<List<PickedPicture>> pick() async {
+    final answer = answers[calls < answers.length ? calls : answers.length - 1];
+    calls++;
+    if (answer is Exception) throw answer;
+    return answer as List<PickedPicture>;
+  }
 }

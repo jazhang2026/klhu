@@ -162,8 +162,14 @@ Test: `test/video_painter_test.dart`, "the frame is the video's own".
 Steps: paint every slot's frame for both aspects and assert on what the painter was asked to draw.
 Expected: no app bar, button, hint, dialog or keyboard is drawn; no status or navigation area is drawn;
 nothing of the reading page is drawn either (its highlight band and its scrolled window are gone with the
-amended picture); the sentence's text sits inside the frame with margins on all four sides — the frame is
-rendered, never a recording. Proves FR-006, SC-004.
+amended picture); the sentence's text sits inside the frame with margins on all four sides — and, where it
+fits, at the bottom of that area, with a line up to 1.4× the reader's own reading column long while the letters
+keep the size they always had (the reader's own three answers of 2026-09-28: "move text block from top to
+bottom", "make the text line to be longer, will has less lines", and — shown what the line costs on a portrait
+frame — "竖屏也保持原来的字大小") — the frame is
+rendered, never a recording. With no picture scheduled the margins *are* the background, to the edges; with one,
+they carry the picture under the scrim, and the text still stays inside them (FR-006/FR-027). Proves FR-006,
+SC-004.
 
 ### 10. Each aspect's frames are that aspect's frame — [unit]
 
@@ -429,11 +435,72 @@ SC-019–SC-021). Rows 7–12 and 32 were rewritten in place for the same amendm
 and the new rows take the next numbers, exactly as `FR-`/`SC-` ids do. Row 42's answer (2026-09-27) fixes the
 scrim as **the frame's own background colour at 55 %** — the dark layer failed, see that row and D16.*
 
+*Re-cut 2026-09-28 (D16's second amendment, D18, D19): the scrim of rows 42/44/49 is **withdrawn** — the words
+sit on **a plate behind each painted line, and the plate's tone is read over the band the words cover** (T053) —
+and the pictures' own life changed with it: **stored as files at the pick** (T049), **never capped** (T050),
+**bounded by the video's own sentences** (T051), shown in **a window two rows tall that scrolls** (T052) and
+**re-orderable by hand** (T054). Rows 41–49 keep their numbers and their answers, and are read with that
+re-cut: the 55 % layer's tables are the record of the design it replaced. The new rows are 50–53.*
+
+### 50. The picks live as files, and go with the render that used them — [unit]
+
+Test: `test/video_pictures_test.dart`, "a pick is stored once, at the pick"; `test/reading_view_video_test.dart`,
+"the picks are stored where the app owns them, and are not kept".
+Steps: prepare a fake picker whose files are real, store two picks into a directory of the app's own, then run
+the page's prompt and a render to completion; read the directory before, during and after.
+Expected: each pick is written once, inside the one directory the page owns, under the picture's own name with
+any directory part stripped, in the order chosen; the page's thumbnails are those files (by path, still with a
+bounded decode) and the render copies those files; a pick whose read fails throws **and writes nothing**; the
+directory is gone once the render is over, however it ended, and asking to remove an absent directory is not an
+error. Proves FR-025, SC-024, D18.
+
+### 51. Nothing is capped, and more pictures than sentences is not an error — [unit]
+
+Test: `test/video_pictures_test.dart`, "choosing again adds, and nothing is capped"; `test/reading_view_video_test.dart`,
+"more pictures than sentences is accepted, the extras undrawn".
+Steps: choose twelve pictures and then twelve more; then open the prompt over a content of three sentences and
+choose four, and read what the page offers.
+Expected: the page holds both picks — the count is the sum, every picture has its own cell and its own remove,
+and nothing is refused or trimmed; a choice larger than the video's sentences is **accepted as it stands and said
+nothing about** — no message, no limit named, the render offered — and the render goes ahead with it, drawing the
+pictures that found a sentence and leaving the rest undrawn. Proves FR-025, FR-026, SC-022 — the reader's own rule
+from the phone of 2026-09-28, which took back the message and the blocked start of the same day (D18).
+
+### 52. The order the reader sets is the order the video draws — [unit]
+
+Test: `test/video_pictures_test.dart`, "the reader can change the order (FR-032)"; `test/reading_view_video_test.dart`,
+"holding a picture moves it, and the order reaches the render".
+Steps: hold the first picture's own cell, drop it on the third's, then read the choice and the copies the render
+wrote; drop a picture on its own cell; and with twenty-four pictures chosen, hold the first cell and take the
+finger past the window's bottom edge, then drop it on a cell the scroll brought into view.
+Expected: the picture lands where it was dropped with the others keeping their places and the count unchanged;
+a drop on its own cell changes nothing; and the render's own copies are in that order, so the video draws them
+so (FR-026). The hold starts anywhere on the cell — the corner remove is the size it looks, so it does not take
+the hold. A hold at either end of the window **scrolls the window while the hold stays there**, so a picture can
+reach a cell that was not on screen when the hold began, and the scrolling stops when the hold ends — the reader's
+own report from the phone of 2026-09-28: "only can move in displayed rows ... use auto scroll."
+Proves FR-032, SC-025, D19, D21.
+
+### 53. The shown pictures live in a small window that scrolls — [unit]
+
+Test: `test/reading_view_video_test.dart`, "the review window is small, and scrolling shows the rest".
+Steps: choose twenty-four pictures and read the window's own height and its scroll extent, then scroll it to the
+last cell.
+Expected: the window is two rows tall and scrolls, so every chosen picture is reachable without the dialog
+growing taller than the screen; the prompt's own content scrolls too, so the two buttons that add pictures and
+start the render stay tappable however many pictures the prompt is holding — and the button that adds them says
+**Choose more**, not "choose again". **Walked on the reader's own phone (LE2115), 2026-09-28: "小窗口滚动、
+works"** — the window's own scroll, the thumbnails and the remove all behave as this row says. Proves FR-030,
+FR-031, SC-023.
+
+
 ### 41. Spike S3 — what the file dialog gives back, and what converting it costs — [device]
 
 Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 41` (through the app, so the page has to be
 wired — T047).
-Steps: open the app's own file dialog on `emulator-5554`, browse into a folder, pick two or three pictures, and
+Steps: the driver pushes its own pictures into the device's `Pictures/` first (nothing is bundled: with a
+file dialog the reader's own files are the source), open the app's own file dialog on `emulator-5554`, browse
+into that folder, pick two or three pictures, and
 log what comes back: what a pick *is* on this platform, whether its bytes can be read once right after
 choosing (the render copies them immediately — D15), and how long copying a handful of full-resolution files
 takes. Then cancel once and log what the page says.
@@ -444,7 +511,11 @@ T045/T043's own text, not absorbed. *Half answered before the app could ask (202
 DocumentsUI and its folder tree exists, with the reader's own folders in it (breakpoint row 41). Proves
 FR-025.
 
-### 42. Spike S4 — which scrim holds the contrast floor (ANSWERED 2026-09-27) — [unit, measured]
+### 42. Spike S4 — which scrim holds the contrast floor (ANSWERED 2026-09-27; WITHDRAWN 2026-09-28) — [unit, measured]
+
+*Kept as the record of the design the plate replaced (D16's amendment of 2026-09-28): the veil is gone, so this
+row's number is not a number the shipped video must hold. The plate's own floor (17.1:1 by construction, per
+band) is what SC-004 stands on now.*
 
 Test: `flutter test specs/012-reading-video/scripts/probe_scrim_stills.dart` (the harness S4 ran; it composes
 the frame at both aspects with the app's real geometry and text style and measures the WCAG ratio **at the glyph
@@ -458,22 +529,30 @@ Numbers, stills and the raw table: `breakpoint.md` row 42 and `~/Documents/GitHu
 Proves FR-027, SC-004, and sets research D16's number. The `[device]` half — the same ratio sampled from a
 finished render's frames, pictures on the phone — is row 49's.
 
-### 43. The schedule is the video's own frames, shared equally — [unit]
+### 43. The schedule is the video's own frames, and a picture changes only with a sentence — [unit]
 
-Test: `test/video_pictures_test.dart`, "the schedule is the video's frames".
-Steps: build a schedule for three chosen pictures over a plan of a known length, in whole frames.
-Expected: each picture carries an inclusive start and end frame in the video's own numbering (not in seconds),
-the ranges partition the video with no overlap and no gap, the shares are equal in the order chosen, and a
-picture that would receive no frame at all (more pictures than frames) is simply not drawn while every frame
-stays covered by one picture or the plain background. Proves FR-026, SC-019.
+Test: `test/video_pictures_test.dart`, "the schedule is the video's sentences".
+Steps: build a schedule for two and then three chosen pictures over a plan of a known number of sentences and
+known audio lengths, in whole frames.
+Expected: each picture carries an inclusive start and end frame in the video's own numbering (not in seconds);
+**no range boundary falls inside a sentence** — every boundary is a sentence's own first frame, or the frame
+after the video's last; the ranges partition the spoken part with no overlap and no gap (the gap after a
+sentence belonging to that sentence's picture, and the end hold to the last); the shares are equal **over
+sentences** in the order chosen, so their frame lengths may differ; the title card's frames carry no picture;
+and a picture that would receive no sentence at all (more pictures than sentences) is simply not drawn while
+every spoken frame stays covered by one picture or the plain background. Proves FR-026, SC-019.
 
-### 44. The picture fills the frame it is in, with the scrim between it and the text — [unit]
+### 44. The picture fills the frame, with a plate behind each painted line — [unit]
 
-Test: `test/video_painter_test.dart`, "the picture fills the frame".
-Steps: paint one slot's frame with a picture behind it, in both aspects, and sample the frame's own pixels.
-Expected: the picture covers the whole frame — no bars, cropped where the shapes differ — the scrim (the
-frame's own background colour, at D16's measured 55 %) sits between the picture and the text, and the sentence
-is drawn over it; a frame outside every range draws no picture at all. Proves FR-027, SC-019.
+Test: `test/video_painter_test.dart`, "44-45. the picture, its tone, and the plate"; `… , "44-c. the tone is read
+where the words are"`.
+Steps: paint one slot's frame with a picture behind it, in both aspects, and sample the frame's own pixels —
+then do it again with a picture whose *band under the text* is the opposite of its own average.
+Expected: the picture covers the whole frame — no bars, cropped where the shapes differ — its own colours are
+unchanged outside the plates, and each painted line carries a plate drawn from the picture up to the text: white
+with black text over a light band, black with white text over a dark one, by the **band the words cover** rather
+than by the picture as a whole; a frame outside every range draws no picture at all and keeps the reader's own
+text colour. Proves FR-027, SC-004, SC-019, D16 as amended.
 
 ### 45. With nothing chosen, the frame is the plain background — [unit]
 
@@ -507,6 +586,9 @@ FR-028.
 
 ### 48. The picks' copies live and die with the working directory — [unit]
 
+*Re-cut 2026-09-28: the render copies the **stored** pick (row 50) rather than being handed bytes, so what it
+deletes with its working copy is a copy of a copy — and the stored picks are the page's own to remove (T049).*
+
 Test: `test/video_pictures_test.dart`, "the copies go with the working copy".
 Steps: prepare a schedule of two pictures through a fake picker whose files are real, then run a render to
 completion, cancel one halfway and fail a third.
@@ -517,13 +599,37 @@ before any frame is written rather than producing a video with a hole in it. Pro
 
 ### 49. A render with pictures on the device: each range carries its own — [device]
 
+**WALKED — PASS, 31/31, 2026-09-28 on emulator-5554** (~4 minutes). The row brings its own nine pictures —
+white, black, one dark with a bright band under the words, six more — pushes them into the device's `Pictures/`,
+drives the **system's own file dialog** to choose them (a long press opens its selection mode; `Select` confirms;
+five, then four more through `Choose more`), renders, and reads the file's frames: eight ranges for eight
+sentences, one picture each, the ninth chosen picture in no range, the picture filling each frame, and the words'
+ink the **band's** opposite — including `kw02`, whose dark average would have called for white ink and whose
+bright band calls for black.
+
 Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 49`.
-Steps: choose three pictures through the app's file dialog (it browses the device's folders), render the
+Steps: the driver pushes its own two or three pictures into the device's `Pictures/` first (the app ships no
+images of its own — with the file dialog the reader's own files *are* the source, so the row brings its own),
+choose them through the app's file dialog (it browses the device's folders), render the
 shipped pre-set, pull the file and extract a
 frame inside each picture's range and at each seam between two ranges.
-Expected: every sampled frame inside a range carries that picture filling the frame behind the sentence, with
-the scrim between them — the frame's own background colour at 55 % — and the sentence measuring at least 4.5:1
-against what is behind it; no frame at a seam
+Expected: **walked in part by the reader on their own phone, 2026-09-28** — choosing the reader's own pictures
+through the app's file dialog works and the stored picks show as thumbnails ("选读者自己的图片、works"), and the
+two things that walk asked for (the drag's reach, the button's wording) are fixed and recorded in row 49. What
+follows still has no device receipt: every sampled frame inside a range carries that picture filling the frame
+behind the sentence, with a
+plate behind each painted line — white over a light band, black over a dark one — and the words measuring at
+least 4.5:1 against that plate; the picture's own colours unchanged outside the plates; no frame at a seam
 carries a picture outside its own range, or two pictures at once; and a render with nothing chosen, run the
 same way, produces the plain-background video unchanged (row 32's picture). Proves FR-026, FR-027, FR-028,
 SC-004, SC-019, SC-021.
+
+### 54. The review's picture draws on the device — [device, measured]
+
+Test: `breakpoint.md` row 54 (the probe is deleted; the row holds its numbers and its method).
+Steps: mount the two ways of showing a video inside a Flutter platform view side by side over one local clip,
+screenshot, and read the two picture areas pixel by pixel; then repeat with the shipping view alone.
+Expected: the shipped `VideoView`'s own picture area is **black** (fraction of pixels below luma 30 ≈ 1, saturation
+0, a couple of distinct colours) — the reader's own report, reproduced on the emulator — while the `TextureView`
+route draws the picture; and after the fix the shipping view draws it too (10 % dark, saturation > 200, hundreds
+of distinct colours). Proves FR-021's own "playable" and closes the defect the reader reported.

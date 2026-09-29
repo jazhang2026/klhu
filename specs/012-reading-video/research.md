@@ -116,6 +116,26 @@ and scrolled a line at a time — not the rule that derives the area from the fr
 *Why*: A8, and because the two aspects need different text-area widths — a 16:9 frame wants a narrower
 text area than a 9:16 one, and the smallest offered size must still be legible on both (A3's consequence).
 
+**Amended 2026-09-28, by the reader's own request — the line is longer than the reader's own column.** Watching
+renders, the reader asked for exactly this: *"make the text line to be longer, will has less lines."* So the
+column may now be a **multiple** (`lineLengthGain`, 1.4) of the frame's height rather than at most its height,
+and the **letters** are measured against their own, unchanged fraction (`lettersColumnFraction`, 0.88 — the rule
+the text area itself had before) — which is what makes the extra width a longer *line* rather than bigger
+letters: the line carries 1.4× the reader's own reading column of characters. The reader then settled the one
+thing that has a price: shown that a portrait frame, whose column already uses 92% of its width, could only pay
+for a longer line with smaller letters, they kept the letters — *"竖屏也保持原来的字大小"* (keep the original
+character size on the portrait frame too). What the two frames get, then, from the app's own constants:
+
+| frame | column, before → after | letters | a line, as a share of the letters' own column |
+|---|---|---|---|
+| 16:9 (1920×1080) | 1080 → **1512** px (`min(0.92 × 1920, 1.4 × 1080)`) | 3.000 — **unchanged** | 1.000 → **1.400** |
+| 9:16 (1080×1920) | 950 → **994** px (`min(0.92 × 1080, 1.4 × 1920)`) | 2.640 — **unchanged** | 1.000 → **1.045** |
+
+So the landscape — where the old rule was at its tightest, a column 56% of the frame's width — is where the line
+grows; the portrait frame can only give the 4.5% of width it had left unused, and its sentences therefore wrap
+much as they did. The video's lines are now **wider than the app's own reading column**, which is what D6's
+original sentence about the eye was protecting: that sentence is the reader's own to overrule, and they did.
+
 ### D7 — Where the file lands, and how it is shared
 
 `MediaStore` (`Video`, `Movies/Klhu/`) on API 29+; on 24–28, `getExternalStoragePublicDirectory(MOVIES)`
@@ -252,32 +272,289 @@ Android, a blob on web, a path on desktop — which is why the next sentence car
 are copied once into the render's working directory before pass 2 starts, so the render reads them at its own
 pace instead of depending on a file handle whose read grant may end with the activity that produced it, and the
 copies are deleted with the working copy under D11's rules. The schedule is a list of (picture, inclusive start frame, inclusive end frame) in the video's own
-frame numbers, equal shares in the order chosen for the first cut (FR-026); moving a start or end frame is
-the reader's later good-to-have, and it re-renders rather than editing the file. No pictures is a valid
-schedule: the plain background (FR-028). *Rejected*: an in-app gallery (a screen to build for a phone that
+frame numbers, equal shares **of the sentences** in the order chosen for the first cut (FR-026) — a picture's
+run begins at a sentence's own first frame and ends immediately before the next picture's first sentence,
+never inside a sentence. That is the reader's own rule, set 2026-09-27: the sentence is the unit on screen, and
+the picture behind it changes with the sentence. It costs nothing in coverage, because a sentence's run
+already carries the gap that follows it and the video's last sentence carries the end hold (D14, FR-008) — so
+the pictures cover the whole spoken part with no plain flash between them. The title card keeps the plain
+background: it is the app's own card, not a sentence. Moving a start or end frame is the reader's later
+good-to-have and it re-renders rather than editing the file — expressed as *which sentence* a picture starts
+at, since frames would let the move land inside a sentence. No pictures is a valid schedule: the plain
+background (FR-028).
+
+**Multi-select, and no cap (2026-09-28).** The dialog may hand back several pictures at once, and a second
+pick **adds** to the first rather than replacing it. The choice is **not capped**: the cap of 20 this
+paragraph first carried (and, before it, the trim to the first 20) is withdrawn — the reader's own words of
+2026-09-28, "remove max 20 images limit. keep all 30 images for now. user can delete images." What bounds a
+render is the video, not a count (D18). One consequence worth knowing: the
+multi-select is the plugin's own Android half (`EXTRA_ALLOW_MULTIPLE` on its `openFiles` intent —
+`file_selector_android-0.5.2+11/…/FileSelectorApiImpl.java:148`, read back from `ClipData` at `:176`), so no
+platform code of ours is added for it — and that the rule that matters lives with the pictures' module, where
+its rows can drive it, rather than in the dialog. Before this each pick replaced the last, which is what the
+reader reported from the phone ("only can select one image and re-select image").
+
+*Rejected*: an in-app gallery (a screen to build for a phone that
 already has one); keeping the picked file live through the render (that turns "the reader moved a photo" into
 a failed render); the OS **photo** picker (2026-09-27 — it selects pictures, not files: on the reference
 emulator its Albums view listed only Favorites/Camera/Videos and never the reader's own folders, and it exists
 on Android and iOS only while the app builds for desktop and web too).
 
-### D16 — The scrim is one light layer, and its depth is measured, not chosen
+### D16 — The plate behind each painted line (the veil is withdrawn), and its tone decides the ink
 
-One full-frame layer **of the frame's own background colour** (`scaffoldBackgroundColor`, `#F4FBF8`) at **55 %**
-sits between the picture and the text (FR-027): one composite, no per-word background, no text stroke. It is the
-layer the reader later edits together with a picture's frame range (FR-026). *Why not a band, or a shadow
-alone*: a band only protects the lines it covers (a wrapped sentence has three or four), and a shadow alone does
-nothing for a busy photo's mid-tones.
+**Decision (2026-09-28, the reader's own).** Between the picture and the text sits one **white plate behind
+each painted line** — the line's own box, drawn from the picture up to the text (FR-027). There is no
+full-frame layer: outside those lines the picture's own colours are untouched. The plate is white (`#FFFFFF`),
+not the app's reading background (`#F4FBF8`), because white is the strongest floor the reader's own text colour
+can sit on: `#161D1C` against white measures **17.1:1**. The plate is drawn only where a picture is behind the
+text; with no pictures the frame is the plain background and the text sits on it exactly as before (FR-028).
 
-**S4 answered the number, and it reversed the colour.** The first cut was a 40 % *black* layer, on the
-assumption that darkening the picture is what makes text read. It is the wrong way round for this app: the
-reader's text is `#161D1C`, and a black layer moves the picture *toward* it. Measured on the reader's own four
-pictures at both aspects (breakpoint row 42): a 40 % black layer leaves **42–100 %** of the glyph pixels under
-4.5:1, 45 % leaves 2–42 %, 50 % leaves 0.4–27.5 % (51 % in one portrait crop) — and a **55 % layer of the
-frame's own background passes everywhere, 0 % under the floor, min 4.90:1**, which it reaches *by construction*:
-over a pure-black picture that layer is `#868B88`, and 4.90:1 is exactly the background's own contrast against
-the reader's text. 60 % reaches 5.77:1 and buys nothing but a paler picture. The other direction — a black layer
-with light text — needs ≥ 60.6 % and gives up the reader's own colour. What the reader pays for the light layer
-is in the same table: the picture keeps `100 − depth` per cent of its own colour range.
+**The tone rule (2026-09-28, the reader's own).** The plate is **the opposite of the picture's own tone**: a
+light picture gets black text on white, a dark one white text on black — the reader's own words, *"black text
+on white background if background image has light color. white text on black background if background image has
+dark color"*. Light and dark are read from the picture itself: its average perceptual luminance (`0.299R +
+0.587G + 0.114B`), at a floor of half, sampled on a stride (about 20 000 samples whatever the picture's size)
+and **measured once per picture and kept**, since the renderer decodes a picture once and paints it across many
+frames. Two consequences worth knowing: the pair is **21:1** by construction either way, so SC-004's floor no
+longer depends on any picture's colours; and the plate sits *with* the picture instead of over it — a light
+photo keeps its light and a dark one its dark, and the words read either way. The reader's own text colour
+still governs the plain-background video (FR-028), where there is no picture to read a tone from — the one
+place the app's single text colour is still what the reader sees.
+
+**Rationale.** The scrim's purpose was always legibility over arbitrary pictures, and it bought that by veiling
+the picture the reader had chosen to look at. The plate buys the same legibility *and* leaves the picture alone:
+the contrast becomes a constant instead of a mixture with a photo (no picture can make the plate fail, where S4
+had to measure four pictures at both aspects to show the veil held), and SC-004's 4.5:1 floor is met with 17.1:1
+of headroom.
+
+**What is withdrawn.** The 55 % full-frame layer of the frame's own background colour that S4 measured on
+2026-09-27 — on the reader's own judgement after watching a render on the phone: *"like to have white background
+to the sentence characters. Don't do any change to the background images's color."* S4's measured table stays in
+breakpoint row 42 as the record of the design it replaced, and the stills harness stays beside S1's probe.
+
+*Alternatives considered*: one plate over the whole text area (it hides the middle of the picture — offered and
+not chosen); a light veil to soften the plate's edge against the photo (a second layer, and it re-opens the depth
+question S4 answered — not chosen); a dark plate with light text (needs a second text colour, which this app does
+not have: it paints one, `#161D1C`); a plate the width of the text area rather than of each line (rejected with
+the first alternative — the reader's pick was "each wrapped line's own box").
+
+**The tone is read over the band the words cover (2026-09-28, second amendment).** The reviewer's own point
+about D16's first cut: "底板会与背后区域撞色——改为只统计文字所在条带" — a picture's *average* is not what is
+behind the words, so a dark photograph whose sentence sits under a bright sky was plated in black against a
+bright strip. The tone is therefore read over **the band each painted line covers**, mapped back from the
+line's own box onto the picture's pixels (`toneOfPixels` over the bands, the picture's pixels converted once
+and reused), and the plate and the ink follow that band. The cost is named rather than hidden: inside one
+sentence whose band crosses the light/dark floor, the plate can change between line steps — the band actually
+behind the words is what decides, and a step's frames carry that step's own band. Bands are read with a shared
+sample budget, so the measurement stays bounded however long the sentence is.
+
+### D17 — The chosen pictures are shown, and each can be taken back
+
+**Decision (2026-09-28, the reader's own):** "now we have add more images. let's have thumbnail review and
+image remove function." The prompt shows **one thumbnail per chosen picture**, in the order chosen, each
+carrying its own **remove** (FR-030). Taking one back is part of the choice, not a cancel: the rest of the
+choice stands, the count follows, and the render is still the reader's own confirm.
+
+**Rationale.** Choosing several pictures at once made the count useless on its own: twelve `sunset.png`s and
+twelve of somebody else's screenshots read the same as a line of text. A thumbnail is the picture the reader
+chose, so "which ones did I pick" is answered by looking rather than by remembering — and the remove is what
+makes a wrong pick cost one tap instead of a restart.
+
+**What it costs, and the shape it took.** The bytes have to be in hand when the prompt draws, so a pick is
+read **once, at the pick** (D15's own rule: the read grant is alive then and may not be later) and handed on
+as `HeldPicture` — name + bytes — to the page and then to the render, which writes exactly what the reader
+saw. The thumbnail decode is bounded (`cacheWidth`), since a phone photo is many megapixels and this is a
+72-pixel square; and a file that turns out not to be decodable shows as a broken-picture tile rather than
+throwing the reader out of the prompt.
+
+*Alternatives considered*: the names as a list (cheap, and it answers nothing the reader asked about — which
+picture is which); a full-screen review with swipe-to-remove (a screen to build and a gesture to teach for
+what one tap on a cross does). A reorder was **not** part of this decision and is now its own: the reader
+asked for it on 2026-09-28 and it is D19 (FR-032).
+
+### D18 — The picks are stored on disk at the pick, and the video's own sentences are the only bound
+
+**Decision (2026-09-28, the reader's own):** "1. (2) 选图当下落盘到应用私有目录、页面与渲染从文件读 2. 图多于句子
+时：show error message! force user to remove images." Two connected decisions, taken together because the second
+is only sayable once the first is true:
+
+1. **Every pick is stored as it is chosen.** The picker's read grant is alive at the pick and may not be later
+   (D15's own rule), so the read is spent then — but what it produces is written into a file inside a directory
+   of the app's own (the app's private cache), one directory per video prompt, one file per picture, named for
+   the picture with any directory part stripped. `HeldPicture` carries **name + path**, never bytes. The page's
+   thumbnails (`Image.file`, still bounded by `cacheWidth`) and the render's copies both come from those files.
+2. **The choice is not capped.** The reader's own words: "remove max 20 images limit. keep all 30 images for
+   now. user can delete images." Every picture chosen is kept, in the order chosen; the only way one leaves is
+   FR-030's remove.
+3. ~~**The video's own sentences are the bound.**~~ **Withdrawn the same day (2026-09-28), by the reader's own
+   phone test**: "超限提示、no need. not show." The prompt resolves nothing and says nothing; a choice larger than
+   the video's sentences is started as it stands, and the pictures past the last sentence are simply not drawn —
+   which is what the schedule already did with a picture that found no sentence (FR-026, SC-022). The
+   `videoSentencesFrom` call the prompt made for the count goes with it, and the prompt is back to opening on the
+   remembered aspect and nothing else.
+
+**What the reader's own phone settled (2026-09-28).** Two of the three parts above came back confirmed and one
+came back wrong. Confirmed: the picker, the stored files, the thumbnails, the small scrolling window (part 1 and
+FR-030). Wrong: part 3 — the count with a message and a blocked Start. The reader's words: "超限提示、no need. not
+show." The lesson worth keeping is in *why* it was wrong: the bound was a rule about the **video's** capacity,
+enforced as an error the **reader** had to fix; watching a real render showed that a picture with no sentence is
+not a problem anyone has to fix, it is a picture that does not appear — the schedule's own long-standing answer.
+The same phone test asked for two things that are now D19's and D21's: the reorder's reach (the window scrolls
+while a hold is at its end) and the button's wording ("Choose more").
+
+**Rationale.** (1) Thirty phone photographs held as bytes is a few hundred megabytes in a low-end phone's
+heap, and the window (FR-030) only fixed what is *shown*, not what is *held* — while the file dialog's grant
+makes the bytes-at-the-pick read the one moment the data is certainly reachable. Storing the read means the
+page and the render read a file the app owns, and the lifetime is one directory the page can delete.
+(2)+(3) A cap is a number the app invented; the video's sentences are a number the video actually has. A choice
+larger than the video's sentences is not a pick to refuse — every picture in it is one the reader chose, and the
+ones over the count are pictures the video has nowhere to draw (FR-026) — so the reader is told the two numbers
+and fixes it themselves.
+
+**What it costs, and the shape it took.** A directory per prompt, created before the dialog opens and removed
+in a `finally` around the whole prompt-and-render: finished, stopped, failed, or cancelled, the stored picks go
+(FR-025, SC-024). `storePicks` deletes what it wrote if a read fails part-way, so a choice is never half-stored;
+`discardPictures` treats an absent directory as already done. The prompt's own content scrolls
+(`AlertDialog.scrollable`), because the message it can now carry is several lines tall and on a short screen the
+Choose/Start buttons were pushed out of the dialog's own tap area — found by a test whose tap missed, not by eye.
+
+*Alternatives considered*: holding bytes and hoping (the risk the reader's own report was about); storing picks
+in the render's working directory (it does not exist yet when the reader is choosing); keeping the picks between
+prompts so a second render reuses them (FR-025 forbids it: the picks belong to the prompt that chose them); capping
+by a number again (the number the reader just withdrew); trimming a too-large choice to the first N sentences'
+worth (drops pictures silently, which is the one thing every amendment here has refused).
+
+### D19 — The order the reader sets is the order the video draws
+
+**Decision (2026-09-28, the reader's own request):** the review step may not only remove a picture but **move**
+it: hold a picture's own cell and drop it on another picture's cell, and the choice is reordered so that the
+picture lands where it was dropped and the others keep their own places (FR-032). The cells' order **is** the
+order the video draws the pictures in (FR-026), so this is a different video rather than a different view of
+one, and a drop on the picture's own cell changes nothing (`movePicture` hands the choice back as it was).
+
+**Rationale.** The pictures share the sentences in the order chosen, so "the third picture is behind the
+sentence I wanted the sunset for" was a reason to start over: remove, re-pick, and hope the dialog hands the
+files back in the order the reader wants. A move is the direct fix, and it costs one gesture on a cell the
+reader is already looking at.
+
+**The reader's own phone test (2026-09-28).** The hold worked — and stopped at the window's own edge: "only can
+move in displayed rows. need to able to move out of the disabled rows. use auto scroll." So the window follows
+the hold (D21), and the button that adds pictures was renamed in the same breath: `"Choose again" to "Choose
+more"` — the reader's own words, and the copy in all four languages changed with it (FR-031).
+
+**What it costs, and the shape it took.** `MovableThumbnail` is a `DragTarget` around a `LongPressDraggable`
+carrying the cell's index; the feedback is the picture alone (a remove is not what is being moved) and the cell
+being dragged stays in place, dimmed. The hold must start **anywhere on the cell**, and that is where the real
+defect was: an `Image` answers no pointer by itself, and the corner remove was an `IconButton` whose padded tap
+target is 48×48 — two thirds of a 72-pixel cell — so the hold landed on the remove instead. The cell therefore
+draws a transparent `ColoredBox` as its own hit surface, and the remove's `tapTargetSize` is
+`MaterialTapTargetSize.shrinkWrap`, so it is the size it looks (22×22) and the rest of the cell is the reader's.
+**The cost is named**: the remove's own touch target is now the cross itself rather than 48 pixels, which is the
+trade that makes the whole cell draggable.
+
+*Alternatives considered*: a long-press menu on a picture ("move left / move right" — two taps per move and a
+menu to teach); arrows on each cell (a second control per cell in a window two rows tall); a separate reorder
+screen (a screen to build for a gesture that fits on the cell); living with remove-and-re-pick (a lost choice
+and a dialog to re-walk for a mis-ordered picture).
+
+### D20 — The picture is a `TextureView`, because a `SurfaceView` inside a Flutter platform view never reaches the screen
+
+**The defect (reported from the phone 2026-09-28, fixed the same day).** The reader: "video player is not working in
+phone. only show a black view. click play button, not playing." The review's picture was black with the sound
+playing, while the same file played from the device's Files app — so the file and the keep path were sound.
+
+**What it was.** The view was a `VideoView`, which is a `SurfaceView` inside. Flutter composites an `AndroidView`
+through its own layer; a `SurfaceView` sends its picture to a *separate* surface that the compositor has to punch
+into the window, and inside a platform view that hole is where the picture does not arrive. D12's own choice —
+"the platform's own player, hosted by the app", with the platform's transport controls so no scrubber of ours —
+is right; the *container* was wrong.
+
+**The measurement (both views, one screen, one file, `emulator-5554`).** A scratch probe mounted both ways side by
+side over the same local `testsrc` clip and one screenshot was read pixel by pixel (`breakpoint.md` row 54):
+
+| the view | pixels below luma 30 | max saturation | distinct colours | mean luma |
+|---|---|---|---|---|
+| `VideoView` (what shipped) | **0.98** | **0** | **2** | 0.8 |
+| `TextureView` + `MediaPlayer` (candidate) | 0.10 | 255 | 273 | 123.6 |
+
+So the defect reproduces on the emulator, with the file the candidate draws: the shipped view's whole picture area
+is black, and a `TextureView` — composited like any other view — draws it.
+
+**On the reader's own phone (2026-09-28).** The fixed APK was installed on the LE2115 — the device the black
+picture was reported from — and the reader's own report is: "play button works on my LE2115 phone." So the fix holds where the
+defect was found, not only where it was measured.
+
+**Decision.** The shipping view is a `TextureView` whose `Surface` is handed to a `MediaPlayer`, prepared **after**
+the surface exists (a player prepared before its surface is the classic half-black picture), with the platform's
+own `MediaController` still driving play/pause/seek through `MediaController.MediaPlayerControl` — so D12's
+"no scrubber of ours" holds and no dependency is added. Two things a `VideoView` did for itself that the view now
+does: the video's own shape inside whatever box the page gives it (a `fitPicture` transform on the texture, so the
+picture is letterboxed rather than stretched), and the transport bar appearing on a tap of the picture.
+
+*Alternatives considered*: `androidx.media3` (`ExoPlayer` + `PlayerView`, whose own `surface_type="texture_view"`
+exists for exactly this) — the modern, supported route, and the one to take the day `MediaController`'s
+deprecation bites; it costs a dependency and a bigger rewrite for a view that has no other problem. Handing the
+file to the device's player app (`ACTION_VIEW`) — considered and **declined by the reader on 2026-09-28**: it would
+delete this view and its whole defect class, but it moves the watch out of the app, and FR-021's review is one
+screen where the reader decides. A Dart-drawn control bar over a `TextureView` — puts the scrubber in our code,
+which D12 exists to avoid.
+
+### D21 — A hold at the window's end scrolls the window
+
+**Decision (2026-09-28, the reader's own):** "only can move in displayed rows. need to able to move out of the
+disabled rows. use auto scroll." While a picture is held and the finger is within a band of either end of the
+picture window, the window scrolls a step at a time, and keeps scrolling while the finger stays there, so a
+picture can be dropped on a cell that was not on screen when the hold began. Leaving the band — or ending the
+hold — stops it.
+
+**Rationale.** The window is two rows tall by FR-030's own shape, and the choice can be thirty pictures: without
+this, the reorder could only shuffle what happened to be in sight, which on a real phone is exactly what the
+reader found. Auto-scroll is also the gesture every list in every phone already teaches, so nothing new has to
+be learned.
+
+**Confirmed on the reader's own phone (2026-09-28)**, after the first fix — and in both directions, which the
+repo's own rows did not yet cover: "拖拽自动滚动 fixed up and down" (a row for the upward half was added with it).
+
+**What it costs, and the shape it took.** The page owns the window's `ScrollController` and a `GlobalKey` on the
+window (so it can be measured against the finger's own position), and a `Timer.periodic` that repeats a fixed
+24-pixel step every 80 ms while the finger sits in a 36-pixel band at either end — with the first step taken
+immediately, so a hold at the end moves the window rather than seeming stuck. A step per *pointer move* would
+have been simpler and worse: holding still at the end is precisely how a reader asks for more. The step is in
+pixels rather than in cells on purpose — it is the window that moves, and the cell under the finger is whatever
+is there when the reader lets go, which is the drop the `DragTarget` already handles. Nothing scrolls when the
+hold ends or leaves the band, and the controller is disposed with the page.
+
+*Alternatives considered*: a per-pointer-move step (stops the moment the reader stops moving, which is the
+opposite of what a held finger means); paging the window a whole row at a time (jumpy, and it would drop cells
+out from under the finger); a drag handle that raises the window out of the way (a control to teach for a
+gesture that already means "move this"); no auto-scroll, with the reader reordering in several passes (the
+reader's own answer: they asked for auto scroll).
+
+### D22 — A sentence that fits sits at the bottom of the frame
+
+**Decision (2026-09-28, the reader's own):** "move text block from top to bottom." A sentence whose block fits
+the text area is placed so its **last line's box ends where the text area ends** — the bottom of the frame — so
+everything above the words is the picture (or the background). A sentence **taller** than the text area keeps
+FR-029's own shape unchanged: its first line starts at the top of the text area and the slot scrolls down through
+the block a line at a time, which is what that requirement says in so many words ("from its first line at the top
+of the text area to its last line at the bottom"). The title card keeps its own centring — it is a card, not the
+sentence — and so does the end hold.
+
+**Rationale.** The frame is watched on a phone, at a picture the reader chose: with the words at the bottom, the
+picture owns the frame's middle and top, which is where a photograph's subject usually is, and the eye has one
+place to look for the words rather than a place that moves with the sentence's length. It is also what the
+reader's own reading view does not do — there the column fills the page — so it is a video-only look, deliberately.
+
+**What it costs, and the shape it took.** One branch in the painter (`geometry.steps == 0` decides it, the
+block's own answer rather than the progress, because a too-tall block's *first* frame is not a block that fits).
+The cost is a visible jump between a sentence that fits and one that does not: the fitting one sits at the bottom,
+the too-tall one starts at the top and travels down. The alternative — bottom-anchoring the too-tall case too —
+would put a long sentence's *first* lines off the bottom of the frame, which FR-029 forbids; the other
+alternative — centring both — is what D22 replaces.
+
+*Alternatives considered*: the block vertically centred (a taller text area's worth of empty frame above and below
+the words); the block at the top, as it was (the reader's own answer: no); the anchor following the *picture's*
+subject (unknowable for a photograph, and it would make the words move from sentence to sentence).
 
 - **S1 — does the emulator's engine write a usable audio file?** Call `synthesizeToFile` with a sentence
   of the shipped English pre-set on `emulator-5554` and inspect the result: does a file appear, is it

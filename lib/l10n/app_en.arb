@@ -120,6 +120,9 @@
       }
     }
   },
-  "videoPicturesChooseAgain": "Choose again",
+  "videoPicturesChooseMore": "Choose more",
+  "videoPicturesReorder": "Hold a picture and drop it on another to change the order; drag it to the window\u2019s edge to reach the rest.",
+  "@videoPicturesOverSentences": {"placeholders": {"chosen": {"type": "int"}, "sentences": {"type": "int"}, "extra": {"type": "int"}}},
+  "videoPicturesRemove": "Remove this picture",
   "videoPicturesFailed": "Could not open your pictures. Try again."
 }

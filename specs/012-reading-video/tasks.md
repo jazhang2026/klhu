@@ -11,8 +11,9 @@ file's life cycle, P3).
 ## Status
 
 **In progress — re-cut 2026-09-27 to the amended picture.** T001–T025, T028, T029, **T036** (the pictures'
-keys), **T038** (spike S4), **T044** (the picker is flutter.dev's `file_selector`) and **T045** (the picker's
-seam over it) are done; T026, T027 and T030 (the file store, the player view and US3's device row) are not. The 2026-09-26 amendment replaced what a
+keys), **T038** (spike S4), **T040/T043** (the schedule in the video's own frames and the picks' copies),
+**T044** (the picker is flutter.dev's `file_selector`) and **T045** (the picker's seam over it) are done; T026,
+T027 and T030 (the file store, the player view and US3's device row) are not. The 2026-09-26 amendment replaced what a
 frame *shows*: one sentence per frame at the reader's own size, over the reader's own pictures with the scrim
 between them, with each picture's schedule counted in the video's own frames (FR-002, FR-014, FR-025–FR-029,
 US4). The
@@ -446,7 +447,18 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       31 and 34 (quickstart 31, 34): a real render asserted with `ffprobe` (one H.264 stream at the chosen
       frame, one AAC stream, constant rate, duration against the audio sum), and a confirmed Stop at ~50 %
       leaving no file, an empty cache and an untouched kept video
-      **DONE 2026-09-26 — row 31: 31/31 checks; row 34: 25/25.** The driver was written for these two rows
+      **DONE 2026-09-26 — row 31: 31/31 checks; row 34: 25/25.** **Re-run 2026-09-27 on a live emulator:
+row 31 31/31, row 33 40/40 (its two playback steps skipped, see T030), row 34 25/25** — and the re-run is
+what caught two driver faults the 2026-09-26 numbers had hidden. Both are the same shape, and it is the shape
+worth remembering: **a row that leaves the review on screen leaves state the next row inherits, and then
+`tap` finds the review's three decisions instead of the page's toolbar.** Row 31 read it as "the render
+produced no file" (16/17) and row 34 as a render it could not start — and row 34 then exited through a bare
+`return`, so the run printed **7/7 passed** for a row whose subject (stopping a render half way) had not run
+at all. Green over a truncated row is worse than red: `return` on a failed tap is now an explicit `check(...,
+False)` in that row, and each aspect or review is taken down before the next step. The other side of the same
+coin: `dump()` kept a node only when it carried a `content-desc`, which is how Flutter's widgets reach the
+tree — another app's window (the phone's share sheet) names its rows in `text`, so a chooser sitting on the
+screen read as an empty screen and T030's share check failed twice for a feature that was there all along. The driver was written for these two rows
       (`specs/012-reading-video/scripts/klhu_walk_video.py`); it polls the app's own `klhu render done:` line
       and the page's progress instead of sleeping, per the Notes. **Row 31**, from `pm clear`'d state at both
       aspects: one H.264 stream at exactly 1920×1080 then 1080×1920, one AAC stream (24 kHz mono),
@@ -616,9 +628,51 @@ warns first.
       entries: keeping through `MediaStore` on API 29+ and the public Movies directory plus a media scan
       below (with `WRITE_EXTERNAL_STORAGE` capped at `maxSdkVersion="28"`), the `FileProvider` entry and
       paths resource for sharing a working copy, the share intent, deletion, existence, and availability
+      — **PART DONE 2026-09-27 (updated the same day, second pass)**. **`keep` has now run on the device**,
+      through the app's own Save: the file appeared in `Movies/Klhu/` under the content's own name, the
+      record holds `content://media/external_primary/video/media/39`, the bytes the host pulled are the
+      render's own (1335708 B, byte-for-byte), and the kept file probes as H.264/AAC 1920×1080 30 fps with
+      exactly the render's 818 frames. `isAvailable` also ran (the app offered the video action at all,
+      which it does only when the channel answers true). **Still unexercised: `share`, `delete` and
+      `exists`** — the walk that would have covered them died with the emulator (see T030). First pass:
+      the file exists and the app **builds and installs with it**
+      (`flutter build apk --debug` clean, the APK on `emulator-5554`, and `dumpsys package com.example.klhu`
+      shows the provider at the authority `com.example.klhu.fileprovider`, which is the one the code asks
+      for). Written: the whole channel (`isAvailable`/`keep`/`share`/`delete`/`exists`), `keep` through
+      `MediaStore` on API 29+ (insert with `IS_PENDING`, cleared only once the bytes are complete, and the
+      pending entry deleted if the bytes fail) and through the public `Movies/Klhu` directory below it,
+      with the media scan's *own* uri taken as the record's uri so share/delete/exists speak one language
+      across API levels; **write-then-delete** for a replacement (FR-012); `share` through a chooser with
+      `FLAG_GRANT_READ_URI_PERMISSION`, a kept video by its library uri and a working copy through
+      `FileProvider` (D11/D13); `delete` answering whether the file is gone rather than whether this call
+      removed it; `exists` by opening the uri. **What is NOT proven**: no line of it has executed — the
+      device walk (T030) is what proves it. Two known gaps, stated rather than hidden: (1) below API 29 the
+      storage permission is *asked* on the first keep and that keep fails with the reason, so an old device
+      needs a second tap (a request-and-wait flow was not built); (2) the legacy path cannot be exercised at
+      all on this API 36 emulator, so `keepInMovies` is written from the contract and untested here
 - [ ] T027 [US3] Implement `android/app/src/main/kotlin/com/example/klhu/VideoPlayerView.kt` and register it:
       the platform view over the framework's own player with its transport controls, per
       `contracts/video-player-protocol.md`, refusing anything that is not a local file
+      — **PART DONE 2026-09-27 (updated the same day, second pass)**: the view is **on the screen** — the
+      compositor lists a surface of the app's own for it while the review is up
+      (`SurfaceView[com.example.klhu/com.example.klhu.MainActivity]`). **Playback itself is still unproven,
+      and the walk found out why**: Flutter's accessibility tree stops at the platform view's edge, so
+      `uiautomator` never shows the platform's own transport controls (the raw tree holds the page's three
+      buttons and nothing of the player), and the driver's blind coordinate taps at the controller bar
+      started no sound. Verifying the player wants either a harness that calls the channel directly
+      (`position()`/`duration()` after a `play`) or a tap that the platform will answer — this is the open
+      piece, not a closed one. First pass: `VideoPlayerView.kt` exists, the app builds and installs
+      with it, and `MainActivity` registers both halves of it (the view factory under
+      `klhu/video_player_view` and the channel under `klhu/video_player`). Written: a `VideoView` with the
+      platform's own `MediaController` (the transport is not re-implemented, which is the point of D12), a
+      source that is a local path or a local library uri and **nothing else** (FR-013), the contract's whole
+      method table (`play`/`pause`/`stop`/`position`/`duration`), and disposal that stops and releases the
+      player — rule 4, which is what keeps a deleted video from playing on. **One thing the build taught**:
+      the page's channel is registered *once for the engine* and answered by whichever view is current,
+      rather than per view — the four-argument `MethodChannel` constructor takes a `TaskQueue`, not a view
+      id, so the per-view shape does not exist; a `stop` with nothing showing is a no-op and answers. **What
+      is NOT proven**: nothing has played. The 15 page rows use a fake player, so the view appearing on a
+      device at all is T030's and T048's to show
 - [ ] T028 [US3] Implement `lib/platform/video_player.dart`: the Dart side of the playback view (the widget
       and its channel), used by the review and by a kept video's playback
       — **PART DONE 2026-09-26 — and only this**: the module exists and compiles — the `VideoPlayer` seam
@@ -644,6 +698,51 @@ warns first.
       33 (quickstart 33): play the review before keeping, throw one away and keep another, find it in the
       gallery under the content's name, share it through the phone's list, delete it behind the warning, and
       find it gone with the content offering to record again
+      — **PART DONE 2026-09-27 — the row is written and its first half has run on the device; the emulator
+      died part way through and the rest is open.** The row (`row_33` in the driver, dispatched as `33`)
+      does all of it, and it earned its keep before it finished by finding **a real bug in shipped code**:
+      the library entry was named after the *file the render wrote* (`klhu_video.mp4`, the same for every
+      content) instead of after the content, which FR-011 asks for and which is the whole point of keeping a
+      video where the gallery finds it. The page now names it from the content (`'$title.mp4'`), and the
+      device confirms it: the record reads `The sun rose over the q….mp4` while the render wrote
+      `klhu_video.mp4`. That is pinned by a new unit row (`a kept video is named for the content, not for the
+      render`) and by the walk's own `the name is the content's, not the render's own file`. What the walk
+      proved on the device before it stopped: the gallery starts empty, the aspect prompt opens with the
+      pictures step in it, the render runs and reports itself, the review offers the three decisions and its
+      picture is a surface of its own on screen, the kept file is in `Movies/Klhu/` under the content's name,
+      its bytes are the render's own, and it probes as a real 1080p video with exactly the plan's frames.
+      What it did not reach: `share`, the delete warning and its confirmation, `exists` after a delete, and
+      playback (T027's open piece, above). Two driver bugs it found in itself, both fixed: the shell's
+      `content query` takes a **colon**-separated projection (`_display_name:relative_path`; a comma is read as
+      one column name and refused on stderr, which a stdout-only read sees as "the library has no entries"),
+      and the name parse has to tolerate spaces and commas in a content's name; and `pm clear` empties the app
+      but *not* the phone's gallery, so a row about the library has to clear the album and its MediaStore
+      entries itself, or it can pass on an earlier run's leftovers. **Second run (2026-09-27, same day): 39 of
+      40 checks pass, with the two playback steps skipped** — `KLHU_SKIP_PLAY=1` exists because playback is
+      this box's memory peak and the emulator dies under it (it died three times: twice at a player step, once
+      at the share step). What that run proved on the device, end to end: an empty gallery at the start; the
+      aspect prompt opening; the render running twice and reporting itself; the review offering its three
+      decisions with its picture as a **surface of its own**; the throw-away leaving the gallery untouched and
+      the page saying "Video not saved"; the **keep** putting the file in `Movies/Klhu/` under the content's
+      name (the app's record reads `The sun rose over the q….mp4` while the render wrote `klhu_video.mp4` —
+      FR-011's fix, confirmed on hardware); the same file as a **MediaStore entry** the gallery finds; its
+      bytes pulled back byte-for-byte and probing as H.264/AAC 1920×1080 30 fps with exactly the plan's 818
+      frames; the delete warning with its own copy, **Cancel** deleting nothing, and the confirmation removing
+      it from both the album and the library, with the content offering to record again and no longer offering
+      play or delete. **Third run (2026-09-27): 40 of 40 checks pass** — the share
+      "failure" was the driver lying about a screen that was there. `dump()` kept a node only when it had a
+      **content-desc**, and that is how Flutter's own widgets reach the tree; another app's window — the
+      phone's share sheet — names its rows in `text`, so a chooser sitting on screen read as an *empty*
+      screen, and only an absent list could explain it. A label is now either channel, and the same run shows
+      the sheet: `['Sharing 1 file', 'Quick Share', 'Drive', 'Maps', 'Messages', 'Photos', …]`. The lesson is
+      worth more than the check: **a probe that reads one of two label channels reports present UI as absent,
+      and the app gets blamed** — the finding was reported here as an app-side gap for two runs before the
+      dump was read properly.
+      The driver also grew a preflight: an AVD snapshot restored a **2026-09-14 build** of the app, and half a
+      run went into "the app behaves oddly" before the installed package's `lastUpdateTime` explained it — it
+      now refuses to walk when the device's app is older than the APK on disk. **To finish**: chase the share
+      (with the raw-tree print), and run the two playback steps on a machine that can hold the emulator
+      through them
 
 **Checkpoint**: all three stories are independently demonstrable, and the file's whole life — working copy,
 kept, shared, deleted — is exercised on the device.
@@ -710,8 +809,10 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
 
 ### The two spikes, before anything is written (T037, T038)
 
-- [ ] T037 [US4] Run spike S3 into `specs/012-reading-video/breakpoint.md` (quickstart 41): on
-      `emulator-5554`, through the app's own file dialog, browse into a folder, pick two or three pictures and
+- [x] T037 [US4] Run spike S3 into `specs/012-reading-video/breakpoint.md` (quickstart 41): the driver pushes its
+      own pictures into the device's `Pictures/` first — the app bundles none, since with a file dialog the
+      reader's own files are the source — then, on
+      `emulator-5554`, through the app's own file dialog, browse into that folder, pick two or three pictures and
       record what comes back — what a pick *is* here, whether its bytes can be read once right after choosing,
       how long copying a handful of full-resolution files takes, and what a cancel leaves behind. *Re-cut
       2026-09-27: the dialog is the FILE picker, not the photo one (D15, the reader's decision).* *Added 2026-09-26 with the amended picture*, and it
@@ -721,6 +822,12 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       (2026-09-27: **BLOCKED** — the emulator's `/sdcard/DCIM` and `/sdcard/Pictures` are both empty, so there
       is nothing to pick, and no channel yet opens a picker (T044/T045 are what S3 gates). Cheapest honest
       route: run S3 as T044's first cut instead of gating it — see breakpoint row 41)
+      (DONE 2026-09-28 — **the spike's own two questions are answered, and its answer is row 49's walk** rather
+      than a separate script: the dialog is the system's Files app in its Recent view, a **long press** opens its
+      selection mode, its toolbar reads `N selected` and carries the button that confirms (`Select`), the app gets
+      each file's own **name** and one read of its bytes while the grant is alive, and the cost is one file per
+      pick on disk for exactly as long as the prompt and its render (measured `[]` → `[]` twice). Recorded in
+      `breakpoint.md` under row 41, with the drive's own code in `scripts/klhu_walk_video.py` (`choose_pictures`).)
 - [x] T038 [US4] Run spike S4 into `specs/012-reading-video/breakpoint.md` (quickstart 42): composite a bright,
       a mid and a dark photo under a 40 % black scrim with both of the app's text colours and measure the
       text-to-background contrast each way. *Added 2026-09-26 with the amended picture*, and it gates T039's
@@ -742,27 +849,64 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
 
 ### Tests ⚠️ (write first, run RED — T039–T041)
 
-- [ ] T039 [US2] Rewrite the rows of `test/video_painter_test.dart` from quickstart 7–12 and 44–46: the frame's
+- [x] T039 [US2] Rewrite the rows of `test/video_painter_test.dart` from quickstart 7–12 and 44–46: the frame's
       text is the slot's sentence alone at the reader's own size (no band, no window, no other sentence's text),
       the wrapped-and-stepped-by-line case for a sentence taller than the text area, the picture filling the
       frame with the scrim between it and the text — the frame's own background colour at D16's measured 55 % —
       the plain background when nothing is scheduled, both
       aspects' frames and text areas, the reader's size honoured with no shrink, and no chrome — *added
       2026-09-26 with the amended picture*: T006's and T018's rows are **replaced**, not extended (ripple note
-      7), and the contrast case uses T038's measured scrim depth. Run it RED before T042
-- [ ] T040 [P] [US4] Write `test/video_pictures_test.dart` from quickstart 43 and 48: the equal-share schedule
-      in the video's own frames (inclusive ranges that partition the video, more pictures than frames, an empty
-      schedule), the picks' copies into the render's working directory, their cleanup after a finish, a cancel
-      and a failure, and a picture that cannot be copied failing the render before any frame is written —
-      *added 2026-09-26 with the amended picture* (D15). Run it RED before T043
-- [ ] T041 [P] [US4] Extend `test/reading_view_video_test.dart` from quickstart 47: the page names how many
+      7), and the contrast case uses T038's measured scrim depth. (DONE 2026-09-27 — 17 cases, and **RED was a
+      compile error** naming exactly the new API: `lines`, `scrollLines`, `progress`, `scrimDepth`. The old
+      file's 20 cases went with the band — the four "which span is highlighted" rows have no counterpart by
+      design (FR-002). Three of the new cases are pixel claims the old file could not make: the scrim's own
+      composite over a black picture computed here rather than read from the painter, a 2:1 four-quadrant picture
+      in a 9:16 frame whose four corners prove cover-and-crop rather than letterbox, and the first line's own box
+      holding ink over the scrim. The scroll case paints every position of a 278-character sentence and asserts
+      the whole sentence is drawn at each, that every line is fully on screen at some step, and that a step moves
+      the block by exactly one line — with the frames' images disposed as it goes, or the test would hold ~90
+      full frames of memory)
+- [x] T040 [P] [US4] Write `test/video_pictures_test.dart` from quickstart 43 and 48: the schedule the reader's
+      rule allows — pictures sharing the plan's **sentences** equally, each range running from its first
+      sentence's own first frame to the frame before the next picture's first sentence, so no boundary falls
+      inside a sentence (inclusive ranges that partition the spoken part, the title card left plain, more
+      pictures than sentences, an empty schedule) — the picks' copies into the render's working directory, and a
+      picture that cannot be copied failing the copy and leaving nothing behind — *added 2026-09-26 with the
+      amended picture* (D15), *re-cut 2026-09-27* to the reader's rule.
+      (DONE 2026-09-27 — **13 cases, and this row's RED is the part worth reading**: the first cut — equal shares
+      of the video's *frames* — was written RED as a compile error, `+0 -1` naming `PictureSchedule`,
+      `buildPictureSchedule` and `copyPictures`, and went green after T043; the reader's rule then made those
+      shares **wrong**, because a share boundary could fall mid-sentence. The cut was redone, and its RED was two
+      real steps: the sentence-based signature failed to compile (`plan` at eight call sites), and then the *old*
+      frame-sharing rule was adapted to that signature and run so the new assertions could be exercised — **5 of
+      8 schedule cases failed**, naming `a.png starts mid-sentence (0)`, the title card carrying a picture, and
+      shares of three sentences where the rule allows two. The sentence-based rule made all 13 green. **Two of this
+      row's claims moved to T046**, where they belong: "their cleanup after a finish, a cancel and a failure" and
+      "before any frame is written" are the *renderer's* behaviour — it owns the endings and the order of pass 2 —
+      so this file asserts what a unit can: every copy is written inside the working directory and nowhere else,
+      which is the only thing the renderer's own delete reaches. Written down here rather than left as a row that
+      overclaims)
+- [x] T041 [P] [US4] Extend `test/reading_view_video_test.dart` from quickstart 47: the page names how many
       pictures are chosen and lets the reader choose again, the render starts only on the reader's own confirm,
       and choosing none still renders the plain-background video — *added 2026-09-26 with the amended picture*.
-      Run it RED before T047
+      Run it RED before T047. (DONE 2026-09-27 — 4 rows, RED first as "No named parameter with the name
+      'picturePicker'". Quickstart 47's own name is one of them. The rows: the step is up with nothing chosen
+      and says so, offers to choose, then names the count and offers to choose *again* — and never renders
+      without the reader's own confirm; the picks reach the frames, checked as a **real pixel** of the first
+      sentence's frame (it is not the background, so the picture is behind the text); nothing chosen still
+      renders the plain-background video, checked on *every* frame's corner pixel against the page's own
+      scaffold colour, exactly; a picker that failed says so with the app's own message, renders nothing, and
+      lets the reader try again. **Two traps this row's own red run found, and both would have looked like
+      healthy tests.** (1) `pumpAndSettle` never returns on this page — the reader ticks, so the tree never goes
+      quiet; the picker's answer lands in a microtask, which is a plain pump. (2) A `testWidgets` body runs on a
+      fake clock, and an image decode started inside it never calls back: `await pngOf(...)` in a row's *setup*
+      did not fail, it **hung** — the runner reported nothing at all for ten minutes. The fixtures now build
+      their PNGs under `tester.runAsync`. 19 rows green in this file, suite **414 passing, 0 failing**,
+      `flutter analyze` clean)
 
 ### Implementation (T042–T047)
 
-- [ ] T042 [US2] Rewrite `lib/video_painter.dart` to the amended picture: delete the highlight band, the page
+- [x] T042 [US2] Rewrite `lib/video_painter.dart` to the amended picture: delete the highlight band, the page
       window and the column mapping (with one sentence in the frame there is nothing to highlight and nothing
       to scroll to), and paint instead the sentence alone at the reader's own size inside the frame's text
       area, wrapped over as many lines as it needs and stepped upward one line at a time by the elapsed
@@ -770,12 +914,34 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       the frame's own background colour at D16's measured 55 % (T038), and the plain background where nothing is
       scheduled (FR-027/FR-028). The title
       card, the frame size and the style-as-a-parameter seam stay — *added 2026-09-26 with the amended picture*:
-      this is the rewrite T010's row declared, not an extension of it
-- [ ] T043 [US4] Implement `lib/video_pictures.dart`: the schedule builder (equal shares of `totalFrames` in the
-      order chosen, each picture's **inclusive** start and end frame — FR-026), the copies of the picks into the
+      this is the rewrite T010's row declared, not an extension of it. (DONE 2026-09-27: `paint(slot, progress,
+      picture)`, `VideoFrame` carrying `lines` (the drawn boxes), `scrollLines`, `picture` and `scrimDepth`;
+      `_TextBlock` lays the text out once for both the paint and the new `scrollSteps(slot)`, which T046 needs to
+      know how many pictures a sentence's run holds; the cover-and-crop source rect is the one place the picture's
+      shape meets the frame's; a title card that fits stays centred while a sentence sits at the text area's top.
+      `content` is gone from `paint` (the slot carries its own text), `highlight` is gone from the painter **and
+      from the renderer** — the yellow band was the only reason either had it — with the three call sites
+      (`video_renderer.dart`, `reading_view.dart`, `video_renderer_test.dart`'s fixture) updated in the same
+      change. 17 painter cases green, `flutter analyze` clean, suite **405 passing, 0 failing** (the old file's 20
+      cases became these 17). **What this row does not yet deliver**: the renderer still paints one picture per
+      slot, so a tall sentence's scroll does not appear in the rendered video until T046 splits a sentence's run
+      into one picture per line step — `progress` is the seam and nothing passes it yet)
+- [x] T043 [US4] Implement `lib/video_pictures.dart`: the schedule builder (equal shares of the plan's
+      **sentences** in the order chosen, each picture's **inclusive** start and end frame, no boundary inside a
+      sentence — FR-026, *re-cut 2026-09-27 to the reader's rule*), the copies of the picks into the
       render's working directory before pass 2 reads them, and their cleanup with the working copy however the
       render ended — *added 2026-09-26 with the amended picture* (D15). It consumes the picker's own seam
-      (T045) rather than declaring one
+      (T045) rather than declaring one. (DONE 2026-09-27: `ScheduledPicture` (path, inclusive start/end, `frames`,
+      `isDrawn`), `PictureSchedule` with `at(frame)` and `none`, `buildPictureSchedule` (the extra **sentences**
+      go to the earlier pictures; a picture holding no sentence is undrawn rather than dropping one; the last
+      picture runs to the video's own last frame, because the end hold keeps the last sentence and its picture —
+      FR-008) and `copyPictures` (one copy per pick, `picture_<i>_<name>`, every copy inside `workDir`, all-or-
+      nothing on failure), plus the name rule that keeps a platform's own idea of a filename inside the working
+      directory. Two traps are written into the code rather than left to be found: equal sentences are not equal
+      frames (a share holding the end hold is the longest), and `VideoSlot.endFrame` is exclusive while a
+      picture's range is inclusive, so every boundary is "the next sentence's start minus one". 13 cases green;
+      `flutter analyze` clean; suite **408 passing, 0 failing**. The "cleanup however the render ended" is the
+      renderer's existing `_delete` reaching a directory it owns — T046 wires the copies into it)
 - [x] T044 [US4] `pubspec.yaml` gains `file_selector: ^1.1.0` with the comment that says why: the picker's
       platform half is **flutter.dev's own plugin**, not Kotlin of ours — no `PicturePickerPlugin.kt`, no
       channel, no activity result, no new permission, no gallery screen (D15). *Re-cut 2026-09-27 on the
@@ -792,29 +958,82 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       or path ever leaves the seam — *added 2026-09-26 with the amended picture*. (DONE 2026-09-27:
       `flutter analyze` clean; **not** device-verified — T037 answers what it actually returns, and the interface
       is what the tests fake until then)
-- [ ] T046 [US2] Extend `lib/video_renderer.dart` to the amended picture: produce one `RenderedFrame` per
+- [x] T046 [US2] Extend `lib/video_renderer.dart` to the amended picture: produce one `RenderedFrame` per
       visual state — the slot's sentence, its line step, and the picture covering it — so the scroll's line
       steps and each picture range's first frame are their own frames with their own repeats (Σ repeats still
-      equals `totalFrames`), and copy the chosen pictures before pass 2 reads anything (T043), while the audio
+      equals `totalFrames`), copy the chosen pictures before pass 2 reads anything (T043), paint **one picture per
+      line step** for a sentence whose text is taller than the frame — asked of `painter.scrollSteps(run.slot)`,
+      each step holding an equal share of that sentence's frames, since the picture shown is the picture written
+      and T042's `progress` is the seam that makes it possible (without this the video would show a tall sentence's
+      first line for its whole slot) — and carry 48's two
+      render-level rows with them — the copies are gone after a finish, a cancel and a failure, because they are
+      written into the working directory the render already deletes, and no frame is written before they exist
+      (T040 could only assert the unit half: that every copy lands in that directory) — while the audio
       pass, the pacing and the cancellation stay exactly as they are — *added 2026-09-26 with the amended
-      picture* (D14/D15)
-- [ ] T047 [US4] Wire the pictures into `lib/reading_view.dart`: the choose-pictures step before a render starts
+      picture* (D14/D15). (DONE 2026-09-27 — 5 new rows in `test/video_renderer_test.dart`, RED first as a
+      compile error ("No named parameter with the name 'pictures'"), then **the green runs found three real
+      things**, which is what this row's tests were for. (1) **A rendering bug**: the painter's step came from
+      `position / positions`, and binary floating point cannot represent that exactly — at 31/102 the product
+      lands a hair below 31, so one step was painted twice while the next was skipped, and the video jumped.
+      Caught by the row asserting the steps are strictly increasing; fixed with a documented epsilon in the
+      painter. (2) **A trap for whoever keys by it**: `VideoSlot.sentence` is the sentence's index *within its
+      paragraph*, so a content of two paragraphs has two slots with `sentence == 0` — the first version of the
+      row's own bookkeeping collided on it. (3) The **end hold** is not a step: the last step absorbs it, so the
+      block stops at its bottom and stays there (FR-008). What shipped: `pictures` on the renderer (copied into
+      the working directory before pass 2 and recorded in `written`, so a finish, a cancel and a failure all take
+      them with the rest); `_stepsOf` splitting each slot's run into one run per line step with equal shares —
+      and a step that gets no frame of its own is not written, since it is a picture nobody could see, while the
+      shares still add up to the timeline exactly; `_pictureFor` decoding one picture per copy and reusing it for
+      the slot's whole run (the schedule changes a picture where a sentence changes, FR-026, so no picture
+      boundary can land mid-run); the decoded images are kept for the frames' own lifetime because the reader's
+      preview holds them. 22 renderer rows green, `flutter analyze` clean, suite **410 passing, 0 failing**.
+      **The cost this row pays**: a 278-character sentence over a 40 s slot renders as 102 pictures instead of 1
+      (measured in this fixture) — the frames are still the timeline's length, but the paints are not. T032's S2
+      numbers are the thing to check against the device's real time before US4 is called done)
+- [x] T047 [US4] Wire the pictures into `lib/reading_view.dart`: the choose-pictures step before a render starts
       (the picker, how many are chosen, choosing again, the picker's failure), the picks held for the render and
-      not remembered after it, and the schedule handed to the renderer beside the aspect prompt — the page's
-      shipped behaviour untouched (FR-018) — *added 2026-09-26 with the amended picture*
+      not remembered after it, and **the picks** handed to the renderer beside the aspect prompt — the page's
+      shipped behaviour untouched (FR-018) — *added 2026-09-26 with the amended picture*. (DONE 2026-09-27 —
+      **the row's own wording was amended here**: it said "the schedule handed to the renderer", but the schedule
+      cannot exist before the plan does, and the plan is what the render's own synth pass produces. So the page
+      hands the *picks* beside the aspect and the renderer builds the schedule where the plan is (T046). Where
+      the step lives is the same reading of this row: **beside the aspect prompt, in one dialog** — the format's
+      chips, then the count, the failure line and the choose/choose-again button — so the shipped `Start` stays
+      the reader's own confirm and FR-001's "the format is asked for first" still holds (it is the first thing in
+      that dialog, and nothing renders until Start). Frozen behaviour of the step: a dialog the reader cancelled
+      changes nothing, so "choose again" is always a repick and never a quiet reset; a picker that failed sets
+      the app's own message and leaves the choice as it was; the picks belong to the render that reads them and
+      nothing holds them afterwards. The page's seam is `picturePicker` (the real `FilePicturePicker` by default,
+      a fake in tests); `ReadingView`'s other collaborators are untouched, so the existing 15 rows needed no
+      change beyond the shared `pageWith` getting a quiet picker)
 
 ### Device row (T048)
 
 - [ ] T048 [US4] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` rows 32
       and 49 (quickstart 32, 49): re-walk row 32 against the amended picture — every sampled frame carrying its
       slot's sentence alone at the reader's own size, the long one scrolled and never shrunk or split — then
-      choose three pictures from the phone's gallery and render, checking each range's frames against each seam
-      (the picture filling the frame behind the sentence, the scrim, 4.5:1 against what is behind the text) and
+      choose three pictures through the app's file dialog — the driver pushes its own into the device's
+      `Pictures/` first, so nothing is bundled and the row cleans them up — and render, checking each range's
+      frames against each seam
+      (the picture filling the frame behind the sentence, the scrim, 4.5:1 against what is behind the text), that
+      no seam sits inside a sentence, and
       a no-picture render producing the plain-background video. The driver gains rows 41, 42 and 49 (T037/T038
       own 41 and 42), and every claim lands in `breakpoint.md` — *added 2026-09-26 with the amended picture*
+      **State 2026-09-27**: this row is not re-cut yet, and today's run says exactly where it stands. Row 32
+      still reads the renderer's *pre-amendment* line — it looks for `band=<label> range=<start>..<end>`, and
+      `lib/video_renderer.dart` now writes `scroll=<lines> picture=<yes|no> span=<start>..<end>` — so its
+      "the renderer reported the pictures it wrote" check found **0 runs against a file with 818 frames** and
+      every check after it (the runs tiling the timeline, the band on each sentence's frame) was skipped by a
+      `continue`. The remaining half of the row was faulted too and is fixed: a review left up from the
+      landscape aspect hid the page's toolbar, so the vertical render never started ("the render produced no
+      file", 6/8). The two are the same lesson T026's re-run recorded — **a row whose provider of truth has
+      changed reports absence, not change** — and it is why the renderer's account has to be *rewritten* onto
+      `scroll`/`picture`, with the pixel checks re-anchored to the span the file actually carries, rather than
+      have its regex extended. Rows 41, 42 and 49 do not exist in the driver yet.
 
 **Checkpoint**: US2's amended frame and US4 are complete and independently demonstrable — a reader picks
-pictures from their own gallery, the video carries each one behind the sentence with the scrim over it,
+pictures from their own files (the file dialog browses folders; the app ships no images), the video carries
+each one behind the sentence with the scrim over it, no picture lands or lifts inside a sentence,
 a tall sentence is never shrunk and never split, and choosing none still produces the video the feature
 would have made without them (SC-021).
 
@@ -900,6 +1119,156 @@ in Dart seems necessary, that is a signal the split in D4 is wrong — report it
 
 ---
 
+## Phase 8 — the 2026-09-28 re-cut (the picture's own life, its bound, its order)
+
+*The reader's own follow-ups after using the amended app on the phone: "(a) 保留已选并提示 (b) 底板会与背后区域撞色——
+改为只统计文字所在条带； (c) use scrool. small show window, scroll to show others.", then "remove max 20 images
+limit. keep all 30 images for now. user can delete images.", then "1. (2) 选图当下落盘到应用私有目录、页面与渲染从
+文件读 2. 图多于句子时：show error message! force user to remove images. 3. OK." The new work takes the next
+numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut changes are named in its receipt.*
+
+- [x] T049 [US4] Store every pick at the pick (FR-025, D18, SC-024): `HeldPicture` becomes **name + path** —
+      the file the app wrote it into — and `storePicks` reads each pick once, while the picker's own read grant
+      is alive, writing `pick_<i>_<safe name>` inside a directory of the app's own; the page's thumbnails are
+      `Image.file` of those files (still bounded by `cacheWidth`) and the renderer **copies** them into its own
+      working directory rather than being handed bytes. The prompt's directory is created before the dialog opens
+      and removed in a `finally` around prompt-and-render, so finished, stopped, failed or cancelled all take the
+      stored picks with them (FR-025's own "never remembered"). (DONE 2026-09-28 — `HeldPicture{name, path}`,
+      `storePicks`, `discardPictures` in `lib/video_pictures.dart`; `copyPictures` copies from the stored file;
+      `ChosenThumbnail` reads the file; `_openVideoPrompt` owns the directory. Rows: every pick is written in the
+      order chosen, inside the one directory the page owns; a pick nothing can be read from throws **and writes
+      nothing** (one file, then a delete of what it wrote — a choice with a hole is not half a choice); the
+      directory is removed and removing it twice is not an error; the page's thumbnails are the stored files, by
+      path, in order; and the directory is gone once the render is over. `flutter analyze` clean; suite **438
+      passing, 0 failing**. **The trap this row paid for**: in the test the thumbnails' provider is a
+      `ResizeImage` wrapping the `FileImage` (the decode bound), so an assertion that casts to `FileImage` fails
+      on a *correct* implementation — the re-cut's rows unwrap it))
+- [x] T050 [US4] Withdraw the cap (FR-025, SC-022): delete `maxPictures`, the refusal branch and
+      `refusedCount`, and let `mergePicks` be a pure append; delete the l10n key that named the cap from all four
+      ARB files and re-run `gen-l10n`. Every picture chosen is kept, and the only way one leaves is FR-030's
+      remove. (DONE 2026-09-28 — the reader's own words are the receipt: "remove max 20 images limit. keep all 30
+      images for now. user can delete images." Rows: a second pick adds to the first; 12 + 12 = 24 pictures on
+      the page, one cell each, in the order chosen, with the count the sum. Analysis clean; suite green.)
+- [x] T051 [US4] **Re-cut 2026-09-28, by the reader's own phone test: a choice larger than the video's
+      sentences is silent and startable** (FR-026, SC-022): delete the count the prompt resolved
+      (`videoSentencesFrom` and the `sentenceCount` it fed), the overshoot message and its l10n key from all four
+      ARBs, and the disabled Start — the prompt opens on the remembered aspect and says nothing more. A picture
+      that found no sentence is simply not drawn, which is what the schedule always did with one.
+      (DONE 2026-09-28 — the reader watched the message on the phone and withdrew it: "超限提示、no need. not
+      show." **All three parts of T051 are gone**: the count, the message, the blocked render. The row that used
+      to assert the refusal now asserts the opposite — four pictures over three sentences is accepted, each with
+      its own cell, Start offered, the render going ahead. The l10n key `videoPicturesOverSentences` is deleted
+      rather than left unused, and the page no longer imports `video_timeline` for the count.
+      `flutter analyze` clean; suite **439 passing, 0 failing**.) **Two real defects the green runs found**: (1) the prompt's own content grew
+      with the message and pushed the Choose/Start buttons outside the dialog's tap area on a short screen — a
+      test tap that *missed* found it, not an eye — fixed with `AlertDialog(scrollable: true)` so the content
+      scrolls and the actions stay pinned (FR-025's own sentence about the prompt scrolling); (2) the page's own
+      test harness drove the prompt's store reads with two `pump`s, which was never enough for a real store read:
+      the file's own `letWorkRun` (real event loop) is now what opens the prompt and what lands the storing, with
+      the wait written as "the pictures the picker handed over are the pictures on screen" rather than a count of
+      pumps. Analysis clean; suite **438 passing, 0 failing**.)
+- [x] T052 [US4] Show the chosen pictures in a window two rows tall that scrolls (FR-030, SC-023): the cells
+      live in a `ConstrainedBox(maxHeight: 152)` around a `SingleChildScrollView` (keyed `video picture
+      window`, so the page and its tests can measure and drive it), so thirty pictures are one scroll rather than
+      a dialog taller than the screen, and the window's own l10n key says the pictures can be reordered. The
+      button that adds pictures is named for what it does — **Choose more**, not "choose again" — because that is
+      what it does (FR-031, the reader's own correction from the phone of 2026-09-28), **confirmed on the phone the
+      same day**: "按钮改名 fixed". (DONE 2026-09-28 — the
+      reader's own answer: "(c) use scrool. small show window, scroll to show others." **Confirmed on the
+      reader's own phone the same day** ("小窗口滚动、works"), with the wording and the drag's reach changed as a
+      result (T051, T054) Rows: 24 cells are on the page while the window measures its own height, and the window's scroll
+      extent is **greater than** its height — the cells do not all fit, which is what the window is for.)
+- [x] T053 [US2] Read the plate's tone over the band the words cover (FR-027, D16's second amendment): the
+      painter lays the text out first, maps each painted line's box back onto the picture's pixels, and reads the
+      tone **band by band** (a shared sample budget; the picture's pixels converted once) instead of over the
+      whole picture — so a dark photograph whose sentence sits under a bright sky is plated for the strip behind
+      the words. The cost is written into the code and the requirement: inside one sentence whose band crosses
+      the floor, the plate and the ink may change between line steps. (DONE 2026-09-28 — the reviewer's own point:
+      "底板会与背后区域撞色——改为只统计文字所在条带". `toneOfPixels` (pure, band-sampled) and `pictureTone(picture,
+      {bands})`. Rows (44-c): a bright picture with a dark band under the text plates dark; a dark picture with a
+      bright band plates light; the band's own pixels are the evidence, not the whole picture's average. One real
+      defect found on the way: an out-of-range band indexed past the pixel array — fixed by checking the band's
+      own width/height before its area.)
+- [x] T054 [US4] Let the reader set the order (FR-032, D19, SC-025): holding a picture's own cell and dropping
+      it on another picture's cell puts it where it was dropped, the others keeping their places; the cells' order
+      is the order the video draws (FR-026), a drop on the picture's own cell changes nothing, and the copy tells
+      the reader the order can be changed. (DONE 2026-09-28 — `MovableThumbnail` (`DragTarget` around
+      `LongPressDraggable`) and `movePicture` (pure: out of range or in place answers the choice unchanged).
+      **Re-cut the same day, by the reader's own phone test, to reach past the visible rows** (D21): the page owns
+      the window's own `ScrollController` and a `GlobalKey` on the window, and a hold within 36 pixels of either
+      end scrolls it 24 pixels every 80 ms — the first step immediately — until the hold leaves the band or ends;
+      `onDragUpdate`/`onDragEnd` carry the finger's position down from `MovableThumbnail`, and the controller is
+      disposed with the page. **The phone's receipt, in the reader's own words**: "长按换序, works. but only can
+      move in displayed rows. need to able to move out of the disabled rows. use auto scroll." New row: with
+      twenty-four pictures chosen, a hold taken past the window's bottom edge scrolls it (the offset read from the
+      window's own `Scrollable`) and the picture is then dropped on a cell the scroll brought into view, still 24
+      pictures on the page; and its other half — a hold past the window's **top** edge, after a plain drag down —
+      scrolls it back and letting go stops it, the direction the reader's own phone confirmed the same day
+      ("拖拽自动滚动 fixed up and down"). `flutter analyze` clean; suite **440 passing, 0 failing**.
+      Rows: a drop onto another cell lands there; the same move the other way; a drop on itself and a drag from
+      nowhere change nothing; the order the reader set is the order the render's copies are written in; and the
+      page's own row drives a hold-and-drop through the real dialog. **Two real defects the green runs found**:
+      (1) the hold never reached the cell **at all** — an `Image` answers no pointer by itself, so the cell now
+      draws a transparent `ColoredBox` as its own hit surface; (2) the corner remove was an `IconButton` whose
+      padded tap target is **48×48 on a 72-pixel cell**, so the middle of the cell was the remove and the hold
+      landed on it: the remove's `tapTargetSize` is now `MaterialTapTargetSize.shrinkWrap`. **The cost, named**:
+      the remove's own touch target is the cross itself (22×22) rather than 48 pixels — the trade that makes the
+      whole cell draggable, and the reviewer's point to accept or reject. `flutter analyze` clean; suite **438
+      passing, 0 failing**.)
+
+- [x] T056 [US2] The frame's own look, by the reader's two requests of 2026-09-28 (FR-014, FR-029, D22, D6's
+      amendment): **move the text block from the top to the bottom** of the text area, and **make a line 1.4×
+      the reader's own reading column** so a sentence needs fewer of them. One constant decides the line
+      (`lineLengthGain`): the column's height bound is that multiple of the frame's height and the letters divide
+      by it, so the extra width is more words rather than bigger ones; where the column cannot grow (a 9:16
+      frame, whose column is already 92% of its width) the legibility floor (`minimumEm`, A3) wins and the line
+      grows less instead of the words shrinking. A sentence that **fits** is bottom-anchored; a sentence taller
+      than the area keeps FR-029's own shape (its first line at the top, scrolling down a line at a time), which
+      is why the branch is the block's own `steps` rather than the progress. (DONE 2026-09-28 — the reader's own
+      words are the receipt: "1. move text block from top to bottom. 2. make the text line to be longer, will has
+      less lines." **The numbers, from the app's own geometry and from a real render**: a 16:9 frame's column
+      1080 → **1512** px (`min(0.92 × 1920, 1.4 × 1080)`), the letters unchanged there (42 px at the pre-set's
+      size, and on a 9:16 frame **also unchanged** — the letters are measured against their own, unchanged
+      fraction of the frame (`lettersColumnFraction`, 0.88) rather than against the wider column, which is the
+      reader's own answer when the choice was put to them: "竖屏也保持原来的字大小". The line is where the gain
+      lands: 16:9 goes from 1.000× to **1.400×** the letters' own column per line (the column 1080 → 1512 px),
+      9:16 from 1.000× to **1.045×** (950 → 994 px) — a portrait frame has only the 4.5% of width it was not
+      already using to give, and its sentences wrap much as they did. Both figures are the app's own constants'
+      arithmetic, not a measurement. The pre-set's
+      own eight sentences are one line each either way (their glyph boxes are 38–40 px tall before and after, with
+      identical ink pixel counts), so on this pre-set the change shows as *where* the words are, not how many
+      lines: the same frames' boxes moved from y 120–160 to y 924–964, against a text area ending at 972 — read
+      off the file's pixels by row 49, which now checks that placement on every range. Six painter tests were
+      re-cut to the new geometry (the column rule read from the constants, the fit case's bottom, the margins'
+      floor, and the two D16 fixtures whose bands moved to where the words now are). `flutter analyze` clean;
+      suite **440 passing, 0 failing**; row 49 **40/40, exit 0**.) replace the `VideoView` with a `TextureView` whose surface is handed
+      to the platform's own player (D20), so the video the reader watches before keeping it is a picture rather
+      than a black rectangle — the reader's own report from the phone ("video player is not working in phone. only
+      show a black view. click play button, not playing."). The view type, the channel, its five methods, rules
+      1–5 and the seam above them are unchanged: what changes is the container, and with it two things a
+      `VideoView` did for itself — the video's own shape inside the box the page gives it (letterboxed, never
+      stretched) and the transport bar appearing on a tap. (DONE 2026-09-28 — a scratch probe first, because the
+      cause had to be *seen* rather than argued: two temporary platform views side by side over one `ffmpeg`
+      `testsrc` clip pushed into the app's own private directory, one screenshot read pixel by pixel. The shipped
+      `VideoView` measured **0.98 of its picture area below luma 30, saturation 0, 2 distinct colours** — the
+      reader's black picture, reproduced on `emulator-5554` — while `TextureView` + `MediaPlayer` measured 10 %
+      dark, saturation 255, 273 colours. The view was then rewritten (`MediaPlayer` prepared **after** its surface
+      exists; `fitPicture` letterboxing on the texture; `MediaController` still driving play/pause/seek through
+      `MediaController.MediaPlayerControl`, so D12's "no scrubber of ours" holds and no dependency is added) and
+      measured again through the shipping Dart seam: **10 % dark, saturation 235, 189 colours**. The probe's two
+      files (`ProbePlayerViews.kt`, `lib/probe_main.dart`) were deleted and `MainActivity` restored. `flutter
+      analyze` clean; suite **438 passing, 0 failing**; `breakpoint.md` row 54 holds the numbers — and the half
+      this repo could not reach, the **reader's own phone**, reported the next thing to be said: the fixed APK on
+      their **LE2115** — the device the black picture came from — plays, their own words "play button works on my LE2115 phone." **What is
+      not claimed**: this repo's own driver has not walked the review end to end on a device after the fix, and
+      pause/seek were not exercised.)
+
+*The device half is still open for all six: no emulator or phone walk has driven the stored picks, the sentence
+bound, the window's scroll or the hold-and-drop yet. `scripts/klhu_walk_video.py` needs the new steps before that
+walk can be run.*
+
+---
+
 ## Requirement coverage
 
 | Requirement | Tasks |
@@ -917,22 +1286,25 @@ in Dart seems necessary, that is a signal the split in D4 is wrong — report it
 | FR-011 a kept video lives where the galleries look, under the content's name | T026, T029, T030 |
 | FR-012 keeping again leaves exactly one video for that content | T022, T024, T026 |
 | FR-013 produced on the device — no account, no backend, no upload, no network | T015, T026, T035 |
-| FR-014 the video's text is the reader's typeface and size — never shrunk, wrapped and scrolled when tall | T039, T042, T046 |
+| FR-014 the video's text is the reader's typeface and size — never shrunk, wrapped and scrolled when tall, on a line 1.4× the reader's own column | T039, T042, T046, T056 |
 | FR-015 an empty content is refused with the existing message and no file | T004, T014 |
 | FR-016 pacing follows the voice, within the stated bounds | T004, T020 |
 | FR-017 the audio is complete, in order, nothing dropped or repeated | T004, T007, T011 |
 | FR-018 the reading page's shipped behaviour is untouched | T008, T016, T047, T035 |
 | FR-019 the render owns the page; Stop asks first | T008, T016, T029 |
 | FR-020 the page shows the video's own picture — the amended frame — as the render's progress | T007, T014, T046, T048 |
-| FR-021 a finished render is played, then kept, thrown away or shared | T022, T023, T025, T029 |
+| FR-021 a finished render is played — a picture, not a black surface — then kept, thrown away or shared | T022, T023, T025, T029, T055 |
 | FR-022 a kept video is reachable again, and deleting it removes file and record | T022, T024, T029, T030 |
 | FR-023 sharing through the platform's own list; no SDK, no account, no upload | T022, T026, T028, T030 |
 | FR-024 deleting warns first, and never on a single tap | T022, T026, T029, T030 |
-| FR-025 the reader chooses pictures from the phone's own gallery before a render, and sees what is chosen | T036, T037, T041, T044, T045, T047 |
-| FR-026 each chosen picture occupies an inclusive run of the video's own frames, shared equally | T040, T043, T046, T048 |
-| FR-027 a picture fills the frame it is in, with the scrim between it and the text — the frame's own background colour at 55 %, which holds 4.90:1 over any picture | T038, T039, T042, T048 |
+| FR-025 the reader chooses pictures from their own files before a render, chooses again to add, is never capped, sees the choice in a scrolling window, and nothing is remembered once the render ends | T036, T037, T041, T044, T045, T047, T049, T050, T052 |
+| FR-026 each chosen picture occupies an inclusive run of the video's own frames, shared equally — and a choice larger than the video's sentences is startable and silent, its extras simply not drawn | T040, T043, T046, T048, T051, T052, T054 |
+| FR-027 a picture fills the frame it is in with a plate behind each painted line, the plate and ink decided by the tone of the band the words cover — the picture's own colours untouched | T038, T039, T042, T048, T053 |
 | FR-028 no pictures chosen — and any frame outside every range — is the app's plain background | T040, T042, T048 |
-| FR-029 a sentence too tall for the frame is drawn whole at the reader's own size, wrapped and scrolled by line | T039, T042, T046 |
+| FR-029 a sentence too tall for the frame is drawn whole at the reader's own size, wrapped and scrolled by line — and a sentence that fits sits at the bottom of the area | T039, T042, T046, T056 |
+| FR-030 the chosen pictures are shown as thumbnails in a window that scrolls, each with its own remove | T047, T052, T049 |
+| FR-031 every string is the app's own, and the reader's own actions are named in the reader's own terms (the button that adds pictures says *Choose more*) | T051, T052 |
+| FR-032 holding a picture and dropping it on another cell puts it there, that order is the video's, and a hold at either end of the window scrolls it so any cell can be reached | T054 |
 | SC-001 a reader makes a video in the app, no network, and is told the file's name and length | T017, T031 |
 | SC-002 it plays start to end: one video stream, one audio stream, the duration within 2 s | T017, T031 |
 | SC-003 the text in a frame is the sentence being spoken, in 100 % of samples, and no other sentence's | T039, T048 |
@@ -954,3 +1326,7 @@ in Dart seems necessary, that is a signal the split in D4 is wrong — report it
 | SC-019 pictures cover the video as scheduled; no frame carries one outside its own range | T040, T042, T048 |
 | SC-020 a long sentence is neither split nor shrunk; its whole text is inside its slot's frames | T039, T042, T048 |
 | SC-021 a render with no pictures produces the video the feature would have made without them | T040, T042, T048 |
+| SC-022 both picks are held (the count is the sum, nothing capped or trimmed) and a choice larger than the video's sentences is startable and silent, the extras left undrawn | T050, T051 |
+| SC-023 one thumbnail per picture in the order chosen, each with its own remove, in a window two rows tall that scrolls | T047, T052 |
+| SC-024 the picks exist as files in one directory of the app's own, shown by the page and copied by the render, and the directory is gone once the render is over | T049 |
+| SC-025 a hold-and-drop leaves the picture where it was dropped, the others in place, the count unchanged, and a hold at the window's end scrolls it so any cell can be reached — and the render draws that order | T054 |

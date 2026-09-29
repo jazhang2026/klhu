@@ -617,11 +617,23 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0 {No pictures chosen} =1 {1 picture chosen} other {{count} pictures chosen}}'**
   String videoPicturesChosen(int count);
 
-  /// No description provided for @videoPicturesChooseAgain.
+  /// No description provided for @videoPicturesChooseMore.
   ///
   /// In en, this message translates to:
-  /// **'Choose again'**
-  String get videoPicturesChooseAgain;
+  /// **'Choose more'**
+  String get videoPicturesChooseMore;
+
+  /// No description provided for @videoPicturesReorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold a picture and drop it on another to change the order; drag it to the window’s edge to reach the rest.'**
+  String get videoPicturesReorder;
+
+  /// No description provided for @videoPicturesRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this picture'**
+  String get videoPicturesRemove;
 
   /// No description provided for @videoPicturesFailed.
   ///
