@@ -243,7 +243,7 @@ Every other story decorates this one.
 **Independent Test**: take the shipped English pre-set (8 sentences, 334 characters), use the video
 action, wait for the render, then play the file and inspect it with a standard media analyser: one video
 stream at the chosen resolution and frame rate, one audio stream, a duration equal to the reading plus
-the title card and the end hold; extract a frame inside each sentence's slot and find that sentence's text
+the end hold (the card's 2.5 s was withdrawn on 2026-09-29); extract a frame inside each sentence's slot and find that sentence's text
 alone as the frame's text (a long one showing its whole text over its slot, FR-029); with nothing highlighted
 the video opens at the content's first
 sentence and with a sentence highlighted it opens at that sentence (FR-004), and in both cases its last
@@ -287,15 +287,16 @@ voice segment is the content's last sentence.
 ### User Story 2 - The video is good enough to publish (Priority: P2)
 
 The video looks like a video and not like a phone screen: the frame is the video's own (no app bar, no
-buttons, no hints, no dialogs, no phone status bar, no notifications, no keyboard), it opens with a
-title card naming the content, the text is set at the reader's own size, every sentence whole and alone in
+buttons, no hints, no dialogs, no phone status bar, no notifications, no keyboard), it opens on its first
+sentence (the card that used to name the content was withdrawn on 2026-09-29), the text is set at the reader's own size, every sentence whole and alone in
 its frame over the reader's own picture with the scrim so the words read, and the reading's own
 pace is kept — no long silences between sentences — before a short hold on the last sentence.
 
 **Why this priority**: "make it good as a youtube video" is the second half of the request. P1 alone
 would produce something functional and unwatchable.
 
-**Independent Test**: inspect frames — the title card names the content; no frame contains any of the
+**Independent Test**: inspect frames — the first frame is the first sentence's own and no frame carries the
+content's name (the card was withdrawn on 2026-09-29); no frame contains any of the
 app's controls or the device's status bar/navigation; the text block sits inside the frame with margins
 at every sampled frame — and, where the sentence fits, at the **bottom** of the text area, so the picture has
 the frame above the words to itself (the reader's own request of 2026-09-28); the sentence's own glyphs are the
@@ -307,8 +308,9 @@ gap between the end of one sentence's voice and the start of the next, and the l
 
 1. **Given** a finished video, **When** any frame is inspected, **Then** the app's own controls, hints,
    dialogs and the device's status bar/navigation are nowhere in it.
-2. **Given** a finished video, **When** it opens, **Then** a title card names the content before the
-   reading starts, and the first sentence is voiced after it.
+2. **Given** a finished video, **When** it opens, **Then** the first sentence is the very first frame —
+   no card names the content, and no frame carries its name or language (amended 2026-09-29) — and its
+   voice starts with that frame.
 3. **Given** a finished video, **When** the gap between two consecutive sentences is measured, **Then**
    it is within the bound in FR-016, and the video ends holding the last sentence rather than cutting it
    off.
@@ -421,9 +423,9 @@ video that rendered without pictures, no slower and nothing refused.
 - **A paragraph the page would voice in a language whose voice is missing on this device**: the video
   uses the same fallback voice the page would use — the video and the page must never disagree about the
   voice.
-- **A content with one sentence**: still a video — title card, one highlighted sentence, one voice
+- **A content with one sentence**: still a video — one highlighted sentence, one voice
   segment, end hold.
-- **A highlight sitting on the content's last sentence**: the video is the title card, that one sentence
+- **A highlight sitting on the content's last sentence**: the video is that one sentence
   and the end hold; a short video is still a valid one (FR-004).
 - **A text that mixes three languages**: per-paragraph languages exactly as the page decides them
   (004/007's locales).
@@ -484,8 +486,16 @@ video that rendered without pictures, no slower and nothing refused.
   govern the frame and the layout of that video, and the video MUST be one file in a format standard
   players and video platforms accept: a common video codec and audio codec in the standard container, a
   constant frame rate, and exactly the chosen aspect/resolution.
-- **FR-008**: The video MUST open with a title card naming the content and MUST end by holding its last
+- **FR-008**: The video MUST open on its first spoken sentence and MUST end by holding its last
   sentence briefly rather than cutting off the voice.
+  <br>**Amended 2026-09-29 (the reader's own request).** The opening title card this requirement used to
+  name — the content's name over its language, before the reading — **is withdrawn**: the first frame of
+  the video is the first sentence's own, and nothing in any frame carries the content's name or its
+  language. The reader's words, from reading the two renders of 2026-09-28: *"I want to remove the first
+  title frame. and don't show the title in the top of 16:9 video."* The end hold is unchanged. Consequences
+  the tasks own: the plan's slots are sentences plus the hold (no card slot, no `<VideoPlan>.title`,
+  no card-drawing code in the painter, no language-label seam), SC-002's duration loses the card's 2.5 s,
+  and FR-016's "lead-in" bound is vacuous — there is no lead-in.
 - **FR-009**: A render MUST report progress while it runs and MUST be cancellable at any point; a
   cancelled, failed or abandoned render MUST leave no file behind and MUST leave the content's own state
   (text, reading position, appearance) unchanged.
@@ -511,8 +521,9 @@ video that rendered without pictures, no slower and nothing refused.
 - **FR-015**: An empty or whitespace-only content MUST be refused with the app's existing message and MUST
   produce no file.
 - **FR-016**: The video's pacing MUST follow the voice: each sentence's frames MUST last exactly as long
-  as that sentence's spoken audio, with no gap between consecutive sentences longer than 0.5 s, no
-  lead-in longer than 3 s and no end hold longer than 3 s.
+  as that sentence's spoken audio, with no gap between consecutive sentences longer than 0.5 s and no end
+  hold longer than 3 s. *(The lead-in bound — no lead-in longer than 3 s — is vacuous since the opening
+  card was withdrawn on 2026-09-29: the video begins on its first sentence, so there is no lead-in at all.)*
 - **FR-017**: The video's audio MUST be complete: every sentence the page would speak MUST be audible in
   the video, in order, with no sentence dropped, shortened or repeated.
 - **FR-018**: The feature MUST NOT change how the reading page reads aloud, its controls or its
@@ -666,13 +677,13 @@ video that rendered without pictures, no slower and nothing refused.
 - **Reading video**: the finished file for one content — the content it was made from, its name, its
   aspect/resolution, frame rate, duration and where it lives on the device. One per content (FR-012).
 - **Render plan**: the video's timeline as the renderer builds it — one slot per sentence (its text
-  range, its paragraph, its language/voice, its spoken length in frames) plus the title card and the end
-  hold. This is what makes the video checkable: a
+  range, its paragraph, its language/voice, its spoken length in frames) plus the end
+  hold (the opening card was withdrawn on 2026-09-29, FR-008). This is what makes the video checkable: a
   slot's frames must show that sentence's own text alone.
 - **The video's layout**: how the video puts its frame together — the sentence at the reader's own size,
   wrapped over as many lines as it needs and scrolled inside the frame when that block is too tall (FR-029),
   the picture behind it with a white plate behind each painted line (FR-027), the plain
-  background, the title card, the end
+  background, the end
   hold, and the margins. It carries the reader's appearance (typeface and character size) rather than
   replacing it (FR-014).
 - **Picture schedule**: which picture is on screen when — the chosen pictures in order, each with its
@@ -693,7 +704,7 @@ video that rendered without pictures, no slower and nothing refused.
   network connection, and the app reports the file's name and length when it is done.
 - **SC-002**: The video plays from start to end in the device's own player and in a desktop player: one
   video stream at the chosen resolution and constant frame rate, one audio stream, and a duration equal
-  to the reading plus the title card and end hold (within 2 s).
+  to the reading plus the end hold (the card's 2.5 s was withdrawn on 2026-09-29) within 2 s.
 - **SC-003**: The text in a frame is the sentence being spoken at that moment: sampling each sentence's
   slot (a frame at its start, its middle and its end) finds that sentence's own text as the frame's text in
   100 % of samples — and finds no other sentence's text in the frame (FR-002/FR-005).

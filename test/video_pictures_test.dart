@@ -19,9 +19,10 @@
 /// The sentence-based rule is what made it green.
 ///
 /// The plan fixture is the timeline's own: six sentences of one second each at
-/// 30 fps, which puts the sentence starts at frames 75, 117, 159, 201, 243 and
-/// 285 — 75 frames of title card first, a 12-frame gap after each sentence, a
-/// 60-frame end hold — so the video's last frame is 374.
+/// 30 fps, which puts the sentence starts at frames 0, 42, 84, 126, 168 and 210
+/// — the video opens on the first sentence (2026-09-29), a 12-frame gap follows
+/// each sentence and a 60-frame end hold closes the last — so the video's last
+/// frame is 299.
 ///
 /// 48's last claim — that the copies are gone after *any* ending a render can
 /// have, finished, cancelled or failed — is the renderer's own cleanup (it
@@ -53,7 +54,6 @@ Future<VideoPlan> _plan() async {
   );
   expect(sentences, hasLength(6), reason: 'fixture drift');
   return buildVideoPlan(
-    title: 'Test',
     sentences: sentences,
     audioMs: [for (var _ in sentences) 1000],
     aspect: VideoAspect.vertical,
@@ -187,8 +187,8 @@ void main() {
       }
     });
 
-    test('the ranges partition the spoken part, and the title card stays '
-        'plain', () {
+    test('the ranges partition the spoken part, and no frame is left plain',
+        () {
       final schedule = buildPictureSchedule(
         plan: plan,
         paths: const ['a.png', 'b.png'],
@@ -196,12 +196,12 @@ void main() {
 
       _expectSpokenPartPartitioned(plan, schedule);
 
-      // The title card is the app's own card, not a sentence: no picture.
-      expect(schedule.at(0), isNull);
-      for (var frame = 0; frame < plan.sentences.first.startFrame; frame++) {
-        expect(schedule.at(frame), isNull, reason: 'title card frame $frame');
-      }
-      expect(schedule.at(plan.sentences.first.startFrame), isNotNull);
+      // The video opens on its first sentence (the reader's own request of
+      // 2026-09-29, which withdrew the opening card), so a picture starts at
+      // frame 0: there is no card's worth of plain background before it.
+      expect(plan.sentences.first.startFrame, 0);
+      expect(schedule.at(0), isNotNull);
+      expect(schedule.at(0)!.path, 'a.png');
     });
 
     test('the shares are equal over sentences, in the order chosen', () {

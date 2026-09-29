@@ -27,6 +27,10 @@ Row **54** (2026-09-28) is closed as well — the review's picture draws, measur
 before and after on `emulator-5554`, and confirmed by the reader on their own LE2115 — and
 row **49** (a render with the reader's own pictures) is the device row still open.
 
+*(2026-09-29 — neither of those two is open any more: **33** (the file's life cycle) and **49** (a render with
+the reader's own pictures) were both walked and pass, and their receipts are in their own sections below. The
+paragraph above was written when they were still pending and has not been rewritten to say so.)*
+
 ## Validation results
 
 | # | Scenario | State | Evidence |
@@ -93,6 +97,56 @@ Three things this row settles beyond the wording:
 3. **By-product for spike S2 (row 36, T032, still PENDING):** a render of 8 sentences / 818 frames / 27.27 s of
    video took **21 s wall** on this emulator, both aspects — faster than real time. T032 owns the official
    number and the bottleneck attribution; this is a note, not its receipt.
+
+**Re-run 2026-09-29 (the amended picture's walk), and a race this row had been winning by luck.** Row 31 was
+re-walked on `emulator-5554` against the current build (`flutter analyze` clean, `flutter test --concurrency=2`
+**440 passing**), and its checks came back green — **33/33**, three more than the entry above because SC-001 is
+now read from the app's own line as well as from the page. Getting there exposed a defect in the *row*, not in
+the app: the message the reader is told (`Video made: klhu_video.mp4 (27 s)`) is a **SnackBar**, and reading it
+off the page is a race against its own lifetime. Measured with the probe beside the walk
+(`python3 specs/012-reading-video/scripts/probe_snack_life.py`, which renders and then dumps the page back to
+back): the message reads at **+2.2 s and +4.3 s** after the render's own line and is **gone by +6.4 s**; and
+whether a dump's accessibility snapshot lands inside that window is not something the row can decide — across
+four runs the same check missed in one aspect and caught it in the other, **in both orders**, and it missed on
+attempted dumps that followed the app's line by the same ~2 s that the probe caught it at.
+
+So the app now prints what it told the reader — `klhu render told: <the message>`, one line beside its own
+`klhu render done:`, which is the same shape every other wait in this walk reads — and the row checks **that**
+(the file's name and the render's own seconds must both be in it). The page is still looked at, three ways
+rather than one:
+
+1. a dump that catches the SnackBar is checked **against** the app's line (`the page's own copy is the app's
+   own`), which is a real invariant and not a race;
+2. a run that never catches it prints the times it tried instead of failing — the race is the probe's;
+3. a **still** of the page at that moment is kept for every render of every row
+   (`$KLHU_OUT/<row>_<aspect>_told.png`, through the new `screencap()` helper — the framebuffer, which cannot
+   race a message's lifetime the way a tree read can), so the eye has the receipt even when the tree read does
+   not.
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 31
+    PASS  31/landscape: the render reported done — 21s wall
+    PASS  31/landscape: the app told the reader the file's name and its length — the app said 'Video made:
+         klhu_video.mp4 (27 s)'
+    (the page as the reader was told: /tmp/klhu_out_r31/31_landscape_told.png)
+    PASS  31/landscape: the reported length is the render's own — the page said 27 s, the render said 27266 ms
+    the page 2.1s after the render's own line: 5 nodes, message 'Video made: klhu_video.mp4 (27 s)'
+    PASS  31/landscape: the page's own copy is the app's own — the page said 'Video made: klhu_video.mp4 (27 s)',
+         the app said 'Video made: klhu_video.mp4 (27 s)'
+    PASS  31/landscape: the file came off the device and is not empty — 1286331B on the host, app said 1286331B
+    PASS  31/landscape: the frames are exactly 1920x1080 — 1920x1080
+    PASS  31/landscape: the file holds the frames the plan asked for — file 818 vs render 818
+    PASS  31/landscape: the duration is the render's own, within 2 s — ffprobe 27.39s vs render 27.27s
+    PASS  31/vertical: the render reported done — 20s wall
+    PASS  31/vertical: the app told the reader the file's name and its length — the app said 'Video made:
+         klhu_video.mp4 (27 s)'
+    the page 2.0s after the render's own line: 4 nodes, message absent
+    the page 4.0s after the render's own line: 5 nodes, message 'Video made: klhu_video.mp4 (27 s)'
+    PASS  31/vertical: the page's own copy is the app's own — both said 'Video made: klhu_video.mp4 (27 s)'
+    PASS  31/vertical: the frames are exactly 1080x1920 — 1080x1920
+    PASS  31/vertical: the duration is the render's own, within 2 s — ffprobe 27.39s vs render 27.27s
+    (the two aspects' remaining checks repeat the entry above and pass — one H.264 stream, one AAC stream, a
+     constant 30 fps, 818 frames, 1276319B for the vertical file)
+    33/33 checks passed
 
 ### Row 32 —  the video's own look, frame by frame, in full
 
@@ -161,6 +215,138 @@ column from the thumbnail's dimensions, which are not the frame's aspect, and so
     PASS  32/vertical: every sampled frame holds the app's own look — 27/27 frames clean
     (the vertical aspect's other six checks repeat the landscape ones above, and pass)
     30/30 checks passed
+
+### Row 32, re-cut onto the amended picture — 42/42, both aspects (2026-09-29)
+
+The entry above is the record of the picture it measured: one sentence per frame **with the app's yellow band
+under it**, read from the renderer's `band=`/`range=` pair. The re-cut of 2026-09-28 withdrew both — the words now
+sit on a plate behind each painted line where a picture is behind them and at the **bottom** of the text area where
+none is (FR-027/FR-028) — and `lib/video_renderer.dart` prints `scroll=`, `picture=`, `tone=` and the slot's own
+**character** `span=` instead. A row whose provider of truth has changed reports **absence, not change** — which is
+exactly what this row did on 2026-09-27 (0 runs against a file with 818 frames, every check after it skipped by a
+`continue`) — so it was **re-cut onto the new line rather than extended**, and re-run.
+
+What the row reads now, and why each claim is read where it is:
+
+- **The renderer's runs are the file's own frames** — 9 runs summing to 818, against `ffprobe`'s count — and they
+  **tile the timeline**: the first at 0, each starting where the last ended, the last ending at 818. The plan has
+  **ten** slots (the card, the eight sentences, and the trailing hold) and the hold is folded into the last
+  sentence's run, so nine runs is what a correct render reports — the check counts runs, not plan slots.
+- **One sentence per frame, and alone.** The slot's own `span=` is a character range in the content, so the row
+  slices the pre-set's text itself and compares it with the sentence it knows: `span 0..33` is *The sun rose over
+  the quiet town.*, and the frame's `text=` is exactly that sentence's length. Nothing else can be on the frame —
+  the painter draws the slot's text and nothing more — and the check no longer takes the app's word for it: it
+  reads the content's own bytes.
+- **No plate and no tone where no picture is chosen** (`picture=none`, `tone=-` on every run) — FR-028. The row
+  that reads a picture behind the words is row 49; this one is the no-picture case, and its frames carry the
+  reader's own ink on the app's own background.
+- **Every frame of both files, at 96×54 — 818/818 each**: the app's background to the edges, nothing outside the
+  column (so no chrome anywhere), and **not one pixel of the withdrawn highlight** (the pre-amendment row required
+  that band to be there; this one requires it to be nowhere).
+- **Three frames of every slot at the file's own size — 27/27 clean in each aspect**: the corner the background,
+  the words' own glyph box inside the column, and — the reader's own request of 2026-09-28 — a sentence that fits
+  **ending at the column's bottom**: `(206, 924, 826, 964)` against the column's 972 at 1920×1080, and
+  `(44, 1686, 592, 1720)` against 1728 at 1080×1920 (a descender's worth above it in both). The card is still
+  centred, which is where it has always been.
+- **The page and the renderer on the same picture**: sampled 7 times per aspect, the page's frame was always one
+  the renderer had written, never ahead of it, and naming its own sentence — FR-020 on the device.
+
+**The scroll has no case in this video, and the row says so rather than reading as covered.** A slot is written as
+one run per line step (FR-029), and the check that its steps are `0..n` from the first line passes — but the
+shipped pre-set's longest sentence is 55 characters and the text area holds it on one line at both aspects, so
+`scroll` is 0 in every run of both files. The row prints that in its own output, and the branch that reads a
+genuinely stepped slot (the block's own bottom moving up the area, its first step's ink ending where the area does)
+is written and has run **no case yet**. That is a gap on the record, not a pass.
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 32
+    PASS  32/landscape: the render reported done — 21s wall
+    PASS  32/landscape: the app told the reader the file's name and its length — the app said 'Video made:
+         klhu_video.mp4 (27 s)'
+    (the page as the reader was told: /tmp/klhu_out_r32/32_landscape_told.png — a still of the moment, kept
+     for the eye, because the page's own copy of that message is a SnackBar; see row 31's re-run below)
+    PASS  32/landscape: the reported length is the render's own — the page said 27 s, the render said 27266 ms
+    the page 2.0s after the render's own line: 5 nodes, message 'Video made: klhu_video.mp4 (27 s)'
+    PASS  32/landscape: the page's own copy is the app's own — both said 'Video made: klhu_video.mp4 (27 s)'
+    PASS  32/landscape: the file came off the device and is not empty — 1286331B
+    PASS  32/landscape: the renderer's runs are the file's own frames — 9 runs summing to 818, file has 818 frames
+    PASS  32/landscape: the runs tile the file frame for frame — the last run ends at 818
+    PASS  32/landscape: the first run is the card, the rest are sentences — ['sentence', 'title']
+    PASS  32/landscape: one slot per sentence, with the card before them — slots [0, 1, 2, 3, 4, 5, 6, 7, 8] for 8 sentences
+    PASS  32/landscape: the card's frame carries the content's name, alone — span 0..0 and 32 characters painted — the
+         name alone is 24 ('The sun rose over the q…', plus the app's own language label under it)
+    PASS  32/landscape: every sentence's frame carries that sentence alone — 8 slots, each painting the whole of its
+         own sentence and nothing else
+    PASS  32/landscape: every frame's own character range is its sentence's — 8 slots, each carrying the range of the
+         sentence it paints
+    PASS  32/landscape: a slot's frames step one line at a time, from the first — 8 sentence slots, each stepped from
+         its own first line
+    NOTE: no sentence of the shipped pre-set is taller than the text area, so no frame of this video holds a scroll step
+    PASS  32/landscape: with no pictures chosen, no plate and no tone — picture/tone seen: [('none', '-')]
+    PASS  32/landscape: every frame was read back — 818 frames read, render said 818
+    PASS  32/landscape: every frame is the app's own look, and no chrome — 818/818 frames; first bad (frame, highlight
+         px, outside px): []
+    PASS  32/landscape: every sampled frame holds the app's own look — 27/27 frames clean
+    PASS  32/landscape: the page showed a picture the renderer had written — 7/7 pairings
+    PASS  32/landscape: what the page showed moved forward with the render — [1, 2, 4, 5, 6, 7, 8]
+    (the vertical aspect's own twenty-one checks repeat the above and pass — 20s wall, 1276319B, 818/818 frames
+     clean, its sentences' ink ending at 1720 against the column's 1728, the page's frames [1, 2, 3, 4, 6, 7, 8])
+    42/42 checks passed
+
+### Rows 33 and 34 re-run against the amended picture — 42/42 and 26/26 (2026-09-29)
+
+Both rows were re-walked unchanged — the amended picture touches the painter and the renderer's account of it,
+not the file's life cycle — and both came back green. **Row 33: 42/42**, with the two playback steps
+**skipped and said to be skipped** (`KLHU_SKIP_PLAY=1`): that step is this box's memory peak and the emulator
+died under it twice in this session (deviation 10), which is the case the escape hatch exists for. Everything
+the row does without a player is still asserted: the throw-away keeps nothing, the keep names the file for the
+**content** (`The sun rose over the q….mp4`, not the render's own `klhu_video.mp4`) and puts it in the phone's
+own gallery, the pulled kept file is the render's own bytes, the phone's share list appears and sharing neither
+adds nor removes anything, and the delete warns first and empties the gallery. **Row 34: 26/26** — the cancel
+leaves no working copy, no per-sentence audio and no render directory, the app's library is **byte-identical**
+(5 files before and after), and the earlier render's file still parses.
+
+    $ KLHU_SKIP_PLAY=1 python3 specs/012-reading-video/scripts/klhu_walk_video.py 33
+    PASS  33: the gallery starts without a video of the app's — files=[] entries=[]
+    PASS  33: the render produced a file
+    PASS  33: the review offers the three decisions — ['KalaHoo Reading', 'Discard', 'Share', 'Save']
+    PASS  33: the review's picture is on screen (a surface of its own) — SurfaceView[com.example.klhu/.MainActivity]
+    SKIPPED (KLHU_SKIP_PLAY=1): the player is this box's memory peak and the emulator dies under it
+    PASS  33: the page is idle again after the throw-away — […, 'Video not saved']
+    PASS  33: throwing a render away kept nothing in the gallery — files=[] entries=[]
+    PASS  33: the app's own record names the kept video — {'name': 'The sun rose over the q….mp4',
+         'uri': 'content://media/external_primary/video/media/49', 'keptAt': 1790703203007}
+    PASS  33: the name is the content's, not the render's own file — record name 'The sun rose over the q….mp4',
+         the render wrote 'klhu_video.mp4'
+    PASS  33: the gallery holds the file the record names — wanted 'The sun rose over the q….mp4' in
+         ['The sun rose over the q….mp4']
+    PASS  33: the kept file came off the device and is the render's own bytes — 1286331B pulled, the render wrote
+         1286331B
+    PASS  33: the kept video's own streams parse — 818 frames, 1920x1080, 27.39s
+    PASS  33: the content now offers the video's own actions — ['Video', 'Play video', 'Share', 'Delete video', …]
+    SKIPPED (KLHU_SKIP_PLAY=1), and so is opening its screen
+    PASS  33: the phone's own share list appeared — ['Sharing 1 file', 'Quick Share', 'Drive', 'Maps', 'Messages',
+         'Photos', …]
+    PASS  33: sharing kept nothing new and removed nothing — files=['The sun rose over the q….mp4']
+    PASS  33: deleting warns first — ['Delete this video?', 'The video will be removed from your gallery. This
+         cannot be undone.', 'Cancel', 'Delete']
+    PASS  33: cancelling the warning deletes nothing — files=['The sun rose over the q….mp4']
+    PASS  33: the gallery no longer lists the file — files=[]
+    42/42 checks passed
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 34
+    PASS  34: the earlier render produced a file
+    PASS  34: the render was under way when Stop was tapped — ['Rendering video…, Video preview', …]
+    PASS  34: stopping asks first — ['Stop making the video?', 'Stop']
+    PASS  34: the page is idle again
+    PASS  34: the cache holds no working copy — []
+    PASS  34: the cache holds no per-sentence audio and no render directory — []
+    PASS  34: the earlier render's working copy is gone from the cache — 0B read back; ok=False
+    PASS  34: the app's library was neither added to nor rewritten — 5 -> 5 files; changed: []
+    PASS  34/earlier: the file holds the frames the plan asked for — file 818 vs render 818
+    PASS  34: the earlier video's own streams still parse
+    (the remaining checks repeat the entry above: one H.264 stream, one AAC stream, a constant 30 fps, 818
+     frames, a duration within 2 s of the render's own)
+    26/26 checks passed
 
 ### Row 34 — a cancel leaves nothing, in full
 
@@ -331,6 +517,18 @@ again; what the frames hold now is what row 49's checks and the numbers above me
 the amendment and would fail on that line. What the frames hold now is what the plate checks above measure; row
 32 wants its own checks re-cut to match (its other lines — the corner, nothing outside the column, the ink inside
 it — still stand).
+
+**Re-run 2026-09-29, after row 32 was re-cut — 41/41 checks** (one more than the receipt above, because SC-001 is
+now read from the app's own line as well as from the page; row 31's re-run says why). The walk itself is unchanged
+and its numbers hold: eight pictures for eight sentences with one range each and `kw08` in none, every range's
+frame filled by its own picture to ±1, the reader's own two cases (black ink over the white picture, white ink over
+the black one), `kw02`'s band rule (black ink over a dark picture whose own band under the words is bright —
+the plate follows the band, not the picture's average), the words' glyph boxes at y 924–964 / 920–964 / 912–964
+against the text area's 972, and a video of 1483514B / 818 frames.
+
+*And the paragraph above is now spent:* **row 32 was re-cut onto the amended picture on 2026-09-29** — its own
+section in this file says how, and in it the yellow band this row's paragraph named is the thing row 32 now
+requires to be **absent** — so the two rows no longer disagree about what a frame holds.
 
 Two things the run itself found and fixed, both in the walk's own machinery: a **loose colour match** named a dark
 red frame as the dark grey picture, so every check about it was a check about the wrong picture (now the nearest
@@ -557,6 +755,83 @@ file, the same app, the same reader, on the device that showed the black view.
 render was made there after the fix), and pause/seek were not exercised — the reader's own report covers pressing
 play and watching.
 
+### The opening title frame is withdrawn (2026-09-29) — the card deleted, not hidden
+
+**The reader's own request**, made while watching the two renders of 2026-09-28: *"I want to remove the first
+title frame. and don't show the title in the top of 16:9 video."* The opening card — the content's name over its
+language, held before the reading (FR-008 as written) — is gone from the code, and the video opens on its first
+spoken sentence. What "in the top of 16:9 video" points at is the **review screen**, not the file: the card was
+centred in the text area (measured on the device: ink box `(206, 506, 670, 582)` in a 1920×1080 frame), and the
+video preview is what sits at the top of that page — so the card's own frames were the first thing the eye met
+there, above the three decisions. D23 carries the decision, the reading it took, and the alternatives; this
+section is the receipt.
+
+**What came out** (deleted surface, not a flag): `VideoSlotKind.title`; `VideoPlan.title` and
+`VideoPlan.titleMs`; the painter's card branch (`titleLabelScale`, the centred placement, the two-span
+name-over-language layout) and its `languageLabel` seam; `VideoRenderer.title` and
+`VideoRenderer.languageLabel`; and `reading_view`'s two arguments to it. The end hold is untouched, and so is
+every other look from 2026-09-28 (the bottom-anchored block, the 1.4× line, the plate over the band the words
+cover).
+
+**The unit suite followed the change**, rather than being deleted around it: the plan's own case now asserts
+**no slot is a card** and that the video opens on sentence 0 at frame 0 (FR-016's lead-in bound became vacuous);
+the painter's two card cases became one that paints **every** slot and finds the content's name in none; the
+renderer's segment arithmetic lost the card's segment (`[1400000, 900000, 266666, 2000000]` µs — four runs, not
+five — and the painting pass counts 3 units, not 4); the picture schedule's partition case starts at frame 0
+(its `[84, 84, 132]` share lengths are unchanged: the shares are over sentences). `flutter analyze` clean,
+**`flutter test --concurrency=2` 439/439** — one fewer than the 440 before it, because two card assertions
+became one check, and nothing was dropped with them.
+
+**The device row was re-cut, not re-run blind.** quickstart 32's three card checks (the first run is the card;
+one slot per sentence *with the card before them*; the card's frame carries the name) became three that say the
+same thing from the other side: **the video opens on sentence 0 at frame 0**, **no run of the file is a card**,
+and **one slot per sentence and nothing else — the name is painted nowhere**. The driver's slot arithmetic moved
+with the plan (`slot i` is `sentence i`, no longer `sentence i-1`), and the "the words sit at the bottom" pixel
+check lost its card exemption — so it now judges the video's first frame too, which is the frame that used to be
+exempt.
+
+**All five rows were then re-walked on `emulator-5554` against the rebuilt APK.** The arithmetic the withdrawal
+is worth shows up in row 31 as a number rather than an argument — **743 frames** per file (818 − the card's 75)
+and a duration of **24.89 s** measured by `ffprobe` against the render's own 24.77 s, exactly the 2.5 s the card
+was — and in the reader's own message, which now reads `Video made: klhu_video.mp4 (25 s)`.
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 31
+    PASS  31/landscape: the file holds the frames the plan asked for — file 743 vs render 743
+    PASS  31/landscape: frames / duration is that rate — 29.85 vs 30.00
+    PASS  31/landscape: the duration is the render's own, within 2 s — ffprobe 24.89s vs render 24.77s
+    (the vertical file reads the same: 743 frames, 24.89 s against the render's 24.77 s)
+    33/33 checks passed
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 32
+    PASS  32/landscape: the renderer's runs are the file's own frames — 8 runs summing to 743, file has 743 frames
+    PASS  32/landscape: the video opens on the first sentence, at frame 0 — run 0 is slot 0 at frame 0, span 0..33
+    PASS  32/landscape: no run of the file is a card — ['sentence']
+    PASS  32/landscape: one slot per sentence and nothing else — the name 'The sun rose over the q…' is painted
+         nowhere — slots [0, 1, 2, 3, 4, 5, 6, 7] for 8 sentences
+    PASS  32/landscape: every sentence's frame carries that sentence alone — 8 slots, each painting the whole of
+         its own sentence and nothing else
+    PASS  32/landscape: the app told the reader the file's name and its length — the app said 'Video made:
+         klhu_video.mp4 (25 s)'
+    frame    0 sentence slot  0: ink (206, 924, 826, 964)      ← the video's first frame, at the column's bottom (972)
+    PASS  32/landscape: every frame is the app's own look, and no chrome — 743/743 frames; first bad: []
+    PASS  32/landscape: every sampled frame holds the app's own look — 24/24 frames clean
+    41/41 checks passed
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 49
+    PASS  49: every sentence's own run carries a picture, once each — drawn: ['kw00.png', … 'kw07.png']
+    41/41 checks passed
+
+    $ KLHU_SKIP_PLAY=1 python3 specs/012-reading-video/scripts/klhu_walk_video.py 33     # unchanged row
+    42/42 checks passed
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 34                      # unchanged row
+    26/26 checks passed
+
+**Row 32 reports 41 checks where the run before it reported 42, and that is not a check gone missing**: the
+*page's own copy is the app's own* check is emitted only when a dump catches the SnackBar (row 31's re-run above
+says why a dump cannot be relied on to), and this run's **vertical** aspect did not catch it — the app's own line
+carried that aspect instead. Every check that was emitted passed, and the count moves with whether a 4-second
+message was caught, not with whether the app is right. The row's three card checks are in both aspects.
+
 ## Deviations
 
 1. **T003's method changed twice, and both are worth knowing.** `dart:io`'s `stdout` is not forwarded from
@@ -609,4 +884,14 @@ play and watching.
    **device evidence is only trustworthy from this fix onward** — the earlier artifacts at
    `/tmp/klhu_out/landscape.mp4` and `vertical.mp4` show the title card throughout and must not be cited as
    the look.
+10. **The emulator itself died under row 33's playback step, twice (2026-09-29).** On this 16 GB box the
+    platform view plus the video's own decoder is the walk's memory peak: the first re-run of row 33 reached
+    "the kept video plays — started players: MediaPlayer" and then lost the device (`adb: device offline`,
+    `DUMP FAILED` for the share step), and the second attempt's row 34 found no device at all. The emulator's
+    own log is the decoder (`[h264] no frame!`) and `free` showed 7 GB of 15 GB in use at the time. Row 33 was
+    therefore run with `KLHU_SKIP_PLAY=1` — the escape hatch the walk documents — and its two playback steps are
+    **recorded as skipped** in the receipt above rather than reported as passed. The playback itself was proven
+    in the same run before the device went: the player started and the media query answered
+    (`AudioPlaybackConfiguration … state:started`, 24 kHz). Nothing about the app is implicated; this is the
+    development box.
 

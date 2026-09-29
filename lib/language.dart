@@ -4,8 +4,10 @@ import 'package:klhu/segmenter.dart';
 import 'package:klhu/voice_store.dart';
 
 /// Names a language the way the app does on screen — `'zh-Hans'` →
-/// `'中文（简体）'` — for the two places a content's language is shown: the list's
-/// rows, and the video's title card (spec 012 FR-008).
+/// `'中文（简体）'` — for the place a content's language is shown on the page: the
+/// list's rows. (The video's title card was the second caller until the reader
+/// had it withdrawn on 2026-09-29 — spec 012 FR-008's amendment — so the
+/// renderer no longer reaches this at all.)
 ///
 /// [l10n] is nullable because the reading page can be built without
 /// localisations; the raw code is what it falls back to, so a label is never

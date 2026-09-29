@@ -276,7 +276,6 @@ void main() {
       encoder: encoder,
       workDir: work,
       aspect: aspect,
-      title: 'Mixed',
       readingStyle: const TextStyle(fontSize: 14, color: Color(0xFFF2F2F2)),
       background: const Color(0xFF101014),
       pictures: pictures,
@@ -378,14 +377,13 @@ void main() {
       expect(start.height, VideoAspect.landscape.height);
       expect(start.fps, VideoAspect.landscape.fps);
 
-      // One audio segment per slot, in the plan's order: the title card and the
-      // end hold are silence, and every sentence's segment is its own audio plus
-      // the gap that follows it — in microseconds, because the frames are the
-      // muxer's clock.
+      // One audio segment per slot, in the plan's order: the end hold is
+      // silence, and every sentence's segment is its own audio plus the gap that
+      // follows it — in microseconds, because the frames are the muxer's clock.
       expect(start.audio.map((a) => a.path == null).toList(),
-          [true, false, false, false, true]);
+          [false, false, false, true]);
       expect(start.audio.map((a) => a.durationUs).toList(),
-          [2500000, 1400000, 900000, 266666, 2000000]);
+          [1400000, 900000, 266666, 2000000]);
 
       // The frame repeats add up to exactly the plan's length.
       expect(encoder.frames.fold<int>(0, (sum, f) => sum + f.repeat),
@@ -399,10 +397,10 @@ void main() {
       final published = <VideoFrame>[];
       await run(engine, encoder, published: published);
 
-      // Title card, three sentences, and the hold — which is the last
-      // sentence's picture held, not a new one (FR-008).
-      expect(published.length, 4);
-      expect(encoder.frames.length, 4);
+      // Three sentences and the hold — which is the last sentence's picture
+      // held, not a new one (FR-008).
+      expect(published.length, 3);
+      expect(encoder.frames.length, 3);
       expect(encoder.frames.last.repeat, 68); // 8 frames of sentence + the hold
     });
   });
@@ -425,8 +423,8 @@ void main() {
       expect(synth.map((p) => p.total).toSet(), {3});
 
       final paint = progress.sublist(firstPaint);
-      expect(paint.map((p) => p.done).toList(), [1, 2, 3, 4]);
-      expect(paint.map((p) => p.total).toSet(), {4});
+      expect(paint.map((p) => p.done).toList(), [1, 2, 3]);
+      expect(paint.map((p) => p.total).toSet(), {3});
       // Within a pass the count only ever moves forward; each pass counts its
       // own units (sentences, then frames), so the two do not compare.
       for (var i = 1; i < progress.length; i++) {
@@ -586,11 +584,13 @@ void main() {
       final result =
           await run(engine, encoder, content: _tallContent, published: published);
 
+      expect(published.first.slot.isSentence, isTrue,
+          reason: 'the video opens on its first sentence (no opening card)');
       expect(published.first.picture, isNull,
-          reason: 'the title card is the app\'s own card (FR-008)');
+          reason: 'no pictures were given to this render');
       // The sentence's own pictures, in order: one step further down each time,
       // never back up, starting at the top of the block and ending at its last
-      // step (the card's own frame is not a step of it).
+      // step.
       final scrolls = [
         for (final frame in published.where((frame) => frame.slot.isSentence))
           frame.scrollLines,
@@ -645,8 +645,12 @@ void main() {
       final published = <VideoFrame>[];
       await run(engine, encoder, pictures: pictures, published: published);
 
-      expect(published.first.picture, isNull,
-          reason: 'the title card keeps the plain background');
+      // The video opens on the first sentence, so the first published frame
+      // already carries the first picture: nothing is painted on the plain
+      // background ahead of it any more.
+      expect(published.first.slot.isSentence, isTrue);
+      expect(published.first.picture, isNotNull,
+          reason: 'the first sentence carries its picture from frame 0');
       // Three sentences and two pictures: the first covers sentences 1 and 2,
       // the second takes sentence 3 and the end hold (FR-026 — pictures change
       // where sentences change).
@@ -690,9 +694,8 @@ void main() {
         position: 0,
         loadVoice: (language) async => language == 'zh-Hans' ? _zhVoice : null,
         onFrame: (frame) {
-          // Every frame is published after the copies exist — the title card's
-          // picture is the plain background, so only the sentences are checked
-          // for one, but the copies are checked on *every* frame.
+          // Every frame is published after the copies exist, so the copies are
+          // checked on *every* frame.
           seenAtEachFrame.add(copiesIn().length);
           if (frame.slot.isSentence) {
             expect(frame.picture, isNotNull,

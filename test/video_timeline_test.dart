@@ -39,7 +39,6 @@ Future<List<VideoSentence>> _sentences(int position, {VoiceChoice? picked}) =>
 
 VideoPlan _plan(List<VideoSentence> sentences, List<int> audioMs) =>
     buildVideoPlan(
-      title: 'Mixed',
       sentences: sentences,
       audioMs: audioMs,
       aspect: VideoAspect.landscape,
@@ -111,7 +110,6 @@ void main() {
       expect(sentences, isEmpty);
       expect(
         buildVideoPlan(
-          title: 'Empty',
           sentences: sentences,
           audioMs: const [],
           aspect: VideoAspect.landscape,
@@ -161,20 +159,22 @@ void main() {
       expect(plan.fps, VideoAspect.landscape.fps);
     });
 
-    test('3. startFrame runs from the title card, gap by gap, into the end hold',
+    test('3. the video opens on its first sentence, gap by gap, into the end hold',
         () async {
       final sentences = await _sentences(0);
       final plan = _plan(sentences, List.filled(sentences.length, 1000));
 
-      expect(plan.slots.first.kind, VideoSlotKind.title);
+      // No slot is a card: the reader's own request of 2026-09-29 ("remove the
+      // first title frame") withdrew it, so the first frame of the video is the
+      // first sentence's own.
+      expect(plan.slots.first.kind, VideoSlotKind.sentence);
+      expect(plan.slots.first, plan.sentences.first);
+      expect(plan.slots.first.startFrame, 0);
       expect(plan.slots.last.kind, VideoSlotKind.hold);
-
-      final title = plan.slots.first;
-      expect(title.startFrame, 0);
-      expect(title.frames, plan.framesFor(VideoPlan.titleMs));
+      expect(plan.slots.where((s) => s.kind == VideoSlotKind.hold), hasLength(1));
 
       // A gap follows each sentence except the last, which the hold follows.
-      var cursor = title.frames;
+      var cursor = 0;
       for (final slot in plan.sentences) {
         expect(slot.startFrame, cursor);
         cursor += slot.frames;
@@ -186,25 +186,22 @@ void main() {
       expect(plan.totalFrames, cursor + hold.frames);
     });
 
-    test('4. the lead-in, the gap and the end hold are inside FR-016\'s bounds',
-        () async {
+    test('4. the gap and the end hold are inside FR-016\'s bounds', () async {
       expect(VideoPlan.gapMs, greaterThan(0));
       expect(VideoPlan.gapMs, lessThanOrEqualTo(500));
-      expect(VideoPlan.titleMs, greaterThan(0));
-      expect(VideoPlan.titleMs, lessThanOrEqualTo(3000));
       expect(VideoPlan.holdMs, greaterThan(0));
       expect(VideoPlan.holdMs, lessThanOrEqualTo(3000));
     });
 
     test('4. a short video is still a valid one', () async {
-      // One sentence, a quarter second of audio: the smallest real video is
-      // lead-in + sentence + hold, and none of the three may vanish.
+      // One sentence, a quarter second of audio: the smallest real video is the
+      // sentence and the end hold. The video opens on the sentence itself, so
+      // there is no lead-in to vanish — and the hold is still there.
       final sentences = await _sentences(_at('Nueve diez.'));
       final plan = _plan(sentences, const [250]);
       expect(plan.sentences.single.durationMs, 250);
-      expect(plan.totalFrames,
-          greaterThan(plan.framesFor(VideoPlan.titleMs) + plan.framesFor(VideoPlan.holdMs)));
-      expect(plan.sentences.single.startFrame, plan.framesFor(VideoPlan.titleMs));
+      expect(plan.sentences.single.startFrame, 0);
+      expect(plan.totalFrames, greaterThan(plan.framesFor(VideoPlan.holdMs)));
     });
 
     test('6. each slot keeps its own paragraph\'s language and picked voice',

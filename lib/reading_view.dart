@@ -1592,13 +1592,10 @@ class _ReadingViewState extends State<ReadingView> {
       encoder: widget.videoEncoder,
       workDir: workDir,
       aspect: aspect,
-      title: title,
       // The reader's own look reaches the frame (FR-014): the page's one style
-      // seam, the app's background, and the card's language named by the app.
+      // seam and the app's background.
       readingStyle: _contentTextStyle(context),
       background: Theme.of(context).scaffoldBackgroundColor,
-      // The card's language, named by the app's own copy (FR-008).
-      languageLabel: (language) => languageLabelOf(l10n, language),
       // The reader's own pictures for this render (FR-025). They are copied into
       // the render's working directory before the first frame is painted — which
       // is the only place that can happen, because where a picture lands depends
@@ -1705,11 +1702,17 @@ class _ReadingViewState extends State<ReadingView> {
   /// the walker's own evidence line.
   void _reportRenderDone(VideoRenderResult result) {
     final name = result.path.split('/').last;
+    final message = AppLocalizations.of(context)
+            ?.videoDoneMessage(name, (result.durationMs / 1000).round()) ??
+        'Video made';
     debugPrint('klhu render done: ${result.path} ${result.durationMs}ms '
         '${result.sizeBytes}B frames=${result.totalFrames}');
-    _showMessage(AppLocalizations.of(context)
-            ?.videoDoneMessage(name, (result.durationMs / 1000).round()) ??
-        'Video made');
+    // What the reader is told, in the reader's own words (SC-001). The message is
+    // a SnackBar that lives a few seconds, so a device row that tries to read it
+    // *off the page* is racing its lifetime — this line is what such a row can
+    // read without a race, exactly as it reads every other wait in this feature.
+    debugPrint('klhu render told: $message');
+    _showMessage(message);
   }
 
   /// FR-019's confirmation, asked by Stop and by leaving. Dismissing it changes

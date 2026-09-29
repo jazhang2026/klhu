@@ -165,14 +165,11 @@ class VideoFrame {
   /// that fits, which is drawn still.
   final int scrollLines;
 
-  /// What the frame shows: the slot's own sentence, or the content's name (and
-  /// its language) on the title card.
+  /// What the frame shows: the slot's own sentence.
   final String paintedText;
 
   /// The style that text was painted in — the reader's own, mapped onto this
-  /// frame (FR-014/SC-011), and never reduced for length (FR-029). On the title
-  /// card this is the name's style; the language under it is
-  /// [VideoPainter.titleLabelScale] of it.
+  /// frame (FR-014/SC-011), and never reduced for length (FR-029).
   final TextStyle style;
 
   /// The picture drawn behind the text, or null where the frame is the plain
@@ -204,7 +201,6 @@ class VideoPainter {
     required this.plan,
     required this.readingStyle,
     required this.background,
-    this.languageLabel,
   });
 
   final VideoPlan plan;
@@ -213,11 +209,6 @@ class VideoPainter {
   final TextStyle readingStyle;
 
   final Color background;
-
-  /// Names a language for the title card (`'en'` → `'English'`). The page
-  /// supplies it from the app's own copy; without it the card carries the name
-  /// alone, which is what the tests and any context-free caller get.
-  final String Function(String language)? languageLabel;
 
   /// The reading width the app lays its text out on (011's own viewport, a
   /// 360 dp phone — the reference device's screen minus the page's padding).
@@ -259,9 +250,6 @@ class VideoPainter {
   /// video carries the size the reader chose, so the 1080-wide frame has to be
   /// generous enough that 12 pt still clears this.
   static const int minimumEm = 30;
-
-  /// The title card's language under its name, relative to the name's size.
-  static const double titleLabelScale = 0.55;
 
   /// The plate the words sit on where a picture is behind them, and the ink on
   /// it: **the picture's own tone decides which pair** — the reader's rule of
@@ -368,18 +356,10 @@ class VideoPainter {
     // sentence taller than the area keeps FR-029's own shape instead: its first
     // line at the top, scrolling down through the block a line at a time, which is
     // also why the anchor is the block's own `steps` rather than the progress (a
-    // too-tall block's first frame is not a block that fits). A title card that
-    // fits still sits in the middle of the area, which is where the card has
-    // always been.
-    final double blockTop;
-    if (slot.isSentence && geometry.steps == 0) {
-      blockTop = column.bottom - geometry.height;
-    } else {
-      final centring = !slot.isSentence && geometry.height < column.height
-          ? (column.height - geometry.height) / 2
-          : 0.0;
-      blockTop = column.top + centring - scrollLines * geometry.lineHeight;
-    }
+    // too-tall block's first frame is not a block that fits).
+    final double blockTop = geometry.steps == 0
+        ? column.bottom - geometry.height
+        : column.top - scrollLines * geometry.lineHeight;
 
     // FR-027: the picture's own tone decides the plate and the ink, so the words
     // read over any picture while the picture keeps its colours. With no picture
@@ -555,29 +535,16 @@ class VideoPainter {
   /// the reader's own otherwise (FR-027) — and it is a paint-time fact, so a
   /// block is laid out per frame rather than cached across tones.
   _TextBlock _blockFor(VideoSlot slot, {Color? ink}) {
-    final text = slot.isSentence ? slot.text : null;
-    final label = slot.isSentence ? null : _titleLanguageLabel();
-    final paintedText =
-        text ?? (label == null ? plan.title : '${plan.title}\n$label');
     final style = readingStyle.copyWith(
       fontSize: (readingStyle.fontSize ?? 14) * scale,
       color: ink ?? readingStyle.color,
     );
-    // The card is two sizes — the name, and its language under it. A sentence is
-    // one span: it is the whole of what the frame shows.
+    // A frame shows one thing — the slot's own sentence — in one style and one
+    // span, drawn from the area's left edge (FR-029).
     final layout = TextPainter(
-      text: TextSpan(
-        children: [
-          TextSpan(text: text ?? plan.title, style: style),
-          if (label != null)
-            TextSpan(
-              text: '\n$label',
-              style: style.copyWith(fontSize: style.fontSize! * titleLabelScale),
-            ),
-        ],
-      ),
+      text: TextSpan(text: slot.text, style: style),
       textDirection: TextDirection.ltr,
-      textAlign: slot.isSentence ? TextAlign.start : TextAlign.center,
+      textAlign: TextAlign.start,
     )..layout(maxWidth: column.width);
 
     // The block's own lines, before the scroll: from the metrics rather than
@@ -594,7 +561,7 @@ class VideoPainter {
     final overflow = height - column.height;
 
     return _TextBlock(
-      paintedText: paintedText,
+      paintedText: slot.text,
       style: style,
       layout: layout,
       lines: lines,
@@ -621,22 +588,6 @@ class VideoPainter {
     final height = picture.width / frameAspect;
     return Rect.fromLTWH(
         0, (picture.height - height) / 2, picture.width.toDouble(), height);
-  }
-
-  /// The language the video opens in — its first spoken sentence's — named for
-  /// the reader, or null when there is nothing to name it with.
-  ///
-  /// The title card's language is the language of the sentence the video starts
-  /// on (FR-004/A1), which is why it comes from the plan's first sentence rather
-  /// than from the content's first paragraph: a video that opens at a
-  /// highlighted sentence names *that* sentence's language.
-  String? _titleLanguageLabel() {
-    final label = languageLabel;
-    if (label == null || plan.sentences.isEmpty) return null;
-    final language = plan.sentences.first.language;
-    if (language.isEmpty) return null;
-    final name = label(language);
-    return name.isEmpty ? null : name;
   }
 
   /// The same frame's bytes, for the encoder (FR-020: the picture shown is the

@@ -3,8 +3,10 @@
 
 Row 31: a real render produces a real video (landscape, then vertical), asserted
 with the host's `ffprobe`.
-Row 32: the amended picture on the device — a frame per slot boundary, each one
-its slot's sentence alone, and the on-screen picture is the frame written.
+Row 32: the amended picture on the device — a frame per slot, each one its slot's
+sentence alone and nothing else, at the reader's own size, the sentence that fits
+at the bottom of the text area, and a tall one stepping a line at a time; the
+on-screen picture is the frame written, frame for frame.
 Row 33: the file's whole life — the review played before keeping, one thrown
 away, one kept into the gallery under the content's name, played back, shared
 through the phone's own list, then deleted behind its warning.
@@ -199,6 +201,23 @@ def library_state():
     for path in [l.strip() for l in shell_files(LIBRARY).splitlines() if l.strip()]:
         state[path] = sha256_of(cat(path))
     return state
+
+
+def screencap(dest):
+    """A still of the page as it is right now, saved to [dest].
+
+    The framebuffer, not the accessibility tree: a screenshot cannot race a
+    message's lifetime the way a dump of the page can, so this is what a row keeps
+    when it wants the moment itself rather than a tree read some seconds later.
+    Answers the path, or None if the capture did not come back as a PNG.
+    """
+    out = subprocess.run(["adb", "-s", DEV, "exec-out", "screencap", "-p"],
+                         capture_output=True)
+    if out.stdout[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+    with open(dest, "wb") as f:
+        f.write(out.stdout)
+    return dest
 
 
 def pull(path, dest):
@@ -442,9 +461,48 @@ def duration_s(probed):
         return None
 
 
-RENDER_RUN_RE = (r"klhu render slot=(\d+)/(\d+) frame=(\d+)/(\d+) kind=(\w+) "
-                 r"frames=(\d+) band=(\S+) range=(\S+) span=(\S+) text=(\d+)")
+# The renderer's own line, field for field, as `lib/video_renderer.dart` prints
+# it. `span` is the slot's own character range inside the content — which is what
+# lets a check name the sentence a frame carries from the content's text rather
+# than from the app's word for it — and `scroll` is the line step the frame was
+# painted at (FR-029), so a sentence taller than the text area appears as several
+# runs of one slot, one per step.
+RENDER_RUN_RE = (
+    r"klhu render slot=(\d+)/(\d+) frame=(\d+)/(\d+) kind=(\w+) frames=(\d+) "
+    r"scroll=(\d+) picture=(\S+) tone=(\S+) span=(\d+)\.\.(\d+) text=(\d+)")
 RENDER_PREVIEW_RE = r"klhu render preview frame=(\d+) kind=(\w+)"
+RUN_FIELDS = ("slot", "slots", "start", "total", "kind", "frames", "scroll",
+              "picture", "tone", "span_start", "span_end", "text")
+
+
+def render_runs(log):
+    """Every frame the renderer reported writing, one dict per run, its fields
+    named. The numbers come out as numbers; `kind`, `picture` and `tone` stay
+    words, which is what they are.
+
+    A slot with a tall sentence produces one run per line step (its own
+    `scroll`), so this is the renderer's account of the timeline, not one line
+    per sentence.
+    """
+    runs = []
+    for groups in re.findall(RENDER_RUN_RE, log):
+        runs.append({
+            field: int(value) if value.isdigit() else value
+            for field, value in zip(RUN_FIELDS, groups)
+        })
+    return runs
+
+
+def slot_groups(runs):
+    """The runs of one slot, in order — the renderer writes a slot's line steps
+    together, so a consecutive run of the same slot is one sentence."""
+    groups = []
+    for run in runs:
+        if groups and groups[-1][0]["slot"] == run["slot"]:
+            groups[-1].append(run)
+        else:
+            groups.append([run])
+    return groups
 
 
 # --------------------------------------------------------------------------
@@ -479,6 +537,13 @@ def render(where, aspect_label, pair=None):
 
     # The page's own progress is the evidence that the render is running, and
     # the app's done line is what it finished with.
+    #
+    # The poll is a half second, not two, because SC-001's message is a SnackBar:
+    # it appears with the review and is gone about four seconds later, so a dump
+    # that starts two seconds late (a two-second poll plus the dump's own start-up)
+    # can only just miss it — measured with the probe beside this walk
+    # (`probe_snack_life.py`: a dump begun the instant the app reports the file
+    # reads the message back in 2.45 s; the one after it does not).
     seen_progress = False
     done = None
     while time.time() - started < RENDER_TIMEOUT:
@@ -501,7 +566,7 @@ def render(where, aspect_label, pair=None):
                 pair.append((written, shown[-1], on))
                 print(f"   pairing: renderer up to {written[-1][:4]} "
                       f"page {shown[-1]} screen {list(on)}")
-        time.sleep(2)
+        time.sleep(0.5)
     wall = time.time() - started
     if not done:
         check(f"{where}: the render reported done", False,
@@ -516,26 +581,58 @@ def render(where, aspect_label, pair=None):
     print(f"   done: path={path} {ms}ms {size}B frames={frames}")
 
     # SC-001: the reader is told the file's name and its length.
-    # The message is the review screen's own bottom bar, and it appears with the
-    # review rather than with the render — so the wait is on the message itself,
-    # and what the page was showing is kept for the failure line.
-    snack = None
-    seen = []
-    for _ in range(12):
+    #
+    # The app's own line is what the check reads, because the page's copy is a
+    # SnackBar that lives a few seconds and the row cannot race it: measured with
+    # `probe_snack_life.py`, the message was readable on the page at +2.2 s and
+    # +4.3 s after the render's own line and gone by +6.4 s, and whether a dump's
+    # accessibility snapshot lands inside that window is not something the row can
+    # decide (the same check missed in one aspect and caught it in the other, in
+    # both orders). So the app says what it told the reader, and the page is still
+    # looked at: the dumps below record the message when they catch it — and then
+    # the two must agree — and a still of the page is kept either way for the eye.
+    told = None
+    for _ in range(10):
+        m = re.search(r"klhu render told: (.*)", logcat())
+        if m:
+            told = m.group(1).strip()
+            break
+        time.sleep(0.3)
+    name = os.path.basename(path)
+    seconds = round(ms / 1000)
+    check(f"{where}: the app told the reader the file's name and its length",
+          bool(told) and name in told and f"({seconds} s)" in told,
+          f"the app said {told!r}" if told else
+          "no 'klhu render told:' line in the log")
+    still = screencap(os.path.join(OUT, f"{where.replace('/', '_')}_told.png"))
+    print(f"   the page as the reader was told: {still or 'no still'}")
+    if told:
+        m = re.search(r"\((\d+) s\)", told)
+        check(f"{where}: the reported length is the render's own",
+              m is not None and abs(int(m.group(1)) - seconds) <= 1,
+              f"the page said {m.group(1) if m else '?'} s, "
+              f"the render said {ms} ms")
+
+    # The page's own read, when a dump catches the SnackBar: recorded with the time
+    # it landed, and checked against the app's line when it is there. A run that
+    # never catches it says so rather than failing — the race is the probe's, and
+    # this row's page claims are FR-020's pairing plus the still above.
+    started_waiting = time.time()
+    for _ in range(6):
         rows = dump()
         hits = [l for l in labels(rows) if l.startswith("Video made")]
+        said = repr(hits[0]) if hits else "absent"
+        print(f"   the page {(time.time() - started_waiting):.1f}s after the "
+              f"render's own line: {len(rows)} nodes, message {said}")
         if hits:
-            snack = hits[0]
+            check(f"{where}: the page's own copy is the app's own",
+                  told is not None and hits[0] == told,
+                  f"the page said {hits[0]!r}, the app said {told!r}")
             break
-        seen = labels(rows)[:6]
-        time.sleep(1)
-    check(f"{where}: the page reported the file's name and length",
-          bool(snack), snack or f"the page showed: {seen}")
-    if snack:
-        m = re.search(r"\((\d+) s\)", snack)
-        check(f"{where}: the reported length is the render's own",
-              m is not None and abs(int(m.group(1)) - round(ms / 1000)) <= 1,
-              f"page said {m.group(1) if m else '?'} s, render said {ms} ms")
+    else:
+        print("   NOTE: no dump caught the message this run (the SnackBar lives "
+              "about four seconds and a dump reads the page about two seconds "
+              "after it starts); the still above is the record of that moment")
     return path, ms, size, frames, wall
 
 
@@ -578,8 +675,9 @@ def ffprobe_checks(where, file, ms, frames, expect_w, expect_h):
         check(f"{where}: the audio is AAC", a.get("codec_name") == "aac",
               str(a.get("codec_name")))
     span = duration_s(probed)
-    # SC-002: the duration is the sum of the sentences' audio plus the title
-    # card and the hold — which is exactly what the render itself reports.
+    # SC-002: the duration is the sum of the sentences' audio and the hold —
+    # which is exactly what the render itself reports. (The video opens on its
+    # first sentence since 2026-09-29, so there is no lead-in to add.)
     check(f"{where}: the duration is the render's own, within 2 s",
           span is not None and abs(span * 1000 - ms) <= 2000,
           f"ffprobe {span:.2f}s vs render {ms / 1000:.2f}s")
@@ -588,23 +686,56 @@ def ffprobe_checks(where, file, ms, frames, expect_w, expect_h):
 
 
 # --------------------------------------------------------------------------
-# What a frame holds (row 32): the app's background to the edges, the reader's
-# text inside the column, and — on a sentence's frame — the app's own yellow
-# band. Measured from the file's pixels, never from the app's own say-so.
+# What a frame holds (row 32): the app's background to the edges, and the
+# reader's text inside the column — and, since the amended picture of
+# 2026-09-28, neither a plate nor a highlight band anywhere, because a plate
+# only grows where a picture is behind the words (FR-027) and the yellow band
+# the pre-amendment rows looked for was withdrawn with it (FR-014). Measured
+# from the file's pixels, never from the app's own say-so.
 BG_SAMPLE_TOL = 12          # a background pixel, allowing the encoder's own noise
-BAND_COLOUR = (255, 235, 59)  # Colors.yellow, the app's highlight (FR-014)
-BAND_TOL = 12
+
+# How far the words' own glyph box may sit above the column's bottom and still
+# count as "at the bottom": the box is the glyphs', so its bottom sits inside the
+# last line's box by up to a descender's height.
+BOTTOM_TOL = 24
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
-def preset_sentences():
-    """The shipped pre-set's sentences, from the app's own asset, to name the
-    sentence a slot index stands for. (Its English entry, the walk's content.)"""
+def preset_content():
+    """The shipped pre-set's own text: the English entry of the app's own asset,
+    which is the content every device row renders."""
     with open(os.path.join(REPO, "assets", "content", "presets.json")) as f:
         presets = json.load(f)["presets"]
-    entry = next(p for p in presets if p["language"] == "en")
-    return [s.strip() for s in re.findall(r"[^.!?\n]+[.!?]", entry["text"])]
+    return next(p for p in presets if p["language"] == "en")["text"]
+
+
+def preset_name():
+    """What the app calls that content: its own naming rule (`content_naming.dart`
+    — the first non-blank line, whitespace collapsed, cut to 24 runes with an
+    ellipsis). This is the name the video used to open on (the card, withdrawn
+    2026-09-29); the row keeps naming the content for the checks that talk about
+    it, and row 33's gallery entry carries it."""
+    line = next(l.strip() for l in preset_content().split("\n") if l.strip())
+    collapsed = re.sub(r"\s+", " ", line)
+    if len(collapsed) <= 24:
+        return collapsed
+    return collapsed[:23] + "…"
+
+
+def preset_sentences():
+    """The pre-set's sentences, in order, each with its own character range in
+    that text — found here the way the app's segmenter finds them (a sentence
+    starts at its first non-blank character and ends at its own ender), so a
+    frame's reported `span` can be checked against the text itself."""
+    text = preset_content()
+    found = []
+    for m in re.finditer(r"[^.!?\n]+[.!?]", text):
+        start = m.start()
+        while start < m.end() and text[start] in " \t\r\n":
+            start += 1
+        found.append((start, m.end(), text[start:m.end()]))
+    return found
 
 
 def frame_rgb(file, number, w, h):
@@ -642,8 +773,11 @@ def is_bg(px, bg, tol=BG_SAMPLE_TOL):
 
 
 def is_band(px):
-    """Yellow-ish, hue-based: a scaled frame blends the band with the paper, so
-    the test is the colour's direction rather than its exact code."""
+    """Yellow-ish, hue-based, and now a check that finds **nothing**: the
+    highlight band of the pre-amendment picture, which the re-cut of 2026-09-28
+    withdrew (FR-014). It must appear in no frame of the video this row renders,
+    and a scaled frame blends its exact code (`Colors.yellow`, 255 235 59) with
+    the paper, so the test is the colour's direction rather than its code."""
     r, g, b = px
     return r > 140 and g > 120 and b < 130 and r - b > 60
 
@@ -1044,22 +1178,14 @@ def row_33():
 
 
 
-def has_colour(rgb, w, h, colour, tol=BAND_TOL, stride=2):
-    """Whether any sampled pixel is [colour], within the encoder's own slack."""
-    for y in range(0, h, stride):
-        for x in range(0, w, stride):
-            if all(abs(a - b) <= tol
-                   for a, b in zip(at(rgb, w, x, y), colour)):
-                return True
-    return False
-
-
 # --------------------------------------------------------------------------
 def row_32():
     step("32 setup: fresh install state, the shipped pre-set")
     hard_restart()
     sentences = preset_sentences()
-    print(f"   the pre-set's {len(sentences)} sentences, e.g. {sentences[0]}")
+    name_of_content = preset_name()
+    print(f"   the pre-set's {len(sentences)} sentences, e.g. "
+          f"{sentences[0][2]!r} — the content is named {name_of_content!r}")
 
     for aspect, name, w, h in (
         ("16:9 landscape 1080p", "landscape", 1920, 1080),
@@ -1070,7 +1196,8 @@ def row_32():
         # and then this row reads "the render produced no file" for a render it
         # never started. This row keeps nothing, so taking it down is its own.
         rows = dump()
-        if on_screen(rows, "Discard") and tap(rows, "Discard", label="the earlier review"):
+        if on_screen(rows, "Discard") and tap(rows, "Discard",
+                                              label="the earlier review"):
             time.sleep(1.5)
         pairs = []
         result = render(f"32/{name}", aspect, pair=pairs)
@@ -1083,55 +1210,193 @@ def row_32():
         check(f"32/{name}: the file came off the device and is not empty",
               pulled and len(data) > 10000, f"{len(data)}B")
 
-        log = logcat()
-        runs = [dict(slot=int(a), start=int(c), kind=e, count=int(f2), band=g)
-                for a, b, c, d, e, f2, g, h, i, j in re.findall(RENDER_RUN_RE, log)]
-        check(f"32/{name}: the renderer reported the pictures it wrote",
-              bool(runs) and all(r["total"] == frames
-                                 for r in [dict(total=int(d)) for _, _, _, d, _, _, _, _, _, _ in
-                                           re.findall(RENDER_RUN_RE, log)]),
-              f"{len(runs)} runs, file has {frames} frames")
+        # ---- the renderer's own account of what it wrote ----
+        runs = render_runs(logcat())
+        written = sum(r["frames"] for r in runs)
+        check(f"32/{name}: the renderer's runs are the file's own frames",
+              bool(runs) and written == frames
+              and all(r["total"] == frames for r in runs),
+              f"{len(runs)} runs summing to {written}, file has {frames} frames")
         if not runs:
             continue
-        # The renderer's own account of the band: the card has none, every
-        # sentence's frame has one, inside the column. The pixel checks further
-        # down are the other half of this — a file that ignores the picture the
-        # app drew (which is what a picture cached across calls produces) passes
-        # one and fails the other.
-        left, top, col_w = column_of(w, h)
-        words = [r["band"] for r in runs if r["kind"] != "title"]
-        widths = [int(word.split("x")[0]) for word in words if word != "none"]
-        # The rect can overhang the column by a line's trailing space — a
-        # selection's boxes include it — and the column's own clip is what keeps
-        # the *painted* band inside, which the pixel checks below prove.
-        overhang = col_w * 0.02
-        check(f"32/{name}: the renderer's own band, on every sentence's frame",
-              runs[0]["band"] == "none"
-              and all(word != "none" for word in words)
-              and all(0 < width <= col_w + overhang for width in widths),
-              f"card {runs[0]['band']}, sentences {words}")
-        # The runs are the file's own timeline: from 0, end to end, and up to
-        # exactly the frames the file holds.
         tiled = runs[0]["start"] == 0
         for a, b in zip(runs, runs[1:]):
-            tiled = tiled and a["start"] + a["count"] == b["start"]
-        ends = runs[-1]["start"] + runs[-1]["count"]
+            tiled = tiled and a["start"] + a["frames"] == b["start"]
         check(f"32/{name}: the runs tile the file frame for frame",
-              tiled and ends == frames,
-              f"last run ends at {ends}, file has {frames}")
-        check(f"32/{name}: the first picture is the card, the rest are sentences",
-              runs[0]["kind"] == "title"
-              and all(r["kind"] == "sentence" for r in runs[1:]),
-              str([r["kind"] for r in runs]))
+              tiled and runs[-1]["start"] + runs[-1]["frames"] == frames,
+              f"the last run ends at {runs[-1]['start'] + runs[-1]['frames']}")
+        check(f"32/{name}: the video opens on the first sentence, at frame 0",
+              runs[0]["slot"] == 0 and runs[0]["start"] == 0
+              and runs[0]["span_start"] == sentences[0][0],
+              f"run 0 is slot {runs[0]['slot']} at frame {runs[0]['start']}, "
+              f"span {runs[0]['span_start']}..{runs[0]['span_end']}")
+        check(f"32/{name}: no run of the file is a card",
+              all(r["kind"] == "sentence" for r in runs),
+              str(sorted({r["kind"] for r in runs})))
 
-        # FR-020 on the device: the picture on the page is one the renderer
-        # wrote, for the same slot, and the page's own reading moves forward.
+        groups = slot_groups(runs)
+        # FR-002/FR-008, re-cut 2026-09-29 by the reader's own request ("remove the
+        # first title frame"): the card that used to open the video and carry the
+        # content's name is gone, so the file has exactly one slot per sentence and
+        # nothing else — which is what says the name is painted in no frame.
+        check(f"32/{name}: one slot per sentence and nothing else — the name "
+              f"{name_of_content!r} is painted nowhere",
+              [g[0]["slot"] for g in groups] == list(range(len(groups)))
+              and len(groups) == len(sentences),
+              f"slots {[g[0]['slot'] for g in groups]} for "
+              f"{len(sentences)} sentences")
+
+        # FR-002/FR-005/FR-025: a sentence's frame carries **that sentence, alone**
+        # — the whole of it and nothing else. The slot's own character range is the
+        # content's own text, so the check names the sentence from the text this
+        # row read itself, and the frame's painted characters are exactly its.
+        bad_text, bad_span, scrolls = [], [], {}
+        for index, group in enumerate(groups):
+            start, end, sentence = sentences[index]
+            lengths = sorted({r["text"] for r in group})
+            spans = sorted({(r["span_start"], r["span_end"]) for r in group})
+            if lengths != [len(sentence)]:
+                bad_text.append((index, lengths, len(sentence)))
+            if spans != [(start, end)]:
+                bad_span.append((index, spans, (start, end)))
+            scrolls[index] = [r["scroll"] for r in group]
+        check(f"32/{name}: every sentence's frame carries that sentence alone",
+              not bad_text,
+              f"{len(groups)} sentence slots; painted lengths "
+              f"(slot, painted, the sentence's own): {bad_text[:3]}"
+              if bad_text else
+              f"{len(groups)} slots, each painting the whole of its own "
+              f"sentence and nothing else")
+        check(f"32/{name}: every frame's own character range is its sentence's",
+              not bad_span,
+              f"ranges that are not the content's own sentence: {bad_span[:3]}"
+              if bad_span else
+              f"{len(groups)} slots, each carrying the range of the sentence "
+              f"it paints")
+
+        # FR-029: a sentence taller than the text area shows its later lines in
+        # its later frames, so its slot is written as one run per line step, the
+        # step counting up from the first line.
+        stepped = [s for s, steps in scrolls.items()
+                   if steps != list(range(len(steps)))]
+        tall = {s: len(steps) for s, steps in scrolls.items() if len(steps) > 1}
+        check(f"32/{name}: a slot's frames step one line at a time, from the first",
+              not stepped,
+              f"slots whose steps are not 0..n: "
+              f"{[(s, scrolls[s]) for s in stepped][:3]}" if stepped else
+              f"{len(scrolls)} sentence slots, each stepped from its own first "
+              f"line")
+        if tall:
+            print(f"   the tall sentences, by slot: {tall} (line steps each)")
+        else:
+            print("   NOTE: no sentence of the shipped pre-set is taller than the "
+                  "text area, so no frame of this video holds a scroll step: "
+                  "FR-029's 'later lines in later frames' has no case in it")
+
+        # FR-027/FR-028: no picture was chosen, so there is no plate and no tone —
+        # the words are the reader's own ink over the app's own background.
+        tones = sorted({(r["picture"], r["tone"]) for r in runs})
+        check(f"32/{name}: with no pictures chosen, no plate and no tone",
+              tones == [("none", "-")], f"picture/tone seen: {tones}")
+
+        # ---- what the frames themselves hold ----
+        # The app's look, no chrome, and — since the amended picture — not one
+        # pixel of the highlight band the pre-amendment rows looked for.
+        step(f"32/{name}: every frame of the file, at {CW}x{CH}")
+        thumbs = coarse_frames(dest)
+        check(f"32/{name}: every frame was read back", len(thumbs) == frames,
+              f"{len(thumbs)} frames read, render said {frames}")
+        bg = at(thumbs[0], CW, 2, 2)
+        grid = scaled_column(w, h, CW, CH)
+        clean, bad = 0, []
+        for i, thumb in enumerate(thumbs):
+            band, outside, _band_box, _ink_box = scan_frame(
+                thumb, CW, CH, bg, grid)
+            if band == 0 and outside == 0:
+                clean += 1
+            else:
+                bad.append((i, band, outside))
+        check(f"32/{name}: every frame is the app's own look, and no chrome",
+              clean == len(thumbs),
+              f"{clean}/{len(thumbs)} frames; first bad (frame, highlight px, "
+              f"outside px): {bad[:3]}")
+        print(f"   checked {clean}/{frames} frames "
+              f"({100.0 * clean / max(1, frames):.0f}%) at {CW}x{CH}: no frame "
+              f"carries the withdrawn highlight, none has anything outside the "
+              f"column")
+
+        # And three frames of every slot at the file's own size, where the
+        # colours, the column's own edges and where the words sit can be read.
+        step(f"32/{name}: three frames of every slot at {w}x{h}")
+        left, top, col_w = column_of(w, h)
+        bottom = h - top
+        print(f"   the column, by the painter's rule: {col_w:.0f}px wide from "
+              f"x={left:.0f} to {w - left:.0f}, y={top:.0f} to {bottom:.0f}")
+        sampled, details = 0, []
+        for index, group in enumerate(groups):
+            first = group[0]["start"]
+            last = group[-1]["start"] + group[-1]["frames"] - 1
+            tall_slot = len(group) > 1
+            boxes = []
+            for f in sorted({first, (first + last) // 2, last}):
+                rgb = frame_rgb(dest, f, w, h)
+                sampled += 1
+                if rgb is None:
+                    details.append((f, ["no such frame"]))
+                    continue
+                band, outside, _band_box, ink_box = scan_frame(
+                    rgb, w, h, bg, (left, top, col_w), stride=2)
+                issues = []
+                if not is_bg(at(rgb, w, 2, 2), bg):
+                    issues.append(f"corner is {at(rgb, w, 2, 2)}")
+                if band:
+                    issues.append(f"{band} px of the withdrawn highlight")
+                if outside:
+                    issues.append(f"{outside} px outside the column")
+                if ink_box is None:
+                    issues.append("no text inside the column")
+                else:
+                    boxes.append(ink_box)
+                    # A sentence that fits sits at the **bottom** of the text area,
+                    # so the frame above it is free for a picture (the reader's own
+                    # request of 2026-09-28), and a taller one keeps FR-029's shape
+                    # instead — its own check is below. Every slot of the file is a
+                    # sentence now: the card that used to sit centred at the top of
+                    # the file was withdrawn on 2026-09-29.
+                    if not tall_slot:
+                        if abs(ink_box[3] - bottom) > BOTTOM_TOL:
+                            issues.append(
+                                f"the words end at y={ink_box[3]}, the column's "
+                                f"bottom is {bottom:.0f}")
+                        elif ink_box[1] < h / 2:
+                            issues.append(
+                                f"the words start at y={ink_box[1]}, in the upper "
+                                f"half — they belong at the bottom")
+                if issues:
+                    details.append((f, issues))
+                print(f"   frame {f:>4} sentence"
+                      f" slot {index:>2}: ink {ink_box}")
+            # FR-029, where the pre-set gives it a case: the block steps up the
+            # area one line at a time, so its own bottom moves up with the steps.
+            if tall_slot and len(boxes) == 3:
+                bottoms = [box[3] for box in boxes]
+                if bottoms[0] < bottoms[-1]:
+                    details.append((first, [
+                        f"the block does not step up across the slot: the ink's "
+                        f"bottoms are {bottoms}"]))
+        check(f"32/{name}: every sampled frame holds the app's own look",
+              sampled >= 3 * len(groups) and not details,
+              f"{sampled - len(details)}/{sampled} frames clean"
+              + (f"; first bad: {details[:3]}" if details else ""))
+
+        # FR-020 on the device: the picture on the page is one the renderer wrote,
+        # for the same slot, and the page's own reading moves forward.
         starts = {r["start"]: r for r in runs}
         order = [r["start"] for r in runs]
         good, shown_slots = [], []
-        for written, shown, on in pairs:
+        for written_run, shown, on in pairs:
             page_frame, page_kind = int(shown[0]), shown[1]
-            newest = int(written[-1][2])
+            newest = int(written_run[-1][2])
             run = starts.get(page_frame)
             behind = (order.index(newest) - order.index(page_frame)
                       if newest in starts and page_frame in starts else 99)
@@ -1145,79 +1410,10 @@ def row_32():
               shown_slots == sorted(shown_slots), str(shown_slots))
         for frame in good:
             run = starts[frame]
-            what = ("the title card" if run["kind"] == "title"
-                    else sentences[run["slot"] - 1]
-                    if 1 <= run["slot"] <= len(sentences) else f"slot {run['slot']}")
+            what = (sentences[run["slot"]][2]
+                    if 0 <= run["slot"] < len(sentences)
+                    else f"slot {run['slot']}")
             print(f"   the page at frame {frame} was {what!r}")
-
-        # Every frame of the file, at a grid big enough for a band and a margin:
-        # the app's look, no chrome, and a band exactly on the sentences' frames.
-        step(f"32/{name}: every frame of the file, at {CW}x{CH}")
-        thumbs = coarse_frames(dest)
-        check(f"32/{name}: every frame was read back", len(thumbs) == frames,
-              f"{len(thumbs)} frames read, render said {frames}")
-        bg = at(thumbs[0], CW, 2, 2)
-        grid = scaled_column(w, h, CW, CH)
-        banded = clean = 0
-        bad = []
-        for i, thumb in enumerate(thumbs):
-            band, outside, _, _ = scan_frame(thumb, CW, CH, bg, grid)
-            run = next((r for r in runs
-                        if r["start"] <= i < r["start"] + r["count"]), None)
-            want = run is not None and run["kind"] != "title"
-            if (band > 0) == want and outside == 0:
-                clean += 1
-            else:
-                bad.append((i, band, outside, run["kind"] if run else None))
-            banded += 1 if band > 0 else 0
-        check(f"32/{name}: every frame is the app's own look, and no chrome",
-              clean == len(thumbs),
-              f"{clean}/{len(thumbs)} frames; first bad: {bad[:3]}")
-        print(f"   checked {clean}/{frames} frames "
-              f"({100.0 * clean / max(1, frames):.0f}%) at {CW}x{CH}: "
-              f"{banded} carry the band, {len(thumbs) - banded} do not")
-
-        # And three frames of every slot at the file's own size, where the
-        # colours and the column's own edges can be read.
-        step(f"32/{name}: three frames of every slot at {w}x{h}")
-        print(f"   the column, by the painter's rule: {col_w:.0f}px wide from "
-              f"x={left:.0f} to {w - left:.0f}, y={top:.0f} to {h - top:.0f}")
-        sampled, details = 0, []
-        for run in runs:
-            first = run["start"]
-            last = run["start"] + run["count"] - 1
-            for f in sorted({first, (first + last) // 2, last}):
-                rgb = frame_rgb(dest, f, w, h)
-                sampled += 1
-                if rgb is None:
-                    details.append((f, ["no such frame"]))
-                    continue
-                band, outside, band_box, ink_box = scan_frame(
-                    rgb, w, h, bg, (left, top, col_w), stride=2)
-                want = run["kind"] != "title"
-                issues = []
-                if not is_bg(at(rgb, w, 2, 2), bg):
-                    issues.append(f"corner is {at(rgb, w, 2, 2)}")
-                if (band > 0) != want:
-                    issues.append(f"band is {band}px, wanted {'a band' if want else 'none'}")
-                if outside:
-                    issues.append(f"{outside} px outside the column")
-                if ink_box is None:
-                    issues.append("no text inside the column")
-                if want and not has_colour(rgb, w, h, BAND_COLOUR):
-                    issues.append(f"no pixel is the app's own yellow {BAND_COLOUR}")
-                if band_box:
-                    ink = (f"ink x={ink_box[0]}..{ink_box[2]}"
-                           if ink_box else "no ink")
-                    print(f"   frame {f:>4} {run['kind']:>8}: band x={band_box[0]}"
-                          f"..{band_box[2]} y={band_box[1]}..{band_box[3]}, {ink}")
-                if issues:
-                    details.append((f, issues))
-        check(f"32/{name}: every sampled frame holds the app's own look",
-              sampled >= 3 * len(runs) and not details,
-              f"{sampled - len(details)}/{sampled} frames clean"
-              + (f"; first bad: {details[:3]}" if details else ""))
-
 
 # --------------------------------------------------------------------------
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

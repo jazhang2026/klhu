@@ -74,13 +74,12 @@ makes the result checkable frame by frame.
 | `fps` | `int` — `30` | no | fixed (spec A8) |
 | `startSentence` | `TextSegment` | no | the page's position when a highlight is in force, else the content's first sentence (FR-004) |
 | `slots` | `List<Slot>` — one per sentence from `startSentence` to the content's last | no | `sentenceRanges`/`paragraphRanges` (`segmenter.dart`) + the language/voice resolution the read uses |
-| `titleCard` | `Slot` — a fixed lead-in slot | no | FR-008 |
 | `endHold` | `Slot` — a fixed closing slot | no | FR-008 |
 | `totalFrames` | `int` — Σ of every slot's frames | no | derived |
 | `pictures` | `PictureSchedule` (7) — the reader's held pictures with the frame range each is drawn in; empty is a valid schedule | no | the reader's pictures before the render (FR-025–FR-028) |
 | `style` | the reader's typeface and character size, the app's plain background, and the plate's own colour (white, `#FFFFFF`) | no | `AppearanceStore` + the app's theme (FR-014, A3; D16) |
 
-**Slot** (one sentence, or the title card, or the end hold)
+**Slot** (one sentence, or the end hold — the title card was withdrawn on 2026-09-29, FR-008's amendment)
 
 | Name | Type | Nullable | Source |
 |---|---|---|---|
@@ -89,7 +88,7 @@ makes the result checkable frame by frame.
 | `language` / `voice` | `String` / voice id | no | the same resolution the read uses (FR-003) |
 | `audioPath` | `String` | yes (never for a sentence slot) | pass 1's file |
 | `audioMs` | `int` — the spoken length, read from the audio file's header | yes (never for a sentence slot) | pass 1 (A5) |
-| `frames` | `int` — `round(audioMs × fps / 1000)` (sentence), or the fixed count (title card, hold) | no | derived |
+| `frames` | `int` — `round(audioMs × fps / 1000)` (sentence), or the fixed count (hold) | no | derived |
 | `startFrame` | `int` — the running total of the slots before it | no | derived |
 
 **Relationships**: one `RenderPlan` per render; its slots are drawn from the content's segmentation, so a
@@ -100,7 +99,7 @@ content edited between renders yields a different plan and never a half-old one.
 | Rule | Requirement |
 |---|---|
 | Slots are in reading order, contiguous in frames, and cover every sentence from the start point to the content's last | FR-004, FR-017 |
-| The gap between two consecutive sentence slots is constant and within the stated bound; the lead-in and the hold are within theirs | FR-016 |
+| The gap between two consecutive sentence slots is constant and within the stated bound; the hold is within its own | FR-016 |
 | A sentence slot's frames equal its own audio's length in frames (so the picture cannot drift from the voice) | A5, FR-016 |
 | A slot's frames always show that sentence's own text as the frame's text — at the reader's own size, inside the frame's text area — and no other sentence's text | FR-002, FR-005, FR-014 |
 | A slot whose sentence is taller than the text area scrolls it upward by whole lines, every line inside the text area at some point in the slot and none clipped | FR-029, SC-020 |
@@ -110,8 +109,8 @@ content edited between renders yields a different plan and never a half-old one.
 | An empty or whitespace-only content yields no plan at all | FR-015 |
 
 **Worked example**: the shipped English pre-set (8 sentences, 334 characters) recorded as `landscape`
-starting at sentence 3. Slots 0–2 are the title card and the first two sentences… the plan's first sentence
-slot is sentence 3 at frame 90 (3 s title card at 30 fps), its `frames` is `round(2140 × 30 / 1000) = 64`
+starting at sentence 3. The plan's first slot is sentence 3 at frame 0 (the video opens on its first spoken
+sentence — the card was withdrawn on 2026-09-29), its `frames` is `round(2140 × 30 / 1000) = 64`
 for a 2.14 s utterance, and the file's last frame lands inside the end hold — not on a cut.
 
 **States**
@@ -337,7 +336,7 @@ schedule's order is the order of the reader's own cells, which FR-032 lets them 
 | Rule | Requirement |
 |---|---|
 | An empty schedule is valid: the plain background, nothing refused and nothing delayed for want of a picture | FR-028, SC-021 |
-| Each range is inclusive and in the video's own frame numbers, and the ranges partition the spoken part — from the first sentence's first frame to the video's last — with no frame in two ranges and none left uncovered; the title card's frames are in no range | FR-026, SC-019 |
+| Each range is inclusive and in the video's own frame numbers, and the ranges partition the spoken part — from the first sentence's first frame to the video's last — with no frame in two ranges and none left uncovered; since the card was withdrawn (2026-09-29) that first frame is the video's own frame 0 | FR-026, SC-019 |
 | **A range begins at a sentence's own first frame and ends immediately before the next range's first sentence: no boundary falls inside a sentence**, so no picture lands or lifts while a sentence is on screen | FR-026 |
 | The shares are equal over the plan's sentences in the order chosen — so their frame lengths may differ — and a picture whose share holds no sentence at all is not drawn | FR-026 |
 | A picture is drawn to fill the frame it is in — covering it, cropped where the shapes differ — with a **white plate behind each painted line** carrying the words; nothing else is drawn between the picture and the text | FR-027, SC-019 |
@@ -345,7 +344,8 @@ schedule's order is the order of the reader's own cells, which FR-032 lets them 
 
 **Worked example**: the reader picks three pictures for a six-sentence content → two sentences each: A covers
 sentence 1's first frame up to the frame before sentence 3 (the gap after sentence 2 included), B takes
-sentences 3 and 4, C takes sentences 5 and 6 **and the end hold**, and the title card stays plain. The frame
+sentences 3 and 4, C takes sentences 5 and 6 **and the end hold**, and a picture starts at the video's frame
+0 (the video opens on its first sentence — no card's worth of plain background first, 2026-09-29). The frame
 at the seam carries B and not A, and no seam sits inside a sentence: the reader never sees the picture change
 mid-sentence. A reader who picks nothing leaves the schedule empty and gets the plain-background video at the
 same speed.

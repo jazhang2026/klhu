@@ -70,8 +70,9 @@ reader sees is the frame being written" (FR-020) is literally true rather than s
 
 **Pass 1**: every sentence from its start point to the content's end is synthesised to its own audio file
 (FR-004's start rule, `sentenceRanges` from F2), and each file's exact duration is read out of its header.
-**Pass 2**: the timeline is built from those durations — each sentence's slot = its audio length, the
-title card and the end hold are fixed slots (FR-008/FR-016) — and frames are emitted to match, with the
+**Pass 2**: the timeline is built from those durations — each sentence's slot = its audio length, and
+the end hold is a fixed slot (FR-008/FR-016; the opening card that used to be the other one was withdrawn on
+2026-09-29 — D23) — and frames are emitted to match, with the
 same PCM encoded to AAC for the audio track.
 
 *Why*: the picture can then never drift from the voice, and a slot's boundaries are exact, which is what
@@ -277,8 +278,8 @@ run begins at a sentence's own first frame and ends immediately before the next 
 never inside a sentence. That is the reader's own rule, set 2026-09-27: the sentence is the unit on screen, and
 the picture behind it changes with the sentence. It costs nothing in coverage, because a sentence's run
 already carries the gap that follows it and the video's last sentence carries the end hold (D14, FR-008) — so
-the pictures cover the whole spoken part with no plain flash between them. The title card keeps the plain
-background: it is the app's own card, not a sentence. Moving a start or end frame is the reader's later
+the pictures cover the whole spoken part with no plain flash between them, and — since the card was withdrawn
+(2026-09-29, D23) — from the video's own first frame: the first picture starts at frame 0. Moving a start or end frame is the reader's later
 good-to-have and it re-renders rather than editing the file — expressed as *which sentence* a picture starts
 at, since frames would let the move land inside a sentence. No pictures is a valid schedule: the plain
 background (FR-028).
@@ -537,8 +538,9 @@ the text area is placed so its **last line's box ends where the text area ends**
 everything above the words is the picture (or the background). A sentence **taller** than the text area keeps
 FR-029's own shape unchanged: its first line starts at the top of the text area and the slot scrolls down through
 the block a line at a time, which is what that requirement says in so many words ("from its first line at the top
-of the text area to its last line at the bottom"). The title card keeps its own centring — it is a card, not the
-sentence — and so does the end hold.
+of the text area to its last line at the bottom"). The end hold repeats the last sentence's placement — it is
+that sentence's frame, held, not a frame of its own — and since 2026-09-29 nothing in the video is centred:
+the card that was is gone (D23).
 
 **Rationale.** The frame is watched on a phone, at a picture the reader chose: with the words at the bottom, the
 picture owns the frame's middle and top, which is where a photograph's subject usually is, and the eye has one
@@ -555,6 +557,34 @@ alternative — centring both — is what D22 replaces.
 *Alternatives considered*: the block vertically centred (a taller text area's worth of empty frame above and below
 the words); the block at the top, as it was (the reader's own answer: no); the anchor following the *picture's*
 subject (unknowable for a photograph, and it would make the words move from sentence to sentence).
+
+### D23 — The video opens on its first sentence: the opening title card is withdrawn
+
+**Decision (2026-09-29, the reader's own, from watching the two renders of 2026-09-28):** *"I want to remove the
+first title frame. and don't show the title in the top of 16:9 video."* The opening card — the content's name,
+over its language, held before the reading — is **deleted, not hidden**: the first frame of the video is the
+first sentence's own, and no frame of either aspect carries the content's name or its language.
+
+**What it costs.** SC-002's duration loses the card's 2.5 s (a pre-set render is now the sentences' audio plus
+the 2 s hold instead of ~27.4 s), and FR-016's lead-in bound is vacuous rather than binding. The withdrawn
+surface is real code and not a flag: `VideoSlotKind.title`, the plan's `title` field and `titleMs`, the
+painter's card branch (its centred placement, `titleLabelScale`, and the language-label seam the page fed with
+`languageLabelOf`), the renderer's `title`/`languageLabel` parameters, and the slot-index shift that follows
+from it everywhere (`slot i` is now `sentence i`, not `sentence i-1`). The device row that read the card loses
+three checks and gains three that say the same thing from the other side: **the video opens on sentence 0 at
+frame 0**, **no run of the file is a card**, and **the file holds exactly one slot per sentence** — the name is
+painted nowhere.
+
+**Why "the top" is not a place in the file.** The card was centred in the text area (measured: ink box
+`(206, 506, 670, 582)` in a 1920×1080 frame), never at the top. What reads as "the title at the top" is the
+**review screen**: the video preview sits at the top of that page, so the card's own frames were the first thing
+the reader saw there, above the three decisions. This reading — no title anywhere, file or screen — is what the
+change took; if the reader meant *move* the card rather than remove it, the revert is exactly the list above and
+nothing else moved with it.
+
+**Alternatives considered**: keeping the card and moving it (bottom, or down out of the preview's first
+impression); keeping the name as a caption on the review screen rather than in the file; a fade from the card
+into the first sentence (per-frame alpha in the painter — a cost the reader did not ask for).
 
 - **S1 — does the emulator's engine write a usable audio file?** Call `synthesizeToFile` with a sentence
   of the shipped English pre-set on `emulator-5554` and inspect the result: does a file appear, is it

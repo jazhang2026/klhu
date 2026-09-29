@@ -13,8 +13,8 @@ import 'package:path_provider/path_provider.dart';
 
 /// One stretch of the video's audio, in the order it is heard.
 ///
-/// [path] is a file the engine wrote (null means silence: the title card and the
-/// end hold). [durationUs] is how long this stretch occupies in the video —
+/// [path] is a file the engine wrote (null means silence: the end hold, and any
+/// slot that has no voice of its own). [durationUs] is how long this stretch occupies in the video —
 /// derived from the timeline's FRAMES, not from the audio file: the frames are
 /// the muxer's clock, and the encoder pads the decoded audio to match.
 class VideoAudioSegment {

@@ -58,7 +58,7 @@ adb -s emulator-5554 shell content query --uri content://media/external/video/me
 | `flutter analyze` | no new lints (`video_renderer.dart`, `video_painter.dart`, `video_aspect.dart`, `video_record.dart`, `video_review.dart`, `reading_view.dart`, `reader_service.dart`, `lib/platform/*`) |
 | `flutter test --concurrency=2` | every `[unit]` scenario below, plus the 301-test baseline as a regression gate |
 | `flutter test test/video_timeline_test.dart` | the plan: slots, start point, durations, gaps, bounds (rows 1–6) |
-| `flutter test test/video_painter_test.dart` | the frames: one sentence alone, the title card, chrome, both aspects, the reader's appearance, the scroll, the picture and its scrim (rows 7–12, 44–47) |
+| `flutter test test/video_painter_test.dart` | the frames: one sentence alone, no frame naming the content, chrome, both aspects, the reader's appearance, the scroll, the picture and its scrim (rows 7–12, 44–47) |
 | `flutter test test/video_pictures_test.dart` | the schedule in the video's own frames, the picks, their copies and their cleanup (rows 43, 48) |
 | `flutter test test/video_renderer_test.dart` | the render: per-sentence voice, the picture shown, progress, cancel, failure (rows 13–17) |
 | `flutter test test/video_aspect_test.dart` | the remembered choice's read/write rules (row 18) |
@@ -117,19 +117,20 @@ whole number of frames) and read the slots' `frames`/`startFrame`.
 Expected: `frames == round(ms × fps / 1000)` per slot, `startFrame` is the running total, and Σ frames is the
 plan's `totalFrames` — so the picture cannot drift from the voice. Proves FR-016, A5.
 
-### 4. The gaps, the title card and the end hold are within their bounds — [unit]
+### 4. The gap and the end hold are within their bounds — [unit]
 
 Test: `test/video_timeline_test.dart`, "the padding and the fixed slots".
-Steps: build a plan and inspect consecutive sentence slots' boundaries, the lead-in and the closing slot.
-Expected: each inter-sentence gap is ≤ 0.5 s, the title card ≤ 3 s, the end hold ≤ 3 s and lasts at least one
-frame beyond the last sentence's audio; the hold is not a cut. Proves FR-008, FR-016.
+Steps: build a plan and inspect consecutive sentence slots' boundaries and the closing slot.
+Expected: each inter-sentence gap is ≤ 0.5 s, the end hold ≤ 3 s and lasts at least one
+frame beyond the last sentence's audio; the hold is not a cut. There is no lead-in to bound: the video opens
+on its first sentence (the card was withdrawn on 2026-09-29). Proves FR-008, FR-016.
 
 ### 5. An empty content produces no plan — [unit]
 
 Test: `test/video_timeline_test.dart`, "empty and whitespace-only".
 Steps: build a plan for `""`, `"   \n  "` and a text with one sentence.
 Expected: the first two are refused with the app's existing message and yield no plan; the third yields a
-plan with one sentence slot, the title card and the hold. Proves FR-015, US1 scenario 7.
+plan with one sentence slot and the hold. Proves FR-015, US1 scenario 7.
 
 ### 6. Each slot carries its paragraph's own language and voice — [unit]
 
@@ -149,12 +150,13 @@ and no other sentence's text appears anywhere in the frame: there is no highligh
 around a paragraph, because with one sentence in the frame that sentence is what the frame shows (FR-002,
 2026-09-26). Proves FR-002, FR-005, SC-003.
 
-### 8. The video opens with a title card naming the content — [unit]
+### 8. The video opens on its first sentence, and no frame names the content — [unit]
 
-Test: `test/video_painter_test.dart`, "the title card".
-Steps: paint the title card's frame and the first sentence slot's frame.
-Expected: the card carries the content's name (and its language where the content has one) and no sentence's
-text; the first sentence's frame carries that sentence alone. Proves FR-008.
+Test: `test/video_painter_test.dart`, "no frame carries the content's name — the card was withdrawn".
+Steps: paint every slot of the plan, and the first sentence's slot with it.
+Expected: no slot is a card (the plan holds sentences and the end hold), no frame's text contains the
+content's name or its language, and the first sentence's frame carries that sentence alone. Proves FR-008
+(as amended 2026-09-29, when the reader asked for the opening title frame to go).
 
 ### 9. No frame carries the app or the device — [unit]
 
@@ -339,8 +341,12 @@ Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 31`.
 Steps: record the shipped English pre-set from the first sentence, as `landscape`; then record it as
 `vertical`; pull both files.
 Expected: `ffprobe` reports one H.264 video stream at exactly 1920×1080 (then 1080×1920) and one AAC audio
-stream, a constant frame rate, and a duration equal to the sum of the sentences' audio plus the title card and
-the hold, within 2 s; the app reports the file's name and length when the render is done. Proves FR-002,
+stream, a constant frame rate, and a duration equal to the sum of the sentences' audio plus the end hold,
+within 2 s; the app reports the file's name and length when the render is done — the row reads that
+from the app's own line (`klhu render told: <the message>`, the file's name and the render's own seconds both
+required), keeps **a still of the page at that moment** (`$KLHU_OUT/<row>_<aspect>_told.png`), and checks the
+page's own copy against the app's line when a dump catches it: the message is a SnackBar that lives about four
+seconds, so reading it off the page is a race the row records rather than one it fails on. Proves FR-002,
 FR-007, SC-001, SC-002, SC-005, SC-012.
 
 ### 32. Every slot's frames carry its own sentence, and the screen matched them — [device]
@@ -349,10 +355,19 @@ Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 32`.
 Steps: extract a frame at each slot's start, middle and end with `ffprobe`/`ffmpeg`; while the render ran,
 capture the page and the reported current slot.
 Expected: 100 % of sampled frames show that slot's sentence alone in the frame at the reader's own size, with
-margins and no app chrome anywhere in any frame; a slot whose sentence is taller than the text area shows its
-later lines in its later frames (the scroll) and never a line shrunk to fit or a split sentence; and each
-capture of the page shows the same sentence the renderer reported writing at that moment. Proves FR-002,
-FR-005, FR-006, FR-020, SC-003, SC-004, SC-014, SC-020.
+margins and no app chrome anywhere in any frame; a sentence that fits sits at the **bottom** of the text area
+and, with no picture chosen, carries **no plate and no highlight** (the two the re-cut of 2026-09-28 left in its
+place — FR-027/FR-028 supersede FR-014's band, which must appear in no frame of this video); a slot whose
+sentence is taller than the text area shows its later lines in its later frames (one run per line step in the
+renderer's own account, its `scroll` counting up from the first line) and never a line shrunk to fit or a split
+sentence; and each capture of the page shows the same frame the renderer reported writing at that moment.
+Proves FR-002, FR-005, FR-006, FR-020, SC-003, SC-004, SC-014, SC-020. *Re-cut 2026-09-29*: the row's provider
+of truth changed with the amended picture — `lib/video_renderer.dart` now writes `scroll=`, `picture=`,
+`tone=` and the slot's own character `span=` instead of a `band=`/`range=` pair — so the row was re-anchored on
+it and re-cut rather than extended: the band it used to require is now the thing it requires to be absent. The
+shipped pre-set has no sentence taller than the text area at either aspect, so **the scroll has no case in this
+video**: the row says so in its own output instead of reading as covered (`FR-029`'s "later lines in later
+frames" is a gap on the record, held by the painter's unit rows).
 
 ### 33. The file's life cycle on the device — [device]
 
@@ -538,7 +553,8 @@ Expected: each picture carries an inclusive start and end frame in the video's o
 **no range boundary falls inside a sentence** — every boundary is a sentence's own first frame, or the frame
 after the video's last; the ranges partition the spoken part with no overlap and no gap (the gap after a
 sentence belonging to that sentence's picture, and the end hold to the last); the shares are equal **over
-sentences** in the order chosen, so their frame lengths may differ; the title card's frames carry no picture;
+sentences** in the order chosen, so their frame lengths may differ; a picture starts at the video's own first
+frame (the opening card was withdrawn on 2026-09-29);
 and a picture that would receive no sentence at all (more pictures than sentences) is simply not drawn while
 every spoken frame stays covered by one picture or the plain background. Proves FR-026, SC-019.
 

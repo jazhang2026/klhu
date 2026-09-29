@@ -144,11 +144,9 @@ class VideoRenderer {
     required this.encoder,
     required this.workDir,
     required this.aspect,
-    required this.title,
     required this.readingStyle,
     required this.background,
     this.pictures = const [],
-    this.languageLabel,
   });
 
   final SentenceSynthesizer synthesizer;
@@ -160,9 +158,6 @@ class VideoRenderer {
 
   final VideoAspect aspect;
 
-  /// The content's name, as the title card shows it.
-  final String title;
-
   /// The reader's own reading style (011's seam) and the frame's colours.
   final TextStyle readingStyle;
   final Color background;
@@ -172,11 +167,6 @@ class VideoRenderer {
   /// frame is painted and deleted with everything else this render wrote (D15) —
   /// the picks themselves are never remembered.
   final List<HeldPicture> pictures;
-
-  /// Names a language for the title card, from the app's own copy. Absent, the
-  /// card carries the name alone (the painter's own default), which is what the
-  /// unit tests want.
-  final String Function(String language)? languageLabel;
 
   bool _cancelled = false;
 
@@ -255,7 +245,6 @@ class VideoRenderer {
       }
 
       final plan = buildVideoPlan(
-        title: title,
         sentences: sentences,
         audioMs: audioMs,
         aspect: aspect,
@@ -281,13 +270,11 @@ class VideoRenderer {
         plan: plan,
         readingStyle: readingStyle,
         background: background,
-        languageLabel: languageLabel,
       );
 
-      // One picture per **visual state**: the title card, each sentence at each
-      // line step its text needs (D14) — and the end hold, which extends the
-      // last sentence's last step rather than painting an identical frame again
-      // (FR-008). A sentence's run of frames also covers the gap that follows
+      // One picture per **visual state**: each sentence at each line step its
+      // text needs (D14) — and the end hold, which extends the last sentence's
+      // last step rather than painting an identical frame again (FR-008). A sentence's run of frames also covers the gap that follows
       // it, so the picture behind it stays put until the next sentence starts;
       // and since the schedule shares the *sentences* (FR-026), that is exactly
       // where the picture changes — no picture boundary lands mid-run.

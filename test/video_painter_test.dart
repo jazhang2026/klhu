@@ -67,7 +67,6 @@ const _ink = Color(0xFFF2F2F2);
 VideoPlan _planFor(VideoAspect aspect, {bool tall = false}) {
   final sentences = tall ? _tallSentences : _sentences;
   return buildVideoPlan(
-    title: 'Mixed',
     sentences: sentences,
     audioMs: List.filled(sentences.length, 1000),
     aspect: aspect,
@@ -81,14 +80,12 @@ VideoPainter _painterFor(
   bool tall = false,
   double fontSize = 14,
   String? family,
-  String Function(String language)? languageLabel,
 }) =>
     VideoPainter(
       plan: _planFor(aspect, tall: tall),
       readingStyle:
           TextStyle(fontSize: fontSize, color: _ink, fontFamily: family),
       background: _background,
-      languageLabel: languageLabel,
     );
 
 /// The frame's pixels, row-major RGBA.
@@ -260,36 +257,24 @@ void main() {
       }
     });
 
-    test('the title card names the content and carries no sentence', () async {
-      final asked = <String>[];
-      final painter =
-          _painterFor(VideoAspect.landscape, languageLabel: (language) {
-        asked.add(language);
-        return language == 'en' ? 'English' : language;
-      });
-      final card = await painter.paint(slot: painter.plan.slots.first);
+    test('no frame carries the content\'s name — the card was withdrawn',
+        () async {
+      // The reader's own request of 2026-09-29: the video opens on its first
+      // sentence, so no frame paints 'Mixed' — the plan holds sentences and the
+      // end hold, and every one of them paints its own sentence.
+      final painter = _painterFor(VideoAspect.landscape);
+      expect(painter.plan.slots.map((s) => s.kind).toSet(),
+          {VideoSlotKind.sentence, VideoSlotKind.hold});
 
-      expect(card.slot.kind, VideoSlotKind.title);
-      expect(card.paintedText, 'Mixed\nEnglish');
-      // The language the video opens in: its first spoken sentence's.
-      expect(asked, ['en']);
-      for (final slot in painter.plan.sentences) {
-        expect(card.paintedText, isNot(contains(slot.text)));
+      for (final slot in painter.plan.slots) {
+        final frame = await painter.paint(slot: slot);
+        expect(frame.paintedText, isNot(contains('Mixed')));
+        frame.image.dispose();
       }
 
-      final first = await painter.paint(slot: painter.plan.sentences.first);
+      final first = await painter.paint(slot: painter.plan.slots.first);
       expect(first.paintedText, painter.plan.sentences.first.text);
-      expect(first.paintedText, isNot(contains('Mixed')));
-      card.image.dispose();
       first.image.dispose();
-    });
-
-    test('the card is the name alone when no label is given', () async {
-      final painter = _painterFor(VideoAspect.landscape);
-      final card = await painter.paint(slot: painter.plan.slots.first);
-      expect(card.paintedText, 'Mixed');
-      expect(VideoPainter.titleLabelScale, lessThan(1));
-      card.image.dispose();
     });
   });
 

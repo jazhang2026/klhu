@@ -1009,7 +1009,7 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
 
 ### Device row (T048)
 
-- [ ] T048 [US4] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` rows 32
+- [x] T048 [US4] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` rows 32
       and 49 (quickstart 32, 49): re-walk row 32 against the amended picture — every sampled frame carrying its
       slot's sentence alone at the reader's own size, the long one scrolled and never shrunk or split — then
       choose three pictures through the app's file dialog — the driver pushes its own into the device's
@@ -1030,6 +1030,33 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       changed reports absence, not change** — and it is why the renderer's account has to be *rewritten* onto
       `scroll`/`picture`, with the pixel checks re-anchored to the span the file actually carries, rather than
       have its regex extended. Rows 41, 42 and 49 do not exist in the driver yet.
+      **State 2026-09-29 — DONE: rows 31, 32, 33 and 34 re-walked on `emulator-5554`** (`flutter analyze` clean,
+      `flutter test --concurrency=2` **440 passing**), and row 32 **re-cut onto the renderer's amended line**
+      rather than extended, which is what this task asked for: `render_runs()`/`slot_groups()` now read
+      `slot=i/n frame=start/total kind= frames= scroll= picture= tone= span=a..b text=n`, the row's checks were
+      re-anchored on it — the band it used to *require* is the thing it now requires to be **absent** — and
+      "which sentence is on this frame" is read from the content's own text through the slot's character
+      `span=`, not from the app's word for it. **Row 32: 42/42 checks, both aspects** (818/818 frames clean at
+      96×54 in each; a fitting sentence's own glyph box ending at the column's bottom, `(206, 924, 826, 964)`
+      against 972 at 1920×1080 and `(44, 1686, 592, 1720)` against 1728 at 1080×1920); **row 31: 33/33**,
+      **row 33: 42/42**, **row 34: 26/26**, and **row 49: 41/41** (re-walked too, unchanged: eight pictures for
+      eight sentences, one range each, the plate's tone over the band the words cover, every glyph box at the
+      bottom of the area). Row 33's two playback steps are **skipped and said to be skipped**
+      (`KLHU_SKIP_PLAY=1`): the emulator died under them twice in this session (breakpoint deviation 10) —
+      the playback itself was proven in the run before the device went.
+      **The scroll has no case in this video, and the row says so in its own output**: the pre-set's longest
+      sentence is 55 characters and the text area holds it on one line at both aspects, so `scroll` is 0 in
+      every run of both files — FR-029's "later lines in later frames" is a **gap on the record** here, its
+      branch written and unexercised. **A defect the re-run found, in the walk rather than in the app**:
+      SC-001's message is a SnackBar, so reading it off the page is a race the row had been winning by luck
+      (it missed in one aspect and caught it in the other, in both orders, across four runs). Measured with the
+      probe beside the walk (`probe_snack_life.py`: readable at +2.2 s and +4.3 s after the render's own line,
+      gone by +6.4 s), the app now prints the message it showed — `klhu render told: <the message>` — which is
+      what the check reads (the file's name and the render's own seconds both required); the page is still read
+      and the two must agree when a dump catches it, a run that never catches it prints the times it tried
+      instead of failing, and a **still of the page at that moment** (`screencap()`, `$KLHU_OUT/*_told.png`) is
+      kept for every render of every row. Receipts: [breakpoint.md](./breakpoint.md) rows 31, 32 and the rows
+      33/34 section.
 
 **Checkpoint**: US2's amended frame and US4 are complete and independently demonstrable — a reader picks
 pictures from their own files (the file dialog browses folders; the app ships no images), the video carries
@@ -1268,6 +1295,38 @@ bound, the window's scroll or the hold-and-drop yet. `scripts/klhu_walk_video.py
 walk can be run.*
 
 ---
+
+## Phase 9 — the 2026-09-29 amendment (the opening title frame is withdrawn)
+
+- [x] T057 [US2] Withdraw the opening title card (FR-008's amendment, D23): the reader's own request, made
+      while watching the two renders of 2026-09-28 — *"I want to remove the first title frame. and don't show
+      the title in the top of 16:9 video."* The card is **deleted, not hidden**: the video opens on its first
+      spoken sentence, and no frame of either aspect carries the content's name or its language.
+      Surface removed, in the order the data flows: `VideoSlotKind.title`; `VideoPlan.title` and
+      `VideoPlan.titleMs`; the painter's card branch — its centred placement, `titleLabelScale`, the two-span
+      name-over-language layout — and its `languageLabel` seam; `VideoRenderer.title` and
+      `VideoRenderer.languageLabel`; and `reading_view`'s two arguments to it. The end hold and every other
+      2026-09-28 look (the bottom-anchored block, the 1.4× line, the plate over the band the words cover) are
+      untouched. **This supersedes the parts of T010, T018, T019, T020, T036 and T042 that describe the card as
+      the design or test it as such** — those tasks stay as the record of what was built then; what the code
+      holds now is this task's shape.
+      The unit suite followed rather than being emptied around the change: the plan's own case asserts **no
+      slot is a card** and that the video opens on sentence 0 at frame 0 (FR-016's lead-in bound is now
+      vacuous); the painter's two card cases became one that paints **every** slot and finds the name in none;
+      the renderer's segments lost the card's (`[1400000, 900000, 266666, 2000000]` µs — four runs, not five)
+      and its painting pass counts 3 units; the schedule's partition case starts at frame 0 with its
+      `[84, 84, 132]` share lengths unchanged (the shares are over sentences).
+      (DONE 2026-09-29 — `flutter analyze` clean, `flutter test --concurrency=2` **439/439** (one fewer than
+      440: two card assertions became one check). The device rows were re-cut rather than re-run blind:
+      quickstart 32's three card checks became **the video opens on sentence 0 at frame 0**, **no run of the
+      file is a card**, **one slot per sentence and nothing else — the name is painted nowhere**, the driver's
+      slot arithmetic moved with the plan (`slot i` is `sentence i`), and the "words sit at the bottom" pixel
+      check lost its card exemption. **The arithmetic the withdrawal is worth, measured on the device**: row 31
+      **33/33** both aspects, 743 frames per file (818 − the card's 75) and ffprobe **24.89 s** against the
+      render's own 24.77 s — the 2.5 s exactly, and the reader's own message now reads
+      `Video made: klhu_video.mp4 (25 s)`. Row 32 **41/41** (both aspects, 8 slots for 8 sentences, every
+      sentence's frame carrying its own text alone and every glyph box at the column's bottom), row 49
+      **41/41**, rows 33 and 34 unchanged and green.)
 
 ## Requirement coverage
 

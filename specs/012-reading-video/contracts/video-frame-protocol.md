@@ -20,7 +20,7 @@ Opens the encoders and the muxer and prepares the working file.
 | `bitrateKbps` | `int` | the encoder's target (the plan's number, measured by spike S2) |
 | `totalFrames` | `int` | Σ of `sendFrame`'s repeats — the muxer's expected video length |
 | `workingPath` | `String` | where the app wants the working copy written (its own cache directory) |
-| `audioSegments` | `List<{path: String?, durationUs: int}>` | in timeline order, covering the whole video: a sentence slot names its pass-1 file and its exact slot length (audio + padding); the title card and the end hold have `path: null` (silence) |
+| `audioSegments` | `List<{path: String?, durationUs: int}>` | in timeline order, covering the whole video: a sentence slot names its pass-1 file and its exact slot length (audio + padding); the end hold has `path: null` (silence). The opening card used to be a second silent segment; it was withdrawn on 2026-09-29 (spec FR-008's amendment, D23) |
 
 Fails with `RenderFailure` (below) before any frame is sent if the encoders cannot be opened or the working
 file cannot be created — the page stays idle and reports it, and nothing is left behind.

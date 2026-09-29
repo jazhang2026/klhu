@@ -38,7 +38,8 @@ One pipeline, three stories on top of it (FR-001–FR-019).
    text inert and leaving asking first (FR-019).
 2. **The video is shaped for watching** (P2, FR-006–FR-008, FR-014, FR-016): the frame carries no app
    chrome and no device UI — it is rendered, never recorded — and its text is the reader's own typeface
-   and size mapped onto the chosen frame, opening with a title card and closing on a hold, paced by the
+   and size mapped onto the chosen frame, opening on its first sentence and closing on a hold (the opening
+   card was withdrawn on 2026-09-29, D23), paced by the
    voice so the picture never drifts.
 3. **The video is the reader's** (P3, FR-011, FR-012, FR-021–FR-024): a finished render plays in the app
    before anything is decided, and is then kept, thrown away, or shared through the phone's own share list.

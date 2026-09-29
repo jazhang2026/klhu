@@ -12,9 +12,14 @@ import 'package:klhu/segmenter.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/voice_store.dart';
 
-/// What a slot of the video is: the opening card, a sentence being heard, or the
-/// hold on the last sentence at the end (FR-008).
-enum VideoSlotKind { title, sentence, hold }
+/// What a slot of the video is: a sentence being heard, or the hold on the last
+/// sentence at the end (FR-008).
+///
+/// A video opens on its first spoken sentence — the reader's own request of
+/// 2026-09-29 ("remove the first title frame"), which withdrew the opening card
+/// that used to name the content. Nothing in a frame carries the content's name
+/// or its language any more; the frames are the sentences and the end hold.
+enum VideoSlotKind { sentence, hold }
 
 /// One sentence as the video will speak it: the same unit the engine gets for a
 /// read — one utterance per sentence (010 FR-011), in its paragraph's language
@@ -117,17 +122,17 @@ class VideoSlot {
 
   final VideoSlotKind kind;
 
-  /// Indices into the content's paragraphs and sentences; `-1` on the title card
-  /// and the end hold, which name no sentence.
+  /// Indices into the content's paragraphs and sentences; `-1` on the end hold,
+  /// which names no sentence.
   final int paragraph;
   final int sentence;
 
-  /// Absolute offsets in the content; both `0` on the title card and the hold,
-  /// which paint no content text.
+  /// Absolute offsets in the content; both `0` on the hold, which paints no
+  /// content text.
   final int start;
   final int end;
 
-  /// The sentence being spoken, or the content's name on the title card.
+  /// The sentence being spoken. The end hold repeats the last one's.
   final String text;
   final String language;
   final VoiceChoice? voice;
@@ -144,34 +149,29 @@ class VideoSlot {
   int get endFrame => startFrame + frames;
 }
 
-/// The video's whole timeline: the title card, one slot per sentence lasting
-/// exactly as long as its own audio, a constant gap between consecutive
-/// sentences, and the end hold (FR-008, FR-016).
+/// The video's whole timeline: one slot per sentence lasting exactly as long as
+/// its own audio, a constant gap between consecutive sentences, and the end hold
+/// (FR-008, FR-016).
 class VideoPlan {
   const VideoPlan({
     required this.slots,
     required this.fps,
     required this.width,
     required this.height,
-    required this.title,
   });
 
-  /// In the order they are seen and heard: title card, sentences, end hold. An
-  /// empty list is a content with nothing to read (FR-015) — there is no video.
+  /// In the order they are seen and heard: sentences, end hold. An empty list is
+  /// a content with nothing to read (FR-015) — there is no video.
   final List<VideoSlot> slots;
 
   final int fps;
   final int width;
   final int height;
 
-  /// The content's name, as the title card shows it.
-  final String title;
-
   /// FR-016's bounds are "no gap between consecutive sentences longer than
-  /// 0.5 s, no lead-in longer than 3 s and no end hold longer than 3 s"; these
-  /// are the values inside them. Fixed, so the pace is the same every render.
+  /// 0.5 s and no end hold longer than 3 s"; these are the values inside them.
+  /// Fixed, so the pace is the same every render.
   static const int gapMs = 400;
-  static const int titleMs = 2500;
   static const int holdMs = 2000;
 
   /// The sentences, in the order they are heard.
@@ -196,7 +196,6 @@ class VideoPlan {
 /// mismatch is a programming error and throws — a plan whose slot count and
 /// audio count disagree would silently misalign every highlight after the gap.
 VideoPlan buildVideoPlan({
-  required String title,
   required List<VideoSentence> sentences,
   required List<int> audioMs,
   required VideoAspect aspect,
@@ -207,7 +206,6 @@ VideoPlan buildVideoPlan({
       fps: aspect.fps,
       width: aspect.width,
       height: aspect.height,
-      title: title,
     );
   }
   if (audioMs.length != sentences.length) {
@@ -219,22 +217,7 @@ VideoPlan buildVideoPlan({
   int framesOf(int ms) => (ms * aspect.fps / 1000).round();
 
   final slots = <VideoSlot>[];
-  var cursor = framesOf(VideoPlan.titleMs);
-  slots.add(
-    VideoSlot(
-      kind: VideoSlotKind.title,
-      paragraph: -1,
-      sentence: -1,
-      start: 0,
-      end: 0,
-      text: title,
-      language: '',
-      voice: null,
-      durationMs: VideoPlan.titleMs,
-      frames: cursor,
-      startFrame: 0,
-    ),
-  );
+  var cursor = 0;
 
   for (var i = 0; i < sentences.length; i++) {
     final sentence = sentences[i];
@@ -280,6 +263,5 @@ VideoPlan buildVideoPlan({
     fps: aspect.fps,
     width: aspect.width,
     height: aspect.height,
-    title: title,
   );
 }
