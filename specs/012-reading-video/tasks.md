@@ -13,7 +13,14 @@ file's life cycle, P3).
 **In progress — re-cut 2026-09-27 to the amended picture.** T001–T025, T028, T029, **T036** (the pictures'
 keys), **T038** (spike S4), **T040/T043** (the schedule in the video's own frames and the picks' copies),
 **T044** (the picker is flutter.dev's `file_selector`) and **T045** (the picker's seam over it) are done; T026,
-T027 and T030 (the file store, the player view and US3's device row) are not. The 2026-09-26 amendment replaced what a
+T027 and T030 (the file store, the player view and US3's device row) are not.
+→ **Closed 2026-10-01**: T026, T027 and T030 are done — row 33 walks the file's whole life with **both
+playback steps enabled** (44/44; the run before it 45/45 — one check moves with whether a dump catches the
+SnackBar, as row 32's note explains) — and with them T031–T035 (the driver, spike S2, the README, the boxes and the structural rows). All
+57 tasks are ticked and the checker is OK. What the stage was genuinely waiting for, in its own words, was
+"nothing has played" (T027) and the S2 placeholder; both are answered below and in the rows. The gaps that
+remain are not tasks: **iOS** (the feature does not exist there — `isAvailable` false, `ENGINE_UNAVAILABLE`)
+and the **API 29 floor** for keeping (written below 29, unexercisable on this API 36 emulator). The 2026-09-26 amendment replaced what a
 frame *shows*: one sentence per frame at the reader's own size, over the reader's own pictures with the scrim
 between them, with each picture's schedule counted in the video's own frames (FR-002, FR-014, FR-025–FR-029,
 US4). The
@@ -38,6 +45,9 @@ reordering still holds: the receipt predates every edit of this stage.
 The requirement checker was red on exactly the amendment's seven new ids — `FR-026`, `FR-027`, `FR-028`,
 `FR-029`, `SC-019`, `SC-020`, `SC-021` — which is what this re-cut exists to fix: the coverage table below names
 them now, and `check_tasks_format.py` reports **OK** (48 tasks, 26 done, 15 `[P]`) as of 2026-09-27.
+→ **Superseded 2026-10-01: the checker reports `57 tasks (57 done), 15 [P]` and OK.** It was green again only
+after T034's three fixes (the `Re-cut` notes off the first lines, T055 filled in, the paths added) — the stale
+line above is the reason T034 says "what must not survive is a receipt claiming OK".
 
 **Spike S1 answered (T003): the engine writes RIFF/WAVE, PCM 16-bit mono at 24 kHz, and the duration is in
 the file's own header** (within a millisecond of `ffprobe`), so T014 keeps the shape the plan gave it — no
@@ -302,6 +312,9 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
 - [x] T010 [US1] Implement `lib/video_painter.dart`: paint one frame into a `PictureRecorder` at the plan's
       frame size using the page's own style seam, with the column and its margins, the highlight over the
       slot's sentence, and the title card slot — returning the `ui.Image` and its encoded bytes.
+      **Re-cut 2026-09-29 (T057, D23): the opening title card is withdrawn — the painter has no card branch
+      left** (no centred placement, no `titleLabelScale`, no language-label seam), so what it paints is each
+      slot's own sentence and the end hold, and the video's first frame is the first sentence's.
       **DONE 2026-09-25.** `VideoFrame` carries the image plus the geometry (column, per-line boxes, the
       highlight band and the span it covers, the text actually painted) so both the renderer and the tests
       read one picture's facts; `pngOf` is the same frame's bytes for the encoder. Three decisions worth
@@ -388,6 +401,9 @@ it. The video's *look* (US2) and the file's *life cycle* (US3) come after.
       (the channels, `MediaCodec` AVC fed by its input surface, AAC from the audio files, `MediaMuxer`, the
       working copy, cancellation that deletes it) and register it in
       `android/app/src/main/kotlin/com/example/klhu/MainActivity.kt`
+      **Re-cut 2026-09-29 (T057, D23): the encoder itself is unchanged, but its segment list lost the card's
+      silent segment** — a pre-set render is four segments and 743 frames now, where this task's own numbers
+      below say five and 818.
       **DONE 2026-09-26, and the device proved it on the first try (row 31).** `VideoEncoderPlugin` handles
       `isAvailable` / `startRender` / `sendFrame` / `finishRender` / `cancelRender` on a single-thread
       executor and answers each call only when its work is done — Dart awaits every call, so that one thread
@@ -487,7 +503,8 @@ polished yet, and that is fine.
 ## Phase 4: User Story 2 — The video is good enough to publish (P2)
 
 **Goal**: the video's own layout, at both aspects and at the reader's own typeface and character size, with
-a title card, a settled pace and a legible smallest size.
+a settled pace and a legible smallest size. *(The title card stood here when this phase was cut; it was
+withdrawn on 2026-09-29 — D23, T057.)*
 
 ### Tests for US2 ⚠️ (write first, run RED)
 
@@ -501,6 +518,10 @@ a title card, a settled pace and a legible smallest size.
       aspects" cases measure the withdrawn picture (plan ripple note 7); what survives into T039 is the title
       card (FR-008), the size-ratio case (SC-011) and the legibility floor, now measured against the frame's
       text area. `languageLabelOf` (extracted here into `language.dart`) is untouched and still shared
+      **Re-cut 2026-09-29 (T057, D23): the two card cases are gone from this file** — the case that replaces
+      them paints every slot of the plan and asserts the content's name is in none of them.
+      (The note sits at the end of this row, not at its head, because the row's first line must name the file
+      it touches — `test/video_painter_test.dart` — for the tasks-format checker.)
 
 ### Implementation for US2
 
@@ -520,6 +541,9 @@ a title card, a settled pace and a legible smallest size.
       (they are the frame's own scale, which the amendment kept), but the geometry they were measured against
       — a column of `min(0.88 × width, height)` with a band and a window — is the withdrawn picture: T042
       re-derives the text area from the frame and re-measures the floor there
+      **Re-cut 2026-09-29 (T057, D23): the card and its language label are painted nowhere any more** —
+      `languageLabelOf` has one caller left (the content list) — and the column, the margins and the scale this
+      task fixed are unchanged.
 - [x] T020 [US2] Extend `lib/video_renderer.dart`: the pacing — the constant inter-sentence padding, the
       title card's lead-in and the end hold inside their bounds (the hold lasting at least one frame past
       the last sentence's audio), all in whole frames so the file keeps its constant rate
@@ -530,6 +554,8 @@ a title card, a settled pace and a legible smallest size.
       row 32 needs to know where each picture starts. The hold is folded into the last sentence's run, so a
       run covers that sentence's frames *and* the hold — the file's last picture outlives the last audio by
       the hold's own 60 frames (row 31: 642 AAC frames over 27.4 s vs 818 video frames over 27.27 s).
+      **Re-cut 2026-09-29 (T057, D23): the lead-in is gone with the card, so FR-016's lead-in bound is
+      vacuous** and the bounds this task fixed are the gap's and the hold's alone.
 - [x] T021 [US2] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` row
       32 (quickstart 32): a frame extracted at every slot's start, middle and end showing that slot's
       sentence highlighted inside the column with margins and no chrome anywhere, and the page's captured
@@ -624,7 +650,7 @@ warns first.
       the *working copy's* path over and writes nothing, `throwAway()` deletes it. The "leaving undecided"
       case is the absence of any write: the page calls `throwAway()` on the way out, and the review itself
       never writes the store outside `keep`.
-- [ ] T026 [US3] Implement `android/app/src/main/kotlin/com/example/klhu/VideoFileStore.kt` and its manifest
+- [x] T026 [US3] Implement `android/app/src/main/kotlin/com/example/klhu/VideoFileStore.kt` and its manifest
       entries: keeping through `MediaStore` on API 29+ and the public Movies directory plus a media scan
       below (with `WRITE_EXTERNAL_STORAGE` capped at `maxSdkVersion="28"`), the `FileProvider` entry and
       paths resource for sharing a working copy, the share intent, deletion, existence, and availability
@@ -650,7 +676,14 @@ warns first.
       storage permission is *asked* on the first keep and that keep fails with the reason, so an old device
       needs a second tap (a request-and-wait flow was not built); (2) the legacy path cannot be exercised at
       all on this API 36 emulator, so `keepInMovies` is written from the contract and untested here
-- [ ] T027 [US3] Implement `android/app/src/main/kotlin/com/example/klhu/VideoPlayerView.kt` and register it:
+      **CLOSED 2026-10-01 — the three calls it could not reach ran on the device** (row 33, with the two
+      player steps enabled): `share` handed the kept file to the phone's own chooser (`['Sharing 1 file',
+      'Quick Share', 'Drive', 'Maps', 'Messages', 'Photos', …]`) and changed neither the album nor the library;
+      `delete` answered behind its warning — Cancel deleted nothing, confirming removed the file from
+      `Movies/Klhu/` **and** its MediaStore entry, which is what `exists` then reported; and the content offered
+      to record again, with play and delete gone. `isAvailable` and `keep` were already green (same row). Still
+      unexercised, and stated as such: the below-API-29 `keepInMovies` path, which this emulator cannot run.
+- [x] T027 [US3] Implement `android/app/src/main/kotlin/com/example/klhu/VideoPlayerView.kt` and register it:
       the platform view over the framework's own player with its transport controls, per
       `contracts/video-player-protocol.md`, refusing anything that is not a local file
       — **PART DONE 2026-09-27 (updated the same day, second pass)**: the view is **on the screen** — the
@@ -673,7 +706,15 @@ warns first.
       id, so the per-view shape does not exist; a `stop` with nothing showing is a no-op and answers. **What
       is NOT proven**: nothing has played. The 15 page rows use a fake player, so the view appearing on a
       device at all is T030's and T048's to show
-- [ ] T028 [US3] Implement `lib/platform/video_player.dart`: the Dart side of the playback view (the widget
+      **CLOSED 2026-10-01 — playback itself is proven on the device at last.** Row 33's two player steps ran with
+      `KLHU_SKIP_PLAY` unset: the review's own picture played (`AudioPlaybackConfiguration … u/pid:10216/4565
+      state:started … sampleRate=24000` — the render's own audio, and no `MediaPlayer`/`IllegalState` line in
+      logcat) and the kept video played the same way from the gallery's own entry. The container is the
+      **`TextureView`** T055 introduced. What is still not exercised, and said rather than glossed: pause and
+      seek, and the tap that raises the transport bar is still driven blind — Flutter's accessibility tree stops
+      at the platform view's edge, so the row reaches the control by where the layout says it is (see
+      `play_in_view`).
+- [x] T028 [US3] Implement `lib/platform/video_player.dart`: the Dart side of the playback view (the widget
       and its channel), used by the review and by a kept video's playback
       — **PART DONE 2026-09-26 — and only this**: the module exists and compiles — the `VideoPlayer` seam
       (`view(context, source)` + `stop()`), its `PlatformVideoPlayer` over `AndroidView`
@@ -684,6 +725,10 @@ warns first.
       as stop, but the transport belongs to the platform view's own controls (the contract says so itself),
       so only `stop()` is exposed in Dart — the page's one decision about playback is to release it when the
       review is left. The other four would be surface with no consumer.
+      **CLOSED 2026-10-01**: the consumer this row was waiting for is the review T029 wired, and row 33 drove it
+      end to end — the picture on screen during the review is the app's own surface, and tapping where the
+      platform's transport bar sits starts a real player (both player steps pass in the closing run). The four transport methods
+      stay out of Dart: the platform's own controls own the transport, which is the decision this row recorded.
 - [x] T029 [US3] Wire the file's life into `lib/reading_view.dart`: the REVIEW state (the player, keep,
       throw away, share), the kept-video actions on the page (play, share, delete-with-its-warning), the
       stale-video message, and the content offering to record again after a deletion
@@ -694,7 +739,7 @@ warns first.
       (share `:1685`, delete `:1690`). Evidence: `flutter test --concurrency=2` → **395 passing, 0 failing**,
       which includes `reading_view_video_test.dart`'s ten review cases that T023 wrote RED; `flutter analyze`
       clean. What T029 does **not** cover and T030 still owns: nothing here is exercised on the device.
-- [ ] T030 [US3] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` row
+- [x] T030 [US3] Device walk on `emulator-5554` per `specs/012-reading-video/scripts/klhu_walk_video.py` row
       33 (quickstart 33): play the review before keeping, throw one away and keep another, find it in the
       gallery under the content's name, share it through the phone's list, delete it behind the warning, and
       find it gone with the content offering to record again
@@ -743,6 +788,18 @@ warns first.
       now refuses to walk when the device's app is older than the APK on disk. **To finish**: chase the share
       (with the raw-tree print), and run the two playback steps on a machine that can hold the emulator
       through them
+      **CLOSED 2026-10-01 — 44/44 checks, with both player steps enabled** (no `KLHU_SKIP_PLAY`;
+      `python3 specs/012-reading-video/scripts/klhu_walk_video.py 33`). The whole life in one run: the gallery
+      starts empty; the prompt opens with its pictures step; the render runs and reports itself; the review
+      offers its three decisions over a surface of its own; **the review's video plays**; the throw-away leaves
+      the gallery untouched and the page saying `Video not saved`; a second render is **kept** — the record names
+      it for the content (`The sun rose over the q….mp4` against the render's own `klhu_video.mp4`), the file is
+      in `Movies/Klhu/`, its bytes are the render's own (1173771 B) and it probes as H.264/AAC 1920×1080 30 fps
+      with exactly the plan's 743 frames; **it plays again from the gallery's own entry**; the share sheet is the
+      phone's own and sharing adds and removes nothing; the delete warns, Cancel deletes nothing, and confirming
+      empties album and library and leaves the content offering to record again. The emulator held through both
+      player steps this time (the box was idle, and the T055 `TextureView` is the lighter container); the escape
+      hatch stays for the runs where it does not. Receipt: [breakpoint.md](./breakpoint.md) rows 33 and 34.
 
 **Checkpoint**: all three stories are independently demonstrable, and the file's whole life — working copy,
 kept, shared, deleted — is exercised on the device.
@@ -751,28 +808,95 @@ kept, shared, deleted — is exercised on the device.
 
 ## Phase 6: Polish & cross-cutting concerns
 
-- [ ] T031 [P] Commit the walk driver `specs/012-reading-video/scripts/klhu_walk_video.py` (rows 31–36, plus
+- [x] T031 [P] Commit the walk driver `specs/012-reading-video/scripts/klhu_walk_video.py` (rows 31–36, plus
       rows 41, 42 and 49 from the 2026-09-26 amendment, one function per row, argv dispatch,
       `RESULT: PASS|FAIL`, importing 010's device helpers) and record every row with its evidence and
       divergences in `specs/012-reading-video/breakpoint.md`
-- [ ] T032 [P] Run spike S2 per `specs/012-reading-video/quickstart.md` row 36 and replace the placeholder in
+      **DONE 2026-10-01** — the driver is in the tree with eight rows (31, 32, 33, 34, 36, 49 plus hooks for the
+      spikes 41 and 42), one function per row, `RESULT: PASS|FAIL`, importing 010's device helpers. The two
+      spike rows never needed a function: their answers are measurements, and they live in `breakpoint.md` rows
+      41–42, which is what this row's own text allows. Two defects in the driver were found by walking it and
+      fixed: `adb shell` joins its arguments with spaces and adds no quotes, so a `cat > <path>` redirection ran
+      in the **outer** shell and the first row-33 run silently measured the app's own pre-set text rather than
+      the content it pushed (every device command is now one whole string); and the picture dialog does not open
+      on a folder — it opens on Files' own `Images` root with no folder rows in it — so row 49 now walks
+      roots → storage root → `Pictures/klhu_walk` → the file, the path the reader takes, instead of looking for
+      the file in the dialog's "Recent" view.
+- [x] T032 [P] Run spike S2 per `specs/012-reading-video/quickstart.md` row 36 and replace the placeholder in
       `specs/012-reading-video/spec.md`: measure a one-minute render end to end on the reference device (wall
       time, frames per second, which side is the bottleneck) and put the measured number into SC-006 and into
       quickstart row 36 — the spec keeps ≤ 5 minutes only until this runs. *The amendment changed the economy
       this number is measured on*: a frame is now produced per sentence (and per line step of a tall one)
       rather than per repaint of the page, and painting a picture under it adds one image decode per range —
       the measurement stands, the shape it measures does not
-- [ ] T033 [P] Update `README.md`: the 012 row in the spec index (drop any "spec only" wording) and the note
+      **DONE 2026-10-01 — S2 ran on `emulator-5554` and the placeholder is gone.** A 17-sentence content rendered
+      as a 1080p30 video of **69.3 s over 2078 frames** (one frame per sentence plus its hold) in **63 s of wall
+      clock — 0.9× real time, 33 frames per second**. The bottleneck is the **encoder side**: `send` (the
+      texture's frames into `MediaCodec`) 49.6 s of the 63, `synth` (the audio mix) 2.1 s, and Dart's painting of
+      all 2078 pictures **0.18 s** — a fraction of a percent, which is the answer FR-021's shape needed. The
+      renderer gained the evidence line that says so, once per render: `klhu render time synth=… paint=… send=…
+      total=… finish=…`. `spec.md`'s SC-006 and quickstart row 36 carry the measured number; the ≤ 5 minutes the
+      spec kept "only until this runs" is retired.
+- [x] T033 [P] Update `README.md`: the 012 row in the spec index (drop any "spec only" wording) and the note
       that this is the repository's first feature with a platform-specific half
-- [ ] T034 Tick the boxes in `specs/012-reading-video/tasks.md`, recording every deviation from this list
+      **DONE 2026-10-01**: the spec index carries 012 with what it makes, the Features section has its `Video`
+      entry, and `### Reading video (012)` is the developer's entry — the walk commands, the evidence to read
+      (`klhu render`, `klhu render time`, `AudioPlaybackConfiguration`, `Movies/Klhu/`), the two traps
+      (`--concurrency=2` with the emulator up; where the file dialog lands) and the sentence this row asked for:
+      the frames are Dart, the encoder and the player are Kotlin, and that half is the first of its kind here.
+      The walk-driver list now counts 012's script.
+- [x] T034 Tick the boxes in `specs/012-reading-video/tasks.md`, recording every deviation from this list
       inline beside the task it belongs to (a divergence found is written down where it was found) — including
-      the 2026-09-26 amendment's re-cut, whose tasks (T036–T048) are appended rather than renumbered
-- [ ] T035 Run the structural rows in `specs/012-reading-video/quickstart.md` (37–40) and write the final
+      the 2026-09-26 amendment's re-cut, whose tasks (T036–T048) are appended rather than renumbered — and with
+      it **the task-format receipt**: the line at the head of this file's conventions says
+      `check_tasks_format.py` reports **OK (48 tasks, 26 done, 15 `[P]`) as of 2026-09-27**, which is now false
+      (56 tasks, 47 done), and the same checker reports two problems that pre-date that line — a gap in the id
+      sequence (no T055) and the first lines of T049–T057 naming no file path. Either bring the file into the
+      checker's shape or record why each stands; what must not survive is a receipt claiming OK. (Found
+      2026-09-29 while re-cutting row 32; the checker's own output is quoted in the run below.)
+      **DONE 2026-10-01 — the checker is OK and every box is ticked.** `check_tasks_format.py
+      specs/012-reading-video` prints `57 tasks (57 done), 15 marked [P]` / `[US1]: 14  [US2]: 11  [US3]: 9
+      [US4]: 15` / `OK: format, sequencing and spec-id coverage check out`. Three things had to change to get
+      there, each recorded in the row it touched: the twelve `Re-cut` notes moved off their rows' first lines
+      (a first line must name the file the task touches, and those rows now carry their path there); the missing
+      id was **filled, not renumbered** — the 2026-09-28 `TextureView` work the coverage table's `FR-021` already
+      called **T055** was split out of T056, which is now the frame's own look alone; and T049–T054 and T057
+      gained the paths of the files they change. The head of this file's conventions carries the corrected
+      receipt.
+- [x] T035 Run the structural rows in `specs/012-reading-video/quickstart.md` (37–40) and write the final
       report: quickstart 37 (`file_selector` is the one dependency added, on the reader's file-picker decision),
       38 (four ARBs, the picture keys included), 39 (the content delete still warns) and 40 (011's receipt still
       green, with its `android/`-is-empty row scoped to 011), then report what shipped, the receipt, the
       measured S2 number, the measured scrim depth and contrast (S4), and — restated, not buried — the iOS gap
       and the pre-existing platform-floor gap
+      **DONE 2026-10-01 — rows 37–40 all pass, and here is the report.**
+      *Row 37 (one dependency)*: `pubspec.yaml` gained **`file_selector`** and nothing else; `pubspec.lock`
+      gained its platform packages (`file_selector_android/ios/linux/macos/web/windows`, `cross_file`, `http`,
+      `http_parser`); `android/app/build.gradle.kts` and `android/settings.gradle.kts` are untouched by this
+      feature. No other new package, no network client of ours.
+      *Row 38 (four ARBs)*: `flutter test test/l10n_keys_test.dart` green and `git status --short lib/l10n`
+      empty — the four ARBs and the generated `l10n.dart` agree both ways.
+      *Row 39 (the content delete still warns)*: `test/video_record_test.dart` green, and the walk's first steps
+      show the dialog itself.
+      *Row 40 (011's receipt still green)*: 011's rows 7, 8, 9, 10, 16 and 17 all PASS on the current build; its
+      `android/`-is-empty row is 011's own and is not re-run here (this feature changes `android/` by design).
+      *Receipt*: `flutter analyze` clean; `flutter test --concurrency=2` **439 passing, 0 failing**; rows 31
+      (33/33), 32 (42/42), 33 (**44/44, playback included**), 34 (26/26), 36 (27/27), 49 (41/41) on
+      `emulator-5554`; 011's receipt rows above.
+      *What ships*: the reader picks pictures from the phone before a render; a render is a real H.264/AAC MP4
+      written on the device, played in the review and playable after it is kept, found in the phone's gallery
+      under the content's name, shareable and deletable; and the picture itself — words at the bottom over the
+      picture with the tone's own scrim, no title card.
+      *The S2 number*: 63 s of wall clock for 69.3 s / 2078 frames of 1080p30 — 0.9× real time — with 96 % of it
+      in the encoder's own `send`, and Dart's painting at 0.18 s.
+      *S4*: the scrim's depth and contrast are measured and carried in `research.md` (55 % of the picture's
+      own background colour at D16) and asserted by the painter's own tests.
+      *Not claimed — the two gaps, restated*: **(1) iOS.** `isAvailable` answers false and the entry points
+      refuse with `ENGINE_UNAVAILABLE`; there is no encoder, no player view and no file store for iOS, so the
+      feature does not exist there rather than existing badly. **(2) The platform floor.** This feature needs
+      API 29+ for `MediaStore`-based keeping (the app declares 24, and the below-29 path is written but cannot
+      be exercised on this API 36 emulator). Both are pre-existing shapes the spec inherited, not consequences
+      of this work.
 ---
 
 ## Phase 7: The amended picture (2026-09-26) — US2's rewrite and US4's pictures
@@ -886,6 +1010,9 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       so this file asserts what a unit can: every copy is written inside the working directory and nowhere else,
       which is the only thing the renderer's own delete reaches. Written down here rather than left as a row that
       overclaims)
+      **Re-cut 2026-09-29 (T057, D23): the schedule's own case now starts at the video's frame 0** — the first
+      picture's range begins where the first sentence does, because there is no card's worth of plain
+      background before it.
 - [x] T041 [P] [US4] Extend `test/reading_view_video_test.dart` from quickstart 47: the page names how many
       pictures are chosen and lets the reader choose again, the render starts only on the reader's own confirm,
       and choosing none still renders the plain-background video — *added 2026-09-26 with the amended picture*.
@@ -926,6 +1053,9 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       cases became these 17). **What this row does not yet deliver**: the renderer still paints one picture per
       slot, so a tall sentence's scroll does not appear in the rendered video until T046 splits a sentence's run
       into one picture per line step — `progress` is the seam and nothing passes it yet)
+      **Re-cut 2026-09-29 (T057, D23): the card's centred branch went with the rest of the old picture** — the
+      painter has one placement rule now (a fitting block at the bottom, a taller one stepping down from the
+      top) and no frame of the video is centred.
 - [x] T043 [US4] Implement `lib/video_pictures.dart`: the schedule builder (equal shares of the plan's
       **sentences** in the order chosen, each picture's **inclusive** start and end frame, no boundary inside a
       sentence — FR-026, *re-cut 2026-09-27 to the reader's rule*), the copies of the picks into the
@@ -1057,6 +1187,14 @@ in `## Dependencies & ordering` so the numbering cannot be read as the build ord
       instead of failing, and a **still of the page at that moment** (`screencap()`, `$KLHU_OUT/*_told.png`) is
       kept for every render of every row. Receipts: [breakpoint.md](./breakpoint.md) rows 31, 32 and the rows
       33/34 section.
+      **Advanced 2026-10-01 — the skipped half is now walked.** Row 33 ran **44/44 with both player steps
+      enabled** (no `KLHU_SKIP_PLAY`): the review's video played and the kept video played from the gallery's own
+      entry (the third point of this row's own list — "play it from the gallery" — had never actually run before
+      today; the earlier session proved playback, then lost the emulator to it, and every run since skipped the
+      steps). Row 49 ran **41/41** on top of the driver's corrected dialog walk (T031's receipt: the dialog opens
+      on Files' `Images` root, not on a folder), and row 36's spike ran **27/27** for the first time. What this
+      row still does not cover, unchanged and stated: the scroll case (no sentence of the pre-set is long enough
+      to scroll at either aspect), pause and seek, and the below-29 keep path.
 
 **Checkpoint**: US2's amended frame and US4 are complete and independently demonstrable — a reader picks
 pictures from their own files (the file dialog browses folders; the app ships no images), the video carries
@@ -1154,7 +1292,8 @@ limit. keep all 30 images for now. user can delete images.", then "1. (2) 选图
 文件读 2. 图多于句子时：show error message! force user to remove images. 3. OK." The new work takes the next
 numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut changes are named in its receipt.*
 
-- [x] T049 [US4] Store every pick at the pick (FR-025, D18, SC-024): `HeldPicture` becomes **name + path** —
+- [x] T049 [US4] Store every pick at the pick — `lib/video_pictures.dart`, `lib/reading_view.dart` (FR-025, D18,
+      SC-024): `HeldPicture` becomes **name + path** —
       the file the app wrote it into — and `storePicks` reads each pick once, while the picker's own read grant
       is alive, writing `pick_<i>_<safe name>` inside a directory of the app's own; the page's thumbnails are
       `Image.file` of those files (still bounded by `cacheWidth`) and the renderer **copies** them into its own
@@ -1170,14 +1309,16 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       passing, 0 failing**. **The trap this row paid for**: in the test the thumbnails' provider is a
       `ResizeImage` wrapping the `FileImage` (the decode bound), so an assertion that casts to `FileImage` fails
       on a *correct* implementation — the re-cut's rows unwrap it))
-- [x] T050 [US4] Withdraw the cap (FR-025, SC-022): delete `maxPictures`, the refusal branch and
+- [x] T050 [US4] Withdraw the cap — `lib/video_pictures.dart`, `lib/video_painter.dart` and the four
+      `lib/l10n/app_*.arb` (FR-025, SC-022): delete `maxPictures`, the refusal branch and
       `refusedCount`, and let `mergePicks` be a pure append; delete the l10n key that named the cap from all four
       ARB files and re-run `gen-l10n`. Every picture chosen is kept, and the only way one leaves is FR-030's
       remove. (DONE 2026-09-28 — the reader's own words are the receipt: "remove max 20 images limit. keep all 30
       images for now. user can delete images." Rows: a second pick adds to the first; 12 + 12 = 24 pictures on
       the page, one cell each, in the order chosen, with the count the sum. Analysis clean; suite green.)
-- [x] T051 [US4] **Re-cut 2026-09-28, by the reader's own phone test: a choice larger than the video's
-      sentences is silent and startable** (FR-026, SC-022): delete the count the prompt resolved
+- [x] T051 [US4] `lib/reading_view.dart` and the four `lib/l10n/app_*.arb`: a choice larger than the video's
+      sentences is silent and startable (FR-026, SC-022) — **re-cut 2026-09-28, by the reader's own phone
+      test**: delete the count the prompt resolved
       (`videoSentencesFrom` and the `sentenceCount` it fed), the overshoot message and its l10n key from all four
       ARBs, and the disabled Start — the prompt opens on the remembered aspect and says nothing more. A picture
       that found no sentence is simply not drawn, which is what the schedule always did with one.
@@ -1194,7 +1335,8 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       the file's own `letWorkRun` (real event loop) is now what opens the prompt and what lands the storing, with
       the wait written as "the pictures the picker handed over are the pictures on screen" rather than a count of
       pumps. Analysis clean; suite **438 passing, 0 failing**.)
-- [x] T052 [US4] Show the chosen pictures in a window two rows tall that scrolls (FR-030, SC-023): the cells
+- [x] T052 [US4] `lib/reading_view.dart`: show the chosen pictures in a window two rows tall that scrolls
+      (FR-030, SC-023): the cells
       live in a `ConstrainedBox(maxHeight: 152)` around a `SingleChildScrollView` (keyed `video picture
       window`, so the page and its tests can measure and drive it), so thirty pictures are one scroll rather than
       a dialog taller than the screen, and the window's own l10n key says the pictures can be reordered. The
@@ -1205,7 +1347,8 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       reader's own phone the same day** ("小窗口滚动、works"), with the wording and the drag's reach changed as a
       result (T051, T054) Rows: 24 cells are on the page while the window measures its own height, and the window's scroll
       extent is **greater than** its height — the cells do not all fit, which is what the window is for.)
-- [x] T053 [US2] Read the plate's tone over the band the words cover (FR-027, D16's second amendment): the
+- [x] T053 [US2] `lib/video_painter.dart`: read the plate's tone over the band the words cover
+      (FR-027, D16's second amendment): the
       painter lays the text out first, maps each painted line's box back onto the picture's pixels, and reads the
       tone **band by band** (a shared sample budget; the picture's pixels converted once) instead of over the
       whole picture — so a dark photograph whose sentence sits under a bright sky is plated for the strip behind
@@ -1216,7 +1359,7 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       bright band plates light; the band's own pixels are the evidence, not the whole picture's average. One real
       defect found on the way: an out-of-range band indexed past the pixel array — fixed by checking the band's
       own width/height before its area.)
-- [x] T054 [US4] Let the reader set the order (FR-032, D19, SC-025): holding a picture's own cell and dropping
+- [x] T054 [US4] `lib/reading_view.dart`: let the reader set the order (FR-032, D19, SC-025): holding a picture's own cell and dropping
       it on another picture's cell puts it where it was dropped, the others keeping their places; the cells' order
       is the order the video draws (FR-026), a drop on the picture's own cell changes nothing, and the copy tells
       the reader the order can be changed. (DONE 2026-09-28 — `MovableThumbnail` (`DragTarget` around
@@ -1243,8 +1386,31 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       whole cell draggable, and the reviewer's point to accept or reject. `flutter analyze` clean; suite **438
       passing, 0 failing**.)
 
-- [x] T056 [US2] The frame's own look, by the reader's two requests of 2026-09-28 (FR-014, FR-029, D22, D6's
-      amendment): **move the text block from the top to the bottom** of the text area, and **make a line 1.4×
+- [x] T055 [US2] `android/app/src/main/kotlin/com/example/klhu/VideoPlayerView.kt`: the review's picture is a
+      picture rather than a black surface — replace the `VideoView` with a `TextureView` whose surface is handed
+      to the platform's own player (D20, FR-021), so the video the reader watches before keeping it draws. The
+      view type, the channel, its five methods, rules 1–5 and the seam above them are unchanged: what changes is
+      the container, and with it two things a `VideoView` did for itself — the video's own shape inside the box
+      the page gives it (letterboxed, never stretched) and the transport bar appearing on a tap. (DONE
+      2026-09-28 — a scratch probe first, because the cause had to be *seen* rather than argued: two temporary
+      platform views side by side over one `ffmpeg` `testsrc` clip pushed into the app's own private directory,
+      one screenshot read pixel by pixel. The shipped `VideoView` measured **0.98 of its picture area below luma
+      30, saturation 0, 2 distinct colours** — the reader's black picture, reproduced on `emulator-5554` — while
+      `TextureView` + `MediaPlayer` measured 10 % dark, saturation 255, 273 colours. The view was then rewritten
+      (`MediaPlayer` prepared **after** its surface exists; `fitPicture` letterboxing on the texture;
+      `MediaController` still driving play/pause/seek through `MediaController.MediaPlayerControl`, so D12's "no
+      scrubber of ours" holds and no dependency is added) and measured again through the shipping Dart seam:
+      **10 % dark, saturation 235, 189 colours**. The probe's two files (`ProbePlayerViews.kt`,
+      `lib/probe_main.dart`) were deleted and `MainActivity` restored. `flutter analyze` clean; suite **438
+      passing, 0 failing**; `breakpoint.md` row 54 holds the numbers — and the half this repo could not reach,
+      the **reader's own phone**, reported the next thing to be said: the fixed APK on their **LE2115** — the
+      device the black picture came from — plays, their own words "play button works on my LE2115 phone."
+      **Closed on this repo's own device 2026-10-01**: row 33 walked the review end to end with its two player
+      steps enabled — `MediaPlayer` started with no error logged and the kept video played from the gallery's own
+      entry (44/44 checks). What is still not claimed: pause and seek were not exercised.)
+- [x] T056 [US2] `lib/video_painter.dart`: the frame's own look, by the reader's two requests of 2026-09-28
+      (FR-014, FR-029, D22, D6's amendment): **move the text block from the top to the bottom** of the text
+      area, and **make a line 1.4×
       the reader's own reading column** so a sentence needs fewer of them. One constant decides the line
       (`lineLengthGain`): the column's height bound is that multiple of the frame's height and the letters divide
       by it, so the extra width is more words rather than bigger ones; where the column cannot grow (a 9:16
@@ -1268,27 +1434,11 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       off the file's pixels by row 49, which now checks that placement on every range. Six painter tests were
       re-cut to the new geometry (the column rule read from the constants, the fit case's bottom, the margins'
       floor, and the two D16 fixtures whose bands moved to where the words now are). `flutter analyze` clean;
-      suite **440 passing, 0 failing**; row 49 **40/40, exit 0**.) replace the `VideoView` with a `TextureView` whose surface is handed
-      to the platform's own player (D20), so the video the reader watches before keeping it is a picture rather
-      than a black rectangle — the reader's own report from the phone ("video player is not working in phone. only
-      show a black view. click play button, not playing."). The view type, the channel, its five methods, rules
-      1–5 and the seam above them are unchanged: what changes is the container, and with it two things a
-      `VideoView` did for itself — the video's own shape inside the box the page gives it (letterboxed, never
-      stretched) and the transport bar appearing on a tap. (DONE 2026-09-28 — a scratch probe first, because the
-      cause had to be *seen* rather than argued: two temporary platform views side by side over one `ffmpeg`
-      `testsrc` clip pushed into the app's own private directory, one screenshot read pixel by pixel. The shipped
-      `VideoView` measured **0.98 of its picture area below luma 30, saturation 0, 2 distinct colours** — the
-      reader's black picture, reproduced on `emulator-5554` — while `TextureView` + `MediaPlayer` measured 10 %
-      dark, saturation 255, 273 colours. The view was then rewritten (`MediaPlayer` prepared **after** its surface
-      exists; `fitPicture` letterboxing on the texture; `MediaController` still driving play/pause/seek through
-      `MediaController.MediaPlayerControl`, so D12's "no scrubber of ours" holds and no dependency is added) and
-      measured again through the shipping Dart seam: **10 % dark, saturation 235, 189 colours**. The probe's two
-      files (`ProbePlayerViews.kt`, `lib/probe_main.dart`) were deleted and `MainActivity` restored. `flutter
-      analyze` clean; suite **438 passing, 0 failing**; `breakpoint.md` row 54 holds the numbers — and the half
-      this repo could not reach, the **reader's own phone**, reported the next thing to be said: the fixed APK on
-      their **LE2115** — the device the black picture came from — plays, their own words "play button works on my LE2115 phone." **What is
-      not claimed**: this repo's own driver has not walked the review end to end on a device after the fix, and
-      pause/seek were not exercised.)
+      suite **440 passing, 0 failing**; row 49 **40/40, exit 0**.
+      **Split 2026-10-01 (T034): this row used to carry the player view's rewrite as well** — the 2026-09-28
+      TextureView work, which the tasks-format checker's own id sequence and the coverage table's `FR-021` already
+      called **T055**. The two are separate artifacts (a Kotlin view and the painter) and are now separate rows;
+      nothing was renumbered, the missing id was filled in.)
 
 *The device half is still open for all six: no emulator or phone walk has driven the stored picks, the sentence
 bound, the window's scroll or the hold-and-drop yet. `scripts/klhu_walk_video.py` needs the new steps before that
@@ -1298,7 +1448,8 @@ walk can be run.*
 
 ## Phase 9 — the 2026-09-29 amendment (the opening title frame is withdrawn)
 
-- [x] T057 [US2] Withdraw the opening title card (FR-008's amendment, D23): the reader's own request, made
+- [x] T057 [US2] `lib/video_painter.dart`, `lib/video_timeline.dart`, `lib/video_renderer.dart`,
+      `lib/reading_view.dart`: withdraw the opening title card (FR-008's amendment, D23) — the reader's own request, made
       while watching the two renders of 2026-09-28 — *"I want to remove the first title frame. and don't show
       the title in the top of 16:9 video."* The card is **deleted, not hidden**: the video opens on its first
       spoken sentence, and no frame of either aspect carries the content's name or its language.
@@ -1307,9 +1458,12 @@ walk can be run.*
       name-over-language layout — and its `languageLabel` seam; `VideoRenderer.title` and
       `VideoRenderer.languageLabel`; and `reading_view`'s two arguments to it. The end hold and every other
       2026-09-28 look (the bottom-anchored block, the 1.4× line, the plate over the band the words cover) are
-      untouched. **This supersedes the parts of T010, T018, T019, T020, T036 and T042 that describe the card as
-      the design or test it as such** — those tasks stay as the record of what was built then; what the code
-      holds now is this task's shape.
+      untouched. **This supersedes the parts of T010, T015, T018, T019, T020, T040 and T042 that describe the
+      card as the design or test it as such, and Phase 4's goal line** — each of those now carries a dated
+      `Re-cut 2026-09-29` prefix, and they stay as the record of what was built then; what the code holds now
+      is this task's shape. (The list first named T036 and left out T015/T040: T036 is the ARB-keys task and
+      never mentioned the card, while those two do. T021's two card sentences are that row's own historical
+      evidence of the encoder bug and it is already marked superseded, so it stands as written.)
       The unit suite followed rather than being emptied around the change: the plan's own case asserts **no
       slot is a card** and that the video opens on sentence 0 at frame 0 (FR-016's lead-in bound is now
       vacuous); the painter's two card cases became one that paints **every** slot and finds the name in none;
@@ -1327,6 +1481,15 @@ walk can be run.*
       `Video made: klhu_video.mp4 (25 s)`. Row 32 **41/41** (both aspects, 8 slots for 8 sentences, every
       sentence's frame carrying its own text alone and every glyph box at the column's bottom), row 49
       **41/41**, rows 33 and 34 unchanged and green.)
+      **The cover, settled the same day**: the reader asked whether what they had seen "at the top" was the
+      video's cover and whether it carried the content's name — it was and it did, because the app writes no
+      cover and the phone derives it from the file's first frame, which was the card. Their decision for now —
+      *"use the first image as the video's cover image"* — is what this task already gives, and nothing was
+      built for it: with pictures chosen, frame 0 is the first picture with the first sentence's words at its
+      bottom (measured off the device's own file: `(253,253,253)` above the words, 438 dark samples in the
+      words' band against 6283 white); with none chosen there is no image and the cover is the app's own
+      background. A wordless cover slot was put to the reader with its cost and declined for now (D23's cover
+      paragraph has the numbers and the reasoning).
 
 ## Requirement coverage
 

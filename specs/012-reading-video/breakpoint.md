@@ -1,6 +1,7 @@
 # Device validation: Reading Video (012)
 
-**Feature**: `012-reading-video` | **Date**: 2026-09-25 (in progress)
+**Feature**: `012-reading-video` | **Date**: 2026-09-25 → **2026-10-01 (closed; every row below is walked,
+`[unit]` or reported as a stated gap)**
 **Quickstart**: [quickstart.md](./quickstart.md) | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Tasks**: [tasks.md](./tasks.md)
 
 ## Environment
@@ -8,8 +9,8 @@
 | | |
 |---|---|
 | Device | `emulator-5554` (AVD `klhu`, API 36, `sdk_gphone64_x86_64`, 1080×2400), package `com.example.klhu` |
-| Build | `flutter analyze` clean; `flutter test --concurrency=2` → **438 passing, 0 failing** (2026-09-28 host run after Phase 8; 395 on 2026-09-27 with the emulator up, 372 on 2026-09-26, 360 after US1, 301 at T002's baseline on `54ff4f3 "specs/011"`) |
-| Driver | `specs/012-reading-video/scripts/klhu_walk_video.py` — rows 31, 32 and 34 walked below; rows 33/35/36 are T030–T032's |
+| Build | `flutter analyze` clean; `flutter test --concurrency=2` → **439 passing, 0 failing** (2026-10-01, the closing run; 438 on 2026-09-28 after Phase 8, 395 on 2026-09-27 with the emulator up, 372 on 2026-09-26, 360 after US1, 301 at T002's baseline on `54ff4f3 "specs/011"`) |
+| Driver | `specs/012-reading-video/scripts/klhu_walk_video.py` — rows **31, 32, 33, 34, 36 and 49** walked below; rows 41 and 42 are the spikes' own probes (`probe_picker.dart`, `probe_scrim.dart`), whose answers are recorded here |
 | Spike S1 | `specs/012-reading-video/scripts/probe_synthesize.dart` — run on the device, read back with `adb shell run-as com.example.klhu cat /data/data/com.example.klhu/cache/s1_report.txt`, audio pulled with `adb exec-out run-as … cat …/s1_<case>.wav` and analysed with the host's `/usr/bin/ffprobe` |
 | Engine | Google TTS (`com.google.android.tts`), 472 voices installed; `logcat` tag `GoogleTTSServiceImpl` says which voice actually spoke |
 
@@ -31,19 +32,28 @@ row **49** (a render with the reader's own pictures) is the device row still ope
 the reader's own pictures) were both walked and pass, and their receipts are in their own sections below. The
 paragraph above was written when they were still pending and has not been rewritten to say so.)*
 
+*(2026-10-01 — **closed.** The last two open things are closed in the sections at the end of this file: row 33
+ran again **with its two playback steps enabled** — the steps every earlier run skipped, and the reason
+T027 still said "nothing has played" — and row **36 (spike S2) ran (27/27)**, so SC-006's ≤ 5 minute placeholder
+is replaced by a measured number. Rows 31, 32, 34 and 49 were re-run the same day: 33/33, 42/42, 26/26 and
+41/41. The suite is **439 passing** and `flutter analyze` is clean. What is *not* covered is named at the end
+too — the scroll case (no sentence is long enough at either aspect), pause/seek, the below-API-29 keep path and
+iOS — because a closed file that hides its gaps is worse than an open one that states them.)*
+
 ## Validation results
 
 | # | Scenario | State | Evidence |
 |---|---|---|---|
 | 31 | A real render produces a real video (landscape, then vertical, `ffprobe`) | **WALKED — PASS** | **31/31** checks, both files pulled and probed (below) |
-| 32 | The video's own look, frame by frame: the band per slot, the column, no chrome (both aspects) | **WALKED — PASS** | **30/30** checks; 818/818 frames each aspect, 27/27 at full size (below) |
-| 34 | A confirmed Stop at about half way cleans up and leaves the library alone | **WALKED — PASS** | **25/25** checks (below) |
+| 32 | The video's own look, frame by frame: the band per slot, the column, no chrome (both aspects) | **WALKED — PASS** | **42/42** checks on the amended line (2026-10-01); 818/818 frames each aspect (below) |
+| 33 | The file's life: kept where the galleries look, shared, deleted, and **played** | **WALKED — PASS** | **44/44** checks, both playback steps enabled (2026-10-01, below; the run before it 45/45 — the one check that moves is the SnackBar catch) |
+| 34 | A confirmed Stop at about half way cleans up and leaves the library alone | **WALKED — PASS** | **26/26** checks (2026-10-01 re-run, below) |
 | 35 | Spike S1: does the engine write a usable audio file, and does it carry its own length? | **WALKED — PASS** | Three cases, one engine, one run (below) |
-| 36 | Spike S2: a one-minute render's wall time, which replaces SC-006's placeholder | **PENDING** | a render exists (row 31: 21 s for 27.27 s of video); T032 owns the measurement |
-| 41 | Spike S3: what the phone's own picker gives back (D15) | **BLOCKED** | nothing to pick — the emulator's `/sdcard/DCIM` and `/sdcard/Pictures` are empty — and nothing that opens a picker yet (T044/T045 are what it gates); see below |
+| 36 | Spike S2: a one-minute render's wall time, which replaces SC-006's placeholder | **WALKED — PASS** | **27/27** checks; measured **60.6 s** wall for 69.3 s / 2078 frames, encoder path 47.1 s (2026-10-01, below) |
+| 41 | Spike S3: what the phone's own picker gives back (D15) | **ANSWERED BY ROW 49** | the probe itself stayed blocked (no folder rows in the dialog's landing view); row 49's drive through the real dialog answered it — see "Row 41 — spike S3's own question, answered by row 49's drive" below |
 | 42 | Spike S4: does the 40 % scrim hold SC-004's contrast (D16)? | **RAN — FAILS** | the app's own text colour misses 4.5:1 for every photo tone below ~205 (200 → **3.88:1**, mid grey → 2.03:1); numbers and options below |
-| 33, 37–40 | US3's life cycle | **PENDING** | that story is not implemented |
-| 1–29 | The feature's `[unit]` rows | **[unit]** | `flutter test --concurrency=2` → **395 passing, 0 failing** (2026-09-27; 60 of them 012's own, 20 in `video_painter_test.dart`) |
+| 37–40 | The structural rows (dependency, the four ARBs, the delete warning, 011's receipt) | **RAN — PASS** | 2026-10-01, in `tasks.md` T035's receipt (they are host rows, not device rows) |
+| 1–29 | The feature's `[unit]` rows | **[unit]** | `flutter test --concurrency=2` → **439 passing, 0 failing** (2026-10-01; 60 of them 012's own, 20 in `video_painter_test.dart`) |
 
 ### Row 31 — a real render produces a real video, in full
 
@@ -832,6 +842,115 @@ says why a dump cannot be relied on to), and this run's **vertical** aspect did 
 carried that aspect instead. Every check that was emitted passed, and the count moves with whether a 4-second
 message was caught, not with whether the app is right. The row's three card checks are in both aspects.
 
+**And what the withdrawal did to the file's cover — the reader's own question, answered and settled.** The app
+writes no cover of its own (`VideoFileStore.keep` publishes the display name, the MIME type and `IS_PENDING` and
+nothing else), so the phone's gallery and players take the cover from the file's **first frame** — which is why
+the card had looked like "the title at the top" of the video in the gallery. With the card gone, the first frame
+is the first picture, measured off the two files this run produced:
+
+| file | frame 0, read pixel by pixel |
+|---|---|
+| `/tmp/klhu_nc_r49/49_pictures.mp4` (eight pictures chosen) | `kw00`'s own white, `(253,253,253)` everywhere **above** the words (0 dark samples in 12470); the first sentence's words at the bottom — 438 dark samples in the words' band against 6283 white |
+| `/tmp/klhu_nc_r31/landscape.mp4` (no pictures chosen) | the app's own background `(244,251,249)` — there is no image to show, so the cover is the first sentence on the plain background |
+
+The stills are kept beside them (`49_cover_first_frame.png`, `31_cover_first_frame.png`). The reader's decision
+for now is the cost-free one — *"use the first image as the video's cover image"* — so a **wordless cover slot**
+(the picture alone for a second or two before the first sentence, which would re-open FR-016's lead-in bound and
+re-cut every row's arithmetic) was put to them with that price and declined; it is written up in D23's cover
+paragraph. The gallery still shows the **content's name as the file's label**, which is Android's own doing and
+not a frame of the video.
+
+## The closing run — 2026-10-01
+
+Everything in this section is one session's work on `emulator-5554` with the app built from `HEAD`
+(`flutter analyze` clean, `flutter test --concurrency=2` **439 passing, 0 failing** on the host).
+
+### Row 33 with its playback steps enabled — 44/44 (T026, T027, T030, T048)
+
+The row's two player steps had been skipped by every run since 2026-09-29, when the emulator died under them
+twice (deviation 10). They ran today, on a box that was otherwise idle, against the `TextureView` container
+T055 introduced:
+
+    $ python3 specs/012-reading-video/scripts/klhu_walk_video.py 33        # KLHU_SKIP_PLAY unset
+    44/44 checks passed
+
+(45/45 on the run before it — the check whose presence moves is the one that compares the page's copy with the
+app's own, which needs a dump to catch a 4-second SnackBar; every check emitted in either run passed.)
+
+The two steps and the lines that carry them:
+
+| step | what the run saw |
+|---|---|
+| the review's own picture plays | `the review's video plays (the phone has its sound running) — started players: ['AudioPlaybackConfiguration piid:415 deviceIds:[2] type:android.media.MediaPlayer u/pid:10216/786 state:started … FormatInfo{… sampleRate=24000}']` — 24 kHz is the render's own audio, i.e. the file this render just wrote, and no `MediaPlayer` error or `IllegalStateException` appears in the log between the tap and the check |
+| the kept video plays from the gallery | `the kept video plays — started players: ['AudioPlaybackConfiguration piid:391 … type:android.media.MediaPlayer … state:started … sampleRate=24000']`, and the checks after it find the file untouched (`sharing kept nothing new and removed nothing`) and `playing it reported no error — []` |
+
+The rest of the row is the life this task was written for, and it is the first run in which all of it happened
+in one pass: the gallery is empty; the prompt opens on the pictures step; the render runs and reports itself;
+the review offers its three decisions over its own surface; the video **plays**; the throw-away leaves
+`Movies/Klhu/` and the library untouched, the page saying `Video not saved`; a second render is **kept** — the
+record names it for the content (`The sun rose over the q….mp4`, where the render's own working file is
+`klhu_video.mp4`), the file is in `Movies/Klhu/`, its bytes are the render's own (1 173 771 B) and it probes as
+H.264/AAC 1920×1080 30 fps with exactly the plan's **743** frames; it **plays from the gallery's own entry**; the
+share sheet is the phone's own (`Sharing 1 file`, Quick Share, Drive, Maps, Messages, Photos …) and sharing adds
+and removes nothing; and the delete answers behind its warning — Cancel deletes nothing, confirming removes the
+file from the album's own view and the file store reports it gone, after which the content offers to record
+again.
+
+### Row 49 and the other rows re-run the same day
+
+    Row 31: 33/33      Row 32: 42/42      Row 34: 26/26      Row 49: 41/41
+
+Row 49 is the one that changed the driver rather than the app, and it is worth reading as a caution (deviation
+11): it had been looking for its pushed pictures in the file dialog's "Recent" view, and the dialog does not open
+there. It now walks what the reader walks — **Show roots → the storage root → `Pictures/klhu_walk` → the file** —
+and with that, eight pictures for eight sentences, one range each, the plate's tone read over the band the words
+cover, every glyph box at the bottom of the area.
+
+### Row 36 — spike S2, in full (T032)
+
+The spike was run at its own `[device]` row for the first time: a **17-sentence** content rendered to a 1080p30
+video (one picture per sentence plus its hold — 2078 frames, 69.3 s of video), timed end to end.
+
+| quantity | measured |
+|---|---|
+| wall clock, the driver's own measure (the reader's `Start` → the app's done line) | **60 590 ms** (0.9× real time; 34 frames per second) |
+| frames written | **2078** at 1920×1080, 30 fps — `ffprobe` agrees, and the file holds exactly the plan's 2078 |
+| audio synthesis (the engine, 17 sentences) | **2148 ms** |
+| painting every picture in Dart | **182 ms** |
+| sending the pictures into `MediaCodec` | **47 139 ms** |
+| the muxer's finish | **11 ms** |
+| the app's own passes, together | **49 499 ms** of the 60 590 ms — the rest is the page's start-up and the driver's polling |
+| the file pulled back | 3 804 901 B, byte-for-byte the render's own |
+
+So the cost is the **encoder side**: 47.1 s is 78 % of the wall clock and **95 % of everything the app itself
+spends** on the render, against 0.18 s of painting and 2.1 s of synthesis — which is the answer the amended
+picture needed, because it is what decides whether a frame per sentence is affordable. It is: a 69-second video
+of 2078 pictures costs about a minute of rendering, and the Dart half of that is 0.4 % of it. SC-006's ≤ 5
+minute placeholder is retired and replaced by this measurement (it was kept "only until S2 runs").
+
+The measurement is also now **visible every run**, which is what makes it re-checkable rather than a claim in a
+file: `lib/video_renderer.dart` prints one line per render, and the walk reads its own numbers back out of it —
+
+    klhu render time synth=2148ms paint=182ms send=47139ms total=47340ms finish=11ms sentences=17 pictures=17 frames=2078
+
+(`total` is pass 2 — painting plus sending — on its own; the three stopped watches plus `finish` are what sum
+into the wall clock.) The row's own 27 checks are the structure around it: the app reported the file's name and
+its length and the page agreed; the render is faster than the video it writes; every pass reported time and no
+single pass is the whole story; the app's passes fit inside the wall clock the driver saw; and the pulled file
+probes as H.264/AAC 1920×1080 30 fps with the plan's frames.
+
+### What this file does NOT claim, now that it is closed
+
+- **The scroll case (FR-029)**: no sentence of the pre-set is long enough to need more than one line at either
+  aspect, so `scroll=0` in every run of every file. The branch is written and unexercised — a gap on the record,
+  not a pass.
+- **Pause and seek** in the review's transport bar, and the tap that raises the bar: the walk raises it by
+  coordinates (the platform view is opaque to Flutter's accessibility tree).
+- **The below-API-29 keep path** (`Environment.getExternalStoragePublicDirectory` + media scan): written from the
+  contract, unrunnable on this API 36 emulator.
+- **iOS**: `isAvailable` answers `false` and every entry point refuses with `ENGINE_UNAVAILABLE`. There is no
+  encoder, no player view and no file store for iOS; the feature does not exist there.
+
 ## Deviations
 
 1. **T003's method changed twice, and both are worth knowing.** `dart:io`'s `stdout` is not forwarded from
@@ -893,5 +1012,37 @@ message was caught, not with whether the app is right. The row's three card chec
     **recorded as skipped** in the receipt above rather than reported as passed. The playback itself was proven
     in the same run before the device went: the player started and the media query answered
     (`AudioPlaybackConfiguration … state:started`, 24 kHz). Nothing about the app is implicated; this is the
-    development box.
+    development box. **Reduced on 2026-10-01**: the two steps ran on the same box with the emulator otherwise
+    idle and the `TextureView` container in place — row 33 now runs with them enabled (the closing-run
+    section above). The escape hatch stays, for the runs where the box cannot hold them.
+11. **A row found its pictures in the wrong place, and had been passing on a look rather than a search
+    (2026-10-01).** Row 49 pushes its own PNGs into the device's `Pictures/klhu_walk/` and then drives the app's
+    own file dialog to choose them. Every earlier run had been reading the dialog's first screen and matching the
+    file name in it — which worked when that screen was a "Recent" view holding the pushed files, and stopped
+    working the first time the dialog opened on Files' own **`Images`** aggregate instead: an empty list of
+    pictures and no folder rows at all. The row now walks the path the reader walks — **Show roots → the storage
+    root → `Pictures/klhu_walk` → the file** — and passes 41/41 with it. The general lesson is the one row 32's
+    re-cut already recorded: **a row that reads a screen it did not navigate to is testing the screen, not the
+    app.**
+12. **The device helper joined its arguments with spaces and added no quotes, so a write ran in the wrong shell
+    (2026-10-01).** `adb shell` takes the command as *one string*; passing `["sh", "-c", "cat > /path"]` as a
+    Python argv list let the outer shell see the redirection, and the file the run believed it had pushed was
+    never written — the device app then rendered **its own pre-set text**, and the row's first "the render used
+    the pushed content" checks passed against it because they only asserted that *a* render had happened. The
+    helper now takes one string per command (`adb_shell("cat > /path")`), which is both what `adb` expects and
+    what makes the redirection run on the device. It is written here because the failure mode is silent and
+    *passing*: a redirection that lands in the outer shell exits 0.
+13. **A fourth render in one session was one render too many for this box (2026-10-01).** Row 33 was run a
+    second time the same day to capture the two playback lines verbatim for the row above, and its **second
+    render did not finish**: `FAIL 33/second: the render reported done — no 'klhu render done' within 300s`, and
+    with it `FAIL 33: the second render produced a file` (**15/17**). Everything before it passed, including
+    both points of the first render (`the review's video plays (the phone has its sound running)`) and the
+    throw-away; the app was fine — the walk's own 300 s bound is what expired, on the session's **seventh**
+    render (row 33's two, spike S2's 2078-frame one, row 49's, and the re-run's own two) with the emulator's
+    decoder having played twice, on a 16 GB box with `free -g` reading **15 total / 10 used / 4 available** at
+    the moment of the failure. The row's
+    green receipt is the 44/44 run earlier in the day, and the playback lines quoted in the section above are
+    from this re-run's *passing* half. The lesson is the same one deviation 10 recorded and it is worth stating
+    a third time because it keeps being the thing that looks like an app failure: **on this box the device rows
+    are not free — re-run row 33 once, not four times, and expect a render to take its own time back.**
 

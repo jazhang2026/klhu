@@ -586,6 +586,24 @@ nothing else moved with it.
 impression); keeping the name as a caption on the review screen rather than in the file; a fade from the card
 into the first sentence (per-frame alpha in the painter — a cost the reader did not ask for).
 
+**The cover, asked and settled the same day (2026-09-29).** The reader, looking again at the gallery entry,
+asked *"May be it's the cover of the video? Is it use the name of the content as the video's cover?"* — and the
+answer is yes, and it is why the card was ever seen as "the title at the top": **the app writes no cover at
+all** (`VideoFileStore.keep` publishes `DISPLAY_NAME`, `MIME_TYPE` and `IS_PENDING` and nothing else), so the
+phone's gallery and players derive the cover from the file's own **first frame** — which was the card. The
+reader's decision for now: *"use the first image as the video's cover image"*, which is what the withdrawal
+already gives: with pictures chosen, frame 0 is the first picture filling the frame with the first sentence's
+words at the bottom (measured on the device: `kw00`'s own white, `(253,253,253)` everywhere above the words,
+438 dark samples inside the words' band against 6283 white); with no pictures chosen there is no image to show
+and the cover is the app's own background with the first sentence on it.
+
+**Rejected for now**: a **wordless cover slot** — the picture alone for the first second or two, before the
+first sentence — which would need a new slot kind in the plan, a range for it in the picture schedule (or an
+explicit exception), a longer duration in SC-002 with FR-016's lead-in bound live again, and every device row's
+arithmetic re-cut; the reader's "for now" takes the cost-free form, so the lead-in stays gone. Also rejected:
+writing an explicit cover (Android has no supported API for a video's cover — `MediaStore.Video.Thumbnails` is
+deprecated since API 29 and mostly ignored by galleries, so it could not be relied on).
+
 - **S1 — does the emulator's engine write a usable audio file?** Call `synthesizeToFile` with a sentence
   of the shipped English pre-set on `emulator-5554` and inspect the result: does a file appear, is it
   RIFF/WAV, what sample rate and channel count, and does the length match the text? If the engine

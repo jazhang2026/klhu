@@ -718,8 +718,16 @@ video that rendered without pictures, no slower and nothing refused.
 - **SC-005**: The video is publishable-shaped — video and audio codecs a video platform accepts, a
   constant frame rate, the chosen aspect/resolution — verified with a standard media analyser rather than
   by eye.
-- **SC-006**: On the reference device, a one-minute reading renders in at most five minutes with visible
-  progress, and cancelling at any point (checked at about 50 %) leaves no video file for that content.
+- **SC-006 (measured 2026-10-01 — the placeholder is gone)**: On the reference device a one-minute reading
+  renders in about the video's own length rather than in minutes, with visible progress: 17 sentences,
+  **69.3 s of 1080p30 video (2078 frames) rendered in 60.6 s of wall clock** on `emulator-5554` — 0.9× real
+  time, 34 frames per second (row 36). The renderer's own account of that time puts **95 % of the app's own
+  work in the encoder's path** — 47.1 s sending pictures (PNG encode plus the platform's own conversion)
+  against 0.18 s of Dart rasterising for the same 17 pictures and 2.1 s of synthesis, with the muxer's finish
+  at 11 ms; the app's passes are 49.5 s of the 60.6 s, the rest being the page's start-up — so the bottleneck
+  is the platform half, not the painter. Cancelling at any point (checked at about 50 %) leaves no video file
+  for that content. The superseded placeholder was "at most five minutes"; the measured number is from the AVD
+  and has not been taken on the OnePlus 9.
 - **SC-007**: A content mixing English and Chinese is voiced per paragraph in the video exactly as the
   page voices it: every spoken segment's language matches the language the page uses for that paragraph.
 - **SC-008**: After the same content is rendered twice, the device holds exactly one video for it, and it

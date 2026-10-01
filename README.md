@@ -47,6 +47,27 @@ Ships English, 简体中文 (with the Cantonese voices alongside) and Español.
   data loss. An entry whose text file is gone is listed as damaged and can be
   deleted; the rest of the library keeps working.
 
+**Video**
+- `Video` on the reading page renders the content to a **video on the device** — no
+  account, no backend, no upload — and shows the video's own picture while it is
+  written; `Stop` asks before it throws the render away.
+- One sentence per frame, at the reader's own typeface and size, wrapped and
+  scrolled a line at a time when it is taller than the frame; the video's last
+  frame holds the end. The reader may choose pictures from their own files first
+  (any number, re-orderable by hand, removable) — each fills the frame behind the
+  sentence, with the words plated so they still read — and choosing none gives
+  the plain-background video.
+- The finished render plays **before** anything is decided, then `Save` puts it in
+  the phone's own gallery under the content's name (one per content, replacing the
+  old one), `Share` hands it to the phone's own share list, and `Discard` leaves
+  nothing. A kept video is playable, shareable and deletable again from the
+  content, and deleting it warns first.
+- The video is **rendered, never recorded** (no screen capture, no microphone):
+  Dart paints each frame, the Android half encodes them, and the voice is the
+  clock — every sentence is synthesised first and the frames follow the audio
+  file's own length. Aspect: `16:9 landscape 1080p` or `9:16 vertical (Shorts)`,
+  remembered per device.
+
 **Interface and accessibility**
 - Interface languages: English, 简体中文, Español — including the OS-visible app
   title, on a fresh install following the device locale.
@@ -91,8 +112,8 @@ flutter test test/app_icon_test.dart   # the asset contract: sizes, formats, cat
 
 The emulator/device walk for each feature is scripted — under
 `specs/<feature>/scripts/` (`specs/009-app-icon/scripts/`, `specs/010-continue-read/scripts/`,
-`specs/011-reading-experience/scripts/`); findings, per-scenario PASS/FAIL rows and the
-divergences are recorded in `specs/<feature>/breakpoint.md`. A walk driver takes
+`specs/011-reading-experience/scripts/`, `specs/012-reading-video/scripts/`); findings, per-scenario
+PASS/FAIL rows and the divergences are recorded in `specs/<feature>/breakpoint.md`. A walk driver takes
 `ADB_SERIAL` / `KLHU_REPO` / `KLHU_OUT` and prints `RESULT: PASS|FAIL`, so a row can be
 re-run on demand.
 
@@ -155,6 +176,34 @@ the part ends). The highlight is measured as pixels: the app's `klhu follow` geo
 the screen (`origin + top × dpr`, origin = the text node's top) and the yellow rows must be that
 band with nothing outside it — `breakpoint.md` records the numbers.
 
+### Reading video (012)
+
+The **first feature in this repository with a platform-specific half**: the frames are painted in Dart
+(one `TextPainter` fed the page's own style seam — no second text engine) and encoded in Kotlin
+(`MediaCodec` AVC + AAC through `MediaMuxer`), with `lib/platform/` as the only seam between them. The
+audio is the engine's own file synthesis: pass 1 writes every sentence to its own WAV and reads the exact
+length out of the header, pass 2 paints frames to that timeline — so the picture cannot drift from the
+voice. The pictures are the reader's own files, chosen through flutter.dev's `file_selector` (the one
+dependency this feature adds: no picker of ours, no new permission, no gallery screen).
+
+```bash
+cd specs/012-reading-video/scripts
+python3 klhu_walk_video.py 31     # a real render, both aspects, probed with ffprobe
+python3 klhu_walk_video.py 32     # every sampled frame is its slot's sentence, the screen matched
+python3 klhu_walk_video.py 33     # the file's life: review → throw away → keep → play → share → delete
+python3 klhu_walk_video.py 34     # a confirmed Stop at ~50 % leaves no file and the library alone
+python3 klhu_walk_video.py 36     # spike S2: a one-minute reading, timed, with the bottleneck named
+python3 klhu_walk_video.py 49     # the reader's own pictures: every range of a render, frame by frame
+KLHU_SKIP_PLAY=1 python3 klhu_walk_video.py 33   # skip the two player steps on a small host
+```
+
+The app's own lines are the clock (nothing here sleeps for a moment that lasts seconds):
+`klhu render done: <path> <ms>ms <bytes>B frames=<n>`, one
+`klhu render slot=i/n frame=start/total kind= frames= scroll= picture= tone= span=a..b text=n` per picture
+written, `klhu render time synth=… paint=… send=… finish=…` per render, and `klhu render told: <message>`
+for the message the reader was shown. The Kotlin half has **no unit tests and cannot have any that run in
+`flutter test`** — the rows above are its whole coverage, which is why it is kept logic-free.
+
 ## Specs
 
 Development is spec-driven: each feature has `specs/<NNN>-<name>/` with
@@ -175,6 +224,7 @@ it matters, `tasks.md` (one task per artifact, ticked as verified) and
 | 009-app-icon | branded launcher icon on Android + iOS from `images/kalahoo.jpeg`, adaptive on Android 8+ |
 | 010-continue-read | Continue Read: tap a sentence / long-press a paragraph to set the start position, read from there, resume after pause at the sentence |
 | 011-reading-experience | the highlight follows the read sentence by sentence, a per-device typeface/size for the reading text, `+` to add a content from the library |
+| 012-reading-video | the reader's content becomes a video on the device — one sentence per frame at the reader's own size, the reader's own pictures behind it, the engine's voice as the clock — then kept in the gallery, played, shared and deleted; the repository's first platform-specific half |
 
 ## Known limitations
 

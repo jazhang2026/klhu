@@ -208,6 +208,10 @@ class VideoRenderer {
 
     try {
       // ---- pass 1: the voice is the clock --------------------------------
+      // Timed for the walk's own spike S2 (quickstart 36): SC-006 asks how long
+      // a render takes *and* which side is the bottleneck, and the app is the
+      // only thing that knows where its own time went.
+      final synthWatch = Stopwatch()..start();
       final audioMs = <int>[];
       for (var i = 0; i < sentences.length; i++) {
         if (_cancelled) return await _abandon(written);
@@ -244,6 +248,7 @@ class VideoRenderer {
         ));
       }
 
+      synthWatch.stop();
       final plan = buildVideoPlan(
         sentences: sentences,
         audioMs: audioMs,
@@ -320,14 +325,23 @@ class VideoRenderer {
       }
       if (_cancelled) return await _abandon(written);
 
+      final paintWatch = Stopwatch()..start();
+      // The two costs inside pass 2, kept apart so S2 can name the bottleneck
+      // rather than guess at it: `paint` is Dart rasterising the frame, `send`
+      // is the PNG encode plus the encoder's own conversion of it.
+      var paintMs = 0;
+      var sendMs = 0;
       for (var i = 0; i < runs.length; i++) {
         if (_cancelled) return await _abandon(written);
         final run = runs[i];
+        final paintStep = Stopwatch()..start();
         final frame = await painter.paint(
           slot: run.slot,
           progress: run.progress,
           picture: await _pictureFor(run.slot, schedule, decoded),
         );
+        paintStep.stop();
+        paintMs += paintStep.elapsedMilliseconds;
         // Which slot this picture is for, in the frames' own terms: the device
         // row (quickstart 32) samples the file at these starts and pairs them
         // with the page, and it has nothing else to go on.
@@ -340,12 +354,15 @@ class VideoRenderer {
             ' span=${run.slot.start}..${run.slot.end} text=${frame.paintedText.length}');
         // Shown and written from the same picture, in that order (FR-020).
         onFrame?.call(frame);
+        final sendStep = Stopwatch()..start();
         try {
           await encoder.addFrame(await pngBytesOf(frame.image),
               repeat: run.frames);
         } on VideoEncodeException catch (e) {
           throw VideoRenderException(VideoFailureKind.encoder, e.message);
         }
+        sendStep.stop();
+        sendMs += sendStep.elapsedMilliseconds;
         onProgress?.call(VideoRenderProgress(
           pass: VideoRenderPass.painting,
           done: i + 1,
@@ -353,12 +370,24 @@ class VideoRenderer {
         ));
       }
       if (_cancelled) return await _abandon(written);
+      paintWatch.stop();
 
+      final finishWatch = Stopwatch()..start();
       try {
         final file = await encoder.finish();
         // The audio has been muxed into the video; the files it came from are
         // no longer anyone's (the video itself is the encoder's, and stays).
         await _delete(written);
+        finishWatch.stop();
+        // Spike S2's own evidence (quickstart 36): SC-006 asks for the render's
+        // time *and* which side of it is the bottleneck, and only the app knows
+        // where its own time went. One line, so the walk's regex stays one line.
+        debugPrint('klhu render time synth=${synthWatch.elapsedMilliseconds}ms'
+            ' paint=${paintMs}ms send=${sendMs}ms'
+            ' total=${paintWatch.elapsedMilliseconds}ms'
+            ' finish=${finishWatch.elapsedMilliseconds}ms'
+            ' sentences=${sentences.length} pictures=${runs.length}'
+            ' frames=${plan.totalFrames}');
         return VideoRenderResult(
           path: file.path,
           durationMs: file.durationMs,

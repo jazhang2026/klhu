@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""klhu device walk — 012 quickstart rows 31, 32, 33 and 34.
+"""klhu device walk — 012 quickstart rows 31, 32, 33, 34, 36 and 49.
 
 Row 31: a real render produces a real video (landscape, then vertical), asserted
 with the host's `ffprobe`.
@@ -12,15 +12,25 @@ away, one kept into the gallery under the content's name, played back, shared
 through the phone's own list, then deleted behind its warning.
 Row 34: a confirmed Stop at about half way leaves no file, an empty cache, and
 the earlier video untouched.
+Row 36: spike S2 — a one-minute reading, written into the app's own library by
+the row, timed end to end from the reader's Start, with the app's own account of
+where the time went (synthesis, rasterising, the encoder, the muxer). This is
+the measurement SC-006 carries as a placeholder until it is run.
+Row 49: the reader's own pictures — pushed by the row into the device's
+`Pictures/`, chosen through the app's file dialog, and then read back off every
+frame of a real render (each range carries its own picture, no seam inside a
+sentence, the plate over the band the words cover).
 
 The app's own evidence lines are the clock here — nothing waits on a fixed
 sleep for a moment that lasts seconds:
     klhu render done: <path> <ms>ms <bytes>B frames=<n>
+    klhu render time synth=<ms>ms paint=<ms>ms send=<ms>ms total=<ms>ms ...
 and the page's own dump shows `Rendering video, sentence i of n` while it runs.
 
 Usage:  python3 klhu_walk_video.py 31
         python3 klhu_walk_video.py 33
-        python3 klhu_walk_video.py 34
+        KLHU_SKIP_PLAY=1 python3 klhu_walk_video.py 33   # skip the two player steps
+        python3 klhu_walk_video.py 36
         KLHU_DEV=37e102a0 python3 klhu_walk_video.py 49   # a physical device
 Artifacts land in $KLHU_OUT (default /tmp/klhu_out) — never in the repository.
 """
@@ -1537,14 +1547,101 @@ def push_pictures(paths):
           len(listing) >= len(paths), f"{len(listing)} files in {PICTURE_DIR}")
 
 
+# The entries the Files app's own drawer always carries; anything else in it is a
+# storage root, which the drawer names after the device.
+DRAWER_FIXED = ("Open from", "Recent", "Images", "Videos", "Audio",
+                "Documents", "Downloads")
+
+
+def dialog_names(rows):
+    return [(r["desc"] or r["text"]).strip() for r in rows]
+
+
+def dialog_storage_root(rows):
+    """The drawer's storage root — the one entry the Files app does not own.
+
+    Found by its own name first (a storage root is labelled with the device's
+    model, which `getprop` answers too), and by the drawer's own column when a
+    device names it something else. The label filter keeps file rows out: they
+    read `name, size, date`, which is the one shape a drawer entry never has.
+    """
+    model = adb("shell", "getprop", "ro.product.model").stdout.strip()
+    named = [r for r in rows if (r["desc"] or r["text"]).strip() == model]
+    if named:
+        return named[0]
+    column = [r for r in rows
+              if 300 <= r["x"] <= 620 and r["y"] < 1100
+              and (r["desc"] or r["text"]).strip() not in DRAWER_FIXED
+              and (r["desc"] or r["text"]).strip()
+              and "," not in (r["desc"] or r["text"])]
+    return max(column, key=lambda r: r["y"]) if column else None
+
+
+def dialog_walk_to_folder(names):
+    """Walks the dialog into the row's own folder; answers whether it got there.
+
+    The dialog opens wherever the system's Files app was last left, and on a
+    device that has browsed its own pictures that is the **Images** root: an
+    aggregate of what MediaStore knows, with no folders in it at all, from which
+    the row's own directory cannot be reached. A reader reaches their files the
+    long way, so the row does too — Show roots → the storage root → Pictures →
+    the folder. (Rows 49 and 41 used to find the pictures in the dialog's first
+    screen; that screen was the picker's Recent list on 2026-09-28 and is the
+    Images root on this emulator today, which is the device state a row may not
+    assume: the run of 2026-10-01 read it as "the dialog offers no such file".)
+    """
+    if find(dump(), names[0]):
+        return True
+    folder = os.path.basename(PICTURE_DIR)
+    for step_label, tap_label in (("the drawer", "Show roots"),
+                                  ("the storage root", None),
+                                  ("Pictures", "Pictures"),
+                                  (folder, folder)):
+        if step_label == "the storage root":
+            rows = None
+            for _ in range(8):
+                rows = dump()
+                if "Downloads" in dialog_names(rows):
+                    break
+                time.sleep(1.2)
+            root = dialog_storage_root(rows)
+            if root is None:
+                print(f"   no storage root in the drawer: {dialog_names(rows)[:12]}")
+                return False
+            row = root
+        else:
+            rows = dump()
+            hits = find(rows, tap_label, exact=True)
+            # 'Pictures' is also the toolbar's own breadcrumb: the folder row is
+            # the one below it.
+            hits = [r for r in hits if r["y"] > 300] or hits
+            if not hits:
+                print(f"   {tap_label} is not on screen: {dialog_names(rows)[:12]}")
+                return False
+            row = hits[0]
+        adb("shell", "input", "tap", str(row["x"]), str(row["y"]))
+        print(f"   dialog → {step_label}: tap "
+              f"{(row['desc'] or row['text'])!r} @{row['x']},{row['y']}")
+        time.sleep(2.5)
+        if step_label != "the drawer" and find(dump(), names[0]):
+            return True
+    return bool(find(dump(), names[0]))
+
+
 def choose_pictures(names):
     """Chooses [names] in the platform's own file dialog, in this order.
 
-    The dialog is the system's Files app in its Recent view. A **long press** on
-    the first name is what starts its selection mode — the toolbar then reads
-    'N selected' and carries the button that confirms, 'Select' — then one tap
-    per other name, then that button, which hands the files back to the app.
+    The dialog is the system's Files app. It is walked to the row's own folder
+    first (`dialog_walk_to_folder`), then a **long press** on the first name is
+    what starts its selection mode — the toolbar then reads 'N selected' and
+    carries the button that confirms, 'Select' — then one tap per other name,
+    then that button, which hands the files back to the app.
     """
+    if not dialog_walk_to_folder(names):
+        rows = dump()
+        check(f"49: the dialog reaches the row's own folder", False,
+              f"offered: {[l for l in labels(rows) if '.png' in l][:6]}")
+        return False
     rows = dump()
     first = find(rows, names[0])
     if not first:
@@ -1650,6 +1747,211 @@ def ink_in_column(rgb, w, h, colour):
             box = (x, y, x, y) if box is None else (
                 min(box[0], x), min(box[1], y), max(box[2], x), max(box[3], y))
     return count, box
+
+
+# --------------------------------------------------------------------------
+# Row 36 — spike S2: how long does a real render take? (SC-006)
+#
+# SC-006 carries a placeholder (a one-minute reading in ≤ 5 minutes) until it is
+# measured, and the app ships no one-minute pre-set — its English pre-set is
+# ~25 s. So the row writes its own reading into the app's library, renders it,
+# and reads the app's own pass timing (lib/video_renderer.dart prints one
+# `klhu render time` line per render). The question SC-006 asks is not only "how
+# long" but "which side is the bottleneck", and only the app knows where its own
+# time went.
+
+S2_ID = "klhu_s2_long"
+S2_NAME = "S2 one-minute reading"
+
+# ~17 sentences of ~50 characters: the pre-set (334 characters) speaks in ~22 s,
+# so ~15 characters per second of speech puts a minute here.
+S2_PARAGRAPHS = [
+    [
+        "The river ran beside the old mill all through the summer months.",
+        "A narrow path climbed the hill behind the orchard and the barn.",
+        "Every morning the baker opened the shutters and swept the step.",
+        "Children carried buckets of water from the well by the stone wall.",
+        "On Sundays the square filled with carts, dogs, and borrowed chairs.",
+        "The postman knew every lane and every gate that needed oiling.",
+    ],
+    [
+        "In winter the pond froze hard enough for boots and wooden sleds.",
+        "A lamp burned in the window until the last cart had gone home.",
+        "The teacher wrote the day's words on a board that smelled of chalk.",
+        "Fishermen mended their nets under the long roof of the boathouse.",
+        "The train arrived twice a day and nobody ever hurried for it.",
+        "Apples fell in the yard and the wasps took what the baskets missed.",
+    ],
+    [
+        "The clock in the tower was slow and the town kept its own time.",
+        "Rain came in from the west and drummed on the tin roofs all night.",
+        "The blacksmith's fire was the brightest thing on the whole street.",
+        "Letters were read aloud at the kitchen table, twice if they were short.",
+        "When the spring came the mill wheel turned again and the town woke.",
+    ],
+]
+
+S2_INDEX = f"{LIBRARY}/content/index.json"
+
+
+def s2_text():
+    return "\n\n".join(" ".join(paragraph) for paragraph in S2_PARAGRAPHS)
+
+
+def device_write(path, data):
+    """Writes bytes into the app's private storage through `run-as`.
+
+    The library is files on disk — `content/index.json` plus one text file per
+    entry (`ContentStore`) — so a debug build can be handed a content from here.
+    The redirection has to be inside the command string: `adb shell` joins its
+    own arguments with spaces and never quotes them, so passing `sh -c` and
+    `cat > path` separately hands the `>` to the device's outer shell, which is
+    not the app's user and cannot write there (the write fails silently — the
+    first cut of this row measured the shipped pre-set for exactly that reason).
+    """
+    out = subprocess.run(
+        ["adb", "-s", DEV, "shell",
+         f"run-as {PKG} sh -c 'cat > {path}'"],
+        input=data, capture_output=True)
+    return out.returncode == 0 and not out.stderr.strip()
+
+
+def s2_seed():
+    """Puts the one-minute reading into the app's library and opens it.
+
+    The app caches the index in memory, so it is force-stopped after the write:
+    what the row then renders is the file on disk and not a session's leftover.
+    """
+    directory = f"{LIBRARY}/content"
+    adb("shell", "run-as", PKG, "mkdir", "-p", f"{directory}/contents")
+    text = s2_text()
+    if not device_write(f"{directory}/contents/{S2_ID}.txt", text.encode()):
+        return None
+    index = json.loads(cat(S2_INDEX).decode())
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%S.000000Z", time.gmtime())
+    index["entries"] = [e for e in index["entries"] if e["id"] != S2_ID] + [{
+        "id": S2_ID, "name": S2_NAME, "language": "en", "origin": "user",
+        "createdAt": stamp, "updatedAt": stamp, "charCount": len(text),
+    }]
+    index["lastOpenedId"] = S2_ID
+    if not device_write(S2_INDEX, json.dumps(index).encode()):
+        return None
+    adb("shell", "am", "force-stop", PKG)
+    start_app()
+    return text
+
+
+def s2_unseed():
+    """Takes the row's own content back out — entry, text file and the app's
+    memory of it — so the walk leaves the device as it found it."""
+    index = json.loads(cat(S2_INDEX).decode())
+    index["entries"] = [e for e in index["entries"] if e["id"] != S2_ID]
+    if index.get("lastOpenedId") == S2_ID:
+        index["lastOpenedId"] = "preset_en_sample"
+    ok = device_write(S2_INDEX, json.dumps(index).encode())
+    adb("shell", "run-as", PKG, "rm", "-f", f"{LIBRARY}/content/contents/{S2_ID}.txt")
+    adb("shell", "am", "force-stop", PKG)
+    return ok
+
+
+RENDER_TIME_RE = (
+    r"klhu render time synth=(\d+)ms paint=(\d+)ms send=(\d+)ms total=(\d+)ms "
+    r"finish=(\d+)ms sentences=(\d+) pictures=(\d+) frames=(\d+)")
+RENDER_TIME_FIELDS = ("synth_ms", "paint_ms", "send_ms", "total_ms", "finish_ms",
+                      "sentences", "pictures", "frames")
+
+
+def render_time(log):
+    """The renderer's own account of where a render's time went, or None."""
+    m = re.search(RENDER_TIME_RE, log)
+    if not m:
+        return None
+    return {name: int(value) for name, value in zip(RENDER_TIME_FIELDS, m.groups())}
+
+
+def row_36():
+    step("36: a one-minute reading, written into the app's own library")
+    hard_restart()
+    text = s2_seed()
+    check("36: the row's own content is in the library and open",
+          bool(text) and on_screen(dump(), S2_PARAGRAPHS[0][0]),
+          f"visible: {labels(dump())[:6]}")
+
+    step("36: render it, timed from the reader's own Start")
+    started = time.time()
+    out = render("36", "16:9 landscape 1080p")
+    wall = time.time() - started
+    check("36: the render reported done", out is not None)
+    if not out:
+        s2_unseed()
+        return
+    path, video_ms, size, frames, _ = out
+    timing = render_time(logcat())
+    print(f"   the render's own time: {timing}")
+
+    # The measurement SC-006 asks for: the video's own length, the wall time,
+    # and the rate the frames came out at.
+    video_s = video_ms / 1000
+    check("36: the reading rendered is a one-minute one, not the 25 s pre-set",
+          video_ms >= 45000, f"the video is {video_s:.1f} s")
+    check("36: the render's own account of its time is on the device",
+          timing is not None and timing["frames"] == frames,
+          f"{timing}")
+    if timing is None:
+        s2_unseed()
+        return
+    print(f"   wall {wall:.1f} s for {video_s:.1f} s of video — "
+          f"{video_s / wall:.2f}× real time")
+    print(f"   {frames} frames in {wall:.1f} s wall — {frames / wall:.1f} frames/s")
+    check("36: the render is faster than the video it writes",
+          wall < video_s, f"{wall:.1f} s wall against {video_s:.1f} s of video")
+
+    # Which side: the synthesis pass, the painting pass (Dart rasterising and
+    # the encoder converting, kept apart on purpose), and the muxer's finish.
+    synth, paint, send = timing["synth_ms"], timing["paint_ms"], timing["send_ms"]
+    finish = timing["finish_ms"]
+    print(f"   pass 1 (synthesis) {synth / 1000:.1f} s, "
+          f"pass 2 (paint {paint / 1000:.1f} s + send {send / 1000:.1f} s) "
+          f"{timing['total_ms'] / 1000:.1f} s, finish {finish / 1000:.1f} s")
+    sides = [("the engine's synthesis", synth), ("Dart's rasterisation", paint),
+             ("the encoder (PNG + its own conversion)", send),
+             ("the muxer's finish", finish)]
+    worst = max(sides, key=lambda s: s[1])
+    print(f"   the bottleneck: {worst[0]} — {worst[1] / 1000:.1f} s, "
+          f"{100 * worst[1] / max(1, synth + paint + send + finish):.0f}% "
+          f"of the render's own time")
+    check("36: every pass reported time, and no pass is the whole story",
+          min(synth, paint, send) > 0 and synth < wall * 1000,
+          f"synth={synth} paint={paint} send={send} finish={finish}")
+    check("36: the app's own passes fit inside the wall clock the driver saw",
+          synth + timing["total_ms"] + finish <= wall * 1000 + 500,
+          f"{synth + timing['total_ms'] + finish} ms against {wall * 1000:.0f} ms")
+
+    dest = os.path.join(OUT, "36_one_minute.mp4")
+    with open(dest, "wb") as fh:
+        subprocess.run(
+            ["adb", "-s", DEV, "exec-out", "run-as", PKG, "cat", path],
+            stdout=fh, stderr=subprocess.DEVNULL)
+    got = os.path.getsize(dest) if os.path.exists(dest) else 0
+    check("36: the one-minute file came off the device whole", got == size,
+          f"{got}B pulled, the render wrote {size}B")
+    ok = ffprobe_checks("36/one-minute", dest, video_ms, frames, 1920, 1080)
+    check("36: the one-minute video's own streams parse", ok)
+
+    step("36: put the device back as it was found")
+    rows = dump()
+    if on_screen(rows, "Discard"):
+        tap(rows, "Discard", label="the review")
+        time.sleep(1.5)
+    check("36: the row's own content is taken back out",
+          s2_unseed() is not False)
+    left = shell_files(f"{LIBRARY}/content")
+    check("36: the library holds no trace of the row's content",
+          S2_ID not in left, left.strip())
+    start_app()
+    check("36: and the app opens a shipped pre-set again",
+          on_screen(dump(), preset_sentences()[0][2]),
+          f"visible: {labels(dump())[:6]}")
 
 
 def row_49():
@@ -1804,7 +2106,7 @@ def row_49():
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("31", "32", "33", "34", "49"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("31", "32", "33", "34", "36", "49"):
         print(__doc__)
         sys.exit(2)
     row = sys.argv[1]
@@ -1815,7 +2117,7 @@ def main():
         sys.exit(2)
     preflight()
     {"31": row_31, "32": row_32, "33": row_33, "34": row_34,
-     "49": row_49}[row]()
+     "36": row_36, "49": row_49}[row]()
 
     print("\n===== result =====")
     failed = [r for r in RESULTS if not r[1]]

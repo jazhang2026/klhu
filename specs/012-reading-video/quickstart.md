@@ -397,14 +397,24 @@ to the text, and the same call works for an English and a Chinese sentence. A fa
 failure to hide: it changes D3's "read the duration from the header" to a decode step and must be reported.
 Proves A6, FR-003.
 
-### 36. Spike S2 — how long does a real render take? — [device]
+### 36. Spike S2 — how long does a real render take? — [device] (ANSWERED 2026-10-01)
 
 Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 36`.
-Steps: time a one-minute reading from the tap to the finished review on the reference device, and count the
-frames encoded per second.
-Expected: a measured wall time, and a note of which side is the bottleneck (Dart's rasterisation or the
-encoder). **This number replaces SC-006's ≤ 5 minutes**, which the spec carries as a placeholder until it is
-measured. Proves SC-006.
+Steps: the row writes its own one-minute reading into the app's library (the shipped pre-set is ~25 s), opens
+it, renders it as `landscape`, and times it from the reader's own `Start` to the app's own done line — reading
+the app's own account of where the time went (`klhu render time synth=… paint=… send=… total=… finish=…`,
+printed by `lib/video_renderer.dart`), then takes its content back out.
+Expected: a measured wall time, the video's own length, the frames per second, and which side is the
+bottleneck. **This number replaces SC-006's ≤ 5 minutes**, which the spec carried as a placeholder until it
+was measured. Proves SC-006.
+**Measured 2026-10-01 on `emulator-5554` (27/27 checks)**: 17 sentences → **69.3 s of 1080p30 video, 2078
+frames, rendered in 60.6 s of wall clock** (0.9× real time, 34 frames/s; the app's own passes are 49.5 s of it,
+the rest being the page's start-up). The bottleneck is **the encoder's
+path**: `send` 47.1 s (PNG encode plus the platform's own conversion) against Dart's
+rasterising at 0.18 s for all 17 pictures and synthesis at 2.1 s, with the muxer's finish at 11 ms. The file
+pulled back is byte-for-byte the render's own and probes as H.264/AAC 1920×1080 30 fps with exactly the plan's
+2078 frames. So the ceiling SC-006 asserted is not near: a one-minute reading costs about a minute, and the
+place to look if that ever has to improve is the frame's own transfer to the platform, not the painter.
 
 ### 37. Exactly one dependency was added, and it is the picker — [structural]
 
