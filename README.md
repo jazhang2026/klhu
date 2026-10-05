@@ -208,8 +208,9 @@ for the message the reader was shown. The Kotlin half has **no unit tests and ca
 
 A content can be read as a **dialogue**: a `{角色}` tag at a paragraph's head makes that paragraph the role's
 turn, and every role speaks in its own voice out of the app's own language lists — narration (an untagged
-paragraph, or a name the reader removed) reads in the ordinary reading voice, a pick decides both the voice
-and the pronunciation for that role, and the tag itself is **never spoken**. The reader confirms the roster
+paragraph, or a name the reader removed) reads in **the voice the reader picked for that language, the same
+voice an ordinary read uses** and never another role's, a pick decides both the voice and the pronunciation
+for that role, and the tag itself is **never spoken**. The reader confirms the roster
 the text proposed, and the type is a per-content setting: a content with no type reads exactly as it read
 before this feature, and switching it touches nothing else. The editor's 排版/Format is the writer's one
 press — it moves every tag to the head of its own paragraph by adding blank lines and nothing else, in one
