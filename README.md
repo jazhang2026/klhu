@@ -204,6 +204,34 @@ written, `klhu render time synth=… paint=… send=… finish=…` per render, 
 for the message the reader was shown. The Kotlin half has **no unit tests and cannot have any that run in
 `flutter test`** — the rows above are its whole coverage, which is why it is kept logic-free.
 
+### Dialogue reading (014)
+
+A content can be read as a **dialogue**: a `{角色}` tag at a paragraph's head makes that paragraph the role's
+turn, and every role speaks in its own voice out of the app's own language lists — narration (an untagged
+paragraph, or a name the reader removed) reads in the ordinary reading voice, a pick decides both the voice
+and the pronunciation for that role, and the tag itself is **never spoken**. The reader confirms the roster
+the text proposed, and the type is a per-content setting: a content with no type reads exactly as it read
+before this feature, and switching it touches nothing else. The editor's 排版/Format is the writer's one
+press — it moves every tag to the head of its own paragraph by adding blank lines and nothing else, in one
+undo step. The same resolution feeds the video: a dialogue's render speaks each turn in its role's voice and
+no frame ever shows a tag. The feature adds no dependency and no platform code.
+
+```bash
+cd specs/014-dialogue-reading/scripts
+python3 klhu_walk_dialogue.py 23   # four roles: turns, one utterance per sentence, the tag never spoken
+python3 klhu_walk_dialogue.py 24   # the assignment against the device's own voices (24 roles, 15 voices)
+python3 klhu_walk_dialogue.py 25   # a pick and a removal survive a force-stop, and go with the content
+python3 klhu_walk_dialogue.py 26   # switching the type mid-read keeps the reader's place and highlight
+python3 klhu_walk_dialogue.py 27   # the dialogue's video: no tag in a frame, a voice per turn
+python3 klhu_walk_dialogue.py 28   # spike S1: the device's distinct voices per language and gender
+python3 klhu_walk_dialogue.py 33   # the editor's Format press, with the reader's own hands
+```
+
+The app's own lines are the evidence, not a still: `klhu roles` (the text's proposal), `klhu speak` per
+utterance with its role and its voice, and `role=` on each of the renderer's own lines. The rows, their raw
+output, the spike's answer and the two faults this walk found in its own readers are in
+`specs/014-dialogue-reading/breakpoint.md`.
+
 ## Specs
 
 Development is spec-driven: each feature has `specs/<NNN>-<name>/` with
@@ -224,6 +252,7 @@ it matters, `tasks.md` (one task per artifact, ticked as verified) and
 | 009-app-icon | branded launcher icon on Android + iOS from `images/kalahoo.jpeg`, adaptive on Android 8+ |
 | 010-continue-read | Continue Read: tap a sentence / long-press a paragraph to set the start position, read from there, resume after pause at the sentence |
 | 011-reading-experience | the highlight follows the read sentence by sentence, a per-device typeface/size for the reading text, `+` to add a content from the library |
+| 014-dialogue-reading | a content can be read as a dialogue — `{角色}` tags at a paragraph's head, one voice per role from the app's own lists, the reader's confirmed roster and picks stored per content, and the editor's Format press |
 | 012-reading-video | the reader's content becomes a video on the device — one sentence per frame at the reader's own size, the reader's own pictures behind it, the engine's voice as the clock — then kept in the gallery, played, shared and deleted; the repository's first platform-specific half |
 
 ## Known limitations

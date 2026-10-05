@@ -22,15 +22,33 @@ appearance page's inset case — so the number moved before this feature touched
 the measured one). T002 records it; T036 closes the list with the same two numbers re-taken.
 
 **Format checker**: `python3 ~/.hermes/skills/software-development/spec-driven-development/scripts/check_tasks_format.py specs/014-dialogue-reading`
-→ **OK (36 tasks, 28 done, 5 `[P]`)** — the receipt after the second device pass (T028, row 24),
-re-run 2026-10-03; `task_id_audit.py` reports the same with no duplicate, gap or out-of-order id. It read
+→ **OK (36 tasks, 36 done, 5 `[P]`)** — every task closed, each with its own receipt beside it. The
+closing pass (T036, 2026-10-05) re-ran the two numbers on the **finished** tree and they sit beside T002's
+baseline: `flutter analyze` → **No issues found!** (exit 0), and `flutter test --concurrency=2` → **529
+passing, 0 failing** (exit 0, 49 s) against the baseline's **445 passing at `306e288`** — the 84 new tests are
+this feature's own, and nothing the feature touched went back out. Quoted verbatim, the checker this file is
+read with:
+
+```
+tasks.md: 36 tasks (36 done), 5 marked [P]
+  (setup/foundational/polish): 18
+  [US1]: 5
+  [US2]: 3
+  [US3]: 3
+  [US4]: 3
+  [US5]: 4
+
+OK: format, sequencing and spec-id coverage check out
+```,
+re-run 2026-10-05; `task_id_audit.py` reports the same with no duplicate, gap or out-of-order id. It read
 **OK (36 tasks, 0 done, 5 `[P]`)** when this file was written and is re-run after every structural edit; a
 later edit that breaks the id sequence, pushes a path off a task's first line, or drops an id from the table
 is what the receipt stops being true about.
 
-**Device rows**: rows **23 WALKED — PASS (10/10)** and **24 WALKED — PASS (13/13)** on `emulator-5554`
-against a debug build of the current code; the driver and the raw logcat lines are in `breakpoint.md`. Rows
-25-28 and 33 are pending, each walked in the pass that implements it.
+**Device rows**: rows **23 WALKED — PASS (10/10)**, **24 WALKED — PASS (13/13)**, **25 WALKED — PASS
+(19/19)**, **26 WALKED — PASS (25/25)**, **27 WALKED — PASS (24/24)**, **28 WALKED — PASS (7/7)** and
+**33 WALKED — PASS (9/9)** on `emulator-5554` against a debug build of the current code; the driver and the
+raw logcat lines are in `breakpoint.md`. Every device row of this feature is walked.
 
 **Suite**: 445 at the baseline (T002) → **529 passing, 0 failing**, `flutter analyze` clean, after T025 —
 83 new tests across the six new files (27 dialogue, 11 assignment, 12 role store, 12 resolver, 15 page, 6
@@ -654,26 +672,102 @@ ending `RESULT: PASS|FAIL` (012's convention).
       shows (`广东话默认语音 (女)`), so list and assignment stay one source. Also fixed in the driver: `logcat
       -c` is asynchronous (the first run read zero speak lines while the app had spoken all five) — rows now
       window the log with a device timestamp taken before the tap.
-- [ ] T029 Walk quickstart row 25 into `specs/014-dialogue-reading/breakpoint.md`: a removal and a pick survive
+- [x] T029 Walk quickstart row 25 into `specs/014-dialogue-reading/breakpoint.md`: a removal and a pick survive
       a restart — remove a role and give another a pick, force-stop and reopen the app, re-read, and check the
       removed name's paragraphs are narration and the picked role still speaks in its picked voice; then delete
       the content and check the `content_roles` entry is gone from the shared-prefs dump.
       Proves FR-007/FR-008/FR-021, SC-006/SC-007.
-- [ ] T030 Walk quickstart row 26 into `specs/014-dialogue-reading/breakpoint.md`: switching the type mid-read
+      **DONE 2026-10-05 — WALKED, PASS (19/19 checks), evidence in `breakpoint.md`.** The driver's own output,
+      the three `klhu roles` lines and the prefs values are quoted there. Real device evidence: 阿明 given the
+      picker's `普通话 SSA (女)` → stored as `content_roles['dialogue_fixture']['voices']['阿明'] =
+      {name: cmn-cn-x-ssa-local, locale: zh-CN}` with **`voice_zh_Hans` absent** (a role's pick is the role's,
+      not the language's — FR-013); May removed through the shipped confirmation → the entry's own keys are
+      exactly `['removed', 'type', 'voices']`, `removed = [{name: May, at: 2026-10-05T17:33:08.000Z}]`, the
+      index's `updatedAt` being `2026-10-05T17:33:08.000000Z` (the same moment, milliseconds vs microseconds —
+      FR-007); the read then prints
+      `旁白→cmn-cn-x-ccc-local(female) 阿明→cmn-cn-x-ssa-local(female) narration(zh-Hans)→os-default
+      阿芳→cmn-cn-x-ccd-local(male)` with May's **two** lines carrying neither `role=` nor `voice=`
+      (`klhu speak p2 s0 "系啊，太阳晒住，风又凉爽。"`); after force-stop + start the list still shows
+      `['旁白', '阿明', '阿芳']` with 阿明 on SSA, the read's assignment is identical role for role, and the
+      stored entry is byte-identical (reopening writes nothing — FR-014); deleting the content through `内容` →
+      the content's own `删除` leaves `content_roles = None` (FR-021, SC-007). **Two findings for the reader**:
+      (a) **a removed name's paragraphs read in the *narration* voice, not in a pooled one** — with no language
+      pick that is the engine's default (`os-default`), the shipped reading behaviour exactly (FR-009 with
+      FR-002); the reader settled it on 2026-10-05 (**keep it**, `spec.md` → Clarifications, Session
+      2026-10-05) — a reader who wants a different sound for those lines picks the *language's* voice
+      (`语音`) as well; (b) the chrome drew in **English** this run where 2026-10-03's rows drew Chinese —
+      a row wipes the app's settings first, so the app's language falls back to the device's locale, which is
+      why the driver carries both spellings of every label. Driver-and-docs-only change (`specs/`): `lib/` and
+      `test/` were not touched, and the suite was re-measured on `854f494` right after the walk —
+      `flutter analyze` clean, `flutter test --concurrency=2` → **529 passing, 0 failing**. The driver gained
+      row 25's dispatch plus its
+      own helpers (role-row reading, the remove icon on the row's own line, exact-match dialog confirms,
+      moment-based timestamps) and an evidence filter that quotes `klhu speak`/`klhu roles` instead of the
+      hundreds of `klhu getVoices` lines.
+- [x] T030 Walk quickstart row 26 into `specs/014-dialogue-reading/breakpoint.md`: switching the type mid-read
       keeps the reader's place — start a read, switch to 多人对话 and back, and check the highlight and the
       stored `read_position` offset are where they were and the read continues from the same sentence.
       Proves FR-020, SC-009.
-- [ ] T031 Walk quickstart row 27 into `specs/014-dialogue-reading/breakpoint.md`: a dialogue's video on the
+      **DONE 2026-10-05 — WALKED, PASS (25/25 checks), evidence in `breakpoint.md`.** The driver's own output,
+      the two reads' lines, the prefs values and the framebuffer digests are quoted there. Real device
+      evidence: the reader's own tap stored `read_position_dialogue_fixture = 48||101`, the read started at
+      `klhu read range: 48..101`, and with the read **paused** the highlight survived the switch byte for byte
+      — the text band `(0, 260)-(1080, 1300)` digested `7942f4ba1c06b428` before the switch to 多人对话 and the
+      *same* digest after it (each pair of stills taken 3s apart, all three control pairs identical, so the
+      method is measuring the page and not noise); the stored offset was the same `48||101` at every step and
+      `content_roles` went `{'dialogue_fixture': {'type': 'dialogue'}}` → `None` on the way back, while 008's
+      `updatedAt` stayed `2026-10-05T18:11:05.000000Z`; 标准 spoke the tag
+      (`klhu speak p0 s0 "{May} 系啊，太阳晒住，风又凉爽。"`) where 多人对话 spoke the same sentence as
+      `role=May voice=cmn-cn-x-ccc-local "系啊，太阳晒住，风又凉爽。"`, and both reads started at offset 48.
+      **Findings for the reader**: (a) a type switch is a store write and nothing else — same anchor, same
+      pixels, same offset, and the read in flight still paused (`Resume` on screen) afterwards; (b) 010's
+      position is written by the gesture and only by the gesture — a read that **ran out** or a `Stop` clears
+      it (011 FR-022), which is why the row re-anchors by hand for the second mode; (c) 标准 hands the tags to
+      the engine as text, so a reader who never picks a type hears `{May}`; (d) two timing facts the device
+      taught the driver — the chooser's role step swallows a `Done` tap while its list is still drawing, and a
+      **repeat** read of a range is over before a `uiautomator dump` can land on Pause, so the pause is asked
+      for on the first pass only. Driver-and-docs-only change (`specs/`): `lib/` and `test/` were untouched
+      (the suite was last measured on `854f494` — `flutter analyze` clean, **529 passing, 0 failing**), and the
+      driver gained row 26's dispatch plus its own helpers (the band shot/digest, `read_ranges`, the
+      verified-dismissal chooser, `pause_read`, and `shows(..., exact=True)`).
+- [x] T031 Walk quickstart row 27 into `specs/014-dialogue-reading/breakpoint.md`: a dialogue's video on the
       device — render the fixture, check the slot log line names the role and the frames carry no tag (sampled
       frames read as pixels/characters), and that the file's per-slot audio is the voice the read used for that
       turn. Proves FR-018/FR-019, SC-008.
-- [ ] T032 Walk quickstart row 28 into `specs/014-dialogue-reading/breakpoint.md`: spike S1 — print the device's
+      **DONE 2026-10-05 — WALKED, PASS (24/24 checks), evidence in `breakpoint.md`.** Real device evidence: the
+      render of the fixture as 多人对话 came back `klhu_video.mp4 20133ms 968584B frames=604` (1920x1080, audio
+      `aac` 24000 Hz, 20261 ms in the container), the renderer's five runs carry `role=旁白/阿明/May/May/阿芳`
+      with spans `[(5, 19), (27, 46), (54, 67), (68, 75), (82, 100)]` — the sentences' own offsets in the raw
+      text, so the first slot starts at 5 where `{旁白} ` sits before it — and painted lengths
+      `[14, 19, 13, 7, 18]` against `[19, 25, 19, 27, 23]` if the tag were painted: **no tag reaches a frame**
+      (FR-005, SC-008). The frames themselves: in-slot pairs move 0.000-0.002% of the frame, every turn-opening
+      frame moves ~0.6% against the one before it, May's two slots (one role, one voice) still differ by 0.412%,
+      and each slot's frame carries 0.20-0.52% of ink — one picture per sentence, a boundary frame belonging to
+      the turn it opens. **Finding for the reviewer — a cross-feature break this row caught**: 014's `role=`
+      field broke 012's `RENDER_RUN_RE` (positional: after `tone=(\S+)` it wanted ` span=` and found ` role=`),
+      so 012's rows 31/32 read **0 runs** against any content while their file checks still passed; fixed in
+      `specs/012-reading-video/scripts/klhu_walk_video.py` by making the field optional and adding it to
+      `RUN_FIELDS` (the pre-014 shape still parses), verified against the app's own line. Also: the honest limit
+      of this row is that no container names a speaker — it proves the *plan* is the read's (role for role, one
+      call, D9) and the file is that plan's own length, not which voice a segment holds.
+- [x] T032 Walk quickstart row 28 into `specs/014-dialogue-reading/breakpoint.md`: spike S1 — print the device's
       installed voices per language and per gender (`lib/reader_service.dart:507-510`'s `voicesForAll` plus the
       mapping table) and record the counts, so SC-003's "whenever the device lists at least N matching voices"
       has a measured N rather than the app's table's 7 Mandarin / 6 Cantonese names. This row is the number the
       assignment's bound is read against; it gates nothing and blocks nothing, but its answer is what row 24's
       PASS is checked with.
-- [ ] T033 Walk quickstart row 33 into `specs/014-dialogue-reading/breakpoint.md`: the editor's Format press
+      **DONE 2026-10-05 — WALKED, PASS (7/7 checks), evidence in `breakpoint.md`; the answer is also written
+      into `research.md` → Spikes → S1, as the quickstart asks.** Measured on `emulator-5554`: the app's own
+      `klhu getVoices` lines carried 218 engine entries → **182 distinct voices** (a code's local and network
+      variants counted once, the table's own rule), grouped with the gender `lib/models/voice_mapping.dart`
+      records (96 ids — the engine exposes no gender): **普通话 4 female / 3 male**, **粤语 3 female / 2 male**,
+      English 11 / 8 (and one with none), Español 6 / 2. So **SC-003's N is 7 Mandarin and 5 Cantonese**, where
+      the app's table names 7 and 6 — the measured bound is one Cantonese voice *smaller* than the table's name
+      count, which is the spike's whole value. Exactly one voice in 182 has no recorded gender, `en-us-x-tpc`,
+      and it is the one the table's own docstring says it cannot claim. Row 24's PASS is read against this
+      bound. Driver-only change (`specs/`): `lib/` and `test/` were untouched, and the spike reads the engine's
+      list through the app's existing print, so the app needed no new evidence line for it.
+- [x] T033 Walk quickstart row 33 into `specs/014-dialogue-reading/breakpoint.md`: the editor's Format press
       with the reader's own hands — type or paste a dialogue with two tags on one line into the editor, dump
       the editor's text with `uiautomator dump` (the ground truth for Flutter text on this host) before and
       after pressing Format, press Undo, then press Done and reopen the content. The after-Format dump has each
@@ -688,19 +782,80 @@ hand-run).
 
 ## Phase 9: Polish & cross-cutting concerns
 
-- [ ] T034 Run the three structural rows into `specs/014-dialogue-reading/breakpoint.md`: row 19 (the l10n
+      **DONE 2026-10-05 — WALKED, PASS (9/9 checks), evidence in `breakpoint.md` → row 33. The last device row
+      of this feature.** With the reader's own hands on `emulator-5554`: a seeded 63-char text holding two tags
+      on one line plus one at a line start → 排版 → 66 chars, **three characters added and all of them line
+      breaks**, every tag now at its own paragraph's onset, the non-newline character sequence unchanged;
+      a second press changed nothing (the app disables the button when the result would equal the input);
+      撤销 restored the reader's text byte for byte; 完成 saved it through 008's own path (the library's file
+      holds the editor's 66 chars and the reopened page renders them). Driver-only change (`specs/`): `lib/`
+      and `test/` untouched, and the row unsets its own content afterwards. The row also found and fixed its
+      own reader's bug — 012's `dump` undoes `&#10;` for content-descs only, and a Flutter text field's
+      contents arrive as `text`, so the first run read every line break as four literal characters and would
+      have called a correct app broken.
+- [x] T034 Run the three structural rows into `specs/014-dialogue-reading/breakpoint.md`: row 19 (the l10n
       parity check — `flutter test test/l10n_keys_test.dart` plus `flutter gen-l10n` and a clean
       `git status --short lib/l10n` after it), row 29 (no dependency and no platform change — `git diff --stat
       pubspec.yaml pubspec.lock android/` empty), and rows 30-31 (011's and 012's receipts re-run unmodified:
       `specs/011-reading-experience/scripts/klhu_walk_experience.py` plus
       `flutter test test/language_test.dart test/segmenter_test.dart test/reader_service_test.dart`, and 012's
       own rows). Proves FR-023, SC-005, SC-010.
-- [ ] T035 Write `specs/014-dialogue-reading/breakpoint.md` from the walk: an environment table (device, build,
+      **DONE 2026-10-05 — all four structural rows run and recorded in `breakpoint.md` (rows 19, 29, 30, 31).**
+      Row 19: `flutter test test/l10n_keys_test.dart` 3/3, `flutter gen-l10n` clean, `git status --short lib/l10n`
+      empty — the four locales' keys and the generated files are in step. Row 29: `git diff --stat pubspec.yaml
+      pubspec.lock android/` empty — no dependency, no platform change. Row 30: 011's walk script's own parts
+      **7, 8, 9, 10, 16, 17, 20 and 21 all PASS**, unmodified, and the six named test files (011's three plus
+      012's three) green at **102 tests**. Row 31: 012's rows run one at a time — **31: 33/33**, **32: 42/42**,
+      **33: 15/17**; row 33's two failures are both its *second* render never starting (logcat:
+      `Sending oneway calls to frozen process` — the app frozen after the row's own gallery-play step), and its
+      first attempt's failures were the host killing the emulator under a render (row 32 exited 139 mid-way;
+      the same run left `device offline`), which re-running on a fresh AVD cleared. Two things this row found
+      that outlive it: 014's quickstart writes `klhu_walk_video.py 31 32 33`, but 012's script takes ONE row, so
+      that command silently runs only row 31 — the rows above were run separately, and the quickstart's row 31
+      now carries the corrected invocation and these measured numbers; with that script's own
+      `KLHU_SKIP_PLAY=1` (its var for this host) row 33 gives **19/20** — the second render completes, pinning
+      the hang on the gallery-play step, the single failure being the skip's own — so no failure across the
+      three runs touches what 014 changed; and a device walk must check
+      the device's own health after each row, or a host failure is recorded as an app failure. Proves FR-010,
+      FR-022, FR-023, SC-005, SC-010 and FR-019's "nothing else changed" side.
+- [x] T035 Write `specs/014-dialogue-reading/breakpoint.md` from the walk: an environment table (device, build,
       the source revision with the suite count, the driver and how to re-run a row), one row per device
       scenario with its state (`PASS` / `PARTIAL` / `NOT WALKED` plus the reason), a Deviations section written
       as rules, and the spike S1 answer in full. Then update the README's own section for this feature with the
       re-run commands and one paragraph on what a dialogue read does.
-- [ ] T036 Close `specs/014-dialogue-reading/tasks.md` with the receipt: re-run `flutter analyze` and
+      **DONE 2026-10-05 — written from the walk; `breakpoint.md` is now 778 lines and reads in this order**:
+      header (finished date + state), `## Environment`, **`## The rows at a glance`** — one table naming every
+      row of this feature with its state (23–28 and 33 `WALKED — PASS`, 19/29/30/31 `PASS`/structural, row 31's
+      `15/17` and its `19/20` skip run marked as a host-bound exception with the attribution beside it, and the
+      unit rows pointing at the suite) — **`## Deviations — the rules this walk learned`** (ten rules: the 500 ms
+      undo throttle; seed text, never type it; read the app's own line and undo the dump's `&#10;`; check the
+      device's health after every row; a second render needs the foreground; one row per run for 012's script; a
+      frame claim needs a pixel floor; the audio's voice is not in the file; the gender is the app's table's; a
+      running read's page never goes quiet), then one section per row (23 … 31) with the command, the raw output
+      and the checks, then `## Rows still to walk` = **None**. Spike S1's answer is carried in full in the glance
+      block *and* in row 28's section — the table of 182 distinct voices by language and recorded gender and the
+      bound that follows from it (N = 7 Mandarin, 5 Cantonese). `README.md` gained `### Dialogue reading (014)`:
+      one paragraph on what a dialogue read does (tags at a paragraph's head, a voice per role out of the app's
+      own lists, narration never attributed, a removed name becoming narration, the per-content type, Format's
+      blank-lines-only press, the same resolution in the video, no dependency and no platform code) plus the
+      seven re-run commands, and the Specs table gained its 014 row. Docs only: `lib/` and `test/` untouched.
+- [x] T036 Close `specs/014-dialogue-reading/tasks.md` with the receipt: re-run `flutter analyze` and
+      **DONE 2026-10-05 — the closing receipt.** On the finished tree (`README.md` + `specs/` edits only, `lib/`
+      and `test/` untouched): `flutter analyze` → `No issues found! (ran in 0.9s)`, exit 0;
+      `flutter test --concurrency=2` → `+529: All tests passed!`, exit 0, 49 s. Both numbers are written into the
+      Status block above beside T002's baseline of 445 at `306e288`, so the finished figure is read against the
+      one this feature started from — **529 = 445 + 84**, and no test that existed before it changed its result.
+      Every tick audited in one pass, mechanically rather than by eye: all **36** task lines parsed, every one of
+      the **35** that was already ticked carries a `DONE` receipt in its own block (smallest 774 chars — T024),
+      no unticked task carries one, and no receipt is under 80 chars, so no tick is a claim without evidence
+      beside it. The one remaining box (T036, this task) was ticked with this receipt. Then the file's own
+      checker was re-run and its output quoted in the Status block above:
+      `check_tasks_format.py specs/014-dialogue-reading` → **OK: format, sequencing and spec-id coverage check
+      out** (36 tasks, 36 done, 5 `[P]`). `git status --short` at this point holds **eight** files, every one of
+      them intended: `README.md` (T035's section and the Specs row), six files under
+      `specs/014-dialogue-reading/`, and `specs/012-reading-video/scripts/klhu_walk_video.py` (row 27's
+      `RENDER_RUN_RE` fix, which 014's `role=` field made necessary) — no file under `lib/`, `test/` or
+      `android/`, and no untracked leftovers from the walk.
       `flutter test --concurrency=2` on the finished tree, write both numbers into the Status section of this
       file beside T002's baseline, tick every task above in one pass and correct any tick whose receipt went
       stale, then re-run `check_tasks_format.py specs/014-dialogue-reading` and quote its output in the Status

@@ -418,6 +418,23 @@ depends on how many voices the device has. If the AVD turns out to list two Mand
 gender, the plan's own promise has to shrink to what the device can do, and the spec's SC-003 wording
 ("where the device lists a voice of the same dialect and gender") is what makes that honest.
 
+**Answer — measured 2026-10-05 on `emulator-5554`** (`klhu_walk_dialogue.py 28`, 7/7 checks; the walk and the
+lines are in `breakpoint.md` → row 28): the app's own `klhu getVoices` lines carried 218 engine entries, which
+are **182 distinct voices** once a code's local and network variants are counted once (the table's own rule).
+Grouped by the app's four language lists and the gender `lib/models/voice_mapping.dart` records:
+
+| language | female | male | no gender recorded |
+|---|---|---|---|
+| 普通话 (Mandarin) | 4 | 3 | 0 |
+| 粤语 (Cantonese) | 3 | 2 | 0 |
+| English | 11 | 8 | 1 (`en-us-x-tpc` — the table's own documented exception) |
+| Español | 6 | 2 | 0 |
+
+So the N SC-003's "at least N matching voices" is read against is **7 for Mandarin and 5 for Cantonese** with a
+recorded gender — not the app's table's 7 Mandarin / 6 Cantonese *names*: the table holds 96 ids (both variants
+of each code among them) and the device lists one Cantonese voice fewer than the table names. Row 24's PASS is
+read against this bound (its 24 roles shared 15 voices of this list).
+
 ### Not a spike, because it already ships
 
 Switching the engine's voice between utterances is not new work: `_applyVoice` runs before every utterance

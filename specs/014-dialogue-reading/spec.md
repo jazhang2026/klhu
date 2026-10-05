@@ -169,6 +169,23 @@ read against.
   paragraph head and is then proposed as a role — the role list is where that is removed (US3), and one Undo
   reverses the whole press (US5). Settles FR-024.
 
+### Session 2026-10-05
+
+One decision, made while walking the device rows: row 25 raised what the app actually *does* with a removed
+name's paragraphs, and the reader settled it rather than leaving it to be re-discovered.
+
+- **Q**: A name is removed from the role list. Its paragraphs are narration (FR-009) — read in *whose*
+  voice? **A**: *the narration's own* — the reader's pick for that language, and with no such pick the OS
+  default. That is what ships for every paragraph of a 标准 content (FR-002), and the device read of row 25
+  shows it whole: `narration(zh-Hans)→os-default`, with the removed turn's lines carrying no role and no
+  voice at all (`klhu speak p2 s0 "系啊，太阳晒住，风又凉爽。"`). The reader was shown the alternative —
+  giving a removed name's paragraphs a voice out of the dialogue's own pool, at the cost of re-writing
+  FR-009's *today's behaviour, exactly* and rows 23-25's expectations — and chose to keep this
+  (*保持现状*, 2026-10-05). So: **removing a role does not hand its paragraphs to another role, and does not
+  put them into any dialogue voice**; a reader who wants a different sound for those lines picks the
+  *language's* voice in 语音 (row 24's own path, `voice_<language>`), which narration reads with. Settles
+  FR-009's remaining half and closes the one question row 25 left open.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A dialogue reads as a dialogue (Priority: P1)

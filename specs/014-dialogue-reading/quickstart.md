@@ -389,11 +389,19 @@ Expected: green, unmodified — the read of a content with no dialogue settings 
 
 ### 31. The 012 video receipt still passes — [structural]
 
-Check: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 31 32 33` and
+Check: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 31`, then `... 32`, then `... 33` — **one
+row per run**: 012's script takes a single row (`sys.argv[1]`) and ignores the rest, so `31 32 33` runs row 31
+and silently skips the other two while printing a green summary. Plus
 `flutter test test/video_timeline_test.dart test/video_painter_test.dart test/video_renderer_test.dart`.
 Expected: green, unmodified for a standard content — the video's sentences, frames, chrome and log line are
 what 012's own rows assert, with the additive `role=` field ignored by their checks. Proves FR-019's
-"nothing else changed" side.
+"nothing else changed" side. Measured 2026-10-05 (breakpoint.md → row 31): 31 **33/33**, 32 **42/42**, 33
+**15/17** — row 33's two failures are its *second* render never starting, with logcat showing the app frozen
+(`Sending oneway calls to frozen process`) after the row's own gallery-play step; row 33's first attempt also
+lost the emulator mid-row (this host kills it under a render), which re-running on a fresh AVD cleared. With
+the script's own `KLHU_SKIP_PLAY=1` (the var it offers for this host) the same row gives **19/20**: the second
+render completes, which pins the hang on that play step, and the single failure is the skip's own
+("the app's own record names the kept video — None").
 
 ### 32. Format puts every tag at the head of its own paragraph, and adds nothing else — [unit]
 

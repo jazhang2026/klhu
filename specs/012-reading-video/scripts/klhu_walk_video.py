@@ -479,10 +479,10 @@ def duration_s(probed):
 # runs of one slot, one per step.
 RENDER_RUN_RE = (
     r"klhu render slot=(\d+)/(\d+) frame=(\d+)/(\d+) kind=(\w+) frames=(\d+) "
-    r"scroll=(\d+) picture=(\S+) tone=(\S+) span=(\d+)\.\.(\d+) text=(\d+)")
+    r"scroll=(\d+) picture=(\S+) tone=(\S+)(?: role=(\S+))? span=(\d+)\.\.(\d+) text=(\d+)")
 RENDER_PREVIEW_RE = r"klhu render preview frame=(\d+) kind=(\w+)"
 RUN_FIELDS = ("slot", "slots", "start", "total", "kind", "frames", "scroll",
-              "picture", "tone", "span_start", "span_end", "text")
+              "picture", "tone", "role", "span_start", "span_end", "text")
 
 
 def render_runs(log):
