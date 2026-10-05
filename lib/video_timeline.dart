@@ -6,9 +6,9 @@
 /// does the synthesis, the painting and the encoding around it.
 library;
 
-import 'package:klhu/language.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
+import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/voice_store.dart';
 
@@ -34,6 +34,7 @@ class VideoSentence {
     required this.text,
     required this.language,
     required this.voice,
+    this.role,
   });
 
   /// Indices into the sentences' own paragraphs and their sentences, as the
@@ -48,6 +49,11 @@ class VideoSentence {
   final String text;
   final String language;
   final VoiceChoice? voice;
+
+  /// The role whose turn this sentence is, or null for narration (014 FR-018):
+  /// the read's own answer, carried through so the render's log line can name it
+  /// (D10) — the frame itself never shows it.
+  final String? role;
 }
 
 /// Splits per-paragraph speeches into the sentences the video will speak.
@@ -78,6 +84,7 @@ List<VideoSentence> videoSentencesOf(List<ParagraphSpeech> speeches) {
           text: text,
           language: paragraph.language,
           voice: paragraph.voice,
+          role: paragraph.role,
         ),
       );
     }
@@ -90,17 +97,33 @@ List<VideoSentence> videoSentencesOf(List<ParagraphSpeech> speeches) {
 ///
 /// The position is 011's stored offset, which is not a sentence boundary — it is
 /// resolved to its sentence's own start first, so the video opens at a sentence
-/// rather than mid-way through one. Language and voice resolution is
-/// `resolveParagraphSpeeches`, the same call the page's read makes, so the
-/// video cannot read something different from what a read would.
+/// rather than mid-way through one.
+///
+/// Language, voice and role resolution is [resolveSpeeches] — the same call the
+/// page's read makes, with the same content type, removals and picks (014 D9),
+/// so the video cannot read or voice something different from what a read would.
+/// The dialogue parameters default to the standard read, which is what this call
+/// was before 014: 012's own callers and tests pass none of them.
 Future<List<VideoSentence>> videoSentencesFrom({
   required String content,
   required int position,
   required Future<VoiceChoice?> Function(String language) loadVoice,
+  ReadingMode mode = ReadingMode.standard,
+  Set<String> removed = const {},
+  Map<String, VoiceChoice> picks = const {},
+  Future<List<VoiceEntry>> Function()? loadInstalled,
 }) async {
   final from = resolveSentence(content, position).start;
-  final speeches =
-      await resolveParagraphSpeeches(content, from, content.length, loadVoice);
+  final speeches = await resolveSpeeches(
+    content: content,
+    start: from,
+    end: content.length,
+    mode: mode,
+    removed: removed,
+    picks: picks,
+    loadVoice: loadVoice,
+    loadInstalled: loadInstalled,
+  );
   return videoSentencesOf(speeches);
 }
 
@@ -118,6 +141,7 @@ class VideoSlot {
     required this.durationMs,
     required this.frames,
     required this.startFrame,
+    this.role,
   });
 
   final VideoSlotKind kind;
@@ -136,6 +160,10 @@ class VideoSlot {
   final String text;
   final String language;
   final VoiceChoice? voice;
+
+  /// The role whose turn this slot speaks, or null for narration (014 FR-018).
+  /// The hold repeats the last sentence's, like its text and its voice.
+  final String? role;
 
   /// How long this slot lasts, and how many frames that is at the plan's rate.
   final int durationMs;
@@ -232,6 +260,7 @@ VideoPlan buildVideoPlan({
         text: sentence.text,
         language: sentence.language,
         voice: sentence.voice,
+        role: sentence.role,
         durationMs: audioMs[i],
         frames: frames,
         startFrame: cursor,
@@ -252,6 +281,7 @@ VideoPlan buildVideoPlan({
       text: sentences.last.text,
       language: sentences.last.language,
       voice: sentences.last.voice,
+      role: sentences.last.role,
       durationMs: VideoPlan.holdMs,
       frames: framesOf(VideoPlan.holdMs),
       startFrame: cursor,

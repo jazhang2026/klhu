@@ -15,16 +15,44 @@ String sampleLineFor(String language) => switch (language) {
 /// Voice picker (002 US2): lists installed voices for [language],
 /// tap previews the sample line in that voice and persists the choice.
 /// Displays user-friendly names with characteristics via [VoiceMappingService].
+///
+/// 014 opens the same screen for a ROLE (D7): the language picker's own path
+/// passes none of the four parameters below, so that screen is exactly what
+/// ships — a title of its own, no *automatic* row, the selected row read from
+/// [store] and a tap saved through it.
 class VoicePickerScreen extends StatefulWidget {
   final Reader reader;
   final VoiceStore store;
   final String language;
+
+  /// Shown instead of the screen's own title — the role's name (014).
+  final String? title;
+
+  /// Offer a first row meaning *follow the automatic assignment* (014 FR-012):
+  /// tapping it hands the role back to the ranking. False for the language path,
+  /// where a language's voice has always been a pick.
+  final bool clearable;
+
+  /// What to show as chosen. The language path passes nothing and the pick is
+  /// read from [store]; a role's pick lives in `lib/role_store.dart`, which this
+  /// screen knows nothing about, so the page hands it over.
+  final VoiceChoice? initialSelection;
+
+  /// Where a pick goes — and a clear, as null. The language path passes nothing
+  /// and the pick is written through [store]; for a role the page passes a
+  /// closure onto the role store, so a role's voice can never be written as the
+  /// language's voice (FR-013).
+  final Future<void> Function(VoiceChoice? choice)? onPick;
 
   const VoicePickerScreen({
     super.key,
     required this.reader,
     required this.store,
     required this.language,
+    this.title,
+    this.clearable = false,
+    this.initialSelection,
+    this.onPick,
   });
 
   @override
@@ -88,7 +116,10 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
     });
     try {
       final voices = await widget.reader.voicesFor(_language);
-      final selected = await widget.store.loadVoice(_language);
+      // A role's pick is not in [store]: the page hands it over (014 D7).
+      final selected = widget.onPick == null
+          ? await widget.store.loadVoice(_language)
+          : widget.initialSelection;
       if (!mounted) return;
       setState(() {
         _voices = voices;
@@ -148,20 +179,20 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
         voice,
         sampleLineFor(_language),
       );
-      await widget.store.saveVoice(
-        VoiceChoice(
-          language: _language,
-          name: voice.name,
-          locale: voice.locale,
-        ),
+      final choice = VoiceChoice(
+        language: _language,
+        name: voice.name,
+        locale: voice.locale,
       );
+      final onPick = widget.onPick;
+      if (onPick == null) {
+        await widget.store.saveVoice(choice);
+      } else {
+        await onPick(choice);
+      }
       if (!mounted) return;
       setState(() {
-        _selected = VoiceChoice(
-          language: _language,
-          name: voice.name,
-          locale: voice.locale,
-        );
+        _selected = choice;
         _previewError = null;
       });
       _scrollToSelectedSoon();
@@ -171,11 +202,25 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
     }
   }
 
+  /// The *automatic* row (014 FR-012): the role goes back to the assignment.
+  Future<void> _onClear() async {
+    final onPick = widget.onPick;
+    // The row is only offered when the page opened this screen for a role, and
+    // that path always passes a sink.
+    if (onPick == null) return;
+    await onPick(null);
+    if (!mounted) return;
+    setState(() {
+      _selected = null;
+      _previewError = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.voiceButton)),
+      appBar: AppBar(title: Text(widget.title ?? l10n.voiceButton)),
       body: Column(
         children: [
           Padding(
@@ -252,6 +297,15 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
                   child: ListView(
                     controller: _scrollController,
                     children: [
+                      // The role path's own row (014 FR-012): what the role reads
+                      // with when the reader has not chosen — the assignment.
+                      if (widget.clearable)
+                        ListTile(
+                          leading: const Icon(Icons.auto_awesome),
+                          title: Text(l10n.roleVoiceAutomatic),
+                          selected: _selected == null,
+                          onTap: _onClear,
+                        ),
                       for (final voice in _voices)
                         ListTile(
                           key: _rowKeys.putIfAbsent(

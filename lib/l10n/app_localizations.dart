@@ -640,6 +640,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open your pictures. Try again.'**
   String get videoPicturesFailed;
+
+  /// No description provided for @textTypeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Text type'**
+  String get textTypeButton;
+
+  /// No description provided for @textTypeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text type'**
+  String get textTypeTitle;
+
+  /// No description provided for @textTypeStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get textTypeStandard;
+
+  /// No description provided for @textTypeDialogue.
+  ///
+  /// In en, this message translates to:
+  /// **'Dialogue'**
+  String get textTypeDialogue;
+
+  /// No description provided for @textTypeDialogueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each paragraph is a turn; a role tag at the head of a paragraph names its speaker.'**
+  String get textTypeDialogueHint;
+
+  /// No description provided for @roleListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles'**
+  String get roleListTitle;
+
+  /// No description provided for @roleListEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No roles yet. A paragraph that starts with a role tag belongs to that role.'**
+  String get roleListEmptyMessage;
+
+  /// No description provided for @roleTurnCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 turn} other {{count} turns}}'**
+  String roleTurnCount(int count);
+
+  /// No description provided for @roleVoiceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get roleVoiceLabel;
+
+  /// No description provided for @roleVoiceAutomatic.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get roleVoiceAutomatic;
+
+  /// No description provided for @roleRemoveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this role'**
+  String get roleRemoveButton;
+
+  /// No description provided for @roleRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this role?'**
+  String get roleRemoveConfirmTitle;
+
+  /// No description provided for @roleRemoveConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Its paragraphs will be read as narration, in the reading voice.'**
+  String get roleRemoveConfirmMessage;
+
+  /// No description provided for @rolePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice for {role}'**
+  String rolePickerTitle(String role);
+
+  /// No description provided for @formatButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get formatButton;
 }
 
 class _AppLocalizationsDelegate

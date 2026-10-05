@@ -109,9 +109,15 @@ void main() {
     Reader? reader,
     Locale? locale,
     Size viewport = const Size(400, 640),
+    double systemBar = 0,
   }) async {
     tester.view.physicalSize = viewport;
     tester.view.devicePixelRatio = 1.0;
+    if (systemBar > 0) {
+      // What the system reports for its own bottom bar, on the view the app is
+      // really laid out in.
+      tester.view.padding = FakeViewPadding(bottom: systemBar);
+    }
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
@@ -300,5 +306,34 @@ void main() {
     final style = contentStyle(tester);
     expect(style.fontFamily, 'serif');
     expect(style.fontSize, ReadingSize.xlarge.points);
+  });
+
+  // The screen is a scroll view with padding of its own, which is exactly what
+  // costs it the inset a scroll view would otherwise take by itself: at the end
+  // of the list, the last option must still be above the system's own bar
+  // (2026-10-02, on the OnePlus 13, where the bar is drawn over the page).
+  testWidgets('16. the last option scrolls clear of the system bar',
+      (tester) async {
+    const systemBar = 48.0;
+    // Short enough that the list really does overflow and scroll.
+    await openPage(tester,
+        systemBar: systemBar, viewport: const Size(400, 420));
+    await openScreen(tester);
+
+    final list = find.descendant(
+      of: find.byType(AppearanceScreen),
+      matching: find.byType(ListView),
+    );
+    // Far enough that the list is at its end, whatever its content height.
+    await tester.drag(list, const Offset(0, -2000));
+    await tester.pumpAndSettle();
+
+    final screen = tester.getRect(find.descendant(
+      of: find.byType(AppearanceScreen),
+      matching: find.byType(Scaffold),
+    ));
+    final last = tester.getRect(find.text('Extra large'));
+    expect(last.bottom, lessThanOrEqualTo(screen.bottom - systemBar),
+        reason: 'the last option is behind the system bar');
   });
 }

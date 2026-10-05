@@ -632,6 +632,58 @@ void main() {
       expect(fake.spoken.last, 'Birds sang in the tall trees.');
     });
   });
+  // Android 15+ draws the app edge-to-edge, so the bar the system puts on the
+  // screen's bottom edge lies over the page's own controls unless the page
+  // makes room for it (found on the OnePlus 13, 2026-10-02).
+  group('the page\'s controls clear the system bar', () {
+    const systemBar = 48.0;
+
+    Future<void> pumpWithSystemBar(WidgetTester tester, Reader reader) async {
+      // What the system reports for its own bar, on the view the app is really
+      // laid out in (a device hands the app the same value as
+      // MediaQuery.padding.bottom). Device pixels are logical ones here, so the
+      // numbers read like the rest of the file.
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.padding = const FakeViewPadding(bottom: systemBar);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: reader, contentStore: pageStore(root)),
+      ));
+    }
+
+    testWidgets('Play and Stop sit above the bar, not under it',
+        (tester) async {
+      await pumpWithSystemBar(tester, FakeReader());
+      await loadPageContent(tester);
+      final screen = tester.getRect(find.byType(Scaffold));
+      for (final tooltip in ['Read', 'Continue Read', 'Stop', 'Edit']) {
+        // The button's own box — the touch target — not the label inside it.
+        final control = tester.getRect(find.ancestor(
+          of: find.byTooltip(tooltip),
+          matching: find.byType(IconButton),
+        ));
+        final above = screen.bottom - systemBar - control.bottom;
+        expect(control.bottom, lessThanOrEqualTo(screen.bottom - systemBar),
+            reason: '$tooltip is under the system bar');
+        // ...and hugging it: the controls belong to the bottom edge, they do
+        // not float above it (2026-10-02: "too much space, can be less").
+        expect(above, lessThan(systemBar),
+            reason: '$tooltip floats $above above the system bar');
+      }
+    });
+  });
 }
 
 /// Render object of the reading content (always a RichText).

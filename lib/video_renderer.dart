@@ -24,6 +24,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/reader_service.dart';
+import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_pictures.dart';
@@ -185,16 +186,25 @@ class VideoRenderer {
     required String content,
     required int position,
     required Future<VoiceChoice?> Function(String language) loadVoice,
+    ReadingMode mode = ReadingMode.standard,
+    Set<String> removed = const {},
+    Map<String, VoiceChoice> picks = const {},
+    Future<List<VoiceEntry>> Function()? loadInstalled,
     void Function(VideoRenderProgress)? onProgress,
     void Function(VideoFrame)? onFrame,
   }) async {
     // What a read from this position would speak, resolved exactly as the read
     // resolves it: the same sentence split, the same language per paragraph,
-    // the same picked voice (FR-004, A5).
+    // the same picked voice (FR-004, A5) — and, since 014, the same roles and
+    // the same per-role voices (FR-018).
     final sentences = await videoSentencesFrom(
       content: content,
       position: position,
       loadVoice: loadVoice,
+      mode: mode,
+      removed: removed,
+      picks: picks,
+      loadInstalled: loadInstalled,
     );
     if (sentences.isEmpty) {
       throw const VideoRenderException(
@@ -351,6 +361,10 @@ class VideoRenderer {
             ' scroll=${frame.scrollLines}'
             ' picture=${frame.picture == null ? "none" : "yes"}'
             ' tone=${frame.tone?.name ?? "-"}'
+            // 014 D10: beside the fields 012's own walk reads, so every
+            // existing check keeps matching. The device row has nothing else
+            // to go on to say which voice read a turn.
+            ' role=${run.slot.role ?? "narration"}'
             ' span=${run.slot.start}..${run.slot.end} text=${frame.paintedText.length}');
         // Shown and written from the same picture, in that order (FR-020).
         onFrame?.call(frame);

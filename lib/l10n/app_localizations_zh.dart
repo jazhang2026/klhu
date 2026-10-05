@@ -299,6 +299,60 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get videoPicturesFailed => '无法打开图片，请重试。';
+
+  @override
+  String get textTypeButton => '文字类型';
+
+  @override
+  String get textTypeTitle => '文字类型';
+
+  @override
+  String get textTypeStandard => '标准';
+
+  @override
+  String get textTypeDialogue => '多人对话';
+
+  @override
+  String get textTypeDialogueHint => '每个段落是一个回合；段首的角色标签决定由谁朗读。';
+
+  @override
+  String get roleListTitle => '角色';
+
+  @override
+  String get roleListEmptyMessage => '还没有角色。以角色标签开头的段落属于该角色。';
+
+  @override
+  String roleTurnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个回合',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roleVoiceLabel => '语音';
+
+  @override
+  String get roleVoiceAutomatic => '自动';
+
+  @override
+  String get roleRemoveButton => '移除此角色';
+
+  @override
+  String get roleRemoveConfirmTitle => '移除此角色？';
+
+  @override
+  String get roleRemoveConfirmMessage => '其段落将作为旁白，用朗读语音读出。';
+
+  @override
+  String rolePickerTitle(String role) {
+    return '为 $role 选择语音';
+  }
+
+  @override
+  String get formatButton => '排版';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -595,4 +649,58 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get videoPicturesFailed => '无法打开图片，请重试。';
+
+  @override
+  String get textTypeButton => '文字类型';
+
+  @override
+  String get textTypeTitle => '文字类型';
+
+  @override
+  String get textTypeStandard => '标准';
+
+  @override
+  String get textTypeDialogue => '多人对话';
+
+  @override
+  String get textTypeDialogueHint => '每个段落是一个回合；段首的角色标签决定由谁朗读。';
+
+  @override
+  String get roleListTitle => '角色';
+
+  @override
+  String get roleListEmptyMessage => '还没有角色。以角色标签开头的段落属于该角色。';
+
+  @override
+  String roleTurnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个回合',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roleVoiceLabel => '语音';
+
+  @override
+  String get roleVoiceAutomatic => '自动';
+
+  @override
+  String get roleRemoveButton => '移除此角色';
+
+  @override
+  String get roleRemoveConfirmTitle => '移除此角色？';
+
+  @override
+  String get roleRemoveConfirmMessage => '其段落将作为旁白，用朗读语音读出。';
+
+  @override
+  String rolePickerTitle(String role) {
+    return '为 $role 选择语音';
+  }
+
+  @override
+  String get formatButton => '排版';
 }

@@ -67,12 +67,21 @@ class ParagraphSpeech {
   final int start;
   final int end;
 
+  /// The speaker this paragraph belongs to, when the content is read as a
+  /// dialogue (014): the name at the turn's head, or null for narration — and
+  /// null for every speech 标准 produces, which is what makes this additive to
+  /// everything that already builds a `ParagraphSpeech` (research D10: the role
+  /// is what the device rows' log line has to name, and a voice alone cannot be
+  /// read back into a name).
+  final String? role;
+
   const ParagraphSpeech({
     required this.text,
     required this.language,
     this.voice,
     required this.start,
     required this.end,
+    this.role,
   });
 }
 
@@ -214,10 +223,15 @@ class _Utterance {
   final int start;
   final int end;
 
+  /// The speaker this sentence belongs to, for the read's log line (014 D10):
+  /// null for narration and for every 标准 speech.
+  final String? role;
+
   const _Utterance({
     required this.text,
     required this.language,
     this.voice,
+    this.role,
     required this.paragraph,
     required this.sentence,
     required this.start,
@@ -365,6 +379,7 @@ class ReaderService implements Reader, SentenceSynthesizer {
             text: paragraph.text.substring(ranges[j].start, ranges[j].end),
             language: paragraph.language,
             voice: paragraph.voice,
+            role: paragraph.role,
             paragraph: i,
             sentence: j,
             start: paragraph.start + ranges[j].start,
@@ -478,9 +493,14 @@ class ReaderService implements Reader, SentenceSynthesizer {
           start: unit.start,
           end: unit.end,
         ));
+        // Device evidence for which speaker and which voice the engine was
+        // given (014 D10): a UI dump can show neither, and the role is not
+        // recoverable from the voice's name alone.
         debugPrint(
-          'klhu speak p${unit.paragraph} s${unit.sentence} '
-          '"${_logPrefix(unit.text)}"',
+          'klhu speak p${unit.paragraph} s${unit.sentence}'
+          '${unit.role == null ? '' : ' role=${unit.role}'}'
+          '${unit.voice == null ? '' : ' voice=${unit.voice!.name}'}'
+          ' "${_logPrefix(unit.text)}"',
         );
         final done = Completer<void>();
         _utterance = done;

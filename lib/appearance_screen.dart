@@ -91,7 +91,16 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        // A scroll view with no padding of its own takes the system's bottom
+        // inset automatically; naming the padding here takes that away, so the
+        // inset is added back: the last option must not end up behind the
+        // system's own bar on a page that draws edge-to-edge (2026-10-02).
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          16 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
           Text(l10n.previewLabel, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),

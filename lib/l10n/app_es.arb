@@ -89,5 +89,20 @@
   "videoPicturesChooseMore": "Elegir más",
   "videoPicturesReorder": "Mantén una imagen y suéltala sobre otra para cambiar el orden; arrástrala al borde de la ventana para ver el resto.",
   "videoPicturesRemove": "Quitar esta imagen",
-  "videoPicturesFailed": "No se pudieron abrir tus imágenes. Inténtalo de nuevo."
+  "videoPicturesFailed": "No se pudieron abrir tus imágenes. Inténtalo de nuevo.",
+  "textTypeButton": "Tipo de texto",
+  "textTypeTitle": "Tipo de texto",
+  "textTypeStandard": "Estándar",
+  "textTypeDialogue": "Diálogo",
+  "textTypeDialogueHint": "Cada párrafo es un turno; una etiqueta de rol al principio del párrafo indica quién habla.",
+  "roleListTitle": "Roles",
+  "roleListEmptyMessage": "Aún no hay roles. Un párrafo que empieza con una etiqueta de rol pertenece a ese rol.",
+  "roleTurnCount": "{count, plural, =1 {1 turno} other {{count} turnos}}",
+  "roleVoiceLabel": "Voz",
+  "roleVoiceAutomatic": "Automática",
+  "roleRemoveButton": "Quitar este rol",
+  "roleRemoveConfirmTitle": "¿Quitar este rol?",
+  "roleRemoveConfirmMessage": "Sus párrafos se leerán como narración, con la voz de lectura.",
+  "rolePickerTitle": "Voz para {role}",
+  "formatButton": "Formato"
 }

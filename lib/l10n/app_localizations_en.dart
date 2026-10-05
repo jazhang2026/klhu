@@ -308,4 +308,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoPicturesFailed => 'Could not open your pictures. Try again.';
+
+  @override
+  String get textTypeButton => 'Text type';
+
+  @override
+  String get textTypeTitle => 'Text type';
+
+  @override
+  String get textTypeStandard => 'Standard';
+
+  @override
+  String get textTypeDialogue => 'Dialogue';
+
+  @override
+  String get textTypeDialogueHint =>
+      'Each paragraph is a turn; a role tag at the head of a paragraph names its speaker.';
+
+  @override
+  String get roleListTitle => 'Roles';
+
+  @override
+  String get roleListEmptyMessage =>
+      'No roles yet. A paragraph that starts with a role tag belongs to that role.';
+
+  @override
+  String roleTurnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count turns',
+      one: '1 turn',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roleVoiceLabel => 'Voice';
+
+  @override
+  String get roleVoiceAutomatic => 'Automatic';
+
+  @override
+  String get roleRemoveButton => 'Remove this role';
+
+  @override
+  String get roleRemoveConfirmTitle => 'Remove this role?';
+
+  @override
+  String get roleRemoveConfirmMessage =>
+      'Its paragraphs will be read as narration, in the reading voice.';
+
+  @override
+  String rolePickerTitle(String role) {
+    return 'Voice for $role';
+  }
+
+  @override
+  String get formatButton => 'Format';
 }

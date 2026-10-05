@@ -311,4 +311,62 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get videoPicturesFailed =>
       'No se pudieron abrir tus imágenes. Inténtalo de nuevo.';
+
+  @override
+  String get textTypeButton => 'Tipo de texto';
+
+  @override
+  String get textTypeTitle => 'Tipo de texto';
+
+  @override
+  String get textTypeStandard => 'Estándar';
+
+  @override
+  String get textTypeDialogue => 'Diálogo';
+
+  @override
+  String get textTypeDialogueHint =>
+      'Cada párrafo es un turno; una etiqueta de rol al principio del párrafo indica quién habla.';
+
+  @override
+  String get roleListTitle => 'Roles';
+
+  @override
+  String get roleListEmptyMessage =>
+      'Aún no hay roles. Un párrafo que empieza con una etiqueta de rol pertenece a ese rol.';
+
+  @override
+  String roleTurnCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count turnos',
+      one: '1 turno',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get roleVoiceLabel => 'Voz';
+
+  @override
+  String get roleVoiceAutomatic => 'Automática';
+
+  @override
+  String get roleRemoveButton => 'Quitar este rol';
+
+  @override
+  String get roleRemoveConfirmTitle => '¿Quitar este rol?';
+
+  @override
+  String get roleRemoveConfirmMessage =>
+      'Sus párrafos se leerán como narración, con la voz de lectura.';
+
+  @override
+  String rolePickerTitle(String role) {
+    return 'Voz para $role';
+  }
+
+  @override
+  String get formatButton => 'Formato';
 }

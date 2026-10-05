@@ -18,13 +18,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/role_store.dart';
 import 'package:klhu/services/content_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   late Directory root;
 
   setUp(() async {
     root = await Directory.systemTemp.createTemp('klhu-list-test');
+    // Deleting a content also clears its dialogue settings (014 FR-021), so the
+    // list now touches `shared_preferences` — mocked the way the page's own
+    // tests mock it, rather than injected: it is one store, not a collaborator.
+    SharedPreferences.setMockInitialValues({});
   });
 
   tearDown(() {
@@ -285,6 +291,28 @@ void main() {
     expect(find.text('Hello there.'), findsOneWidget);
     final entries = await tester.runAsync(() => store.list());
     expect(entries!.map((e) => e.id), ['preset_en_sample']);
+  });
+
+  testWidgets('deleting a content clears its dialogue settings too',
+      (tester) async {
+    final store = buildStore(catalog: [
+      preset('preset_en_sample', 'en', 'Hello there.'),
+    ]);
+    final saved = await tester.runAsync(() => store.saveNew('My own notes.'));
+    await tester.runAsync(
+        () => RoleStore().setDialogue(saved!.id, dialogue: true));
+
+    await tester.pumpWidget(harness(store));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Delete').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await settle(tester);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(RoleStore.key), isNull,
+        reason: 'the id is gone; settings keyed by it would be state the reader '
+            'can never reach or clear (014 FR-021)');
   });
 
   testWidgets('a damaged entry is labelled and can be deleted',

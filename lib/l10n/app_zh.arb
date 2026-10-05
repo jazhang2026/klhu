@@ -89,5 +89,20 @@
   "videoPicturesChooseMore": "再选更多",
   "videoPicturesReorder": "按住一张图拖到另一张上即可换序；拖到窗口边缘可继续滚动。",
   "videoPicturesRemove": "移除这张图片",
-  "videoPicturesFailed": "无法打开图片，请重试。"
+  "videoPicturesFailed": "无法打开图片，请重试。",
+  "textTypeButton": "文字类型",
+  "textTypeTitle": "文字类型",
+  "textTypeStandard": "标准",
+  "textTypeDialogue": "多人对话",
+  "textTypeDialogueHint": "每个段落是一个回合；段首的角色标签决定由谁朗读。",
+  "roleListTitle": "角色",
+  "roleListEmptyMessage": "还没有角色。以角色标签开头的段落属于该角色。",
+  "roleTurnCount": "{count, plural, other {{count} 个回合}}",
+  "roleVoiceLabel": "语音",
+  "roleVoiceAutomatic": "自动",
+  "roleRemoveButton": "移除此角色",
+  "roleRemoveConfirmTitle": "移除此角色？",
+  "roleRemoveConfirmMessage": "其段落将作为旁白，用朗读语音读出。",
+  "rolePickerTitle": "为 {role} 选择语音",
+  "formatButton": "排版"
 }

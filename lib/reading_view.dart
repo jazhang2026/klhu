@@ -8,6 +8,7 @@ import 'package:klhu/appearance_screen.dart';
 import 'package:klhu/appearance_store.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
+import 'package:klhu/dialogue.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/platform/picture_picker.dart';
@@ -15,8 +16,11 @@ import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
 import 'package:klhu/read_position_store.dart';
 import 'package:klhu/reader_service.dart';
+import 'package:klhu/role_store.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/services/content_store.dart';
+import 'package:klhu/services/voice_mapping_service.dart';
+import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_pictures.dart';
@@ -27,6 +31,12 @@ import 'package:klhu/voice_picker_screen.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
+
+// The page's controls leave this much between themselves and the system's own
+// bottom bar, over and above the bar's own inset (2026-10-02, on the OnePlus
+// 13: "too much space, can be less ... try 15px" — 15 device pixels on that
+// phone is 5, its panel being 3.0 to the logical one).
+const double _controlBarGap = 5;
 
 /// Reading view (003, revised per emulator validation): RichText for
 /// READ/SPEAKING with the 001 yellow highlight (tap selects sentence,
@@ -201,6 +211,40 @@ class _ReadingViewState extends State<ReadingView> {
   /// Position writes in flight: a tap supersedes an earlier one, so only the
   /// last position the user set may land on disk.
   int _anchorWrite = 0;
+
+  /// The reader's dialogue settings for the text on screen (014): its text type,
+  /// the names that are not roles, and the voice each role was given. Loaded
+  /// with the text (see [_setAnchorKey]) and read on every read; nothing derived
+  /// is kept here — the turns, the roles and the assignments are recomputed from
+  /// the text and the device each time (research D1/D2/D5).
+  RoleSettings _roles = RoleSettings.none;
+
+  /// The version of the text on screen a removal is measured against (FR-007):
+  /// a library entry's own `updatedAt`, or [_noVersion] for a shipped pre-set —
+  /// the same value whichever way the pre-set was opened, which is what makes a
+  /// removal hold across a restart (quickstart row 25).
+  DateTime _rolesVersion = _noVersion;
+
+  /// What a text whose `updatedAt` is not the text's version is versioned as: a
+  /// shipped pre-set ([_loadEntry], [_loadCatalogFallback]) and a draft. Not
+  /// `null`: a removal always carries the version it was made on.
+  static final DateTime _noVersion = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// The dialogue settings store (014 D6), one key for the whole app. Built on
+  /// first use, like the video record, so a page that never opens the chooser
+  /// never touches it.
+  RoleStore? _roleStores;
+
+  RoleStore get _roleStore => _roleStores ??= RoleStore();
+
+  /// The device's voices, all three lists, as the assignment's candidate pool
+  /// (FR-014). Fetched per read and per list rather than cached: a voice can be
+  /// installed or removed while the app runs, and a stale pool would assign a
+  /// voice the engine no longer has.
+  Future<List<VoiceEntry>> _installedVoices() async => [
+        for (final language in const ['en', 'zh-Hans', 'es'])
+          ...await widget.reader.voicesFor(language),
+      ];
 
   /// The render in flight, if any (012 US1). The page owns it for as long as it
   /// runs: while [_mode] is RENDERING it is the only thing on screen (FR-019).
@@ -435,6 +479,12 @@ class _ReadingViewState extends State<ReadingView> {
 
   /// The first shipped pre-set, shown when the library holds nothing. It is not
   /// an entry and not marked as opened — saving still creates new content.
+  ///
+  /// Its roles are versioned by [_noVersion] like every other pre-set
+  /// ([_loadEntry] does the same for a pre-set opened from the list): its text
+  /// ships and cannot change — editing one saves a *new* content — and this path
+  /// has no entry of its own to read a version from, so storage must not be
+  /// needed to read the page.
   Future<void> _loadCatalogFallback() async {
     final presets = await _store.catalog();
     if (presets.isEmpty || !mounted) return;
@@ -599,6 +649,28 @@ class _ReadingViewState extends State<ReadingView> {
     if (mounted) setState(() {});
   }
 
+  /// The edit toolbar's Format press (FR-024, SC-011): the reader's text with
+  /// every tag at the head of its own paragraph, assigned to the controller in
+  /// ONE assignment — which is what makes the whole press a single undo entry,
+  /// the way [_enterEdit] seeds the stack.
+  ///
+  /// The transform is `lib/dialogue.dart`'s, so the button does nothing but
+  /// apply a pure function's answer; the text is saved by 008's existing path
+  /// (Save or Done) and its refusals stay 008's own. Nothing is formatted behind
+  /// the reader's back: this runs when the button is pressed and at no other
+  /// time (A9, FR-020).
+  void _formatDialogue() {
+    final controller = _editController;
+    if (controller == null) return;
+    final formatted = formatForDialogue(controller.text);
+    if (formatted == controller.text) return;
+    controller.value = TextEditingValue(
+      text: formatted,
+      // The caret follows the text it was at the end of, as in `_enterEdit`.
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
   Future<void> _enterEdit() async {
     if (_mode == _Mode.speaking) return;
     await widget.reader.stop();
@@ -662,7 +734,13 @@ class _ReadingViewState extends State<ReadingView> {
         _content = text;
         _loaded = entry;
         _anchor = null;
-        _setAnchorKey(entry.id);
+        // A pre-set is versioned like the fallback versions it (FR-007): the
+        // seeded entry's `updatedAt` is not the text's version — a pre-set's
+        // text cannot change, and editing one saves a new content with its own
+        // id — so a removal made after opening it either way is in force either
+        // way.
+        _setAnchorKey(entry.id,
+            version: entry.isPreset ? null : entry.updatedAt);
         _editController?.value = TextEditingValue(
           text: text,
           selection: TextSelection.collapsed(offset: text.length),
@@ -765,7 +843,7 @@ class _ReadingViewState extends State<ReadingView> {
         _anchor = null;
         // Editing a pre-set produces a new entry: the position belongs to the
         // text this Save replaced.
-        _setAnchorKey(saved.id);
+        _setAnchorKey(saved.id, version: saved.updatedAt);
       });
       _anchorWrite++;
       if (previous != null) await _positions.clear(previous);
@@ -895,17 +973,28 @@ class _ReadingViewState extends State<ReadingView> {
     await _readRange(_anchor ?? 0, _content.length, track: true);
   }
 
-  /// Shared read path (002 US1): resolve the range into per-paragraph
-  /// speeches — each paragraph in its own language's picked voice, in order.
-  /// A sentence tap inherits its enclosing paragraph's language (spec FR-001).
+  /// Shared read path (002 US1): resolve the range into speeches — each
+  /// paragraph in its own language's picked voice, in order. A sentence tap
+  /// inherits its enclosing paragraph's language (spec FR-001).
+  ///
+  /// The mode is the content's own (014): 标准 resolves exactly as it always
+  /// has, one call, no voice list; 多人对话 resolves one speech per turn, in the
+  /// turn's role's voice (FR-019 — the same list the video is built from).
   /// With [track], the sentence being spoken is painted (011 FR-020) and kept
   /// on screen, and the highlight clears at end/Stop.
   Future<void> _readRange(int start, int end, {bool track = false}) async {
-    final speeches = await resolveParagraphSpeeches(
-      _content,
-      start,
-      end,
-      widget.voiceStore.loadVoice,
+    final speeches = await resolveSpeeches(
+      content: _content,
+      start: start,
+      end: end,
+      mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
+      removed: _roles.removedFor(_rolesVersion),
+      picks: _roles.voices,
+      loadVoice: widget.voiceStore.loadVoice,
+      // Only 多人对话 asks for the device's voices, and only because a role with
+      // no pick falls back to an assignment over them (FR-014). 标准's path is
+      // today's and never calls this (SC-005).
+      loadInstalled: _installedVoices,
     );
     if (speeches.isEmpty) {
       setState(() =>
@@ -1142,9 +1231,260 @@ class _ReadingViewState extends State<ReadingView> {
 
   /// The text whose video-ownership is in force (FR-011). Setting it asks what
   /// that text has kept, so the idle page offers the right actions for it.
-  void _setAnchorKey(String? key) {
+  void _setAnchorKey(String? key, {DateTime? version}) {
     _anchorKey = key;
+    _rolesVersion = version ?? _noVersion;
     _refreshKeptVideo();
+    unawaited(_loadRoles());
+  }
+
+  /// Read the content's dialogue settings (014 D6). A text with none — and a
+  /// store that cannot be read — is 标准, exactly as today: this feature's
+  /// failure mode is "the reader's dialogue settings are gone", never "the text
+  /// will not read" (FR-002, FR-021).
+  Future<void> _loadRoles() async {
+    final key = _anchorKey;
+    if (key == null) {
+      if (mounted) setState(() => _roles = RoleSettings.none);
+      return;
+    }
+    RoleSettings settings;
+    try {
+      settings = await _roleStore.load(key);
+    } catch (e) {
+      debugPrint('klhu role settings unreadable: $e');
+      settings = RoleSettings.none;
+    }
+    // A slow answer for a text the reader has already left must not land on the
+    // new one (the rule the kept-video look follows too).
+    if (!mounted || key != _anchorKey) return;
+    setState(() => _roles = settings);
+  }
+
+  /// Record the text type (FR-001) and read it back: the next read resolves
+  /// through the new mode, and nothing else about the page moves — not the text,
+  /// not its undo stack, not the position, not the highlight (FR-020). Switching
+  /// mid-read is the reader's own action and is allowed: the read in flight keeps
+  /// the speeches it started with.
+  Future<void> _setDialogue(bool dialogue) async {
+    final key = _anchorKey;
+    setState(() {
+      _roles = RoleSettings(
+        isDialogue: dialogue,
+        removed: _roles.removed,
+        voices: _roles.voices,
+      );
+    });
+    if (key == null) return;
+    try {
+      await _roleStore.setDialogue(key, dialogue: dialogue);
+    } catch (e) {
+      debugPrint('klhu role settings not saved: $e');
+    }
+  }
+
+  /// The text type and the roles, from the page (FR-022, FR-006): one entry,
+  /// offered in 标准 too — the chooser is where a dialogue is turned on in the
+  /// first place. The switch is applied as the reader taps it (it changes nothing
+  /// but the setting); in 多人对话 the chooser goes on to show the roles the text
+  /// proposes, each with the voice it reads with and each opening the shipped
+  /// picker for itself (FR-012).
+  Future<void> _openTextType() async {
+    final l10n = AppLocalizations.of(context);
+    // Recomputed on open and after every change: the list must show what a read
+    // would use, and that answer comes from the device's own voices (FR-016).
+    var turns = turnsOf(_content, removed: _roles.removedFor(_rolesVersion));
+    var roles = rolesOf(turns);
+    var voices = await resolveRoleVoices(
+      turns: turns,
+      picks: _roles.voices,
+      loadVoice: widget.voiceStore.loadVoice,
+      loadInstalled: _installedVoices,
+    );
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) {
+          Future<void> refresh() async {
+            turns = turnsOf(_content, removed: _roles.removedFor(_rolesVersion));
+            roles = rolesOf(turns);
+            voices = await resolveRoleVoices(
+              turns: turns,
+              picks: _roles.voices,
+              loadVoice: widget.voiceStore.loadVoice,
+              loadInstalled: _installedVoices,
+            );
+            if (mounted) setDialog(() {});
+          }
+
+          return AlertDialog(
+            scrollable: true,
+            title: Text(l10n?.textTypeTitle ?? 'Text type'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final dialogue in const [false, true])
+                      ChoiceChip(
+                        label: Text(dialogue
+                            ? l10n?.textTypeDialogue ?? 'Dialogue'
+                            : l10n?.textTypeStandard ?? 'Standard'),
+                        selected: _roles.isDialogue == dialogue,
+                        onSelected: (_) async {
+                          await _setDialogue(dialogue);
+                          await refresh();
+                        },
+                      ),
+                  ],
+                ),
+                if (_roles.isDialogue) ...[
+                  const Divider(height: 24),
+                  Text(
+                    l10n?.textTypeDialogueHint ??
+                        'Each paragraph is a turn; a role tag at the head of a '
+                            'paragraph names its speaker.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  if (roles.isEmpty)
+                    Text(l10n?.roleListEmptyMessage ??
+                        'No roles yet. A paragraph that starts with a role tag '
+                            'belongs to that role.')
+                  else
+                    for (final role in roles)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(role.name),
+                        subtitle: Text(
+                          _roleSubtitle(role, voices[role.name], l10n),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.person_remove_outlined),
+                          tooltip: l10n?.roleRemoveButton ?? 'Remove this role',
+                          onPressed: () async {
+                            await _removeRole(role.name);
+                            await refresh();
+                          },
+                        ),
+                        onTap: () async {
+                          await _openRoleVoice(role.name);
+                          await refresh();
+                        },
+                      ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(l10n?.doneButton ?? 'Done'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// The shipped picker, opened for one role (D7): titled with the role's name,
+  /// offering the *automatic* row, its pick read from and written to the role
+  /// store — never the language's (FR-013).
+  Future<void> _openRoleVoice(String role) async {
+    final l10n = AppLocalizations.of(context);
+    final key = _anchorKey;
+    final turns = turnsOf(_content, removed: _roles.removedFor(_rolesVersion));
+    final first = turns.firstWhere(
+      (turn) => turn.role == role,
+      orElse: () => turns.first,
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VoicePickerScreen(
+          reader: widget.reader,
+          store: widget.voiceStore,
+          // The picker lists one language's voices: the role's own, and its
+          // segment control is there for a role that reads in another.
+          language: detectLanguage(first.text),
+          title: l10n?.rolePickerTitle(role) ?? role,
+          clearable: true,
+          initialSelection: _roles.pickFor(role),
+          onPick: (choice) async {
+            if (key == null) return;
+            await _roleStore.setVoice(key, role: role, voice: choice);
+            if (!mounted) return;
+            setState(() => _roles = _roles.withVoice(role, choice));
+          },
+        ),
+      ),
+    );
+  }
+
+  /// A role row's remove action (FR-006, FR-007): the name stops being a role
+  /// from this version of the text on, and every paragraph the text tags with it
+  /// reads as narration instead. Confirmed in the shipped dialog shape
+  /// (`_confirmDelete`, `_confirmDiscard`): it is the reader's decision, it
+  /// changes how the text sounds, and it is not undoable with a second tap.
+  ///
+  /// Nothing 008 owns is touched: not the text, not its undo history, not the
+  /// stored position (FR-020, ripple 3). A read in flight is not stopped either —
+  /// the change is the reader's decision, and it applies from the next read.
+  Future<void> _removeRole(String name) async {
+    final l10n = AppLocalizations.of(context);
+    final key = _anchorKey;
+    if (key == null) return;
+    // The version the settings were read against is the one the removal is made
+    // against — the same value `removedFor` compares, so a removal the store
+    // accepts is a removal in force (FR-007).
+    final version = _rolesVersion;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n?.roleRemoveConfirmTitle ?? 'Remove this role?'),
+        content: Text(
+          l10n?.roleRemoveConfirmMessage ??
+              'Its paragraphs will be read as narration.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n?.cancelButton ?? 'Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n?.roleRemoveButton ?? 'Remove this role'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    // The content's own version is what the removal is made against: saving the
+    // text (008) moves it, which expires this removal and proposes the name
+    // again (FR-007, research D4).
+    await _roleStore.removeRole(key, name: name, at: version);
+    if (!mounted) return;
+    setState(() => _roles = _roles.withRemoval(name, version));
+  }
+
+  /// `2 turns · 普通话 CCC` — the turns the text gives the role and the voice it
+  /// reads with, named the way the picker names voices (FR-016). No age is shown
+  /// or modelled anywhere (FR-017).
+  String _roleSubtitle(Role role, VoiceChoice? voice, AppLocalizations? l10n) {
+    final count = l10n?.roleTurnCount(role.turnCount) ?? '${role.turnCount}';
+    if (voice == null) {
+      return '$count · ${l10n?.roleVoiceAutomatic ?? 'Automatic'}';
+    }
+    final label = l10n == null
+        ? voice.name
+        : VoiceMappingService().displayName(
+            VoiceEntry(name: voice.name, locale: voice.locale),
+            l10n,
+            voiceListLanguage: detectLanguage(role.turns.first.text),
+          );
+    return '$count · $label';
   }
 
   /// Keeps what the review is showing (FR-011/FR-012): the working copy is
@@ -1616,6 +1956,13 @@ class _ReadingViewState extends State<ReadingView> {
         content: _content,
         position: from,
         loadVoice: widget.voiceStore.loadVoice,
+        // The video reads what the page reads (014 FR-018): the same content
+        // type, the same removed names, the same per-role picks, over the same
+        // device voice list — one resolver, two consumers.
+        mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
+        removed: _roles.removedFor(_rolesVersion),
+        picks: _roles.voices,
+        loadInstalled: _installedVoices,
         onProgress: (progress) => _reportRenderProgress(gen, progress),
         onFrame: (frame) {
           if (!mounted || gen != _renderGen) return;
@@ -1927,6 +2274,14 @@ class _ReadingViewState extends State<ReadingView> {
                     tooltip: l10n?.contentsButton ?? 'Contents',
                     onPressed: () => _openContentList(),
                   ),
+                  // The text type (014 FR-022): offered in 标准 too, because the
+                  // chooser is where a dialogue is turned on; allowed mid-read,
+                  // since switching changes nothing but the setting (FR-020).
+                  IconButton(
+                    icon: const Icon(Icons.forum_outlined),
+                    tooltip: l10n?.textTypeButton ?? 'Text type',
+                    onPressed: _openTextType,
+                  ),
                   IconButton(
                     icon: const Icon(Icons.record_voice_over),
                     tooltip: l10n?.voiceButton ?? 'Voice',
@@ -1970,8 +2325,18 @@ class _ReadingViewState extends State<ReadingView> {
                   ],
                 ],
         ),
+        // The page's controls sit on the bottom edge, and on a device that
+        // draws edge-to-edge the system's own bar is drawn over that edge
+        // (Android 15+; seen on the OnePlus 13, 2026-10-02): the system's
+        // bottom inset is honoured, so Play/Stop clear the bar instead of
+        // sharing its space. The top is the AppBar's business.
         body: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            _controlBarGap + MediaQuery.paddingOf(context).bottom,
+          ),
           child: Column(
             children: [
               // Content comes from the library only (008 FR-003): the sample
@@ -2046,6 +2411,26 @@ class _ReadingViewState extends State<ReadingView> {
                     ? const <Widget>[]
                     : editing
                     ? [
+                        // The one press that puts every tag at the head of its
+                        // own paragraph (FR-024, SC-011). Wrapped in the
+                        // controller so its state follows what the reader types
+                        // rather than the last rebuild — the page has no other
+                        // listener on the editor's text.
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _editController!,
+                          builder: (context, value, _) => IconButton(
+                            icon: const Icon(Icons.format_line_spacing),
+                            tooltip:
+                                AppLocalizations.of(context)?.formatButton ??
+                                    'Format',
+                            // Disabled, not a silent no-op, when the press would
+                            // change nothing — the Undo button's own pattern.
+                            onPressed:
+                                formatForDialogue(value.text) == value.text
+                                    ? null
+                                    : _formatDialogue,
+                          ),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.undo),
                           tooltip: AppLocalizations.of(context)?.undoButton,

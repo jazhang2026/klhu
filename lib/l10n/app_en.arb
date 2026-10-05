@@ -124,5 +124,22 @@
   "videoPicturesReorder": "Hold a picture and drop it on another to change the order; drag it to the window\u2019s edge to reach the rest.",
   "@videoPicturesOverSentences": {"placeholders": {"chosen": {"type": "int"}, "sentences": {"type": "int"}, "extra": {"type": "int"}}},
   "videoPicturesRemove": "Remove this picture",
-  "videoPicturesFailed": "Could not open your pictures. Try again."
+  "videoPicturesFailed": "Could not open your pictures. Try again.",
+  "textTypeButton": "Text type",
+  "textTypeTitle": "Text type",
+  "textTypeStandard": "Standard",
+  "textTypeDialogue": "Dialogue",
+  "textTypeDialogueHint": "Each paragraph is a turn; a role tag at the head of a paragraph names its speaker.",
+  "roleListTitle": "Roles",
+  "roleListEmptyMessage": "No roles yet. A paragraph that starts with a role tag belongs to that role.",
+  "roleTurnCount": "{count, plural, =1 {1 turn} other {{count} turns}}",
+  "@roleTurnCount": {"placeholders": {"count": {"type": "int"}}},
+  "roleVoiceLabel": "Voice",
+  "roleVoiceAutomatic": "Automatic",
+  "roleRemoveButton": "Remove this role",
+  "roleRemoveConfirmTitle": "Remove this role?",
+  "roleRemoveConfirmMessage": "Its paragraphs will be read as narration, in the reading voice.",
+  "rolePickerTitle": "Voice for {role}",
+  "@rolePickerTitle": {"placeholders": {"role": {"type": "String"}}},
+  "formatButton": "Format"
 }

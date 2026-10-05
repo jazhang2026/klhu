@@ -42,23 +42,51 @@ const List<_LanguageRule> _rules = [_cjkRule, _spanishRule];
 /// single occurrence is already decisive.
 final RegExp _spanishLetters = RegExp('[áéíóúüñ¿¡]', caseSensitive: false);
 
+/// Spanish-only words: no English word is made of these letters, so ONE hit
+/// already decides the paragraph.
+///
+/// The accents a Spanish word carries are exactly what a phone keyboard drops:
+/// the phrasebook "Buenas tardes." arrives accent-less and was read in an
+/// English voice (2026-10-02, on the OnePlus 13), as were "Hola.", "Gracias.",
+/// "Por favor." and "Hasta luego." — none of them in the function-word list
+/// below, so the paragraph fell through to English. Every entry here is a word
+/// English does not have; the ones English borrowed ("nada", "hola") are in
+/// deliberately, since a Spanish greeting is what the reader is looking at.
+const Set<String> _spanishOnlyWords = {
+  'hola', 'gracias', 'buenas', 'buenos', 'buena', 'bueno',
+  'tardes', 'tarde', 'noches', 'noche', 'dias', 'manana',
+  'hasta', 'luego', 'vamos', 'adios', 'senor', 'senora',
+  'usted', 'ustedes', 'nosotros', 'ellos', 'ellas',
+  'gusta', 'quiero', 'tengo', 'puedo', 'puedes', 'tiene', 'puede',
+  'hacer', 'siento', 'estas', 'estoy',
+  'vemos', 'entiendo', 'ayuda',
+  'donde', 'cuando', 'porque', 'tambien', 'entonces', 'siempre',
+  'nunca', 'ahora', 'aqui', 'alli', 'algo', 'nada', 'mucho', 'poco',
+};
+
 /// High-frequency Spanish function words, used for text that carries no accent
 /// ("Hola, como estas" typed without accents). Two DISTINCT hits are required so
-/// an English sentence containing "no" or "son" cannot flip the paragraph.
+/// an English sentence containing "no", "son" or "me" cannot flip the paragraph
+/// on its own — these words are English words too, which is why they are here
+/// and not above.
 const Set<String> _spanishWords = {
   'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
   'de', 'del', 'que', 'y', 'en', 'con', 'para', 'por', 'es', 'son',
   'está', 'están', 'este', 'esta', 'esto', 'muy', 'pero', 'como',
   'se', 'su', 'sus', 'al', 'mi', 'tu', 'yo', 'nos', 'les', 'más',
+  'mas', 'favor',
 };
 
-/// Rule 2: Spanish accents, or two distinct Spanish function words.
+/// Rule 2: Spanish accents, one Spanish-only word, or two distinct Spanish
+/// function words.
 String? _spanishRule(String paragraph) {
   if (_spanishLetters.hasMatch(paragraph)) return 'es';
   final hits = <String>{};
   for (final match in RegExp(r'[a-z]+', caseSensitive: false)
       .allMatches(paragraph.toLowerCase())) {
-    if (_spanishWords.contains(match.group(0))) hits.add(match.group(0)!);
+    final word = match.group(0)!;
+    if (_spanishOnlyWords.contains(word)) return 'es';
+    if (_spanishWords.contains(word)) hits.add(word);
     if (hits.length >= 2) return 'es';
   }
   return null;

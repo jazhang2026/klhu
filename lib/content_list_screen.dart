@@ -3,6 +3,7 @@ import 'package:klhu/content_naming.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/role_store.dart';
 import 'package:klhu/services/content_store.dart';
 
 /// The unified content list (spec 008, FR-004): every pre-set and every saved
@@ -106,6 +107,12 @@ class _ContentListScreenState extends State<ContentListScreen> {
     );
     if (confirmed != true || !mounted) return;
     await widget.store.delete(entry);
+    // The content's dialogue settings go with it (014 FR-021, data-model.md §5):
+    // the id is gone, and a removal or a pick keyed by an id nothing holds is
+    // state the reader could never reach again. The store is built directly,
+    // like the page's own: it is one `shared_preferences` key, not a
+    // collaborator to inject.
+    await RoleStore().clearFor(entry.id);
     if (mounted) _reload();
   }
 
