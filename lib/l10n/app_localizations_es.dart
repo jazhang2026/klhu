@@ -255,20 +255,29 @@ class AppLocalizationsEs extends AppLocalizations {
   String get videoShareTitle => 'Compartir vídeo';
 
   @override
-  String get videoPlayButton => 'Reproducir vídeo';
+  String get videoListTitle => 'Vídeos';
+
+  @override
+  String get videoListEmptyMessage => 'Este contenido aún no tiene vídeos';
 
   @override
   String get videoDeleteButton => 'Eliminar vídeo';
 
   @override
+  String get videoReplaceLabel => 'Reemplazar el vídeo existente';
+
+  @override
   String get videoDeleteConfirmTitle => '¿Eliminar este vídeo?';
 
   @override
-  String get videoDeleteConfirmMessage =>
-      'El vídeo se eliminará de tu galería. Esta acción no se puede deshacer.';
+  String videoDeleteConfirmMessage(String name) {
+    return '$name se eliminará de tu galería. Esta acción no se puede deshacer.';
+  }
 
   @override
-  String get videoGoneMessage => 'Este vídeo ya no existe';
+  String videoGoneMessage(String name) {
+    return '$name ya no existe';
+  }
 
   @override
   String get videoRenderFailedMessage =>

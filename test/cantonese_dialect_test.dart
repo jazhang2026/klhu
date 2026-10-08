@@ -131,9 +131,25 @@ void main() {
       final names = (await service.voicesFor('zh-Hans')).map((v) => v.name);
 
       // Regression: `locale.startsWith('zh')` hid every Cantonese voice.
+      // One row per VOICE since 2026-10-06: the engine's two copies of a voice
+      // are one row, and it is the on-device copy — so every Cantonese voice is
+      // still listed, once, under its own name.
       for (final voice in _yueVoices) {
-        expect(names, contains(voice['name']), reason: voice['name']);
+        final identity = voiceIdentity(voice['name']!);
+        expect(
+          names.where((n) => voiceIdentity(n) == identity),
+          hasLength(1),
+          reason: voice['name'],
+        );
+        expect(
+          names,
+          contains(voice['name']!.endsWith('-network')
+              ? '$identity-local'
+              : voice['name']!),
+          reason: voice['name'],
+        );
       }
+      expect(names.where((n) => n.endsWith('-network')), isEmpty);
       for (final voice in _cmnVoices) {
         expect(names, contains(voice['name']), reason: voice['name']);
       }

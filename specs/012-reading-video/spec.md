@@ -223,7 +223,86 @@ exactly that: one content, its reading, on video.
   pair carries **21:1** either way and SC-004's floor is met without a veil and without measuring a picture
   for contrast. With no picture the frame keeps the reader's own text colour (FR-028).
 
+### Session 2026-10-06
+
+- **Q**: The reader listened to a rendered dialogue on the phone (OnePlus LE2115): *"手机上粤语对话出片了。但是片头
+  有噪音。"* — the video comes out, and the opening sentence has a hiss. What is it?
+  **A**: The encoder's own conversion, and it was this walk that put it there. The reader's content mixes the
+  two copies of a voice: the narration read through `yue-hk-x-yuf-local` (the engine writes it at **24 kHz**)
+  and the three roles through `-network` copies (**48 kHz**). One track carries one rate, so the 24 kHz
+  sentence is converted up — and the first version of that conversion, written 2026-10-05 to make the render
+  stop refusing the mix, was **linear interpolation**. Linear interpolation does not reconstruct the samples
+  between the source's; it leaves a mirror of the voice's whole top octave above the source's own Nyquist.
+  Measured on a real engine sentence (`s1_zh-picked.wav`, 24 kHz, written up at 48 kHz, then AAC 64 kbps mono
+  as the app writes it): linear interpolation puts **12–16 kHz at −75 dBFS**, where a band-limited conversion
+  of the same sentence leaves **−121 dBFS** and ffmpeg's own `soxr` leaves −121 dBFS — and the source itself
+  cannot hold anything above 12 kHz at all. The artefact survives the encoder; a listener hears it as hiss.
+
+  The rule is FR-017's, and the fix is `resample()` in
+  `android/app/src/main/kotlin/com/example/klhu/VideoEncoderPlugin.kt`: a **Blackman-windowed sinc**
+  interpolator, 32 source samples either side, cut-off 10 % under the source's Nyquist so the whole
+  transition sits below where an artefact may start, its taps normalised per phase so the conversion cannot
+  shift the level.
+
+  **Receipt (2026-10-06, the AVD `emulator-5554`, 014's row 29 re-walked with each build).** The row renders
+  one dialogue whose narration is a 24 kHz `-local` voice and whose three roles are 48 kHz `-network` ones —
+  the same shape as the reader's. Measured on the pulled file, the level above 10 kHz, first two seconds
+  against the rest:
+
+  | Build | first 2 s | 2–6 s | the rest of the file |
+  |---|---|---|---|
+  | linear interpolation (what shipped 2026-10-05) | **−21.1 dB** | −20.0 … −28.4 dB | −45 … −50 dB |
+  | windowed sinc (2026-10-06) | **−49.0 dB** | −44.3 … −54.1 dB | −45 … −50 dB |
+
+  −27.9 dB at the slice under test, and no gap left between the converted sentence and the 48 kHz ones: the
+  same file's own 48 kHz sentences sit at −45 … −54 dB, so the conversion is now indistinguishable from what
+  it converts to. On the reader's phone, the same defect measured −24.3 dB over the first two seconds against
+  −57.1 dB for a video that never converted anything. Row 29 itself stays **19/19 PASS** on both builds — the
+  row's checks are the file's shape, which never changed; the hiss is what a level measurement sees and the
+  row could not.
+
+- **Q**: Can a second keep be the reader's own choice — *"FR-012 可否让用户选择"* — asked after keeping a re-render
+  left the album holding two files (the platform had stored the new one as `周末公园散步 (1).mp4`, because the
+  earlier entry still held the name at insert time).
+  **A**: Yes, and it is asked where the reader can see what they got: the **review** carries *Replace the
+  existing video*, checked, and it appears only when the content already has a video. Checked is FR-012 as
+  first written — one kept video, and it is the new one; unchecked names no previous file, so the earlier
+  video stays in the library **beside** this render's, and the content's record (one entry per content) comes
+  to point at the render just kept, which is what `Play video` then plays.
+  **Three shapes were put to the reader with their costs** — ask in the review (chosen); ask in the format
+  prompt, before the 140 s render; never ask and always keep both — and the third was named as rejected on
+  the record: it reverses 2026-09-25's decision that "re-recording replaces it instead of piling up copies".
+  **Why the default does not move**: unchecked-by-default would silently change what every re-render leaves
+  on every reader's phone, and it is not what the feature has been doing since it shipped.
+  **Receipt**: quickstart row 55, breakpoint row 55 — the reader's own phone (`38821a76`), the switch read
+  from the accessibility tree rather than from a picture: offered `checked=true` before the tap,
+  `checked=false` after it.
+
+- **Q**: Whether the videos themselves could be the reader's to pick from — *"video play, share and delete all
+  work on the only last one video. I like to have a Video list like content list. user can select one video to
+  play. each video have share/delete button. or have the share/delete button on the video player. which one is
+  better?"*
+  **A**: The **list** (FR-033), with the buttons on its rows. Three shapes were put to the reader with their
+  costs — a videos list reached from the content, per-row share/delete, a row's tap playing that video; share
+  and delete **on the player** only; or both — and the answer was the list. The player-only shape was recorded
+  as **not answering the request at all**: a player opens one video, and which one it can open is what the
+  record's shape decides — while the record held one entry per content, a second kept video was unreachable
+  however many buttons the player carried.
+  **The record's shape changes with it**: a content's entry becomes an **ordered list** of the videos the reader
+  kept (`video-record-format.md`), which is what makes "keep both" trackable — under the previous shape the
+  earlier file survived only as a file the app had forgotten, with nothing in the app able to play, share or
+  delete it (the price breakpoint row 55's deviation 14 named; this amendment is where it is paid).
+  **The replacement question stays, and still opens answered "replace"** (FR-012): with a list, keeping both is
+  a deliberate act rather than the default, so re-recording still does not pile up copies by itself — the
+  reader's own answer of `A + 1`, taken here to mean the switch is kept.
+  **Decided with it**: the list is **per content** (reached from the content being read), not a library of every
+  content's videos, which keeps the content/video decoupling the contract forbids out of scope; and the page's
+  own Play action opens the **most recently kept** video (FR-022).
+  **Receipt**: **walked** — quickstart rows 56–58 on the reader's own phone (`37e102a0`): row 56 **32/32**
+  (2026-10-08) and row 57 **6/6** (2026-10-07), row 58 `[unit]`; `breakpoint.md` rows 56 and 57 carry the lines.
+
 ---
+
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -327,7 +406,8 @@ gap between the end of one sentence's voice and the start of the next, and the l
 A finished render is played before anything is decided: the reader watches it, then keeps it, throws it
 away, or shares it. A kept video is where the phone's video players and galleries look for videos, named
 after the content, and its content still knows about it — so it can be played, shared or deleted later,
-and re-recording replaces it instead of piling up copies.
+and re-recording replaces it instead of piling up copies. A render the reader chose to keep **beside** an
+earlier one is listed with it, so each video is played, shared and deleted on its own.
 
 **Why this priority**: the video is already useful the moment it exists (P1 makes it, and it can be pulled
 off the device over USB), so the review step, the record and the delete path are what turn a file into
@@ -337,7 +417,8 @@ something the reader owns.
 the device's video library under the content's name, playing from there; share it to another app from the
 sheet; reopen its content later and play, share and finally delete it, then confirm the gallery no longer
 lists it and the content offers to record again; render a content that already has a video and throw the
-new one away, and find the old one untouched.
+new one away, and find the old one untouched; keep another render beside it and find **both** listed for that
+content, each playing, sharing and deleting on its own.
 
 **Acceptance Scenarios**:
 
@@ -505,7 +586,13 @@ video that rendered without pictures, no slower and nothing refused.
   name taken from the content, so the phone's gallery plays it and it survives the app being closed or
   restarted.
 - **FR-012**: Keeping a video for a content that already has one MUST leave exactly one kept video for that
-  content, and it is the new one.
+  content, and it is the new one — **unless the reader said otherwise**: the review MUST put the question to
+  the reader (offered only when the content already has a video, and answered **replace** by default), and a
+  keep the reader asked not to replace MUST name no previous file, leaving the earlier video **in the record**
+  as well as in the library — a content's record holds the videos the reader kept, oldest first (FR-022), so
+  nothing they chose to keep is left unmanaged — while the content's own video comes to be the render just kept
+  (2026-10-06 Clarifications: the reader asked whether the rule could be theirs to make, and — in the same
+  session — that the videos be listed).
 - **FR-013**: The video MUST be produced on the device: no account, no backend, no upload and no network
   use (constitution IV), and the render MUST NOT depend on the phone being connected to anything.
 - **FR-014**: The video's text MUST use the reader's selected typeface and character size (011 US2): that
@@ -525,7 +612,13 @@ video that rendered without pictures, no slower and nothing refused.
   hold longer than 3 s. *(The lead-in bound — no lead-in longer than 3 s — is vacuous since the opening
   card was withdrawn on 2026-09-29: the video begins on its first sentence, so there is no lead-in at all.)*
 - **FR-017**: The video's audio MUST be complete: every sentence the page would speak MUST be audible in
-  the video, in order, with no sentence dropped, shortened or repeated.
+  the video, in order, with no sentence dropped, shortened or repeated. One track carries one sample rate,
+  and the sentences may not all write at it: the engine writes a voice's on-device copy at 24 kHz and its
+  network copy at 48 kHz, and one read may use both. So the stream's rate MUST be the highest any sentence
+  carries, and a sentence below it MUST be converted by a **band-limited** resampler — a windowed-sinc
+  interpolation — never by linear interpolation (2026-10-06 Clarifications: linear interpolation mirrors
+  the voice's own top octave above the source's Nyquist and a listener hears that mirror as a hiss; the
+  rule, the measurement and the receipt are in the Clarifications entry below).
 - **FR-018**: The feature MUST NOT change how the reading page reads aloud, its controls or its
   appearance; the video is an additional capability, and the page's shipped behaviour (003/005/010/011)
   MUST keep working unchanged.
@@ -548,11 +641,13 @@ video that rendered without pictures, no slower and nothing refused.
   **The picture MUST be drawn**: playing a render MUST show the video, not a black surface with its sound — where
   the platform's own player is hosted in a view of ours it MUST render into a surface the app's own compositor
   can draw (D20, the defect the reader reported from the phone and `breakpoint.md` row 54's measurement).
-- **FR-022**: The app MUST remember which video belongs to which content, so that a kept video can be
-  played, shared or deleted later from that content. Deleting MUST ask first (FR-024) and MUST remove the
-  file from the device's video library as well as from the app's record, after which that content offers to
-  record a video again. A record whose file is gone MUST be reported as gone and forgotten rather than shown
-  as playable.
+- **FR-022**: The app MUST remember **every** video kept for a content — each with the name it was kept under
+  and when it was kept, oldest first — so that each can be played, shared or deleted later from that content.
+  The content MUST offer **one** action that opens those videos as a **list** (FR-033): a row per video naming
+  it and when it was kept, the row's own tap playing that video, and each row carrying its own share (FR-023)
+  and its own delete (FR-024). The page's own Play action MUST open the video kept **most recently**. A video
+  whose file is gone MUST be reported as gone **on its own row** and forgotten, leaving the content's other
+  videos alone; a content whose videos are all gone MUST offer to record again.
 - **FR-023**: Sharing MUST use the platform's own share surface: the app hands the file over and the
   platform lists the installed apps that accept a video for the reader to pick from, and the app the reader
   picks receives the file and uploads it itself (messaging, email, cloud storage, the YouTube or Facebook
@@ -672,10 +767,25 @@ video that rendered without pictures, no slower and nothing refused.
   in displayed rows. need to able to move out of the disabled rows. use auto scroll." So the window follows the
   hold: the repeat stops the moment the hold leaves the window's ends or ends, D21.)*
 
+- **FR-033**: A content's videos MUST be listed the way the app's contents are listed (011's own contents
+  screen): one screen, one row per video, reached from the content and left by the platform's own back. A row
+  MUST name its video in **one line** (a long name is cut with an ellipsis rather than wrapped) and MUST say
+  when that video was kept; the row MUST carry its own share and its own delete, each with its own tap target,
+  and a tap anywhere else on the row MUST play **that** video (FR-021, FR-022). The rows MUST be the app's own
+  order — oldest first, with the video the content's Play action opens as the newest — and the screen MUST
+  carry the reader's own language (FR-031), including a state for a content with no videos, which says so
+  rather than showing an empty list. Deleting MUST warn (FR-024) and the warning MUST name **the video being
+  deleted**, not the content.
+
+  *(Added 2026-10-06, the reader's own words: "video play, share and delete all work on the only last one
+  video. I like to have a Video list like content list. user can select one video to play. each video have
+  share/delete button." D24.)*
+
 ### Key Entities *(include if feature involves data)*
 
 - **Reading video**: the finished file for one content — the content it was made from, its name, its
-  aspect/resolution, frame rate, duration and where it lives on the device. One per content (FR-012).
+  aspect/resolution, frame rate, duration and where it lives on the device. A content may hold several at once
+  (FR-012); the record lists them oldest first and the last one is the content's own video (FR-022).
 - **Render plan**: the video's timeline as the renderer builds it — one slot per sentence (its text
   range, its paragraph, its language/voice, its spoken length in frames) plus the end
   hold (the opening card was withdrawn on 2026-09-29, FR-008). This is what makes the video checkable: a
@@ -795,6 +905,13 @@ video that rendered without pictures, no slower and nothing refused.
   picture, in the order chosen, inside one directory per prompt — and the page shows those files and the render
   copies those files, so a choice of thirty pictures holds no photograph's pixels in memory; once the render
   that used them is over, however it ended, that directory is gone (FR-025, D18).
+- **SC-026**: A content with more than one kept video lists them all, and each is its own: playing the second
+  row plays the second video (not the first), sharing the second row hands over the second video's own file, and
+  deleting the second row leaves the first in the record and in the library — still playable from the list, and
+  still the file the phone's own gallery lists (FR-022, FR-033).
+- **SC-027**: A record written in the shape 012 shipped with — one object per content — reads as one video, and
+  the reader's kept video is neither lost nor duplicated: after the first write for that content the store holds
+  an array of one, and that video still plays from the list (contract `video-record-format.md`, read rule 5).
 
 ## Assumptions
 

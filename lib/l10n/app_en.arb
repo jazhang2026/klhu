@@ -93,11 +93,27 @@
   "videoReplacedMessage": "The earlier video was replaced",
   "videoShareButton": "Share",
   "videoShareTitle": "Share video",
-  "videoPlayButton": "Play video",
+  "videoListTitle": "Videos",
+  "videoListEmptyMessage": "This content has no videos yet",
   "videoDeleteButton": "Delete video",
+  "videoReplaceLabel": "Replace the existing video",
   "videoDeleteConfirmTitle": "Delete this video?",
-  "videoDeleteConfirmMessage": "The video will be removed from your gallery. This cannot be undone.",
-  "videoGoneMessage": "This video is gone",
+  "videoDeleteConfirmMessage": "{name} will be removed from your gallery. This cannot be undone.",
+  "@videoDeleteConfirmMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "videoGoneMessage": "{name} is gone",
+  "@videoGoneMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "videoRenderFailedMessage": "Could not make the video. Check storage space and try again.",
   "videoUnavailableMessage": "This device cannot make videos.",
   "videoDoneMessage": "Video made: {name} ({seconds} s)",

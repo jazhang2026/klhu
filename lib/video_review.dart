@@ -39,11 +39,16 @@ class VideoReview {
   /// Promote the working copy into the device's library and remember it
   /// (FR-011/FR-012), then let the working copy go: the kept file is the one
   /// that lives on.
-  Future<KeptVideo> keep() async {
+  ///
+  /// [replace] is the reader's own answer in the review (FR-012's amendment,
+  /// 2026-10-06): true (the default) leaves exactly one kept video for the
+  /// content, false leaves the earlier file in the library beside the new one.
+  Future<KeptVideo> keep({bool replace = true}) async {
     final kept = await records.keep(
       contentKey,
       workingPath: workingPath,
       displayName: displayName,
+      replace: replace,
     );
     await _discardWorkingCopy();
     return kept;

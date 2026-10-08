@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/dialogue.dart';
+import 'package:klhu/models/voice_mapping.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/voice_store.dart';
 
@@ -174,6 +175,56 @@ void main() {
             language == 'zh-Hans' ? of(cccFemale, 'zh-Hans') : null,
       );
       expect(voices[0]!.name, cccFemale.name);
+    });
+  });
+
+  group('the engine\'s two copies of one voice (FR-015, SC-002)', () {
+    // The OnePlus 13's own engine (2026-10-05) reports voices the mapping table
+    // has never measured, and the assignment gave two roles the two copies of one
+    // of them: `yue-hk-x-yuf-local` to 旁白, `yue-hk-x-yuf-network` to 阿明. One
+    // voice read two roles, and the copies write 24 kHz against 48 kHz — the
+    // render that followed could not be muxed. A code the table has measured has
+    // one row for both copies; a code it has not is still one voice.
+    const zzzLocal = VoiceEntry(name: 'yue-hk-x-zzz-local', locale: 'yue-HK');
+    const zzzNetwork =
+        VoiceEntry(name: 'yue-hk-x-zzz-network', locale: 'yue-HK');
+
+    test('a code the table does not know is one voice, not two', () {
+      expect(
+        assign('{阿明} 你好。\n\n{阿芳} 我很好。',
+                installed: const [zzzLocal, zzzNetwork])
+            .map((v) => v!.name)
+            .toSet(),
+        {zzzLocal.name},
+      );
+      // …and a voice of a genuinely different code is still a second voice.
+      expect(
+        assign('{阿明} 你好。\n\n{阿芳} 我很好。',
+                installed: const [zzzLocal, zzzNetwork, ccdMale])
+            .map((v) => v!.name)
+            .toSet(),
+        {zzzLocal.name, ccdMale.name},
+      );
+    });
+
+    test('the phone\'s Cantonese list gives three roles three voices', () {
+      // The list the OnePlus 13 reports for `yue-HK`: five codes, each as its
+      // on-device and its network copy.
+      final installed = [
+        for (final code in const ['jar', 'yuc', 'yud', 'yue', 'yuf']) ...[
+          VoiceEntry(name: 'yue-hk-x-$code-local', locale: 'yue-HK'),
+          VoiceEntry(name: 'yue-hk-x-$code-network', locale: 'yue-HK'),
+        ],
+      ];
+      final voices = assign(
+        '{阿明} 你好。\n\n{May} 我很好。\n\n{阿芳} 晚安。',
+        installed: installed,
+      );
+      expect(voices, hasLength(3));
+      expect(voices.map((v) => voiceIdentity(v!.name)).toSet(), hasLength(3));
+      // A derived role gets the on-device copy: it sorts first and it is the copy
+      // that writes the same 24 kHz as every other on-device voice.
+      expect(voices.every((v) => v!.name.endsWith('-local')), isTrue);
     });
   });
 }

@@ -359,6 +359,29 @@ Driver: `python3 specs/011-reading-experience/scripts/klhu_walk_experience.py 21
 Note: `ADB_SERIAL` picks the target (default `emulator-5554`) — the walk starts with `pm clear`, so
 pointing it at a phone wipes that phone's app data.
 
+### 22. On the device: the actions get their own row in portrait, the shipped row in landscape — [device]
+
+Unit half: `test/reading_view_toolbar_test.dart`, three cases. In a 360×780 window the actions sit **below**
+the language's row and share one row of their own; every action of a content with a kept video is drawn
+inside the window's width; in a 780×360 window the actions share the language's row and none is past the
+edge. The two portrait cases are red on the shipped code (the actions sat beside the language, and Share and
+Delete video were pushed off the edge); the landscape case passes both ways and that is the point — it is
+the arrangement that must not change.
+Steps: on the device open the reading page with a portrait window, then rotate to landscape.
+Expected: portrait — the brand and the language hold the bar's own row, the actions are one row under them,
+every action whole and inside the window; landscape — every action back on the bar's own row.
+Measured: `python3 specs/011-reading-experience/scripts/klhu_toolbar_geometry.py <serial>` reports both
+bands and verdicts each. On the reader's own phone (`38821a76`, 1080×2376) after the change: portrait
+`language row [(132, 276)], actions row [(300, 420)]` with the **eight** actions 120 px (40 dp) each, the
+brand 612 px wide and no control squeezed, clipped or missing; landscape `language row [(132, 276)],
+actions row [(132, 276)]` with the same eight at 144 px (48 dp), nothing past the edge. `PASS`.
+The same script on the shipped build is the negative control: portrait then showed the brand as no node at
+all, Play video at 49 px against its neighbours' 144 and Share and Delete video absent from the tree.
+*(Premise moved 2026-10-07: the eight actions are **six** from 012's 2026-10-06 amendment, which made the kept
+video's three one `Videos` action, and the portrait row is back at Material's 48 dp — 144 px — so a re-run of
+this row reports different numbers for a row that is behaving. The measurement above stays as it was measured;
+the new claim and the reading of it are `breakpoint.md` deviation 9.)*
+
 ## Troubleshooting
 
 - **`flutter test` segfaults** — the `klhu` emulator is running on a 16 GB host; use

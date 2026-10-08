@@ -75,6 +75,8 @@ adb -s emulator-5554 push specs/014-dialogue-reading/scripts/klhu_dialogue_fixtu
 | `flutter test test/reading_view_dialogue_test.dart` | the entry, the type switch, the role list, the picker's new row, the Format button (rows 15-18, 32) |
 | `flutter test test/video_dialogue_test.dart` | a dialogue's plan, its voices, no tag in any frame's text (rows 20-22) |
 | `flutter test test/l10n_keys_test.dart` | every new key exists in all four ARBs (row 19) |
+| `flutter test test/reader_service_test.dart test/cantonese_dialect_test.dart test/voice_mapping_test.dart test/voice_picker_test.dart` | the picker's list holds one row per voice, the on-device copy, and a stored pick finds its row (row 34) |
+| `python3 specs/012-reading-video/scripts/klhu_probe_hiss.py <video> --max-first-db -35` | a render that converted a sentence's rate carries no hiss (row 35) |
 | `git diff --stat pubspec.yaml pubspec.lock android/` | no dependency and no platform change at all (row 29) |
 
 ## Re-run the device rows
@@ -90,6 +92,7 @@ python3 klhu_walk_dialogue.py 25    # the role list and the picker: a removal an
 python3 klhu_walk_dialogue.py 26    # the type switch keeps the reader's place (offset + highlight)
 python3 klhu_walk_dialogue.py 27    # a dialogue's video: no tag in any frame, the read's own voices
 python3 klhu_walk_dialogue.py 28    # spike S1: the device's installed voices per language and gender
+python3 klhu_walk_dialogue.py 29    # one voice's two copies in one render: resample, do not refuse
 python3 klhu_walk_dialogue.py 33    # the editor's Format press: the tags become paragraph heads, one Undo
                                     #   restores the text; then Done saves it
 ```
@@ -108,7 +111,7 @@ order.
 ## Validation scenarios
 
 Rows are numbered append-only: the `[device]` rows 23-28 are the numbers the walk driver dispatches on, so a
-row added later (32-33) takes the next free number rather than shifting them.
+row added later (29, 32-33) takes the next free number rather than shifting them.
 
 ### 1. The prefix rule accepts what the reader writes and refuses everything else — [unit]
 
@@ -433,3 +436,33 @@ Expected: the after-Format dump has each tag at its own paragraph's onset and no
 Undo is byte-for-byte the one from before the press; Done saves, and the reopened content shows the formatted
 text (the save path is 008's own, not a second one). Proves FR-024, SC-011 where the editor's own text is the
 only witness.
+
+### 34. The list a pick is made from holds one row per voice — [unit]
+
+Test: `flutter test test/reader_service_test.dart test/cantonese_dialect_test.dart test/voice_mapping_test.dart test/voice_picker_test.dart`.
+
+Steps: feed `ReaderService.voicesFor` an engine list carrying both copies of a voice (and a voice whose only
+copy is the network one); ask for the Chinese list and count a voice's rows; then open the picker for a role
+with a selection stored as the *network* copy.
+Expected: one row per voice, and it is the on-device copy (`…-local`); a voice with only a network copy keeps
+its row; the picker's rows cannot be tapped twice for one voice; a stored network pick still highlights that
+voice's row and still scrolls to it; and every Cantonese voice is still listed (US3's regression stays green).
+Proves FR-012 (2026-10-06 Clarifications, the reader's *选 (b)*).
+
+Device side, on the built app: rows 24 and 25 re-walked — the picker's own rows are read back, and a tap
+stores `cmn-cn-x-ssa-local`, the on-device copy, for the role alone.
+
+### 35. A render that converted a sentence's rate carries no hiss — [device, by measurement]
+
+Test: `klhu_walk_dialogue.py 29` (it seeds the picks — narration `-local`, roles `-network` — and renders),
+then `python3 specs/012-reading-video/scripts/klhu_probe_hiss.py <pulled video> --max-first-db -35`.
+
+Steps: walk row 29 and keep the file it pulls; run the probe on that file.
+Expected: the first two seconds — the slice the converted narration sentence occupies — sit **below −35 dB**
+above 10 kHz, and within the range of the file's own 48 kHz sentences. The engine's voices hold nothing above
+12 kHz, so a level up there is the conversion's. Measured 2026-10-06 (breakpoint.md → row 35): the windowed
+sinc build reads **−49.0 dB** with its 48 kHz sentences at −45 … −54 dB; a linear-interpolation build of the
+same row reads **−21.1 dB**, 28 dB louder and 25 dB above the sentences around it. Proves 012 FR-017's new
+sentence where an ear is the only other witness. Keep the probe's ceiling: a single narration sentence's own
+level must not decide the row.
+

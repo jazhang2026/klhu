@@ -55,6 +55,30 @@ class VoiceMapping {
   });
 }
 
+/// The voice an engine voice id belongs to: the engine reports one voice twice,
+/// as its on-device copy (`…-local`) and its network copy (`…-network`), and the
+/// two are one voice.
+///
+/// Measured on the OnePlus 13 (2026-10-05): the two copies do not even write the
+/// same samples — the on-device copy synthesizes at 24 kHz, the network copy at
+/// 48 kHz — so a read that uses both is a read of one voice that cannot be
+/// muxed. Everything that has to tell "the same voice" from "two voices" asks
+/// here, and nothing counts the twins as two.
+String voiceIdentity(String systemVoiceId) =>
+    systemVoiceId.replaceFirst(RegExp(r'-(local|network)$'), '');
+
+/// True when an engine voice id names the copy the engine synthesizes on the
+/// device (`…-local`) rather than the one it fetches over the network
+/// (`…-network`).
+///
+/// The picker offers ONE row per voice and it offers this copy (2026-10-06):
+/// two rows under one name let a reader choose a copy without knowing they had
+/// a choice, and the two copies are not interchangeable — the on-device one
+/// works offline, the network one does not. A voice whose on-device copy is not
+/// installed comes as its network copy and is offered as such; nothing is
+/// dropped for want of a preferred copy.
+bool isOnDeviceVoice(String systemVoiceId) => systemVoiceId.endsWith('-local');
+
 /// Static mapping table for the voices this app can show: one row per voice
 /// name the Google TTS engine reports for the `en`, `zh`, `es` and Cantonese
 /// (`yue-HK`) lists. A voice the engine does not report falls back to its raw

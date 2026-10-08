@@ -33,6 +33,8 @@ its checks.
 | 27 | a dialogue's video: no tag in a frame, each slot painted with the read's own sentence, the spans the render reported | **WALKED — PASS (24/24)** |
 | 28 | **spike S1** — the device's *distinct* voices per language and recorded gender (the bound SC-003 is read against) | **WALKED — PASS (7/7)** |
 | 33 | Format in the editor, with the reader's own hands: 63 → 66 chars, three line breaks and nothing else, one Undo | **WALKED — PASS (9/9)** |
+| 34 | the list a pick is made from holds one row per voice (the reader's *选 (b)*): one row per voice, the on-device copy, and a stored network pick finding its row | **PASS** — the four unit rows green; rows 24/25 re-walked on the built app (**13/13**, **19/19**), the tap storing `cmn-cn-x-ssa-local` |
+| 35 | a render that converted a sentence's rate carries no hiss (012 FR-017): the first 2 s below −35 dB above 10 kHz | **WALKED — PASS** — row 29 re-walked on the built app (**19/19**), the pulled file **−49.0 dB** first 2 s; the linear-interpolation build of the same row **−21.1 dB** |
 | 19 | the four locales' keys and the generated localizations in step (`l10n_keys_test` 3/3, `gen-l10n`, clean tree) | **PASS (structural)** |
 | 29 | no dependency, no platform change (`git diff --stat pubspec.yaml pubspec.lock android/` empty) | **PASS (structural)** |
 | 30 | 011's read receipt re-run, unmodified — its parts 7, 8, 9, 10, 16, 17, 20, 21 all PASS | **PASS** |
@@ -48,6 +50,11 @@ The build the whole file was walked on: `854f494` (the 014 commit) plus this wal
 `lib/` and `test/` unchanged by every row here; `flutter analyze` clean; `flutter test --concurrency=2` → **529
 passing, 0 failing** (measured 2026-10-03 before row 23 and re-measured on `854f494` on 2026-10-05 before row
 25; T036 re-measures it on the finished tree and records that figure beside these).
+
+Rows 34 and 35 were added 2026-10-06 and were walked on a later tree: the 014 commit plus the picker's one row
+per voice (`lib/models/voice_mapping.dart`, `lib/reader_service.dart`, `lib/voice_picker_screen.dart`) and 012's
+band-limited `resample()`. That tree: `flutter analyze` clean, `flutter test --concurrency=2` → **536 passing,
+0 failing** (measured 2026-10-06; 529 + the seven unit cases rows 34's group names).
 
 ## Deviations — the rules this walk learned
 
@@ -88,6 +95,19 @@ they do.
 10. **A running read's page never goes quiet.** `pumpAndSettle` on the reading page never returns (the
     reader's own ticker), and an image decode started on the fake clock in `testWidgets` never calls back —
     both cost a row's worth of time before they were written into the unit tests' notes.
+11. **A rate conversion that is not band-limited is a hiss, and no row's other checks can see it.** Linear
+    interpolation between samples does not reconstruct them; it leaves a mirror of the source's top octave
+    above the source's own Nyquist, and on a 24 kHz sentence written up to 48 kHz that mirror lands at −75
+    dBFS where the voice holds nothing at all (a windowed-sinc conversion of the same sentence: −121 dBFS).
+    Row 29 passed **19/19 on both builds** — every check it has is about the file's shape, which did not
+    change. The defect needed a level measurement and a ceiling (row 35, `klhu_probe_hiss.py`), which is the
+    general lesson: a claim about *how something sounds* is a claim about levels.
+12. **The engine lists one voice twice, so anything keyed on the name counts two.** The picker's rows, the
+    scroll target and the selection highlight all keyed on the system voice id, and the two copies of a voice
+    share a display name — so a reader could tap a row they could not tell apart, and a pick stored as the
+    network copy found no row at all once the list held one row per voice. Everything that has to tell *the
+    same voice* from *two voices* asks `voiceIdentity()` now, and everything that has to tell *the copy the
+    device reads with* asks `isOnDeviceVoice()`.
 
 ---
 
@@ -773,7 +793,125 @@ itself) and SC-008.
 
 ---
 
+## Row 34 — the list a pick is made from holds one row per voice
+
+**The reader's decision, 2026-10-06: *选 (b)* — one row per voice, the on-device copy.** The question came out
+of their phone: the picker listed "普通话 SSA (女)" twice, and the three role picks stored there (阿明
+`yue-hk-x-yuf-network`, May `yue-hk-x-yue-network`, 阿芳 `yue-hk-x-yuc-network`) are all *network* copies — the
+reader had chosen a copy without being able to tell there was a choice. The three options put to them were (a)
+both rows as they are, (b) one row per voice, the on-device copy, (c) one row per voice with the copy named;
+they chose (b). Recorded in spec.md: FR-012's new sentence and Clarifications 2026-10-06.
+
+**What changed** — `lib/reader_service.dart::voicesFor` keys its rows on `voiceIdentity()` and prefers
+`isOnDeviceVoice()`; `lib/models/voice_mapping.dart` grows `isOnDeviceVoice()`; `lib/voice_picker_screen.dart`
+keys its row keys, its `indexWhere` and its `_isSelected` on the same identity, so a pick stored as either copy
+still finds and highlights its voice's row.
+
+**Unit side** (the four rows the quickstart's row 34 names):
+
+- `test/reader_service_test.dart` — "one row per voice: the on-device copy is what is offered": both copies in
+  the engine's list → one row, the `-local` one, keeping the position its first copy took; a voice with only a
+  network copy keeps its row.
+- `test/cantonese_dialect_test.dart` — US3's regression re-written onto the new contract: every Cantonese voice
+  is still listed, **once**, and as its on-device copy; no `-network` row survives the filter.
+- `test/voice_mapping_test.dart` — `isOnDeviceVoice` on the copies, on the engine's suffix-less names
+  (`yue-HK-language`, `os-default`) and on the empty string.
+- `test/voice_picker_test.dart` — a role picker opened with a selection stored as `en-gb-x-gba-network`
+  highlights the voice's one row (red on the previous code: no row matched, so no row was selected at all).
+
+`flutter analyze` clean; `flutter test --concurrency=2` → **536 passing, 0 failing**.
+
+**Device side, on the built app** (AVD `emulator-5554`, the build with the change installed):
+
+- Row 24 **13/13 PASS** — the picker drew the device's Chinese voices with one row per voice, the four roles'
+  assigned voices are all `-local` (`['cmn-cn-x-ccc-local', 'cmn-cn-x-ccd-local', 'cmn-cn-x-cce-local',
+  'cmn-cn-x-ssa-local']`), and a tap stored `voice_zh_Hans = cmn-cn-x-ssa-local||zh-CN`.
+- Row 25 **19/19 PASS** — a role's tap stored `cmn-cn-x-ssa-local`, the on-device copy, under the role alone
+  (`voice_zh_Hans = None`), and reopening the content wrote nothing (FR-014).
+
+**What a reviewer should argue with:** (b) means a reader who *wants* the network copy has no row for it — the
+alternative (c) was offered and declined; and the picks already stored as network copies are left alone, so
+those roles keep reading through the network copy until the reader picks again. That is deliberate (FR-014:
+reopening writes nothing) and it is the reason 012's FR-017 had to be fixed rather than worked around: a mixed
+read has to render cleanly whichever copy a pick names.
+
+---
+
+## Row 35 — a render that converted a sentence's rate carries no hiss
+
+**The reader's report, 2026-10-06: *"手机上粤语对话出片了。但是片头有噪音。"*** — their Cantonese dialogue rendered
+and its opening sentence hissed. It was 014's row 29 that made the render work the day before, and the defect
+was in the way it made it work.
+
+**What the file said.** Pulled off the phone (`Movies/Klhu/周末公园散步.mp4`, `adb pull`): 80.96 s, AAC 48 kHz
+mono 64 kbps. Above 10 kHz, per second: **−22.7 · −25.9** · −53.6 · −45.7 · −57.7 · −46.5. The narration
+sentence — the only pick that is a 24 kHz `-local` voice — is 25–30 dB louder above 10 kHz than the twelve
+48 kHz sentences around it, and a video that never converted anything (` ¡Hola!.mp4`, 2026-10-02) reads −57.1
+dB over its own first two seconds. That is the hiss, in numbers.
+
+**What the conversion was doing.** `VideoEncoderPlugin.resample()`, written 2026-10-05, was **linear
+interpolation**. Measured on a real engine sentence (`s1_zh-picked.wav`, 24 kHz, written up to 48 kHz exactly
+as the encoder does, then AAC 64 kbps mono as the app writes): band levels 0–6 k / 6–11 k / 12–16 k / 16–22 k =
+**−44.2 / −67.1 / −75.2 / −88.0 dBFS** — where the source itself cannot hold anything above 12 kHz at all
+(the source measures −67.1 in 6–11 k and nothing above), and a band-limited conversion of the same sentence
+measures −44.2 / −67.1 / **−121.1** / −120.7, matching ffmpeg's own `soxr` (−120.9 / −121.3). The artefact
+survives the AAC encoder: −75.4 / −85.2 dBFS in the encoded file against soxr's −118.6 / −119.9.
+
+**The fix** — a Blackman-windowed sinc interpolator: 32 source samples either side (a 2 kHz transition band on
+a 24 kHz source), cut-off 10 % under the source's Nyquist so the whole transition sits below where a mirror
+artefact can start, taps normalised per phase so no level can shift. The same sentence through it measures
+−121 dBFS in 12–16 k, and a 300 Hz / 3 kHz / 8 kHz tone keeps its level to 0.00 dB while an 11 kHz tone gives
+up 10.9 dB (the voice holds nothing up there: measured peak −89 dBFS in 11–12 kHz).
+
+**Receipt — the same row, the same device, only the resampler different** (AVD `emulator-5554`, install → walk
+`klhu_walk_dialogue.py 29` → `adb pull` → `specs/012-reading-video/scripts/klhu_probe_hiss.py`):
+
+| Build | row 29 | the pulled file's first 2 s, >10 kHz | the same file's 48 kHz sentences |
+|---|---|---|---|
+| linear interpolation (2026-10-05) | 19/19 PASS | **−21.1 dB** | −45.2 … −49.5 dB |
+| windowed sinc (2026-10-06) | 19/19 PASS | **−49.0 dB** | −44.3 … −54.1 dB |
+
+−27.9 dB at the slice under test, and the converted sentence is no longer distinguishable from what it was
+converted to: the fixed build's first two seconds sit inside the file's own range. Two independent walks of the
+same build read the same figures to 0.1 dB.
+
+**The phone itself, 2026-10-06** (the reader unlocked it; the fixed build was already installed): the same
+content, the same device, re-rendered through its own UI and the file pulled back —
+`周末公园散步.mp4`: **−24.3 dB** over its first two seconds (`−22.7 · −25.9`), the converted narration sentence
+standing 25–30 dB above the twelve 48 kHz sentences around it. Re-rendered with the windowed sinc:
+**−50.9 dB** (`−48.6 · −53.2`), inside the file's own range (−45.7 … −57.7), and the probe passes the ceiling.
+The reader's own content is clean on the device they reported it on; the emulator's before/after above is the
+controlled pair.
+
+**The keep path, checked on the phone afterwards — and a claim corrected.** Right after `Save` the album
+held **two** files: `周末公园散步.mp4` (the hissy one, 2026-10-05 19:10, 31 MB) and
+`周末公园散步 (1).mp4` (the clean one, 15:37). Twenty minutes later the album holds **one**:
+`周末公园散步 (1).mp4`. So FR-012 holds — the old entry and its bytes are gone — and what I read as a
+defect was a measurement taken while the platform was still finishing the delete. The receipts:
+
+- `Movies/Klhu` at 15:37: two files; at 15:55: `¡Hola!.mp4` and `周末公园散步 (1).mp4` only.
+- MediaStore at 15:55: one row per content in that album (`_id=1000002649` `¡Hola!.mp4`,
+  `_id=1000002681` `周末公园散步 (1).mp4`) — no row for the old name at all.
+- The app's own record (`FlutterSharedPreferences.xml`, key `video_record`) points that content at
+  `.../video/media/1000002681` with `name` = `周末公园散步.mp4` — the name the app **asked** for, while the
+  platform stored the file as `周末公园散步 (1).mp4`: MediaStore renames rather than replacing when the
+  insert's `DISPLAY_NAME` is already taken, and the app's own record keeps the requested name, not the
+  platform's. That rename is the only thing the reader still sees of this, and it is a naming question, not
+  an FR-012 violation (the count is right, the file is the new one).
+
+A second observation from the same pair, not a defect: the old file's frames are 4.6 MB PNGs and the new
+file's 57 KB ones, 3.0 Mbps against 160 kbps, because the earlier render had **pictures** behind the text and
+this one had none ("No pictures chosen") — the same code, a different reader choice, and the content-driven
+bitrate that follows from it.
+
+---
+
 ## Rows still to walk
 
 None. Every device row of the 014 quickstart (23–28, 33) is walked, each in the pass that
-implemented it; the rows above are the record.
+implemented it; the rows above are the record. Rows 34 and 35 were added 2026-10-06 from the reader's own
+report on their phone, and both are walked — row 35's second half (their own content, on their own phone) on
+2026-10-06 after they unlocked it. What row 35 turned up: the platform finishes a keep by renaming the file,
+not by replacing it (`周末公园散步 (1).mp4`), and the old file's bytes outlive its MediaStore row by a few
+minutes — a naming observation, not the FR-012 violation it first looked like (the row records the
+measurement that corrected it).

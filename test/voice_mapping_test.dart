@@ -295,4 +295,41 @@ void main() {
       expect(enListInZhApp, isNot(contains('美式')));
     });
   });
+
+  group('voiceIdentity', () {
+    // The engine reports one voice twice — its on-device copy and its network
+    // copy. Measured on the OnePlus 13 (2026-10-05), the copies do not even
+    // synthesize at the same rate (24 kHz on-device, 48 kHz on the network), so
+    // everything that counts voices asks here rather than by name.
+    test('one voice, however the engine names its two copies', () {
+      expect(voiceIdentity('yue-hk-x-yuf-local'), 'yue-hk-x-yuf');
+      expect(voiceIdentity('yue-hk-x-yuf-network'), 'yue-hk-x-yuf');
+      expect(
+        voiceIdentity('en-us-x-tpd-local'),
+        voiceIdentity('en-us-x-tpd-network'),
+      );
+    });
+
+    test('a name that carries no copy suffix is its own voice', () {
+      expect(voiceIdentity('zh-CN-language'), 'zh-CN-language');
+      expect(voiceIdentity('os-default'), 'os-default');
+      expect(voiceIdentity(''), '');
+    });
+  });
+
+  group('isOnDeviceVoice', () {
+    // The picker offers one row per voice and it offers this copy
+    // (2026-10-06): the on-device copy is the one that reads with no network,
+    // so where a voice has both copies it is the one a reader gets.
+    test('the on-device copy, and only it, is the one offered', () {
+      expect(isOnDeviceVoice('yue-hk-x-yuf-local'), isTrue);
+      expect(isOnDeviceVoice('yue-hk-x-yuf-network'), isFalse);
+      // The engine's names for the OS default and a language's default carry no
+      // copy suffix at all: they are neither copy's name, and nothing may
+      // mistake them for one.
+      expect(isOnDeviceVoice('yue-HK-language'), isFalse);
+      expect(isOnDeviceVoice('os-default'), isFalse);
+      expect(isOnDeviceVoice(''), isFalse);
+    });
+  });
 }

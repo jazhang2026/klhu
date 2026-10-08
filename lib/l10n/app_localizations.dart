@@ -557,17 +557,29 @@ abstract class AppLocalizations {
   /// **'Share video'**
   String get videoShareTitle;
 
-  /// No description provided for @videoPlayButton.
+  /// No description provided for @videoListTitle.
   ///
   /// In en, this message translates to:
-  /// **'Play video'**
-  String get videoPlayButton;
+  /// **'Videos'**
+  String get videoListTitle;
+
+  /// No description provided for @videoListEmptyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This content has no videos yet'**
+  String get videoListEmptyMessage;
 
   /// No description provided for @videoDeleteButton.
   ///
   /// In en, this message translates to:
   /// **'Delete video'**
   String get videoDeleteButton;
+
+  /// No description provided for @videoReplaceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the existing video'**
+  String get videoReplaceLabel;
 
   /// No description provided for @videoDeleteConfirmTitle.
   ///
@@ -578,14 +590,14 @@ abstract class AppLocalizations {
   /// No description provided for @videoDeleteConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'The video will be removed from your gallery. This cannot be undone.'**
-  String get videoDeleteConfirmMessage;
+  /// **'{name} will be removed from your gallery. This cannot be undone.'**
+  String videoDeleteConfirmMessage(String name);
 
   /// No description provided for @videoGoneMessage.
   ///
   /// In en, this message translates to:
-  /// **'This video is gone'**
-  String get videoGoneMessage;
+  /// **'{name} is gone'**
+  String videoGoneMessage(String name);
 
   /// No description provided for @videoRenderFailedMessage.
   ///

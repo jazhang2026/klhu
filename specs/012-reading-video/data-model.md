@@ -173,36 +173,45 @@ enforced against.
 
 | Name | Type | Nullable | Source |
 |---|---|---|---|
-| key | `String` — the content's own key | no | the same keying the read position and the library already use |
+| `key` | `String` — the content's own key | no | the same keying the read position and the library already use |
+| `videos` | `List<KeptVideo>` — the content's videos, oldest first | no | one per keep the reader chose to keep beside an earlier one (FR-012, FR-022) |
+| `gone` | `List<KeptVideo>` — the entries that read had to forget | no | what a lookup answers with, so the reader is told which video is missing |
 | `displayName` | `String` — the name the file carries in the library | no | taken from the content's name (FR-011) |
 | `uri` | `String` — where the file lives (a library URI, or a path below API 29) | no | the platform's answer to keeping it (D7) |
 | `keptAt` | `int` — epoch milliseconds | no | when it was kept |
 
-**Relationships**: at most one entry per content (FR-012), and each entry names a file the device's video
-library holds. Deleting the content (the existing delete) does not touch its video — a separate decision the
-spec does not make.
+**Relationships**: a content holds **one or more** entries — an ordered array, oldest first, the last one
+being the video the page's Play action opens (FR-022, amended 2026-10-06; it was one entry per content before).
+Each entry names a file the device's video library holds, and no two entries of one content name the same URI.
+Deleting the content (the existing delete) does not touch its video — a separate decision the spec does not
+make.
 
 **Validation rules**
 
 | Rule | Requirement |
 |---|---|
-| Keeping while an entry exists replaces it, leaving exactly one | FR-012 |
+| Keeping **replacing** rewrites the content's last entry, leaving it the only one; keeping **both** appends after it | FR-012 (amended 2026-10-06) |
+| A value written in the shipped one-object shape reads as a one-entry list, and is rewritten in the array shape only when that content is next written | FR-022, contract read rule 5 |
 | A lookup whose file is gone reports the video as gone, forgets the entry, and leaves the content able to record again | FR-022 |
-| Deleting removes the entry **and** the file from the library | FR-022 |
+| Deleting removes **that** entry and its file from the library, leaving the content's other videos in place and in order | FR-022 |
 | A missing or malformed store reads as empty, without an error (its `AppearanceStore`/`ReadPositionStore` behaviour) | ripple note 5 |
 
 **Worked example**: the reader keeps a video for "The Little Prince" → the store holds one entry naming
-`Movies/Klhu/The Little Prince.mp4`; the gallery lists it; the reader re-records and keeps again → still one
-entry, and the URI in it is the new file's; the reader deletes the video → the entry goes and the gallery no
-longer lists it.
+`Movies/Klhu/The Little Prince.mp4`; the gallery lists it; the reader re-records, turns the replacement switch
+off and keeps again → the array holds two entries, the earlier file still in the gallery, and the content's own
+video is the one just kept; the reader deletes the older one from the list → that entry and that file go, and
+the newer one still plays.
 
 **States**
 
 ```
-absent ──(keep)──▶ kept ──(keep again: replaced)──▶ kept
-                    │
-                    ├──(delete, confirmed)──▶ absent (file and entry gone)
-                    └──(the file vanishes outside the app)──▶ stale ──(next lookup: reported gone)──▶ absent
+absent ──(keep)──▶ kept ──(keep again: replaced)──▶ kept (one entry, the new file)
+                    │      └─(keep again: kept both)──▶ kept + kept (two entries, oldest first)
+                    ├──(delete one, confirmed)──▶ kept (that entry and its file gone, the rest in place)
+                    ├──(delete the last, confirmed)──▶ absent (file and entry gone)
+                    └──(a file vanishes outside the app)──▶ that entry reported gone and forgotten; the
+                                                            content's other videos untouched; when it was
+                                                            the last one, the content offers to record again
 ```
 
 ---

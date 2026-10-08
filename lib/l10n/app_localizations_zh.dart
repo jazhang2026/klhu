@@ -249,19 +249,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get videoShareTitle => '分享视频';
 
   @override
-  String get videoPlayButton => '播放视频';
+  String get videoListTitle => '视频';
+
+  @override
+  String get videoListEmptyMessage => '该内容还没有视频';
 
   @override
   String get videoDeleteButton => '删除视频';
 
   @override
+  String get videoReplaceLabel => '替换已有的视频';
+
+  @override
   String get videoDeleteConfirmTitle => '删除该视频？';
 
   @override
-  String get videoDeleteConfirmMessage => '视频将从相册中移除，此操作无法撤销。';
+  String videoDeleteConfirmMessage(String name) {
+    return '$name将从相册中移除，此操作无法撤销。';
+  }
 
   @override
-  String get videoGoneMessage => '该视频已不存在';
+  String videoGoneMessage(String name) {
+    return '$name已不存在';
+  }
 
   @override
   String get videoRenderFailedMessage => '无法生成视频，请检查存储空间后重试。';
@@ -599,19 +609,29 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get videoShareTitle => '分享视频';
 
   @override
-  String get videoPlayButton => '播放视频';
+  String get videoListTitle => '视频';
+
+  @override
+  String get videoListEmptyMessage => '该内容还没有视频';
 
   @override
   String get videoDeleteButton => '删除视频';
 
   @override
+  String get videoReplaceLabel => '替换已有的视频';
+
+  @override
   String get videoDeleteConfirmTitle => '删除该视频？';
 
   @override
-  String get videoDeleteConfirmMessage => '视频将从相册中移除，此操作无法撤销。';
+  String videoDeleteConfirmMessage(String name) {
+    return '$name将从相册中移除，此操作无法撤销。';
+  }
 
   @override
-  String get videoGoneMessage => '该视频已不存在';
+  String videoGoneMessage(String name) {
+    return '$name已不存在';
+  }
 
   @override
   String get videoRenderFailedMessage => '无法生成视频，请检查存储空间后重试。';

@@ -254,20 +254,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoShareTitle => 'Share video';
 
   @override
-  String get videoPlayButton => 'Play video';
+  String get videoListTitle => 'Videos';
+
+  @override
+  String get videoListEmptyMessage => 'This content has no videos yet';
 
   @override
   String get videoDeleteButton => 'Delete video';
 
   @override
+  String get videoReplaceLabel => 'Replace the existing video';
+
+  @override
   String get videoDeleteConfirmTitle => 'Delete this video?';
 
   @override
-  String get videoDeleteConfirmMessage =>
-      'The video will be removed from your gallery. This cannot be undone.';
+  String videoDeleteConfirmMessage(String name) {
+    return '$name will be removed from your gallery. This cannot be undone.';
+  }
 
   @override
-  String get videoGoneMessage => 'This video is gone';
+  String videoGoneMessage(String name) {
+    return '$name is gone';
+  }
 
   @override
   String get videoRenderFailedMessage =>

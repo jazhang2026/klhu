@@ -22,6 +22,7 @@ import 'package:klhu/services/content_store.dart';
 import 'package:klhu/services/voice_mapping_service.dart';
 import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/video_aspect.dart';
+import 'package:klhu/video_list_screen.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_record.dart';
@@ -349,12 +350,19 @@ class _ReadingViewState extends State<ReadingView> {
   /// is on screen, nothing is kept, and the page's own controls are not offered.
   VideoReview? _review;
 
+  /// Whether the keep the review is about to make replaces the content's earlier
+  /// video (FR-012's amendment, 2026-10-06). The default is the shipped rule —
+  /// one kept video, and it is the new one — and the review asks only when there
+  /// is an earlier one to replace.
+  bool _replaceKeptVideo = true;
+
   /// The directory the review's working copy lives in — this render's own.
   Directory? _reviewDir;
 
-  /// The video the content in force has kept (FR-022), if any. Its actions are
-  /// the idle page's: play it, share it, delete it.
-  KeptVideo? _keptVideo;
+  /// The videos the content in force has kept (FR-022/FR-033), oldest first —
+  /// the newest is the content's own. Its action is the idle page's: open them
+  /// as a list, where each one carries its own play, share and delete.
+  List<KeptVideo> _keptVideos = const <KeptVideo>[];
 
   /// Which content the kept-video look belongs to: a slow platform answer for a
   /// text the reader has already left must not land on the new one.
@@ -562,6 +570,85 @@ class _ReadingViewState extends State<ReadingView> {
 
   /// Guard against rapid language switching
   bool _isLanguageChanging = false;
+
+  /// The height of the actions' own row, in portrait (011 FR-026).
+  static const double _actionRowHeight = 48;
+
+  /// Whether the page's actions need a row of their own: a portrait window is
+  /// too narrow to hold them beside the language. Measured on the reader's
+  /// phone, 2026-10-06: the window is 360 dp wide and the bar's own controls
+  /// need 488 dp, so the last actions were squeezed and pushed off the edge.
+  bool get _actionsOnTheirOwnRow =>
+      MediaQuery.orientationOf(context) == Orientation.portrait;
+
+  /// The page's own actions, defined once and placed either beside the language
+  /// (landscape, where the row has the room) or on their own row under the
+  /// brand and the language (portrait, where it does not) — one list, so the
+  /// two arrangements cannot drift apart.
+  ///
+  /// The buttons are Material's own size (48 dp) in both arrangements: the
+  /// portrait bar carries six actions now that play, share and delete are one
+  /// `Videos` action (the 2026-10-06 amendment, FR-033), and six 48 dp targets
+  /// are 288 dp against the 360 dp the portrait row offers. The 40 dp this bar
+  /// was squeezed to when it carried eight — 011's own record of that
+  /// compromise — goes with the three actions that paid for it.
+  List<Widget> _pageActions() {
+    final l10n = AppLocalizations.of(context);
+    return [
+      IconButton(
+        icon: const Icon(Icons.format_size),
+        tooltip: l10n?.appearanceButton ?? 'Appearance',
+        // Idle-only (FR-014): changing the text's look mid-read
+        // would fight the page's own tracking, which is measured on
+        // that text.
+        onPressed: _isSpeakingOrPaused ? null : _openAppearance,
+      ),
+      IconButton(
+        icon: const Icon(Icons.folder_open),
+        tooltip: l10n?.contentsButton ?? 'Contents',
+        onPressed: () => _openContentList(),
+      ),
+      // The text type (014 FR-022): offered in 标准 too, because the
+      // chooser is where a dialogue is turned on; allowed mid-read,
+      // since switching changes nothing but the setting (FR-020).
+      IconButton(
+        icon: const Icon(Icons.forum_outlined),
+        tooltip: l10n?.textTypeButton ?? 'Text type',
+        onPressed: _openTextType,
+      ),
+      IconButton(
+        icon: const Icon(Icons.record_voice_over),
+        tooltip: l10n?.voiceButton ?? 'Voice',
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VoicePickerScreen(
+              reader: widget.reader,
+              store: widget.voiceStore,
+              language: _activeLanguage(),
+            ),
+          ),
+        ),
+      ),
+      // The video action, from the idle page only (FR-010): a read
+      // playing or parked owns the page, and a platform that cannot
+      // make videos is never offered the action at all.
+      if (_canOfferVideo)
+        IconButton(
+          icon: const Icon(Icons.movie_outlined),
+          tooltip: l10n?.videoButton ?? 'Video',
+            onPressed: _openVideoPrompt,
+        ),
+      // The content's own videos, once it has any (FR-022/FR-033): one action
+      // that opens them as a list, where each video carries its own play, share
+      // and delete — and where the last row is what the old `Play video` opened.
+      if (_keptVideos.isNotEmpty && _mode == _Mode.read)
+        IconButton(
+          icon: const Icon(Icons.video_library_outlined),
+          tooltip: l10n?.videoListTitle ?? 'Videos',
+          onPressed: _openVideoList,
+        ),
+    ];
+  }
 
   /// Build the language dropdown widget
   Widget _buildLanguageDropdown(BuildContext context) {
@@ -1204,28 +1291,32 @@ class _ReadingViewState extends State<ReadingView> {
   }
 
   /// What the content in force has kept (FR-022), asked whenever that content
-  /// changes. A record whose file has gone is reported and forgotten rather than
-  /// offered: the reader is told the video is gone, and the content offers to
-  /// record again.
+  /// changes and again when the list comes back. A video whose file has gone is
+  /// reported by name and forgotten rather than offered, and the content's other
+  /// videos are left alone.
   Future<void> _refreshKeptVideo() async {
     final gen = ++_keptGen;
     final key = _anchorKey;
     if (key == null) {
-      if (mounted) setState(() => _keptVideo = null);
+      if (mounted) setState(() => _keptVideos = const <KeptVideo>[]);
       return;
     }
     late final VideoLookup lookup;
     try {
-      lookup = await _recordStore.lookup(key);
+      lookup = await _recordStore.recordFor(key);
     } catch (e) {
-      debugPrint('klhu kept video lookup failed: $e');
+      debugPrint('klhu reading the kept videos failed: $e');
       return;
     }
     if (!mounted || gen != _keptGen) return;
-    setState(() => _keptVideo = lookup.video);
-    if (lookup.wasStale) {
-      _showMessage(AppLocalizations.of(context)?.videoGoneMessage ??
-          'This video is gone');
+    setState(() => _keptVideos = lookup.videos);
+    // Each video whose file has gone is reported by its own name, and that read
+    // forgot it: what the page offers is what plays (FR-022).
+    final l10n = AppLocalizations.of(context);
+    for (final video in lookup.gone) {
+      _showMessage(
+        l10n?.videoGoneMessage(video.name) ?? '${video.name} is gone',
+      );
     }
   }
 
@@ -1494,9 +1585,8 @@ class _ReadingViewState extends State<ReadingView> {
     final review = _review;
     if (review == null) return;
     final l10n = AppLocalizations.of(context);
-    KeptVideo kept;
     try {
-      kept = await review.keep();
+      await review.keep(replace: _replaceKeptVideo);
     } catch (e) {
       debugPrint('klhu keeping the video failed: $e');
       if (!mounted) return;
@@ -1506,10 +1596,13 @@ class _ReadingViewState extends State<ReadingView> {
     }
     if (!mounted) return;
     setState(() {
-      _keptVideo = kept;
       _review = null;
       _mode = _Mode.read;
     });
+    // The record is read again rather than assumed: whether that keep replaced
+    // the content's last entry or appended beside it is the record's own answer
+    // (FR-012's amendment, 2026-10-06).
+    await _refreshKeptVideo();
     await _disposeReviewDir();
     if (!mounted) return;
     _showMessage(l10n?.videoSavedMessage ?? 'Video saved');
@@ -1556,78 +1649,28 @@ class _ReadingViewState extends State<ReadingView> {
     if (dir != null) await _removeWorkingDir(dir);
   }
 
-  /// FR-022: a kept video is played, shared or deleted from the content, later,
-  /// without re-rendering it.
-  Future<void> _playKeptVideo() async {
-    final video = _keptVideo;
-    if (video == null) return;
+  /// FR-022/FR-033: the content's videos as a list the reader picks from. What
+  /// the page's own Play action used to do — open the video kept most recently —
+  /// is the list's last row's tap; a delete inside the list is what can leave
+  /// this content with nothing, so the record is read again on the way back and
+  /// the page's `Videos` action goes when the last one does.
+  Future<void> _openVideoList() async {
+    final key = _anchorKey;
+    if (key == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _VideoPlaybackScreen(
+        builder: (_) => VideoListScreen(
+          contentKey: key,
+          records: _recordStore,
+          files: widget.videoFileStore,
           player: widget.videoPlayer,
-          video: video,
         ),
       ),
     );
-  }
-
-  Future<void> _shareKeptVideo() async {
-    final video = _keptVideo;
-    if (video == null) return;
-    try {
-      await widget.videoFileStore.share(source: video.uri);
-    } catch (e) {
-      debugPrint('klhu sharing the kept video failed: $e');
-    }
-  }
-
-  /// FR-024: deleting a kept video asks first, naming what goes and that it
-  /// cannot be undone, and only then removes file and record.
-  Future<void> _deleteKeptVideo() async {
-    final video = _keptVideo;
-    final key = _anchorKey;
-    if (video == null || key == null) return;
-    final l10n = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n?.videoDeleteConfirmTitle ?? 'Delete this video?'),
-        content: Text(l10n?.videoDeleteConfirmMessage ??
-            'The video will be removed from your gallery. '
-                'This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n?.cancelButton ?? 'Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n?.deleteButton ?? 'Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    // The player is released first: what is about to be deleted must not still
-    // be playing (contract § Rules 4).
-    await widget.videoPlayer.stop();
-    var gone = true;
-    try {
-      gone = await _recordStore.delete(key);
-    } catch (e) {
-      debugPrint('klhu deleting the video failed: $e');
-      gone = false;
-    }
     if (!mounted) return;
     await _refreshKeptVideo();
-    if (!mounted) return;
-    if (!gone) {
-      // The record is gone either way, so the content offers to record again
-      // rather than offering a video that is not there (contract § Write rules).
-      _showMessage(l10n?.storageErrorMessage ??
-          'Could not save. Check storage space and try again.');
-    }
   }
+
 
   /// The review, while it is up: the render's own picture, and the three
   /// decisions (FR-021, FR-023).
@@ -1643,6 +1686,18 @@ class _ReadingViewState extends State<ReadingView> {
           ),
         ),
         const SizedBox(height: 16),
+        // What a second keep does, put to the reader (FR-012's amendment,
+        // 2026-10-06): replacing is the default and the shipped rule, and the
+        // question is asked only when the content already has a video to
+        // replace. Off leaves that earlier file in the library beside this one.
+        if (_keptVideos.isNotEmpty)
+          SwitchListTile(
+            value: _replaceKeptVideo,
+            onChanged: (value) => setState(() => _replaceKeptVideo = value),
+            title: Text(
+              l10n?.videoReplaceLabel ?? 'Replace the existing video',
+            ),
+          ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -1995,6 +2050,8 @@ class _ReadingViewState extends State<ReadingView> {
         _frame = null;
         _renderProgress = '';
         _reviewDir = workDir;
+        // A new review asks again: the default answer replaces (FR-012).
+        _replaceKeptVideo = true;
         _review = VideoReview(
           workingPath: result.path,
           contentKey: contentKey,
@@ -2010,6 +2067,12 @@ class _ReadingViewState extends State<ReadingView> {
         );
       });
     } on VideoRenderException catch (e) {
+      // The reader is shown one message for three different failures, so the
+      // failure itself has to be on the wire: on a device whose encoder or
+      // engine refuses, this line is the only record of WHICH half refused and
+      // in whose words. (A phone's render failing with "check storage space"
+      // while the disk was 152 GB free is what put this line here.)
+      debugPrint('klhu render failed kind=${e.kind.name} message=${e.message}');
       if (!mounted || gen != _renderGen) return;
       setState(() {
         _mode = _Mode.read;
@@ -2261,69 +2324,29 @@ class _ReadingViewState extends State<ReadingView> {
                   // Language dropdown
                   if (widget.localizationService != null)
                     _buildLanguageDropdown(context),
-                  IconButton(
-                    icon: const Icon(Icons.format_size),
-                    tooltip: l10n?.appearanceButton ?? 'Appearance',
-                    // Idle-only (FR-014): changing the text's look mid-read
-                    // would fight the page's own tracking, which is measured on
-                    // that text.
-                    onPressed: _isSpeakingOrPaused ? null : _openAppearance,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.folder_open),
-                    tooltip: l10n?.contentsButton ?? 'Contents',
-                    onPressed: () => _openContentList(),
-                  ),
-                  // The text type (014 FR-022): offered in 标准 too, because the
-                  // chooser is where a dialogue is turned on; allowed mid-read,
-                  // since switching changes nothing but the setting (FR-020).
-                  IconButton(
-                    icon: const Icon(Icons.forum_outlined),
-                    tooltip: l10n?.textTypeButton ?? 'Text type',
-                    onPressed: _openTextType,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.record_voice_over),
-                    tooltip: l10n?.voiceButton ?? 'Voice',
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => VoicePickerScreen(
-                          reader: widget.reader,
-                          store: widget.voiceStore,
-                          language: _activeLanguage(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // The video action, from the idle page only (FR-010): a read
-                  // playing or parked owns the page, and a platform that cannot
-                  // make videos is never offered the action at all.
-                  if (_canOfferVideo)
-                    IconButton(
-                      icon: const Icon(Icons.movie_outlined),
-                      tooltip: l10n?.videoButton ?? 'Video',
-                      onPressed: _openVideoPrompt,
-                    ),
-                  // The content's own video, once it has one (FR-022): play,
-                  // share or delete it later, without making it again.
-                  if (_keptVideo != null && _mode == _Mode.read) ...[
-                    IconButton(
-                      icon: const Icon(Icons.play_circle_outline),
-                      tooltip: l10n?.videoPlayButton ?? 'Play video',
-                      onPressed: _playKeptVideo,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.share_outlined),
-                      tooltip: l10n?.videoShareButton ?? 'Share',
-                      onPressed: _shareKeptVideo,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: l10n?.videoDeleteButton ?? 'Delete video',
-                      onPressed: _deleteKeptVideo,
-                    ),
-                  ],
+                  // Portrait gives the actions a row of their own, under the
+                  // brand and the language (011 FR-026). Measured on the
+                  // reader's phone (360 dp wide, 2026-10-06): the language takes
+                  // 104 dp and the six actions beside it need 288 dp more, so
+                  // Play video was squeezed to 16 dp and Share and Delete video
+                  // were pushed off the edge entirely. Landscape has the room
+                  // (792 dp) and keeps them on this row.
+                  if (!_actionsOnTheirOwnRow) ..._pageActions(),
                 ],
+          bottom: (_actionsOnTheirOwnRow && !_isRendering && !_isReview)
+              // The actions' own row, part of the app bar so the text below it
+              // keeps the body's own layout (the top is the bar's business).
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(_actionRowHeight),
+                  child: SizedBox(
+                    height: _actionRowHeight,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: _pageActions(),
+                    ),
+                  ),
+                )
+              : null,
         ),
         // The page's controls sit on the bottom edge, and on a device that
         // draws edge-to-edge the system's own bar is drawn over that edge
@@ -2498,36 +2521,6 @@ class _ReadingViewState extends State<ReadingView> {
   }
 }
 
-/// A kept video, watched (FR-022): the content's own file, played by the
-/// platform's own player, with a way back.
-///
-/// Leaving releases the player: what is no longer on screen must not still be
-/// playing (player contract § Rules 4).
-class _VideoPlaybackScreen extends StatefulWidget {
-  const _VideoPlaybackScreen({required this.player, required this.video});
-
-  final VideoPlayer player;
-  final KeptVideo video;
-
-  @override
-  State<_VideoPlaybackScreen> createState() => _VideoPlaybackScreenState();
-}
-
-class _VideoPlaybackScreenState extends State<_VideoPlaybackScreen> {
-  @override
-  void dispose() {
-    unawaited(widget.player.stop());
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.video.name)),
-    body: Center(
-      child: widget.player.view(context, source: widget.video.uri),
-    ),
-  );
-}
 
 /// How tall the window the chosen pictures are reviewed in is (FR-030): two rows
 /// of thumbnails and the space between them — a small window the reader scrolls

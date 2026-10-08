@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:klhu/models/voice_mapping.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/voice_store.dart';
 
@@ -22,7 +23,9 @@ abstract class Reader {
   bool get isPaused;
 
   /// Installed voices for [language] (`'en'`, `'zh-Hans'` or `'es'`), filtered
-  /// by locale prefix; malformed platform entries are skipped.
+  /// by locale prefix; malformed platform entries are skipped. One row per
+  /// VOICE: a voice's on-device and network copies are one voice and the
+  /// on-device copy is the one offered.
   Future<List<VoiceEntry>> voicesFor(String language);
 
   /// Speak [paragraphs] in order, each with its own language voice.
@@ -334,17 +337,37 @@ class ReaderService implements Reader, SentenceSynthesizer {
     }
   }
 
+  /// The voices the engine reports for [language], ONE ROW PER VOICE.
+  ///
+  /// The engine reports one voice twice — its on-device copy (`…-local`) and its
+  /// network copy (`…-network`) — under a single display name, so listing the
+  /// engine's rows lists the same voice twice. The row offered is the on-device
+  /// copy where the device has it (2026-10-06): the two copies are one voice,
+  /// they do not synthesize at the same rate, and a reader has no way to tell
+  /// which of two identically named rows they are picking, while the on-device
+  /// copy is the one that also works with no network. A voice installed only in
+  /// its network form is still offered, as that copy.
+  ///
+  /// [voiceIdentity] is the key, so a voice's first row keeps its place in the
+  /// engine's order whichever copy turns up first.
   @override
   Future<List<VoiceEntry>> voicesFor(String language) async {
     final raw = await _tts.getVoices();
     for (final entry in raw) {
       debugPrint('klhu getVoices: $entry');
     }
-    return [
-      for (final entry in raw)
-        if (_parseVoice(entry) case final voice?)
-          if (_matchesLanguage(voice.locale, language)) voice,
-    ];
+    final chosen = <String, VoiceEntry>{};
+    for (final entry in raw) {
+      final voice = _parseVoice(entry);
+      if (voice == null) continue;
+      if (!_matchesLanguage(voice.locale, language)) continue;
+      final kept = chosen[voiceIdentity(voice.name)];
+      if (kept == null ||
+          (isOnDeviceVoice(voice.name) && !isOnDeviceVoice(kept.name))) {
+        chosen[voiceIdentity(voice.name)] = voice;
+      }
+    }
+    return chosen.values.toList();
   }
 
   @override

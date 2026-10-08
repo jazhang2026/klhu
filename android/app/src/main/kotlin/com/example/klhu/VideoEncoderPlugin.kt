@@ -16,6 +16,12 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executors
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * The render's platform half (spec 012, contracts/video-frame-protocol.md and
@@ -55,6 +61,16 @@ class VideoEncoderPlugin : MethodChannel.MethodCallHandler {
 
         /** One AAC input buffer's worth of PCM, in frames. */
         private const val AUDIO_CHUNK_FRAMES = 1024
+
+        /**
+         * How far either side of an output instant the resampler reads the
+         * source, in source samples. The kernel's transition band is
+         * `5.5 / (2 * RESAMPLE_HALF + 1)` cycles per sample — 2.0 kHz at 24 kHz
+         * here, so with the cut-off 10 % under the source's own Nyquist the
+         * whole transition sits below it and everything the source cannot hold
+         * is in the stopband.
+         */
+        private const val RESAMPLE_HALF = 32
 
         private const val ACTION_IFRAME_SECONDS = 1
     }
@@ -426,6 +442,21 @@ class VideoEncoderPlugin : MethodChannel.MethodCallHandler {
      * A WAV shorter than its slot is padded with silence and a longer one is
      * cut: the slot lengths are what the frames were planned against (FR-016), so
      * the audio is made to fit the picture and never the other way round.
+     *
+     * One rate for the whole stream: the highest the sentences carry, so no
+     * sentence is resampled down. The engine writes the on-device copy of a voice
+     * at 24 kHz and its network copy at 48 kHz, and one read may use both — the
+     * picker offers one copy per voice (2026-10-06) but a voice the device has
+     * not installed comes as its network copy, and a pick stored before then is
+     * still a network one, so a read may still mix them. The muxer takes one
+     * rate, so the 24 kHz sentences are converted up rather than refused
+     * (measured on the OnePlus 13: a dialogue whose narration read through a
+     * `-local` voice and whose roles read through `-network` ones came out as
+     * twelve sentences at 48 kHz and one at 24 kHz, and the render failed).
+     * The conversion is [resample]'s; it must be band-limited, which is what the
+     * first version of this was not.
+     * Two different channel counts stay a failure: that is not a rate to convert
+     * but two layouts the muxer cannot hold.
      */
     private fun encodeAudio(call: MethodCall) {
         val raw = call.argument<Any?>("audioSegments") as? List<*> ?: emptyList<Any?>()
@@ -438,15 +469,15 @@ class VideoEncoderPlugin : MethodChannel.MethodCallHandler {
             val path = map["path"] as? String
             val read = if (path == null) null else readWav(File(path))
             if (read != null) {
-                if (rate == 0) {
-                    rate = read.rate
+                if (channels == 0) {
                     channels = read.channels
-                } else if (read.rate != rate || read.channels != channels) {
+                } else if (read.channels != channels) {
                     throw Failure(
                         "IO_FAILED",
-                        "the sentences were written at different rates; they cannot be muxed",
+                        "the sentences were written in different audio layouts; they cannot be muxed",
                     )
                 }
+                if (read.rate > rate) rate = read.rate
             }
             segments.add(Segment(durationUs, read))
         }
@@ -455,6 +486,13 @@ class VideoEncoderPlugin : MethodChannel.MethodCallHandler {
             // the engine's own.
             rate = 24_000
             channels = 1
+        }
+        for (segment in segments) {
+            val pcm = segment.pcm ?: continue
+            if (pcm.rate != rate) {
+                segment.pcm =
+                    Pcm(rate, pcm.channels, resample(pcm.data, pcm.rate, rate))
+            }
         }
 
         val codec = try {
@@ -512,9 +550,95 @@ class VideoEncoderPlugin : MethodChannel.MethodCallHandler {
         }
     }
 
-    private class Segment(val durationUs: Long, val pcm: Pcm?)
+    private class Segment(val durationUs: Long, var pcm: Pcm?)
 
     private class Pcm(val rate: Int, val channels: Int, val data: ByteArray)
+
+    /**
+     * Resamples 16-bit PCM from [from] Hz to [to] Hz with a windowed-sinc
+     * interpolator: each output sample is the source evaluated at that instant
+     * through a Blackman-windowed sinc, so the samples that fall between the
+     * source's own samples are reconstructed instead of drawn along the line
+     * between them.
+     *
+     * Linear interpolation is what this replaced (2026-10-06, heard on the
+     * OnePlus 13 as a hiss over the first sentence of a dialogue video). It does
+     * not reconstruct anything: it leaves a mirror of the voice's top octave
+     * above the source's own Nyquist. Measured on a real engine sentence
+     * (`s1_zh-picked.wav`, 24 kHz, written up at 48 kHz), linear interpolation
+     * puts 12–16 kHz at −75 dBFS, where a band-limited conversion of the same
+     * sentence leaves −121 dBFS and the source itself cannot hold anything at
+     * all. That artefact survives the AAC encoder; a listener hears it as hiss,
+     * and the 24 kHz narration slot of `周末公园散步` came out 25 dB brighter
+     * above 10 kHz than the twelve 48 kHz sentences around it.
+     *
+     * The kernel is truncated to [RESAMPLE_HALF] source samples a side, giving
+     * a 2 kHz transition band on a 24 kHz source, and its cut-off sits 10 % under
+     * that source's Nyquist, so the whole transition is below the point where an
+     * artefact may start. Measured on the same sentence written up at 48 kHz:
+     * −121 dBFS in 12–16 kHz, against −75 dBFS for the linear interpolation this
+     * replaced and −121 dBFS for ffmpeg's own `soxr` converter. Taps are
+     * normalised so the conversion cannot shift the level, and the sum is
+     * clamped, because a transient at the edge of the window can overshoot the
+     * 16-bit range.
+     */
+    private fun resample(data: ByteArray, from: Int, to: Int): ByteArray {
+        if (from == to || from <= 0 || to <= 0) return data
+        val samples = data.size / 2
+        if (samples < 2) return data
+        val out = ByteArray((samples.toLong() * to / from).toInt() * 2)
+        val step = from.toDouble() / to
+        // A cut-off 10 % under the source's own Nyquist: what linear
+        // interpolation left behind is a mirror of the voice's top octave that
+        // STARTS at that Nyquist, so a filter still rolling off there would keep
+        // its first kilohertz. The voice holds nothing up there (measured: peak
+        // −89 dBFS in 11–12 kHz on a real engine sentence), so this gives up no
+        // audible sound. The min() keeps a conversion asked for the other way
+        // round from folding the top band down instead of cutting it.
+        val omega = minOf(0.9, 0.9 * to / from)
+        for (i in 0 until out.size / 2) {
+            val at = i * step
+            val base = floor(at).toInt()
+            val frac = at - base
+            var sum = 0.0
+            var gain = 0.0
+            for (j in -RESAMPLE_HALF + 1..RESAMPLE_HALF) {
+                val index = base + j
+                if (index < 0 || index >= samples) continue
+                val t = frac - j
+                val tap = omega * sinc(omega * t) * blackman(t)
+                sum += tap * readSample(data, index)
+                gain += tap
+            }
+            val value = if (gain == 0.0) 0 else (sum / gain).roundToInt()
+            writeSample(out, i, value.coerceIn(-32768, 32767))
+        }
+        return out
+    }
+
+    /** sin(πt)/πt, 1 at zero. */
+    private fun sinc(t: Double): Double {
+        if (t == 0.0) return 1.0
+        val x = PI * t
+        return sin(x) / x
+    }
+
+    /** Blackman window over ±[RESAMPLE_HALF] source samples, zero at the ends. */
+    private fun blackman(t: Double): Double {
+        if (abs(t) > RESAMPLE_HALF) return 0.0
+        val x = PI * t / RESAMPLE_HALF
+        return 0.42 + 0.5 * cos(x) + 0.08 * cos(2 * x)
+    }
+
+    /** One 16-bit little-endian sample, sign extended. */
+    private fun readSample(data: ByteArray, index: Int): Int =
+        (data[index * 2].toInt() and 0xFF) or (data[index * 2 + 1].toInt() shl 8)
+
+    /** Writes one 16-bit little-endian sample. */
+    private fun writeSample(out: ByteArray, index: Int, value: Int) {
+        out[index * 2] = (value and 0xFF).toByte()
+        out[index * 2 + 1] = ((value shr 8) and 0xFF).toByte()
+    }
 
     /** Feeds [size] bytes from [bytes] and answers the time after them. */
     private fun feed(

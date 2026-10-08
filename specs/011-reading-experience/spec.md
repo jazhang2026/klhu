@@ -37,6 +37,16 @@ the touch was a gesture in its own right (FR-025). This supersedes 010 US1 scena
 read stops it, then continues from there"), whose `onTapDown` handler fired on the pointer-down — so a
 scroll start and a fling-stop tap did it too, which is the interruption the user was hitting.
 
+**Input (amendment, 2026-10-06)**: "phone on 9:16, vertical mode. top tool bar has too many buttons, move
+the top tool bar to second row, under the brand & language." — with the reader's phone in portrait the
+bar's own row cannot hold the brand, the language and the actions at once: measured on that phone (1080 px
+= 360 dp wide) the row's controls need 488 dp, and the shipped bar left the brand zero width, squeezed
+Play video to 16 dp and pushed Share and Delete video off the edge entirely. Portrait now gives the actions
+a row of their own under the brand and the language, and landscape — which has the room (792 dp) — keeps
+the shipped single row (FR-026). Whether both orientations should change was put to the reader as three
+numbered options with their costs (portrait only; both; render both first and decide from the pixels); they
+chose portrait only.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The page follows the read (Priority: P1)
@@ -211,6 +221,20 @@ entry in the list; repeat and leave without saving instead, and find the library
   a read stays with Pause and Stop. The idle gestures keep 003's meanings (tap = sentence, long-press =
   paragraph) and MUST be recognised only when the touch was that gesture in its own right — a touch that
   turns into a scroll MUST NOT select, and MUST NOT stop a read either.
+
+**The page's toolbar** *(amendment, 2026-10-06)*
+
+- **FR-026**: The bar MUST present its controls where a window can actually hold them: in a **portrait**
+  window the brand and the language MUST have the bar's own row, and the page's actions MUST take a row of
+  their own under them; a **landscape** window keeps the shipped single row. No action may be squeezed
+  smaller than its own size, clipped, or dropped to make a row fit — the row that cannot hold what it
+  offers is the defect this settles (measured on the reader's phone, 2026-10-06: 360 dp wide, and the
+  brand, the language and six actions need 488 dp together, which left the brand at zero width and Share
+  and Delete video off the edge). The actions' own row MAY use a compact button size so that the most a
+  content can offer — eight actions, once it has a kept video (012 FR-022) — still fits the same 360 dp
+  window; that size is 40 dp, and the touch target it costs is recorded in the breakpoint. Which actions
+  are offered, in what order, and when (FR-010, FR-014, 012's kept-video actions) MUST be the same in both
+  arrangements.
 
 **Text appearance**
 

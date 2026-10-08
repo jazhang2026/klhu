@@ -1,6 +1,6 @@
 # Device validation: Reading Video (012)
 
-**Feature**: `012-reading-video` | **Date**: 2026-09-25 → **2026-10-01 (closed; every row below is walked,
+**Feature**: `012-reading-video` | **Date**: 2026-09-25 → **2026-10-08 (closed; every row below is walked,
 `[unit]` or reported as a stated gap)**
 **Quickstart**: [quickstart.md](./quickstart.md) | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Tasks**: [tasks.md](./tasks.md)
 
@@ -8,9 +8,9 @@
 
 | | |
 |---|---|
-| Device | `emulator-5554` (AVD `klhu`, API 36, `sdk_gphone64_x86_64`, 1080×2400), package `com.example.klhu` |
+| Device | `emulator-5554` (AVD `klhu`, API 36, `sdk_gphone64_x86_64`, 1080×2400), package `com.example.klhu` — and for the 2026-10-06 amendment's rows, the **reader's own phone**: `37e102a0` (OnePlus 9, `LE2115`), where the app's own interface language is 中文 |
 | Build | `flutter analyze` clean; `flutter test --concurrency=2` → **439 passing, 0 failing** (2026-10-01, the closing run; 438 on 2026-09-28 after Phase 8, 395 on 2026-09-27 with the emulator up, 372 on 2026-09-26, 360 after US1, 301 at T002's baseline on `54ff4f3 "specs/011"`) |
-| Driver | `specs/012-reading-video/scripts/klhu_walk_video.py` — rows **31, 32, 33, 34, 36 and 49** walked below; rows 41 and 42 are the spikes' own probes (`probe_picker.dart`, `probe_scrim.dart`), whose answers are recorded here |
+| Driver | `specs/012-reading-video/scripts/klhu_walk_video.py` — rows **31, 32, 33, 34, 36 and 49** walked below; rows 41 and 42 are the spikes' own probes (`probe_picker.dart`, `probe_scrim.dart`), whose answers are recorded here. The amendment's rows use their own drivers: **55** `klhu_walk_replace_switch.py`, **56 and 57** `klhu_walk_video_list.py` (the reader's phone; the app is set to English for the run and put back afterwards — Deviation 18) |
 | Spike S1 | `specs/012-reading-video/scripts/probe_synthesize.dart` — run on the device, read back with `adb shell run-as com.example.klhu cat /data/data/com.example.klhu/cache/s1_report.txt`, audio pulled with `adb exec-out run-as … cat …/s1_<case>.wav` and analysed with the host's `/usr/bin/ffprobe` |
 | Engine | Google TTS (`com.google.android.tts`), 472 voices installed; `logcat` tag `GoogleTTSServiceImpl` says which voice actually spoke |
 
@@ -52,6 +52,10 @@ iOS — because a closed file that hides its gaps is worse than an open one that
 | 36 | Spike S2: a one-minute render's wall time, which replaces SC-006's placeholder | **WALKED — PASS** | **27/27** checks; measured **60.6 s** wall for 69.3 s / 2078 frames, encoder path 47.1 s (2026-10-01, below) |
 | 41 | Spike S3: what the phone's own picker gives back (D15) | **ANSWERED BY ROW 49** | the probe itself stayed blocked (no folder rows in the dialog's landing view); row 49's drive through the real dialog answered it — see "Row 41 — spike S3's own question, answered by row 49's drive" below |
 | 42 | Spike S4: does the 40 % scrim hold SC-004's contrast (D16)? | **RAN — FAILS** | the app's own text colour misses 4.5:1 for every photo tone below ~205 (200 → **3.88:1**, mid grey → 2.03:1); numbers and options below |
+| 55 | The review asks about replacing, and the reader's answer is what happens (FR-012 amended 2026-10-06) | **WALKED — PASS** | The reader's own phone: the review offered the switch `checked=true`, the tap left it `checked=false`, and after Save the album held the earlier file **and** this render's, with the app's record moved to the new one (`1000002685` in, `1000002683` out) — below |
+| 56 | A content's videos are listed, and each one is its own (FR-022, FR-033, SC-026) | **WALKED — PASS** | The reader's own phone: **32/32** checks (2026-10-08) — two rows for two entries, the newest row's tap playing **that** video, back from the player landing on the list, a row's own share, a warning that names the video, and a delete that takes that entry **and** exactly that file while the earlier one stays; the walk's own file cleaned up again (below) |
+| 57 | The videos kept under the shipped shape are still the reader's (contract read rule 5, SC-027) | **WALKED — PASS** | The reader's own phone: **6/6** checks (2026-10-07) — one content whose value is the shipped **single object**, reachable from its own content, listed as one row, read without being rewritten (below) |
+| 58 | The list speaks the reader's language, and the delete names its video (FR-024, FR-031, FR-033) | **[unit]** | `test/video_list_screen_test.dart`, four locales (below) |
 | 37–40 | The structural rows (dependency, the four ARBs, the delete warning, 011's receipt) | **RAN — PASS** | 2026-10-01, in `tasks.md` T035's receipt (they are host rows, not device rows) |
 | 1–29 | The feature's `[unit]` rows | **[unit]** | `flutter test --concurrency=2` → **439 passing, 0 failing** (2026-10-01; 60 of them 012's own, 20 in `video_painter_test.dart`) |
 
@@ -303,6 +307,13 @@ is written and has run **no case yet**. That is a gap on the record, not a pass.
     42/42 checks passed
 
 ### Rows 33 and 34 re-run against the amended picture — 42/42 and 26/26 (2026-09-29)
+
+**Re-cut 2026-10-07 (the 2026-10-06 amendment, FR-033):** the controls this run drove — the page's own
+`Play video`, `Share` and `Delete video` — are gone. The acts happen on the list's rows, reached through
+`Videos`, so the row's steps and the driver's `row_33` were re-cut, and **the re-cut steps have not been
+re-run**: what follows is the receipt for the controls as they then were. The amendment's own rows are further
+down (`## The 2026-10-06 amendment's rows`).
+
 
 Both rows were re-walked unchanged — the amended picture touches the painter and the renderer's account of it,
 not the file's life cycle — and both came back green. **Row 33: 42/42**, with the two playback steps
@@ -860,12 +871,65 @@ re-cut every row's arithmetic) was put to them with that price and declined; it 
 paragraph. The gallery still shows the **content's name as the file's label**, which is Android's own doing and
 not a frame of the video.
 
+### Row 55 — the review asks about replacing, and the reader's answer is what happens — WALKED — PASS (2026-10-06)
+
+FR-012 was one rule until the reader asked whether it could be theirs ("FR-012 可否让用户选择"). It is now a
+question the **review** asks — *Replace the existing video*, checked, offered only when the content already has
+a video — and this row is the answer on the device, walked on the reader's own phone (`38821a76`), whose library
+already held a kept video for the content on screen. The phone is **not** cleared: a row about a second keep
+needs a first one. `KLHU_ASPECT='9:16 vertical (Shorts)'` is this device's own wording for the format.
+
+What the accessibility tree said, not a picture of it:
+
+```
+review labels: ['KalaHoo Reading', 'Replace the existing video', 'Discard', 'Share', 'Save']
+the replacement switch: offered=True checked=True
+after the tap: offered=True checked=False
+   tap 'Save' @856,2157
+```
+
+What the device held afterwards, and the two things the row claims:
+
+| | before | after |
+|---|---|---|
+| `Movies/Klhu` | `¡Hola!.mp4`, `周末公园散步.mp4` | `¡Hola!.mp4`, `周末公园散步.mp4`, `周末公园散步 (1).mp4` |
+| the app's records (`video_record`) | `1000002649`, `1000002683` | `1000002649`, `1000002685` |
+
+The earlier file was **kept** (nothing was named to replace, so nothing was removed) and exactly one file
+arrived; the content's own record moved from the earlier keep's row to the render just kept — `1000002685` in,
+`1000002683` out — so `Play video` plays the new one. `MediaStore` holds a row for each of the two files
+(`_id=1000002683` `周末公园散步.mp4` at 16:07, `_id=1000002685` `周末公园散步 (1).mp4` at 16:15); the earlier
+one stays the gallery's, untracked by the app, which is what "keep both" means here.
+
+Unit half: `test/reading_view_video_test.dart` → "a keep asked not to replace leaves the earlier video too"
+and "the replacement question is asked only when there is one to replace". Both are **red on the shipped code**
+(the switch does not exist there: `Found 0 widgets with type "SwitchListTile"`), while the default stays pinned
+by the test that was already there, "keeping again replaces the earlier video", which passes on both builds.
+`flutter analyze` clean; `flutter test --concurrency=2` → **541 passing, 0 failing**.
+
+Driver: `ADB_SERIAL=38821a76 KLHU_ASPECT='9:16 vertical (Shorts)' python3
+specs/012-reading-video/scripts/klhu_walk_replace_switch.py`.
+
+**What a reviewer should argue with:** the record is one entry per content, so an earlier file the reader chose
+to keep is *untracked* — the app cannot offer to play, share or delete it any more, and the reader manages it in
+their gallery. That is the shape of the record (FR-011), not a bug of this row, but it is the price of "keep
+both" and it is the first thing to argue about. Second: the switch is asked per keep and is never remembered —
+replacing is always the answer the review opens with (FR-012's default), which is deliberate and is what keeps
+"re-recording does not pile up copies" true by default.
+
 ## The closing run — 2026-10-01
 
 Everything in this section is one session's work on `emulator-5554` with the app built from `HEAD`
 (`flutter analyze` clean, `flutter test --concurrency=2` **439 passing, 0 failing** on the host).
 
 ### Row 33 with its playback steps enabled — 44/44 (T026, T027, T030, T048)
+
+**Re-cut 2026-10-07 (the 2026-10-06 amendment, FR-033):** the controls this run drove — the page's own
+`Play video`, `Share` and `Delete video` — are gone. The acts happen on the list's rows, reached through
+`Videos`, so the row's steps and the driver's `row_33` were re-cut, and **the re-cut steps have not been
+re-run**: what follows is the receipt for the controls as they then were. The amendment's own rows are further
+down (`## The 2026-10-06 amendment's rows`).
+
 
 The row's two player steps had been skipped by every run since 2026-09-29, when the emulator died under them
 twice (deviation 10). They ran today, on a box that was otherwise idle, against the `TextureView` container
@@ -950,6 +1014,102 @@ probes as H.264/AAC 1920×1080 30 fps with the plan's frames.
   contract, unrunnable on this API 36 emulator.
 - **iOS**: `isAvailable` answers `false` and every entry point refuses with `ENGINE_UNAVAILABLE`. There is no
   encoder, no player view and no file store for iOS; the feature does not exist there.
+
+## The 2026-10-06 amendment's rows — the list, and the migration (2026-10-07)
+
+The amendment adds rows **56** (the list and each video's own acts), **57** (the shipped shape reading as one
+video) and **58** (the reader's language, and a delete whose warning names the video). Their **unit halves are
+green**: 558 tests, `flutter analyze` clean, measured 2026-10-07 on the working tree (`lib/` carries this
+amendment beside the reader's own uncommitted 011/014 work). **Their device halves are walked** — row 57 **6/6**
+(2026-10-07) and row 56 **32/32** (2026-10-08), both on the reader's own phone — and each row's own section below
+carries its receipt.
+
+**Row 33 is a re-cut row, not a new one.** It was `WALKED — PASS` (44/44, the closing-run section below)
+against the page's own `Play video`, `Share` and `Delete video`. Those three controls are gone with the
+amendment (FR-033) — the acts live on the list's rows, reached through `Videos` — so the row's steps and
+`klhu_walk_video.py`'s own `row_33` were re-cut in the same pass. **The re-cut row has not been re-run**: the
+44/44 below is the record of what those controls did on 2026-09-29, not evidence for the list.
+
+### Row 56 — a content's videos are listed, and each one is its own — WALKED — PASS (32/32), 2026-10-08
+
+Device: the reader's own phone, `37e102a0` (OnePlus 9, LE2115), the build installed there on 2026-10-07; the walk
+sets the app to English for its run and puts **中文** back afterwards (Deviation 18). The phone was **not** cleared —
+the row needs a content that already holds a video, which is what row 55 leaves behind — and it was found holding
+the reader's own video (`1000000104`) **alone**: the run quoted here is the second of the day, and the first one
+(`…/row56_phone7.txt`, **30/30**) had opened on **three** entries because the previous day's attempts had left a
+second video behind; `KLHU_BASELINE_ENTRIES=1` is what cleans that up.
+
+    $ ADB_SERIAL=37e102a0 KLHU_ASPECT='9:16 vertical (Shorts)' KLHU_BASELINE_ENTRIES=1 \
+        python3 -u specs/012-reading-video/scripts/klhu_walk_video_list.py 56
+    klhu walk 012 row 56 — device 37e102a0, package com.example.klhu, out …/klhu_012_t064
+    PASS  the app is set to English for this run — its store now reads 'en'
+    …
+    32/32 checks passed
+
+**296 s wall, exit 0** (`~/.hermes/cache/scratch/klhu_012_t064/row56_phone8.txt`). The render itself was 178 s wall
+for a 93 s video. The run ends with the phone back where it started: the album holds `[…短文….mp4]` alone,
+`flutter.video_record` holds that one entry for `c_1790218399475_69bb`, and the app reads 中文 again. Nothing else
+was touched — no `pm clear`, no `clear_album`, and no video of the reader's own was deleted to make a point.
+
+**Two of the row's checks run only when the app puts them there, and the count moves with them.** The review's
+replacement switch comes up in whatever state the app last left it, so the row's own "the switch is off" check is
+skipped when it is already off; and "the page's own copy is the app's own" fires only for a dump that **catches the
+render's SnackBar**, the same condition that has moved one of row 33's checks since 2026-09-27. This run caught
+both — the switch came up `checked=True`, the tap left it `checked=False`, and the SnackBar was on screen — so its
+own count is **32**; the run before it, on the same tree, was **30**. Neither condition is the app misbehaving, and
+the claim is proven either way: with the switch off the keep **appended** (the record's own value grew
+`['1000000104'] → ['1000000104', '1000000111']`) and the earlier file stayed.
+
+| Step | What it proves | The run's own reading |
+|---|---|---|
+| the content the record names is opened | the row's precondition | `contents with videos: ['c_1790218399475_69bb']`; album before `[…短文….mp4]` |
+| render again, replacement switch off, Save | a keep lands **beside** the earlier one (row 55's switch) | the review offered the switch `checked=True`, the tap left it `checked=False`; after Save the record grew to `['1000000104', '1000000111']` and the album to two files, this render's being `… (1).mp4` |
+| the page's own action | one `Videos`, none of the three withdrawn controls | `['KalaHoo Reading', 'English', 'Appearance', 'Contents', 'Text type', 'Voice', 'Video', 'Videos', …]` — `Play video`, `Share` and `Delete video` are off the page |
+| tap `Videos` | the content's videos, one row each, in the app's own order | `2 rows for 2 entries (['1000000104', '1000000111'])` at y `[379, 595]`, each row carrying its own name and date (`…Sep 29, 2026` above `…Oct 8, 2026`), its own `Share` and `Delete video` |
+| tap the newest row | a row plays **that** video, not the first | the screen opened on `['Back', '…短文….mp4']`; the phone's own log then answered `AudioPlaybackConfiguration … type:android.media.MediaPlayer … state:started` |
+| back from the player | the list comes back, not the player | the platform's bar consumed the first `Back`; the second landed on `['Back', 'Videos', '…Sep 29, 2026', 'Share', 'Delete video', …]` |
+| share from a row | each row carries its own share, and sharing keeps nothing | the platform's own chooser: `['Cancel', '…短文….mp4', 'jazhang2026@gmail.com  Gmail', 'Quick Share', 'My Files', …]`; the album identical before and after |
+| delete a row and **cancel** | every delete warns, and cancelling deletes nothing | `['Delete this video?', '…短文….mp4 will be removed from your gallery. This cannot be undone.', 'Cancel', 'Delete', 'Dismiss']`; the album unchanged |
+| delete and **confirm** | the warning names that video, and that entry **and** that file go | the album is `[…短文….mp4]` (was `[… (1).mp4, …短文….mp4]`); the record lost `['1000000111']` (`2 → 1`); the file that left is **exactly** the file this render added |
+| reopen the list on the same content | the other video is untouched and still the content's own | the list still held `…Sep 29, 2026` with its own share and delete; the page still offers `Video` / `Videos` |
+| the walk's own leftovers | what this walk kept is cleaned again, and the reader's own video is not | `1 entries left, the reader had 1` |
+
+### Row 57 — the shipped records are still the reader's — WALKED — PASS (6/6), 2026-10-07
+
+Device: the reader's own phone, `37e102a0` (OnePlus 9, LE2115), app installed that day from the amended tree,
+**its own language put back to 中文 afterwards** (the walk sets the app to English for its run, because the
+labels every driver here drives are the app's English copy — said in the driver's own docstring and in
+Deviation 18). Driver: `python3 specs/012-reading-video/scripts/klhu_walk_video_list.py 57`.
+
+| Check | Reading |
+|---|---|
+| the phone carries records written before this amendment | `flutter.video_record` = `{"c_1790218399475_69bb": {"name": "这是一篇用纯正粤语（广东话）书写的日常生活短文….mp4", "uri": "content://media/external_primary/video/media/1000000104", "keptAt": 1790720678985}}` — one content, **a single object**, the shape 012 shipped with |
+| the video the app remembered is reachable from its own content | that content opened from the app's own contents list, and the page offered `Videos` (the dump: `['KalaHoo Reading', 'English', 'Appearance', 'Contents', 'Text type', 'Voice', 'Video', 'Videos']`) |
+| the list holds it as a row of its own | the list's own nodes: `['Back', 'Videos', '这是一篇用纯正粤语（广东话）书写的日常生活短文….mp4\nSep 29, 2026', 'Share', 'Delete video']` — one row, its own name, the day it was kept, its own share and delete |
+| opening the list reads the record without rewriting it | the store's own value is 157 characters before **and** after (byte-identical), and the entries are equal |
+| nothing the reader kept was lost or duplicated | one content before, one after, the same entry |
+
+This is the migration seen in the reader's own library: the video they kept under the shipped shape is listed
+and playable, and the read that found it rewrote nothing. The write that migrates that content is row 56's
+keep — and row 56's own receipt is below.
+
+**One change to the driver after this run, and what it means for this receipt.** The run above was taken on the
+driver as it stood on 2026-10-07. `main`'s shared path was edited on 2026-10-08 — a wake before the language step
+(Deviation 20), and row 56's own delete step now compares the entry that went rather than counting it (Deviation
+19's pass) — and row 57 was **not** re-run to carry the new revision. It is not re-runnable for its own point
+anyway: row 56's keep is the write that migrates a content to the array shape, so the **single-object** record
+this row is about no longer exists on the phone (a later read of it, above, shows `array ['c_1790218399475_69bb']`
+where this run showed `old shape ['c_1790218399475_69bb']`). What the edit touches of row 57's own path is that
+wake, which runs before a step this row already passed and asserts nothing; **none of row 57's six checks was
+changed, added or removed.**
+
+### Row 58 — unit only, and green
+
+The list's title, its empty state, the row labels and the delete's warning all come from the app's own copy in
+the reader's own language, and the warning carries the deleted video's name: asserted in
+`test/video_list_screen_test.dart` over all four locales. No device half is owed.
+
+---
 
 ## Deviations
 
@@ -1045,4 +1205,63 @@ probes as H.264/AAC 1920×1080 30 fps with the plan's frames.
     from this re-run's *passing* half. The lesson is the same one deviation 10 recorded and it is worth stating
     a third time because it keeps being the thing that looks like an app failure: **on this box the device rows
     are not free — re-run row 33 once, not four times, and expect a render to take its own time back.**
+14. **The library's file name is the platform's, not the app's (2026-10-06).** The app asks MediaStore to insert
+    its own name (`<the content's name>.mp4`, FR-011) and the platform renames it when the name is taken: the
+    reader's second keep landed as `周末公园散步 (1).mp4`. The app's own record keeps the name it asked for
+    (`周末公园散步.mp4`) while pointing at the file the platform stored (`_id=1000002681`), so nothing the app
+    does depends on the two agreeing — but the reader sees the platform's name in their gallery. Making it
+    stable would mean deleting the earlier entry **before** the insert, which gives up the order FR-012 relies
+    on (the new file in place before the old one goes). Recorded as a naming question for the reader, not a
+    defect, and it is what the replacement switch of row 55 gives them a way around.
+15. **Row 55's driver scored its own first run FAIL, on two of its own parsing bugs (2026-10-06).** What the
+    driver observed was right — the review's switch `checked=true`, the tap leaving it `checked=false`, both
+    files in the album after Save — but its summary line said `RESULT: FAIL`: (a) the prefs file is XML, so its
+    JSON values arrive with their quotes escaped (`&quot;uri&quot;`) and the record read back as `None`, and (b)
+    `ls -l`'s last field cuts a library name that contains a space (`周末公园散步 (1).mp4` came back as
+    `(1).mp4`). Both are fixed — the quotes are unescaped and the album is listed with `ls -1` — and the row's
+    before/after table is what the fixed helper reads. The lesson earns its line: **a driver's FAIL is a claim
+    about the app only after the driver's own parsing has been read.**
+ 16. **The record's write had to stop re-encoding the whole store (2026-10-07).** T058's first implementation
+ wrote the whole map from what it had read, so a content **nobody wrote** was migrated to the array shape
+ along with the one being written — the opposite of the contract's "rewritten in the new shape the next time
+ anything is written for it", and it takes the migration's reversibility with it. One of the new cases caught
+ it (`a content nobody wrote is left exactly as it was`); the write now merges into the store as it stands and
+ touches only the contents it writes. Recorded because nothing about it is visible from the reader's side:
+ the old shape just quietly disappears.
+ 17. **A private screen had to become a file (2026-10-07).** Every row of the list opens a kept video, and that
+ screen was `reading_view.dart`'s private `_VideoPlaybackScreen`. It is now `lib/video_playback_screen.dart`
+ (`VideoPlaybackScreen`), used by the page and by the list; the plan's own tree and the amendment's section
+ were corrected in the same pass (`plan.md` § Source Code). The alternative — a second copy of the screen in
+ the list's file — is how two screens that must look the same come to differ.
+ 18. **Row 56's driver does not exist yet, and its row says so (2026-10-07).** `quickstart.md` row 56 named
+ `python3 specs/012-reading-video/scripts/klhu_walk_video_list.py` as its test; that file is not written, so
+ the row's Test line was changed to **PENDING** with the step table above instead of a receipt, and the
+ driver is named as owed with T064. The phone the walk needs was not on the wire either: `adb devices`
+ reported `37e102a0 unauthorized` and nothing else — no `38821a76`, the reader's own phone — which is why
+ T064 is `PART DONE` and no row of this amendment has been walked. **Nothing in this file claims a device
+ receipt for the amendment**, and the re-run of row 33's re-cut steps is owed with the same walk.
+ **Resolved 2026-10-08**: the driver is written and both of its rows are walked — row 57 **6/6** (2026-10-07)
+ and row 56 **30/30** (2026-10-08) — on the reader's own phone `37e102a0`, authorised. The two defects the walk
+ then found in the driver itself are Deviations 19 and 20. Row 33's re-cut steps are still owed.
+ 19. **One `Back` does not leave the player, and the step that reads the next screen is the one that pays
+ (2026-10-08).** Row 56's run on 2026-10-07 ended **20/20** — which is not a green, it is an early return: after
+ the row's video played, the platform's own control bar inside the playback view consumed the first `Back` (it
+ collapses back into a bar), the dump the share step then read was the **player**, and `Share` was reported
+ "not found" on a screen that was never the list. The same step had passed in the run before it for the opposite
+ reason — no player had started, so one `Back` left the screen — which is what made it look like a flake. The
+ driver now **asks for the list** (`back_to_list`: press `Back` until a row's own `Delete video` is on screen,
+ and stop on the page rather than pressing past it) and checks the landing (`56: back from the player leaves the
+ list up, not the player`). Two of the row's own assertions were strengthened in the same pass rather than left
+ as proxies: the delete step now compares the set of files that **actually left** the album to the file this keep
+ added (the draft asserted `bool(new_file)`, which the check above had already established), and the record is
+ compared entry by entry (`after == entries[:-1]`) instead of by count. The general shape is the one this file
+ keeps recording: **a screen the row did not navigate to is not evidence about the screen it is about.**
+ 20. **The walk's language step read a screen that was not the page, because the phone had been asleep
+ (2026-10-08).** `main` sets the app to English before a row runs, driving the page's own language control out of
+ a dump. The phone had been idle since the day before; the first run of the day tapped the coordinate `中文` had
+ on the **stale frame** it read (`@540,379` — the live page has it at `@963,187`), the tap landed on nothing, and
+ `English` was then not found on the page the run had never reached. The row exited in fifteen seconds having
+ executed nothing. The wake (`WAKEUP`, `wm dismiss-keyguard`, `stayon`) was inside each row, i.e. *after* the
+ language step; it is now called in `main` before it. **A device walk's first duty is the device's own state, and
+ the step that runs first is the one that forgets it.**
 

@@ -61,6 +61,17 @@ with the band the reported box maps to (`origin + top × dpr`).
 After the amendments: `flutter analyze` clean, `flutter test --concurrency=2` → **301 passing,
 0 failing**, APK rebuilt and reinstalled, rows 20 and 21 re-walked on the installed build.
 
+## Amendment (2026-10-06, user-directed): the toolbar's own row
+
+| Change | State | Evidence |
+|---|---|---|
+| Portrait gives the page's actions a row of their own under the brand and the language; landscape keeps the shipped single row (FR-026) | **WALKED — PASS** | Quickstart row 22, on the reader's own phone (`38821a76`). Portrait: `language row [(132, 276)], actions row [(300, 420)]`, the eight actions 120 px (40 dp) each, the brand 612 px wide, nothing squeezed or past the edge. Landscape: `[(132, 276)]` for both, the same eight at 144 px (48 dp). The shipped build is the negative control — the brand had **no** node, Play video was 49 px where its neighbours were 144, and Share and Delete video were not in the tree at all |
+
+After this amendment: `flutter analyze` clean, `flutter test --concurrency=2` → **539 passing, 0 failing**
+(the 536 of 014's close + this file's 3 new cases in `test/reading_view_toolbar_test.dart`, two of which are
+red on the shipped code and one of which — landscape — passes both ways on purpose). APK rebuilt
+(`flutter build apk --debug`) and installed on the reader's own phone, where row 22 was walked.
+
 ## Deviations found while validating
 
 1. **Scenario 10's original premise did not hold, twice, and the driver was fixed both times.** The
@@ -98,3 +109,24 @@ After the amendments: `flutter analyze` clean, `flutter test --concurrency=2` �
 7. **Glyph coverage and "does it sound right" are not machine-checkable.** Scenario 16 records
    screenshots for the reviewer; no device row here asserts that a typeface renders every language's
    glyphs, and no row asserts audio quality.
+8. **The actions' own row trades touch-target size for fit (2026-10-06).** Eight actions at Material's
+   48 dp need 384 dp and a portrait window offers 360, so the row would clip the eighth — the exact defect
+   FR-026 settles. The row therefore draws them at **40 dp** (`VisualDensity.compact`): 320 dp, all eight
+   whole, 40 dp of margin on the left. That is below Material's 48 dp guideline and the reader has been
+   told so, with the alternative named (keep 48 dp and move the kept-video trio — Play video, Share, Delete
+   video — into an overflow menu, which changes what the page shows and is their call, not this row's). The
+   measurement behind the verdict: `klhu_toolbar_geometry.py` compares each action's width against the row's
+   own median, which is how the shipped row's Play video (49 px against neighbours of 144 px) is caught
+   rather than measured as if it were the size it should be.
+
+9. **The 40 dp trade is over — the row is back to Material's own 48 dp (2026-10-07).** Deviation 8's bargain was
+   the reader's call and it was a consequence of the count: eight actions at 48 dp need 384 dp and a portrait
+   window offers 360. 012's 2026-10-06 amendment (its FR-033) turned the kept video's three actions — Play video,
+   Share, Delete video — into **one** `Videos` action, so this row carries **six**: six 48 dp targets are 288 dp
+   against 360, and `VisualDensity.compact` is gone from `lib/reading_view.dart`'s action row. The new claim is
+   asserted in 012's own `test/reading_view_toolbar_test.dart`, from each control's **semantics** rect (48 dp) —
+   the target the reader hits, and what a device dump reports; Material's painted icon box is 40 dp at either
+   density, so deviation 8's own device numbers (120 px at compact, 144 px at standard, on the reader's phone at
+   3.0 density) are the same claim read off the tree instead of off the icon. **`spec.md:232-235` still describes
+   the compact row as the settled answer** — it is 012's amendment that settled it the other way, and rewriting
+   another spec's reviewed requirement is the reader's call, so it is reported here rather than swept.

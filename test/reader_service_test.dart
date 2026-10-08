@@ -110,6 +110,33 @@ void main() {
       final zh = await svc.voicesFor('zh-Hans');
       expect(zh.map((v) => v.name), ['zh-a']);
     });
+
+    test('one row per voice: the on-device copy is what is offered', () async {
+      // The engine reports one voice twice, under one display name, and the two
+      // copies are not the same thing (24 kHz on-device, 48 kHz on the network).
+      // Listing both is how the OnePlus 13 stored three `-network` picks without
+      // its reader having any way to tell them apart (2026-10-06).
+      final svc = ReaderService(
+        FakeTtsBackend(voicesRaw: [
+          {'name': 'yue-hk-x-yuf-network', 'locale': 'yue-HK'},
+          {'name': 'cmn-cn-x-ssa-local', 'locale': 'zh-CN'},
+          {'name': 'yue-hk-x-yuf-local', 'locale': 'yue-HK'},
+          {'name': 'cmn-cn-x-ssa-network', 'locale': 'zh-CN'},
+          // A voice the device has only over the network keeps its one row.
+          {'name': 'yue-hk-x-zzz-network', 'locale': 'yue-HK'},
+          {'name': 'en-us-x-sfg-local', 'locale': 'en-US'},
+        ]),
+      );
+      expect(
+        (await svc.voicesFor('zh-Hans')).map((v) => v.name),
+        // The voice keeps the place its first copy took, whichever copy it was.
+        ['yue-hk-x-yuf-local', 'cmn-cn-x-ssa-local', 'yue-hk-x-zzz-network'],
+      );
+      expect(
+        (await svc.voicesFor('en')).map((v) => v.name),
+        ['en-us-x-sfg-local'],
+      );
+    });
   });
 
   group('speakParagraphs', () {

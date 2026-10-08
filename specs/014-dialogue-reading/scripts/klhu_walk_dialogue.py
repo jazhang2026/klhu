@@ -546,6 +546,19 @@ def assignment(log):
     return out
 
 
+def voice_identity(name):
+    """The voice a role's row names: the engine's two copies of one voice
+    (`…-local`, `…-network`) are one voice — the app's mapping table says so and
+    the phone measured it (24 kHz on-device against 48 kHz on the network, and a
+    render that used both could not be muxed).
+
+    Counting rows by NAME lets two roles hold one voice and the row still pass:
+    the OnePlus 13 assigned `yue-hk-x-yuf-local` to 旁白 and
+    `yue-hk-x-yuf-network` to 阿明, two rows, one voice.
+    """
+    return re.sub(r"-(local|network)$", "", name or "")
+
+
 def read_and_wait(tag, sentences, seconds=60):
     """Reads the whole content from the top, and waits for the read's own lines
     instead of a sleep — the app's evidence is the clock here."""
@@ -607,11 +620,14 @@ def row_24():
     check("24: no role is silent and none falls back to the OS default (FR-015)",
           all(v != "os-default" for v, _ in a.values()),
           f"{[v for v, _ in a.values()]}")
-    distinct = len({v for v, _ in a.values()})
+    # Counted by voice, not by name: the engine reports one voice as two rows
+    # (`…-local`, `…-network`) and two rows are not two voices.
+    distinct = len({voice_identity(v) for v, _ in a.values()})
     check("24: each of the four roles got a voice of its own (FR-015)",
           distinct == len(FIXTURE_ROLES),
           f"{distinct} distinct voices for {len(FIXTURE_ROLES)} roles: "
-          f"{sorted({v for v, _ in a.values()})}")
+          f"{sorted({voice_identity(v) for v, _ in a.values()})} "
+          f"from {sorted({v for v, _ in a.values()})}")
     g = [a[r][1] for r in FIXTURE_ROLES]
     check("24: the second role differs in recorded gender from the first (FR-015, D5)",
           g[0] is not None and g[1] is not None and g[0] != g[1],
@@ -649,7 +665,7 @@ def row_24():
           and c[FIXTURE_ROLES[0]][0] != before,
           f"picked {stored}; 旁白 before {before} → now {c[FIXTURE_ROLES[0]][0]}")
     check("24: the roles after it still differ (FR-015)",
-          len({v for v, _ in c.values()}) == len(FIXTURE_ROLES),
+          len({voice_identity(v) for v, _ in c.values()}) == len(FIXTURE_ROLES),
           f"{c}")
 
     # (d) past the device's own pool: more roles than the device has voices for.
@@ -670,7 +686,9 @@ def row_24():
     for line in roles_lines(log_d):
         print(f"   24 past-pool roles: {line}")
     d = assignment(log_d)
-    used = [v for v, _ in d.values()]
+    # By voice, not by name: the pool is counted in voices, so its two copies of
+    # one voice count once (the sharing is what this row is about).
+    used = [voice_identity(v) for v, _ in d.values()]
     shared = sorted({v for v in used if used.count(v) > 1})
     speaks = speak_lines(log_d)
     check("24: past the device's voices the sharing is visible and no role is silent (SC-004)",
@@ -1808,8 +1826,118 @@ def head_of_tags(text):
     return "".join(out)
 
 
+# --------------------------------------------------------------------------
+# one voice's two copies in one render (row 29)
+# --------------------------------------------------------------------------
+def seed_mixed_copies():
+    """The app's own stored picks, in the shape the phone's reader left them
+    (OnePlus 13, 2026-10-05): the narration reads through a voice's ON-DEVICE
+    copy, the three roles through NETWORK copies.
+
+    Those two copies do not synthesize at the same rate (24 kHz on-device, 48 kHz
+    on the network), so a render of this content has to bring them to one rate.
+    The store is written rather than walked because the picker lists a voice's two
+    copies as two rows under ONE name, so a tap cannot say which copy it chose —
+    a pick's own correctness is rows 24/25's business, not this row's.
+    """
+    voices = {
+        "阿明": {"name": "cmn-cn-x-ccd-network", "locale": "zh-CN"},
+        "May": {"name": "cmn-cn-x-cce-network", "locale": "zh-CN"},
+        "阿芳": {"name": "cmn-cn-x-ssa-network", "locale": "zh-CN"},
+    }
+    store = roles_pref()
+    store[CONTENT_ID] = {"voices": voices, "type": "dialogue"}
+    xml = prefs_xml()
+    if "</map>" not in xml:
+        # A wipe removes the file itself (`fresh_prefs`) and `cat` then answers
+        # with its own error text rather than with nothing, so the row lays the
+        # skeleton down itself.
+        xml = ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
+               "<map>\n</map>\n")
+    entries = [
+        (ROLES_KEY, json.dumps(store, ensure_ascii=False)),
+        ("voice_zh_Hans", "cmn-cn-x-ccc-local||zh-CN"),
+    ]
+    for key, value in entries:
+        escaped = (value.replace("&", "&amp;").replace("<", "&lt;")
+                   .replace(">", "&gt;").replace('"', "&quot;"))
+        entry = f'<string name="flutter.{key}">{escaped}</string>'
+        pattern = r'<string name="flutter\.%s".*?</string>' % key
+        if re.search(pattern, xml, re.S):
+            xml = re.sub(pattern, lambda _: entry, xml, flags=re.S)
+        else:
+            xml = xml.replace("</map>", entry + "</map>")
+    adb("shell", "am", "force-stop", PKG)
+    if not device_write(PREFS, xml.encode()):
+        return False
+    start_app()
+    time.sleep(3)
+    return True
+
+
+def row_29():
+    step("row 29 — one voice's two copies in one render: resample, do not refuse")
+    fresh_prefs()
+    text = seed_fixture()
+    if text is None:
+        check("29: the fixture reached the device", False, "device_write failed")
+        return
+    if not seed_mixed_copies():
+        check("29: the mixed-copy picks reached the app", False,
+              "the pref write failed")
+        return
+    store = roles_pref().get(CONTENT_ID, {})
+    picked = store.get("voices", {})
+    narration = prefs_value("voice_zh_Hans") or ""
+    check("29: the picks are one voice's two copies (the condition under test)",
+          store.get("type") == "dialogue" and len(picked) == 3
+          and all(v.get("name", "").endswith("-network")
+                  for v in picked.values())
+          and narration.split("||")[0].endswith("-local"),
+          f"roles {[v.get('name') for v in picked.values()]} against "
+          f"narration {narration}")
+
+    result = video.render("row 29", ASPECT)
+    if result is None:
+        check("29: the render produced a file (012's own path)", False,
+              "render() answered None — see its own FAIL above")
+        return
+    path, ms, size, frames, wall = result
+    log = video.logcat()
+    done = re.search(r"klhu render done[^\n]*", log)
+    failed = re.search(r"klhu render failed[^\n]*", log)
+    check("29: the render finished instead of refusing the rate mix",
+          bool(done) and not failed,
+          failed.group(0) if failed
+          else (done.group(0) if done else "no klhu render line"))
+
+    local = os.path.join(OUT, "014_mixed_copies_" + os.path.basename(path))
+    data, pulled = video.pull(path, local)
+    check("29: the file came back off the device",
+          pulled and len(data) > 0,
+          f"{local} — {len(data)} bytes" if pulled else "the pull failed")
+    if not pulled:
+        return
+
+    probed = video.probe(local)
+    audio = [s for s in (probed or {}).get("streams", [])
+             if s.get("codec_type") == "audio"]
+    rates = [a.get("sample_rate") for a in audio]
+    print(f"   the render's own audio: {rates} Hz, "
+          f"{[a.get('channels') for a in audio]} channel(s), "
+          f"codec {[a.get('codec_name') for a in audio]}")
+    check("29: one audio stream, at one rate (the two copies came to one)",
+          len(audio) == 1 and rates and rates[0] in ("24000", "48000"),
+          f"audio streams: {rates}")
+    w, h = (1920, 1080) if ASPECT.startswith("16:9") else (1080, 1920)
+    video.ffprobe_checks("29", local, ms, frames, w, h)
+
+    adb("shell", "am", "force-stop", PKG)
+    unseed_fixture()
+
+
 ROWS = {"23": row_23, "24": row_24, "25": row_25, "26": row_26, "27": row_27,
-        "28": row_28, "33": row_33}
+        "28": row_28, "29": row_29, "33": row_33}
 
 
 def main():

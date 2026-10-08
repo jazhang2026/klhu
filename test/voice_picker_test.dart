@@ -127,8 +127,51 @@ void main() {
       );
     });
 
-    testWidgets('zh language lists zh voices, previews zh sample',
+    testWidgets('a pick stored as a network copy highlights the voice\'s one row',
         (tester) async {
+      // The phone's stored role picks were network copies (2026-10-06). Since
+      // the list offers one row per voice and that row is the on-device copy,
+      // the pick has to find its voice's row by identity — otherwise a stored
+      // pick silently loses its highlight and its place in the list.
+      SharedPreferences.setMockInitialValues({});
+      final fake = _fake();
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('en'), Locale('zh')],
+          home: VoicePickerScreen(
+            reader: fake,
+            store: VoiceStore(),
+            language: 'en',
+            title: 'Voice for 阿明',
+            clearable: true,
+            initialSelection: const VoiceChoice(
+              language: 'en',
+              name: 'en-gb-x-gba-network',
+              locale: 'en-GB',
+            ),
+            onPick: (choice) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final selected = find.byWidgetPredicate(
+        (w) => w is ListTile && w.selected,
+      );
+      expect(selected, findsOneWidget);
+      expect(
+        tester.widget<ListTile>(selected).title,
+        isA<Text>().having((t) => t.data, 'data', contains('UK GBA')),
+      );
+    });
+
+    testWidgets('zh language lists zh voices, previews zh sample', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final fake = _fake();
       await _pumpPicker(tester, fake, language: 'zh-Hans');

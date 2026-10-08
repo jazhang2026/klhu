@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:klhu/models/voice_mapping.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:klhu/l10n/app_localizations.dart';
@@ -78,7 +79,11 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
   /// centering is exact (ensureVisible on the live context).
   static const double _estimatedRowHeight = 72;
 
-  String _keyFor(VoiceEntry voice) => '${voice.name}||${voice.locale}';
+  /// One row per voice, so a row is named by the VOICE, not by the copy it was
+  /// stored as: a pick made of a network copy still finds — and highlights — the
+  /// voice's single row (2026-10-06).
+  String _keyFor(String name, String locale) =>
+      '${voiceIdentity(name)}||$locale';
 
   @override
   void initState() {
@@ -145,7 +150,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
       final sel = _selected;
       if (sel == null) return;
       final ctx =
-          _rowKeys['${sel.name}||${sel.locale}']?.currentContext;
+          _rowKeys[_keyFor(sel.name, sel.locale)]?.currentContext;
       if (ctx != null) {
         Scrollable.ensureVisible(
           ctx,
@@ -156,7 +161,9 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
       }
       if (tries >= 5 || !_scrollController.hasClients) return;
       final i = _voices.indexWhere(
-        (v) => v.name == sel.name && v.locale == sel.locale,
+        (v) =>
+            voiceIdentity(v.name) == voiceIdentity(sel.name) &&
+            v.locale == sel.locale,
       );
       if (i < 0) return;
       _scrollController.jumpTo(
@@ -170,7 +177,9 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
   }
 
   bool _isSelected(VoiceEntry voice) =>
-      _selected?.name == voice.name && _selected?.locale == voice.locale;
+      _selected != null &&
+      voiceIdentity(_selected!.name) == voiceIdentity(voice.name) &&
+      _selected!.locale == voice.locale;
 
   Future<void> _onTap(VoiceEntry voice) async {
     try {
@@ -309,7 +318,7 @@ class _VoicePickerScreenState extends State<VoicePickerScreen> {
                       for (final voice in _voices)
                         ListTile(
                           key: _rowKeys.putIfAbsent(
-                            _keyFor(voice),
+                            _keyFor(voice.name, voice.locale),
                             GlobalKey.new,
                           ),
                           title: Text(_mappingService.displayName(voice, l10n, voiceListLanguage: _language)),

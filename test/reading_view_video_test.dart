@@ -28,6 +28,7 @@ import 'package:klhu/platform/video_player.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:klhu/services/content_store.dart';
+import 'package:klhu/video_list_screen.dart';
 import 'package:klhu/video_record.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -881,10 +882,9 @@ void main() {
     expect(find.byKey(const ValueKey('video player')), findsNothing,
         reason: 'the decision is taken, so the review is over');
 
-    // FR-022: the content now offers its kept video.
-    expectOffered(l10n.videoPlayButton);
-    expectOffered(l10n.videoShareButton);
-    expectOffered(l10n.videoDeleteButton);
+    // FR-022/FR-033: the content now offers its videos — one action, which
+    // opens them as a list (the 2026-10-06 amendment).
+    expectOffered(l10n.videoListTitle);
   });
 
   testWidgets('throwing the render away keeps nothing and says so', (
@@ -909,8 +909,8 @@ void main() {
     expect(find.text(l10n.videoNotSavedMessage), findsOneWidget);
     // Nothing is kept, so the content offers to record again and nothing else.
     expectOffered(l10n.videoButton);
-    expect(find.byTooltip(l10n.videoPlayButton), findsNothing);
-    expect(find.byTooltip(l10n.videoDeleteButton), findsNothing);
+    expect(find.byTooltip(l10n.videoListTitle), findsNothing,
+        reason: 'a content with no videos has no list to open');
   });
 
   testWidgets('keeping again replaces the earlier video', (tester) async {
@@ -942,34 +942,174 @@ void main() {
     );
   });
 
-  testWidgets('a kept video can be shared, and sharing keeps nothing', (
+  testWidgets('a keep asked not to replace leaves the earlier video too', (
     tester,
   ) async {
+    // FR-012's amendment (2026-10-06, row 35 on the reader's phone): a second
+    // keep replaces by default, and the reader can ask for both.
     final engine = ShortEngine();
     final encoder = RecordingEncoder(work);
     final files = PageFileStore();
     await tester.pumpWidget(pageWith(engine, encoder, files: files));
     await loadPageContent(tester);
-    await finishRender(tester, engine, encoder);
     final l10n = AppLocalizations.of(
       tester.element(find.byType(ReadingView)),
     )!;
+
+    await finishRender(tester, engine, encoder);
     await tester.tap(offeredBy(l10n.saveButton));
     await letReviewClose(tester, l10n.videoSavedMessage);
-    final uri = files.kept.keys.single;
+    final first = files.kept.keys.single;
 
-    await tester.tap(offeredBy(l10n.videoShareButton));
-    await letWorkRun(tester, () => files.shares.isNotEmpty);
+    await finishRender(tester, engine, encoder);
+    expect(
+      tester.widget<Switch>(find.byType(Switch)).value,
+      isTrue,
+      reason: 'the offered answer is the shipped rule: replace',
+    );
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.pump();
+    expect(
+      tester.widget<Switch>(find.byType(Switch)).value,
+      isFalse,
+      reason: 'the reader turned the replacement off',
+    );
 
-    expect(files.shares, [uri],
-        reason: 'a kept video is shared by its library uri (A12)');
-    expect(files.keeps, hasLength(1), reason: 'sharing is not keeping');
-    expectOffered(l10n.videoPlayButton, reason: 'and it is still there to play');
+    await tester.tap(offeredBy(l10n.saveButton));
+    await letReviewClose(tester, l10n.videoSavedMessage);
+    await tester.pump();
+
+    expect(
+      files.keeps.last.previousUri,
+      isNull,
+      reason: 'nothing was named to replace, so nothing was removed (FR-012)',
+    );
+    expect(
+      files.kept,
+      hasLength(2),
+      reason: 'both files are in the library, the earlier one and this render',
+    );
+    expect(files.kept.containsKey(first), isTrue);
+    // The content's own record is one entry per content: it comes to point at
+    // the render just kept, which is the one the page offers to play.
+    final record =
+        (await VideoRecordStore(files: files).recordFor(_presetId)).latest;
+    expect(record, isNotNull);
+    expect(
+      record!.uri,
+      files.kept.keys.last,
+      reason: 'the content plays what was just kept — its own last entry',
+    );
+    expectOffered(l10n.videoListTitle);
   });
 
-  testWidgets('deleting a kept video warns, and only confirming deletes', (
+  testWidgets('the replacement question is asked only when there is one to replace', (
     tester,
   ) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final files = PageFileStore();
+    await tester.pumpWidget(pageWith(engine, encoder, files: files));
+    await loadPageContent(tester);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ReadingView)),
+    )!;
+
+    // Nothing kept for this content yet: the first render's review asks nothing.
+    await finishRender(tester, engine, encoder);
+    expect(find.byType(SwitchListTile), findsNothing);
+    await tester.tap(offeredBy(l10n.saveButton));
+    await letReviewClose(tester, l10n.videoSavedMessage);
+
+    // Now there is one, so the second render's review asks.
+    await finishRender(tester, engine, encoder);
+    expect(find.byType(SwitchListTile), findsOneWidget);
+  });
+
+  /// Opens the content's videos from the page, and waits until the list is
+  /// really there: the record read has landed (so there are rows) **and** the
+  /// route has finished sliding in. A material route 800 px wide slides from the
+  /// right, so a tap taken mid-transition derives an offset outside the window
+  /// and lands on nothing.
+  Future<void> openVideoList(WidgetTester tester, AppLocalizations l10n) async {
+    await tester.tap(offeredBy(l10n.videoListTitle));
+    await letWorkRun(
+      tester,
+      () => find.byType(VideoListScreen).evaluate().isNotEmpty,
+    );
+    await letWorkRun(tester, () => find.byType(ListTile).evaluate().isNotEmpty);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+  }
+
+  testWidgets('the page offers one Videos action, and the three it replaced '
+      'are gone', (tester) async {
+    // Row 56's page half (FR-022/FR-033, the 2026-10-06 amendment): play, share
+    // and delete act on the content's list of videos now, so the page offers
+    // the list and each row carries its own share and delete. What the page's
+    // own Play action used to do is the list's last row's tap.
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final files = PageFileStore();
+    await tester.pumpWidget(pageWith(engine, encoder, files: files));
+    await loadPageContent(tester);
+    await finishRender(tester, engine, encoder);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ReadingView)),
+    )!;
+    await tester.tap(offeredBy(l10n.saveButton));
+    await letReviewClose(tester, l10n.videoSavedMessage);
+
+    expectOffered(l10n.videoListTitle,
+        reason: 'the content offers its videos as a list');
+    expect(find.byTooltip('Play video'), findsNothing,
+        reason: 'the three actions the list replaced are off the page');
+    expect(find.byTooltip('Delete video'), findsNothing);
+    expect(find.byTooltip('Share'), findsNothing);
+  });
+
+  testWidgets('Videos opens the content\'s list, and its row plays that video', (
+    tester,
+  ) async {
+    final engine = ShortEngine();
+    final encoder = RecordingEncoder(work);
+    final files = PageFileStore();
+    final player = PagePlayer();
+    await tester.pumpWidget(
+      pageWith(engine, encoder, files: files, player: player),
+    );
+    await loadPageContent(tester);
+    await finishRender(tester, engine, encoder);
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ReadingView)),
+    )!;
+    await tester.tap(offeredBy(l10n.saveButton));
+    await letReviewClose(tester, l10n.videoSavedMessage);
+    final uri = files.kept.keys.single;
+
+    await openVideoList(tester, l10n);
+
+    expect(find.byType(VideoListScreen), findsOneWidget,
+        reason: 'one action opens the content\'s videos (FR-022)');
+    expect(find.byType(ListTile), findsOneWidget,
+        reason: 'one video kept, so one row (FR-033)');
+
+    // And a tap on the row plays that video, which is what the page's own Play
+    // action used to open (FR-022).
+    await tester.tap(find.byType(ListTile));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(player.sources, contains(uri),
+        reason: 'the row plays the video the page kept');
+  });
+
+  testWidgets('the list\'s delete warns by name, and what it leaves is a page '
+      'with nothing to offer', (tester) async {
+    // Row 56's page half again, for the file's life cycle (FR-022/FR-024): the
+    // row's delete is the page's own delete now, and the page reads the record
+    // again when the list comes back, so a content with nothing left offers to
+    // record again. The warning's own case lives in `video_list_screen_test.dart`.
     final engine = ShortEngine();
     final encoder = RecordingEncoder(work);
     final files = PageFileStore();
@@ -982,23 +1122,26 @@ void main() {
     await tester.tap(offeredBy(l10n.saveButton));
     await letReviewClose(tester, l10n.videoSavedMessage);
     final uri = files.kept.keys.single;
+    final kept =
+        (await VideoRecordStore(files: files).recordFor(_presetId)).latest!;
 
-    // Dismissed: nothing happens at all.
-    await tester.tap(offeredBy(l10n.videoDeleteButton));
+    await openVideoList(tester, l10n);
+
+    // Dismissed on the row: nothing happens at all.
+    await tester.tap(find.byTooltip(l10n.videoDeleteButton));
     await tester.pump();
     expect(find.text(l10n.videoDeleteConfirmTitle), findsOneWidget,
         reason: 'every delete warns (FR-024)');
+    expect(find.text(l10n.videoDeleteConfirmMessage(kept.name)), findsOneWidget,
+        reason: 'and the warning names the video being deleted (FR-033)');
     await tester.tap(find.text(l10n.cancelButton));
     await tester.pump();
     expect(files.deletes, isEmpty,
         reason: 'dismissing the warning never deletes anything');
     expect(files.kept.containsKey(uri), isTrue);
-    expectOffered(l10n.videoPlayButton,
-        reason: 'and the video is still there to play');
 
-    // Confirmed: the file and the record both go, and the content offers to
-    // record again (FR-022/FR-024).
-    await tester.tap(offeredBy(l10n.videoDeleteButton));
+    // Confirmed: the file and its entry both go (FR-024/contract § Write 2).
+    await tester.tap(find.byTooltip(l10n.videoDeleteButton));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, l10n.deleteButton));
     await letWorkRun(tester, () => files.deletes.isNotEmpty);
@@ -1007,11 +1150,24 @@ void main() {
     expect(files.deletes, [uri]);
     expect(files.kept.containsKey(uri), isFalse);
     expect(
-      find.byTooltip(l10n.videoPlayButton),
-      findsNothing,
-      reason: 'the content no longer has a video',
+      (await VideoRecordStore(files: files).recordFor(_presetId)).videos,
+      isEmpty,
     );
-    expectOffered(l10n.videoButton, reason: 'and offers to record again');
+
+    // Back on the page: the content offers to record again, and no list.
+    await tester.pageBack();
+    await letWorkRun(
+      tester,
+      () => find.byType(VideoListScreen).evaluate().isEmpty,
+    );
+    await letWorkRun(
+      tester,
+      () => find.byTooltip(l10n.videoListTitle).evaluate().isEmpty,
+    );
+    await tester.pump();
+    expect(find.byTooltip(l10n.videoListTitle), findsNothing,
+        reason: 'nothing is kept, so there is no list to open');
+    expectOffered(l10n.videoButton, reason: 'and it offers to record again');
   });
 
   testWidgets('a video removed outside the app is reported, not offered', (
@@ -1037,16 +1193,16 @@ void main() {
       tester.element(find.byType(ReadingView)),
     )!;
 
-    expect(find.text(l10n.videoGoneMessage), findsOneWidget,
-        reason: 'the app reports it as gone (FR-022)');
+    expect(find.text(l10n.videoGoneMessage('One two…mp4')), findsOneWidget,
+        reason: 'the app reports that video gone, by its own name (FR-022)');
     expect(
-      find.byTooltip(l10n.videoPlayButton),
+      find.byTooltip(l10n.videoListTitle),
       findsNothing,
-      reason: 'never a play action that fails',
+      reason: 'never an action that opens a video that is not there',
     );
     expectOffered(l10n.videoButton, reason: 'the content offers to record again');
     // And it was forgotten, not merely hidden.
-    expect((await records.lookup('preset_short')).video, isNull);
+    expect((await records.recordFor('preset_short')).videos, isEmpty);
   });
 
   testWidgets('the video action is offered from the idle page only', (

@@ -83,6 +83,13 @@ python3 klhu_walk_video.py 36     # spike S2: a one-minute render's wall time
 python3 klhu_walk_video.py 41     # spike S3: what the file dialog returns on the device
 python3 klhu_walk_video.py 42     # spike S4 on the device: the scrim's depth sampled from a render
 python3 klhu_walk_video.py 49     # a render with pictures: each range its own, the seams none
+
+# What a render carries above 10 kHz, per second — FR-017's new sentence. The
+# engine's voices hold nothing above 12 kHz, so a sentence whose rate differed
+# from the stream's must not stand out there; the ceiling is 14 dB either side of
+# what each build reads (measured 2026-10-06: −49.0 dB windowed-sinc, −21.1 dB
+# linear interpolation, 014's breakpoint → row 35):
+python3 klhu_probe_hiss.py <video.mp4> --max-first-db -35
 ```
 
 `ADB_SERIAL` (default `emulator-5554`), `KLHU_REPO` (default this repo) and `KLHU_OUT` (default
@@ -372,12 +379,17 @@ frames" is a gap on the record, held by the painter's unit rows).
 ### 33. The file's life cycle on the device — [device]
 
 Test: `python3 specs/012-reading-video/scripts/klhu_walk_video.py 33`.
-Steps: render, play the review's video, throw one away, keep another, then play it from the gallery, share it,
-and finally delete it.
+Steps: render, play the review's video, throw one away, keep another, then tap `Videos`, play the video from its
+row, share it from that row, and finally delete it there.
 Expected: the throw-away leaves the library without a video for that content; the kept one is listed in the
 gallery under the content's name and plays from there; the share list appears with the device's apps; the
-delete warns first, and after confirming, the gallery no longer lists the file and the content offers to
-record again. Proves FR-011, FR-021, FR-022, FR-023, FR-024, SC-015, SC-016, SC-017, SC-018.
+delete warns first — naming **that video** — and after confirming, the gallery no longer lists the file and the
+content offers to record again. Proves FR-011, FR-021, FR-022, FR-023, FR-024, SC-015, SC-016, SC-017, SC-018.
+*(Re-cut 2026-10-07 for the 2026-10-06 amendment (FR-033): the page's own `Play video`, `Share` and
+`Delete video` are gone, so the three acts happen on the list's rows and the steps go through `Videos`. This
+row was `WALKED — PASS` on 2026-09-29 against the controls it then named; `breakpoint.md`'s row 33 carries the
+same note, and `klhu_walk_video.py`'s own `row_33` was re-cut with it. The re-run is owed with T064's walk —
+nothing here claims it has been walked again.)*
 
 ### 34. Cancelling on the device cleans up, and leaves the old video alone — [device]
 
@@ -659,3 +671,63 @@ Expected: the shipped `VideoView`'s own picture area is **black** (fraction of p
 0, a couple of distinct colours) — the reader's own report, reproduced on the emulator — while the `TextureView`
 route draws the picture; and after the fix the shipping view draws it too (10 % dark, saturation > 200, hundreds
 of distinct colours). Proves FR-021's own "playable" and closes the defect the reader reported.
+
+### 55. The review asks about replacing, and the reader's answer is what happens — [device]
+
+Unit half: `test/reading_view_video_test.dart` → "a keep asked not to replace leaves the earlier video too"
+(the second render's review offers the switch checked; turned off, the keep names no previous file, both files
+are in the library, and the content's record points at the render just kept) and "the replacement question is
+asked only when there is one to replace" (the first render's review has no switch at all). Both are red on the
+shipped code — the switch does not exist there — and the shipped default stays pinned by the test that was
+already there: "keeping again replaces the earlier video".
+Steps: on a content that already has a kept video, render again; in the review turn **Replace the existing
+video** off; Save.
+Expected: the earlier file stays in the library beside this render's, and the content's own record moves to the
+render just kept — so `Play video` plays the new one.
+Test: `python3 specs/012-reading-video/scripts/klhu_walk_replace_switch.py` (the phone is **not** cleared: this
+row needs a content that already has a kept video, so it works on whatever the app is showing; `KLHU_ASPECT` must
+be the wording the device's own format prompt uses — on the reader's phone, `9:16 vertical (Shorts)`). The
+receipt is [breakpoint.md](./breakpoint.md) row 55. Proves FR-012 (amended 2026-10-06).
+
+### 56. A content's videos are listed, and each one is its own — [unit, device]
+
+Unit half: `test/video_list_screen_test.dart` → the content's videos as rows in the app's own order (oldest
+first), each naming its own video and the day it was kept; a tap on the second row plays **that** video (not the
+first); the second row's share hands over **that** file; the second row's delete warns by name and, once
+confirmed, removes that entry and its file while the first row is still there and still plays; and a content
+with no videos shows a state that says so rather than an empty list.
+Steps: on the reader's phone, on the content that already holds a kept video, render again, turn the replacement
+switch **off** and Save (row 55); tap `Videos`; play the older row, then the newer one; share from one row;
+delete the older one and confirm; reopen the list.
+Expected: two rows, each playing its own file (the older one is the video that was kept first, not the newest);
+after the delete, one row remains, one file remains in the phone's library, and the content still opens the list.
+Test: `ADB_SERIAL=<the reader's phone> KLHU_ASPECT='9:16 vertical (Shorts)' KLHU_BASELINE_ENTRIES=1 python3 -u
+specs/012-reading-video/scripts/klhu_walk_video_list.py 56`. **WALKED — PASS (32/32), 2026-10-08** on the reader's
+own phone (`37e102a0`), **296 s wall, exit 0**; the measured lines are [breakpoint.md](./breakpoint.md) row 56.
+The phone is **not** cleared — this row needs a content that already holds a video, which is what row 55 leaves
+behind — and `KLHU_BASELINE_ENTRIES=<n>` is what returns it to the reader's own `<n>` videos afterwards.
+Proves FR-022, FR-033, SC-026.
+
+### 57. The videos kept under the shipped shape are still the reader's — [unit, device]
+
+Unit half: `test/video_record_test.dart` → a stored value that is a single object (the shape 012 shipped with,
+one entry per content) reads as a one-entry list; nothing is lost and nothing is duplicated; the first write for
+that content persists the array shape (contract `video-record-format.md`, read rule 5).
+Steps: on the reader's phone **as it stands** — it holds records written before this amendment — open a
+content that held a video before it and tap `Videos`, then tap that row to play it.
+Expected: the video the app remembered before this amendment is listed and plays, once; no row is duplicated
+and no entry is dropped by the read.
+Test: `ADB_SERIAL=<the reader's phone> python3 specs/012-reading-video/scripts/klhu_walk_video_list.py 57` —
+looked at **before** anything is written on that content (a content whose video was kept before this amendment
+has to be opened first, since only a write migrates it). **WALKED — PASS (6/6), 2026-10-07** on the reader's own
+phone (`37e102a0`, whose store held one content in the shipped one-object shape); the measured lines are
+[breakpoint.md](./breakpoint.md) row 57. Proves SC-027.
+
+### 58. The list speaks the reader's language, and the delete names its video — [unit]
+
+Unit half: `test/video_list_screen_test.dart` → the screen's title, its empty state, the row share/delete
+labels and the delete's warning all come from the app's own copy in the reader's own language (FR-031), and the
+warning names **the video being deleted** rather than the content it belongs to.
+Expected: with the app set to each of its four languages, no string on the screen or in the warning is English
+alone or a placeholder, and the warning's own text carries the deleted video's name.
+Proves FR-024, FR-033.

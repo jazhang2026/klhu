@@ -414,9 +414,13 @@ def play_in_view(tag, rows):
     """
     width, _ = screen_size()
     density = screen_density()
+    # The review's own two decisions, and only them: `Share` and
+    # `Play video` left this tuple on 2026-10-07, because a list row carries a
+    # `Share` of its own and a screen behind the player must not decide where
+    # the picture is.
     actions = [r["y"] for r in rows
                if (r["desc"] or r["text"]).strip() in
-               ("Discard", "Share", "Save", "Play video")]
+               ("Discard", "Save")]
     if not actions:
         # The kept video plays on a screen of its own, without the review's three
         # decisions: the page's own action row then sits at the bottom of the
@@ -1105,24 +1109,38 @@ def row_33():
     check("33: the kept video's own streams parse", ok)
 
     rows = dump()
-    check("33: the content now offers the video's own actions",
-          on_screen(rows, "Play video") and on_screen(rows, "Delete video"),
+    # Re-cut 2026-10-07 for the 2026-10-06 amendment (FR-033): the page's own
+    # `Play video`, `Share` and `Delete video` are one `Videos` action now, and
+    # each act happens on a row of the list it opens. `Video` is the render.
+    check("33: the content offers its videos as one action, and the three a "
+          "row carries are gone from the page",
+          on_screen(rows, "Videos") and not on_screen(rows, "Play video")
+          and not on_screen(rows, "Delete video"),
           repr(labels(rows)[:10]))
 
-    step("33: play the kept video, from the gallery's own entry")
+    step("33: open the list — the kept video is its own row")
+    if not tap(rows, "Videos", label="Videos"):
+        return
+    time.sleep(2)
+    rows = dump()
+    check("33: the list holds the video as a row of its own", on_screen(rows, name),
+          repr(labels(rows)[:10]))
+
+    step("33: play the kept video from its own row")
     if SKIP_PLAY:
-        print("   SKIPPED (KLHU_SKIP_PLAY=1), and so is opening its screen")
-    elif tap(rows, "Play video", label="the content's play"):
+        print("   SKIPPED (KLHU_SKIP_PLAY=1): the row's tap opens the player, "
+              "which is this box's memory peak")
+    elif tap(rows, name, label="the row (which plays it)"):
         time.sleep(2.5)
         played = play_in_view("33/kept", dump())
         check("33: the kept video plays", bool(played), f"started players: {played}")
-        adb("shell", "input", "keyevent", "4")   # back to the page
+        adb("shell", "input", "keyevent", "4")   # back from the player to the list
         time.sleep(1.5)
 
-    step("33: share it — the phone's own list, and nothing kept by sharing")
+    step("33: share it from its row — the phone's own list, nothing kept")
     files_shared, entries_shared = gallery_videos()
     rows = dump()
-    if not tap(rows, "Share", label="Share"):
+    if not tap(rows, "Share", label="the row's share"):
         return
     # The phone's chooser is another app's window and animates in: a dump taken
     # while it is still coming up holds nothing at all, which reads as "no list
@@ -1150,14 +1168,15 @@ def row_33():
     adb("shell", "input", "keyevent", "4")
     time.sleep(1.5)
 
-    step("33: delete it, behind its warning")
+    step("33: delete that row, behind its warning")
     rows = dump()
-    if not tap(rows, "Delete video", label="Delete video"):
+    if not tap(rows, "Delete video", label="the row's delete"):
         return
     time.sleep(2)
     rows = dump()
-    check("33: deleting warns first",
-          on_screen(rows, "Delete this video?")
+    # The warning names the video being deleted (FR-033), not the content.
+    check("33: deleting warns first, and names the video being deleted",
+          on_screen(rows, "Delete this video?") and on_screen(rows, name)
           and on_screen(rows, "removed from your gallery"),
           repr(labels(rows)[:8]))
     if not tap(rows, "Cancel", label="Cancel", exact=True):
@@ -1168,7 +1187,7 @@ def row_33():
           f"files={still}")
 
     rows = dump()
-    if not tap(rows, "Delete video", label="Delete video"):
+    if not tap(rows, "Delete video", label="the row's delete"):
         return
     time.sleep(2)
     rows = dump()
@@ -1180,10 +1199,19 @@ def row_33():
     entries = gallery_videos()[1]
     check("33: the library has no entry for it either", not entries,
           f"entries={entries}")
+    # The list is still up, with nothing left to list (FR-033).
+    empty = wait_for(lambda: on_screen(dump(), "no videos yet"), 25)
+    check("33: the list says that content has no videos", empty,
+          repr(labels(dump())[:10]))
+    adb("shell", "input", "keyevent", "4")   # back to the page
+    time.sleep(1.5)
     rows = dump()
-    check("33: the content offers to record again, and nothing else",
-          on_screen(rows, "Video") and not on_screen(rows, "Play video")
-          and not on_screen(rows, "Delete video"),
+    # `on_screen` is a substring test and "Videos" contains "Video", so the
+    # render's own action is matched exactly here.
+    offers_render = any((r["desc"] or r["text"]).strip() == "Video" for r in rows)
+    check("33: the content offers to record again, and no list",
+          offers_render and not on_screen(rows, "Videos")
+          and not on_screen(rows, "Play video"),
           repr(labels(rows)[:10]))
 
 

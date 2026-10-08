@@ -158,7 +158,13 @@ lib/
 │                                  #      sentence — and the picked pictures' copies
 │                                  #      (D15, FR-025–FR-028)
 ├── video_aspect.dart              # NEW  the aspect choice and its remembered store (D6)
-├── video_record.dart              # NEW  which content owns which kept video, and its staleness rules (D11)
+├── video_record.dart              # NEW  which content owns which kept video (a list per content), and what
+│                                  #      a lookup answers when a file has gone (D11, FR-022)
+├── video_list_screen.dart         # NEW  a content's videos as a list — one row per video, its own share and
+│                                  #      delete, a tap playing that one (FR-033, the 2026-10-06 amendment)
+├── video_playback_screen.dart     # NEW  one kept video, watched: what the list's rows open. Extracted from
+│                                  #      `reading_view.dart`'s private class when the list needed it too —
+│                                  #      two copies of one screen is how they come to differ
 ├── video_review.dart              # NEW  the working copy and its three decisions: keep, throw away, share (D11)
 ├── reader_service.dart            #      `synthesizeToFile` on the engine seam + the voice resolution reused (D5)
 ├── reading_view.dart              #      the RENDERING and REVIEW states, the aspect prompt, the confirmations (D10)
@@ -185,7 +191,12 @@ test/
 ├── video_renderer_test.dart       # NEW  quickstart 12–17: order, per-sentence voice, the picture shown, cancel leaves nothing
 ├── video_aspect_test.dart         # NEW  quickstart 18: the remembered choice's rules
 ├── video_record_test.dart         # NEW  quickstart 19–24 + 39's case: keep/replace, throw away, share,
-│                                  #      staleness, delete, and the app's existing content delete
+│                                  #      staleness, delete, and the app's existing content delete — plus
+│                                  #      57's record half: the shipped one-object value read as one video,
+│                                  #      the array written on that content's next write (2026-10-06)
+├── video_list_screen_test.dart    # NEW  quickstart 56's screen half and all of 58: the rows and their order,
+│                                  #      a row's tap playing that video, per-row share and delete, the empty
+│                                  #      state, the warning naming the video, four languages
 ├── reading_view_video_test.dart   # NEW  quickstart 28–29, 47 and the PAGE halves of 19–24's rows
 │                                  #      (19's replace, 20's offers, 22's "gone", 23/24's warned delete),
 │                                  #      plus 25–27: the RENDERING state, the confirmations, unavailable platforms
@@ -285,3 +296,38 @@ absorbed:
 2. **The API-level branch for where the file lands (D7).** Justified by the pre-existing gap between the
    resolved `minSdk` (24) and the declared baseline (29): raising the floor would drop devices, and a
    single `MediaStore`-only path would fail on 24–28 with no way to notice on this emulator (API 36).
+
+## The 2026-10-06 amendment — a content's videos as a list (D24)
+
+**What changes, and why.** `Play video`, `Share` and `Delete video` all act on one video because the record
+holds one entry per content (`contracts/video-record-format.md`, "at most one entry per content"). The reader
+asked for their videos as a list (*"video play, share and delete all work on the only last one video. I like to
+have a Video list like content list."*), so the record becomes an **ordered list per content** and the page's
+three actions become **one** that opens it. Decided in spec.md's 2026-10-06 Clarifications (its third question),
+by the reader's own `A + 1`: the replacement switch is **kept** and still opens answered "replace".
+
+**The store (T058).** `lib/video_record.dart`: `Map<String, List<KeptVideo>>`; `recordFor(key)` gives a
+content's videos oldest first; `keep({contentKey, video, replace})` rewrites the **last** entry when `replace`
+(FR-012's default) and appends when not; `delete(uri)` / `forget(uri)` act on **one** entry, leaving the rest in
+order. **Migration is a read rule, not a job**: a value that is a single object is lifted to a one-entry list
+(contract read rule 5), so a phone that already kept videos — the reader's own holds two content entries and
+three files — loses nothing and needs no start-up pass. The new shape is persisted for a content the next time
+anything is written for it; there is no store-wide rewrite, which is also what keeps this change reversible.
+
+**The page (T059).** `lib/reading_view.dart` loses `Play video`, `Share` and `Delete video` in favour of one
+`Videos` action that pushes the list; the old `Play video`'s job — open the content's most recent video — moves
+to that list's own last row's tap (FR-022). The portrait bar then carries **six** actions: at Material's own
+48 dp that is 288 dp ≤ 360 dp, so the 40 dp this bar was squeezed to when it carried eight (011's own record of
+that compromise) goes back to 48 — the amendment pays for part of itself.
+
+**The screen (T060).** `lib/video_list_screen.dart`, built like `content_list_screen.dart`: `ListTile` rows, a
+one-line name with an ellipsis, a subtitle saying when that video was kept, a trailing share and delete, a tap
+anywhere else playing it, an empty state rather than an empty list, and a delete that warns by **name** (FR-024).
+The player screen (`_VideoPlaybackScreen`) is deliberately untouched: share/delete **on the player** was one of
+the shapes offered to the reader and was not picked, and this amendment does not need it.
+
+**What this costs, and what could go wrong.** The record is the app's only durable video state, so the migration
+is the risk, and it must be proven **on the reader's own phone** (T064, quickstart row 57 / SC-027), not only in
+a unit test with a fabricated old value — their device already carries both shapes' worth of history. Nothing
+about the renderer, the review's render, the file's landing place or the share surface changes; `FR-023`'s
+no-upload rule and `FR-013`'s no-network rule are untouched by a longer list.

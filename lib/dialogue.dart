@@ -367,11 +367,16 @@ List<VoiceChoice?> assignTurnVoices({
         if (byGender != 0) return byGender;
         return a.name.compareTo(b.name);
       });
-    final taken = usedByRole.values.expand((names) => names).toSet();
-    final unused = ranked.where((v) => !taken.contains(v.name)).toList();
+    // Counted by voice, not by name: the engine reports one voice twice
+    // (`…-local`, `…-network`) and the two are one voice, so the code is what a
+    // role takes. Handing the next role the other copy is what the OnePlus 13 did
+    // — the reader heard one voice read two roles, and the render could not be
+    // muxed (the copies write 24 kHz and 48 kHz).
+    final taken = usedByRole.values.expand((identities) => identities).toSet();
+    final unused = ranked.where((v) => !taken.contains(_identity(v))).toList();
     final chosen = unused.isNotEmpty ? unused.first : ranked.first;
 
-    (usedByRole[role] ??= <String>{}).add(chosen.name);
+    (usedByRole[role] ??= <String>{}).add(_identity(chosen));
     final gender = VoiceMappingTable.lookup(chosen.name)?.gender;
     if (gender != null) placedGenders.add(gender);
     final choice = VoiceChoice(
@@ -391,13 +396,15 @@ List<VoiceChoice?> assignTurnVoices({
   ];
 }
 
-/// The installed voices of one reading language, name-ascending and deduped by
-/// the name the reader sees.
+/// The installed voices of one reading language, name-ascending and one row per
+/// voice.
 ///
-/// The engine reports the local and network variants of one voice as two rows
-/// (`…-local`, `…-network`) and the picker shows them as the same name; assigning
-/// both to two roles would give the reader two voices that sound identical, so a
-/// voice is counted once — the `-local` row, which sorts first (research D5).
+/// The engine reports the local and network copies of one voice as two rows
+/// (`…-local`, `…-network`) under one name; assigning both to two roles would
+/// give the reader one voice reading two roles, so a voice is counted once —
+/// the `-local` row, which sorts first (research D5). Both copies write the same
+/// words; they do not write the same sample rate (24 kHz on-device, 48 kHz on the
+/// network), so a read that used both could not be muxed either.
 List<VoiceEntry> _candidates(List<VoiceEntry> installed, String language) {
   final matches = installed
       .where((v) => _matchesLanguage(v.locale, language))
@@ -410,11 +417,18 @@ List<VoiceEntry> _candidates(List<VoiceEntry> installed, String language) {
   ];
 }
 
+/// What the assignment counts a voice as. A voice the mapping table knows is its
+/// row (`englishName|gender|dialect`), which the engine's two copies share; a
+/// voice the table does not know is its code, by the engine's own naming
+/// ([voiceIdentity]) — the phone's newer engine reports voices the table has
+/// never seen, and counting their twins separately is how two roles got one
+/// voice there.
 String _identity(VoiceEntry voice) {
   final mapping = VoiceMappingTable.lookup(voice.name);
-  return mapping == null
-      ? voice.name
-      : '${mapping.englishName}|${mapping.gender}|${mapping.dialect}';
+  if (mapping != null) {
+    return '${mapping.englishName}|${mapping.gender}|${mapping.dialect}';
+  }
+  return voiceIdentity(voice.name);
 }
 
 int _flag(bool value) => value ? 1 : 0;

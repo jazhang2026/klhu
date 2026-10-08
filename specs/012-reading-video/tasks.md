@@ -48,6 +48,11 @@ them now, and `check_tasks_format.py` reports **OK** (48 tasks, 26 done, 15 `[P]
 → **Superseded 2026-10-01: the checker reports `57 tasks (57 done), 15 [P]` and OK.** It was green again only
 after T034's three fixes (the `Re-cut` notes off the first lines, T055 filled in, the paths added) — the stale
 line above is the reason T034 says "what must not survive is a receipt claiming OK".
+→ **Superseded again 2026-10-08, with Phase 10's last box ticked and the walk done: the checker reports
+`64 tasks (64 done), 15 marked [P]` and `OK: format, sequencing and spec-id coverage check out`.** The count is
+quoted from the run taken **after** T064's tick, so it names the list as it now stands;
+`scripts/task_id_audit.py specs/012-reading-video` reads `64 tasks, 64 done, 15 [P]` with no duplicate, gap or
+out-of-order id (its long form below is the walk's own note).
 
 **Spike S1 answered (T003): the engine writes RIFF/WAVE, PCM 16-bit mono at 24 kHz, and the duration is in
 the file's own header** (within a millisecond of `ffprobe`), so T014 keeps the shape the plan gave it — no
@@ -65,6 +70,23 @@ and S4 (T038) sets the scrim's number, which T039's contrast row and T042's pain
 `flutter test` (research D9). Its entire coverage is the `[device]` rows T017, T021, T030 and T048 plus the
 spikes — which is why the platform half is kept logic-free, and why the picker (T044) is flutter.dev's own
 plugin handing back a name and bytes, rather than a screen.
+
+**Phase 10 (the 2026-10-06 amendment) is implemented and closed (2026-10-08).** T058–T063 are ticked with their
+evidence, and **T064 — the walk on the reader's own phone, which is what proves the migration — is done**: row 57
+was walked 2026-10-07 (**6/6** — the phone's own single-object record read as one video and not rewritten) and row
+56 on 2026-10-08 (**32/32**, 296 s wall, exit 0 — two rows for two entries, the newest row's tap playing that video,
+back from the player landing on the list, a row's own share, a warning that names the video, and a delete that takes
+that entry and exactly that file while the earlier one stays; the phone is left holding the one video it started
+with). T064 stood **PART DONE** for a day only because the walk needs a device that is not on this box: `adb devices`
+answered `37e102a0 unauthorized` and no `38821a76`, and the row could not run until the reader's phone was
+authorised. The walk then found two defects in its own driver — Deviations 19 and 20 in `breakpoint.md` — and two of
+the row's own assertions were strengthened rather than left answering proxies. **This closing pass touched the walk
+driver and the spec's own documents only** — no file under `lib/` or `test/` was edited by it — so the suite number
+is carried forward, not re-measured: **558 tests green (541 at this stage's baseline), `flutter analyze` clean**,
+measured 2026-10-07 on this tree, whose `lib/` carries this amendment beside the reader's own uncommitted 011/014
+work. The checkers were re-run after the tick and read `64 tasks (64 done), 15 marked [P]` / OK
+(`scripts/task_id_audit.py` agreeing). The ids this block first carried (T055–T061) collided with the 2026-09-28
+block's; they are now T058–T064, and Phase 10's own note names what moved and why.
 
 ## Grounding notes (decisions these tasks implement)
 
@@ -1385,7 +1407,6 @@ numbers (T049–T054); no earlier tick is renumbered, and the rows a re-cut chan
       the remove's own touch target is the cross itself (22×22) rather than 48 pixels — the trade that makes the
       whole cell draggable, and the reviewer's point to accept or reject. `flutter analyze` clean; suite **438
       passing, 0 failing**.)
-
 - [x] T055 [US2] `android/app/src/main/kotlin/com/example/klhu/VideoPlayerView.kt`: the review's picture is a
       picture rather than a black surface — replace the `VideoView` with a `TextureView` whose surface is handed
       to the platform's own player (D20, FR-021), so the video the reader watches before keeping it draws. The
@@ -1491,6 +1512,113 @@ walk can be run.*
       background. A wordless cover slot was put to the reader with its cost and declined for now (D23's cover
       paragraph has the numbers and the reasoning).
 
+## Phase 10 — the 2026-10-06 amendment (a content's videos as a list)
+
+The reader asked for the videos to be listed and for each to carry its own share/delete (FR-033, D24); the
+record's shape is what makes that possible. Spec: FR-012, FR-022, FR-023, FR-024, FR-033; SC-026, SC-027;
+`contracts/video-record-format.md`.
+
+**These are T058–T064, not the T055–T061 this block was first written with.** T055, T056 and T057 are the
+2026-09-28 re-cut's own rows (the `TextureView`, the painter, the picture's own life) and this block re-used
+their ids: `scripts/task_id_audit.py specs/012-reading-video` reports it as ids *cited in prose with no task
+line* for T058–T061, because three ids collided while four had no line the checker could see — and
+`check_tasks_format.py` stayed green through it, which is the tell that the bold `**T0NN**` form is not a task
+line to it. The amendment's tasks take the next free numbers and every citation (this block, the coverage
+table, `plan.md`, `quickstart.md`) moved with them in one pass. The 2026-09-28 block is not renumbered: its
+ticks are the record of what ran then, and its own `T056` (the painter) is still `FR-014`'s and `FR-029`'s.
+
+- [x] T058 [US3] `lib/video_record.dart`: a content's videos as an ordered list. `recordFor(contentKey)` →
+  `List<KeptVideo>` (oldest first); `keep({contentKey, video, replace})` rewrites the last entry when `replace`,
+  appends when not; `forget(uri)` / `delete(uri)` act on one entry and leave the rest in order; a single-object
+  value is read as a one-entry list (contract read rule 5) and is not rewritten until that content is next
+  written. *(SC-027)* **DONE 2026-10-07.** Two of the names above are not the code's, and both are deliberate:
+  `recordFor` answers a **`VideoLookup`** — the list **plus** the entries that read had to forget — because
+  FR-022's "reported as gone" has to travel with the list and a bare `List<KeptVideo>` cannot carry it; and
+  `keep` keeps its `workingPath`/`displayName` parameters (`{contentKey, video, replace}` is not the seam, since
+  the entry is written by the platform's keep). `delete(uri)`/`forget(uri)` take one uri, scanning the contents
+  for it and writing only the ones they touch. **A write merges into the store as it stands rather than
+  re-encoding it**: the migration is per content, so a content nobody wrote keeps the shipped single-object
+  value — the first implementation re-encoded the whole store and one of the new cases caught it
+  (`a content nobody wrote is left exactly as it was`). Evidence: `test/video_record_test.dart` **19 cases
+  green**, 13 before.
+- [x] T059 [US3] `lib/reading_view.dart`: `Play video`, `Share`, `Delete video` → one `Videos` action pushing
+  the list; the content's most recent video is what its own idle state still offers to play from the list's last
+  row; the portrait bar's own dp returns to 48 now that it carries six actions (011's record updated with it).
+  *(FR-022)* **DONE 2026-10-07.** The action is offered when the content has videos and the page is idle; the
+  page's own play/share/delete **and their dialog** are gone (the list's rows carry them), `_keptVideo` became
+  `_keptVideos` (the record's list), and the page reads the record again when the list returns — a delete in the
+  list is what can leave it with nothing. The portrait bar is back to Material's own density: the
+  `VisualDensity.compact` that bought eight actions their fit is gone with the three that paid for it, and the
+  claim is asserted from the **semantics rect** (48 dp) — the target the reader hits and what a device dump
+  reports — because Material's *painted* icon box is 40 dp at both densities and a `getSize` assertion could not
+  tell them apart. The playback screen was extracted to `lib/video_playback_screen.dart` for the list to reuse
+  (plan.md's tree corrected in the same pass). Evidence: `test/reading_view_toolbar_test.dart` +2 cases (the
+  48 dp targets; the withdrawn three are off the page) and the re-cut halves in
+  `test/reading_view_video_test.dart`.
+- [x] T060 [US3] `lib/video_list_screen.dart` (new): the content's videos as rows — one-line name, when it was
+  kept, per-row share and delete, a tap playing that video, the empty state, and a delete that warns by name
+  (FR-024). *(FR-033, FR-022)* **DONE 2026-10-07.** Built like `content_list_screen.dart`: `ListTile` rows in the
+  record's own order, the kept date in the reader's locale, a trailing share and delete, a tap anywhere else
+  playing that row's video, the empty state, and a warning that names **that row's** video. Evidence:
+  `test/video_list_screen_test.dart` **8 cases** — the rows and their order, the second row's tap playing the
+  second video, a row's own share, the warning naming the row tapped, the delete leaving the other row intact,
+  the empty state after the last delete, a failed removal reported, and four languages. The RED is a **compile
+  error** (the screen did not exist), so the cases that could pass trivially assert their own setup — the row
+  count, their order and the row's own uri.
+- [x] T061 [US3] `lib/video_review.dart`: the review's own answer decides the write — replace rewrites the last
+  entry (and the file it named is deleted from the library), keep-both appends — and `Keep`/`Cancel`/`Share`
+  stay otherwise as they are. *(FR-012, SC-026)* **DONE 2026-10-07.** `keep({replace})` was already in the
+  working tree from the switch's own change; what this task settles is that its write rewrites the content's
+  **last** entry (T058) and that the page stops assuming the shape — `_keepReview` reads the record again
+  instead of writing the kept entry into its own state. `Keep`/`Cancel`/`Share` untouched. Evidence:
+  `video_record_test.dart` 19's replace/append cases plus
+  `reading_view_video_test.dart`'s "a keep asked not to replace leaves the earlier video too", whose assertions
+  are unchanged and still green.
+- [x] T062 [US3] `lib/l10n/app_en.arb`, and its three siblings: the list's title, its empty state, the row
+  share/delete labels, and the delete warning that names the video being deleted. *(FR-031)* **DONE
+  2026-10-07.** Four ARBs at once (the key-parity test fails in both directions): `videoListTitle`,
+  `videoListEmptyMessage`, `videoDeleteConfirmMessage(name)` and `videoGoneMessage(name)` — the warning names
+  the video (FR-024/FR-033) and the gone report names it too, since "this video is gone" cannot say which when
+  a content holds several. `videoPlayButton` is **removed** from all four with the action that used it.
+  `flutter gen-l10n` run; the regenerated `lib/l10n/*.dart` are in the diff (`git status --short lib/l10n`).
+- [x] T063 [US3] `test/video_record_test.dart`, `test/video_list_screen_test.dart` (new) and
+  `test/reading_view_video_test.dart`: (order, append vs replace, per-entry delete, the single-object migration
+  read as one entry, no two entries naming one uri); (rows in order, a row's tap plays **that** video, per-row
+  share and delete, the empty state, the warning naming the video); (the three actions are gone and `Videos`
+  opens the list; a keep-both lands as a **second** row). *(SC-026, SC-027, FR-033)* **DONE 2026-10-07.** The
+  RED is **two runs and both are kept**: the record file first failed as a compile error, so the shipped rule
+  was put behind the new signature in a throwaway `lib/video_record.dart` and run against the new cases —
+  **13 passed, 6 failed** (the append, the array shape, the per-video gone report, the per-entry delete, the
+  one-uri invariant, the array persisting on that content's write) — and only then was the real store written;
+  the list screen's file is new, so its RED is the compile error its absence causes. The page's share and delete
+  cases were **split, not dropped**: the row behaviour lives in the screen's file, the page's half (one action,
+  the row plays what the page kept, the page after a delete) stays in `reading_view_video_test.dart`, and both
+  files' headers name the split. `test/reading_view_toolbar_test.dart` was re-cut too: its `keptVideoActions`
+  named the three withdrawn controls, and its own header claimed the row was measured for eight. **Two things
+  the run found**: a material route 800 px wide is **off the window mid-transition** — a tap then derives an
+  offset outside it and lands on nothing, which is how the row taps had to start waiting for the transition as
+  pumped time — and Material's painted icon box is 40 dp inside a 48 dp target (above). Full suite **558
+  passing, 0 failing** (541 at this stage's baseline); `flutter analyze` clean.
+- [x] T064 [US3] `specs/012-reading-video/scripts/klhu_walk_video_list.py`: the reader's own phone
+  (`38821a76`): quickstart rows 56–58 and breakpoint row 56, walked on the device that already holds the earlier
+  shape — the migration seen in their own library rather than asserted in a unit test. *(SC-026, SC-027)*
+  **DONE 2026-10-07/08.** The device is the reader's own phone **`37e102a0`** (OnePlus 9, LE2115), not `38821a76`
+  — that one is not on the wire. **Row 57: WALKED — PASS (6/6), 2026-10-07**: the phone's own
+  `flutter.video_record` held one content in the shipped **single-object** shape, the app listed it from that
+  content's own page as one row, and the read rewrote nothing (the store 157 characters before and after,
+  entry-for-entry equal). **Row 56: WALKED — PASS (32/32), 2026-10-08**, 296 s wall, exit 0: two rows for two
+  entries in the record's own order (oldest first), the newest row's tap opening and playing **that** video (the
+  phone's own `AudioPlaybackConfiguration … type:android.media.MediaPlayer … state:started`), back from the player
+  landing on the list, a row's own share through the platform's chooser with the album unchanged, a warning that
+  names the video — `Cancel` deleting nothing, `Delete` taking that entry **and exactly that file** while the
+  earlier one stayed — and the walk's own leftover cleaned up again, so the phone ends holding the reader's one
+  video and reading 中文. **Row 58 is `[unit]`** (four locales in `test/video_list_screen_test.dart`; no device
+  half owed). The walk fixed two defects in its own driver — `breakpoint.md` Deviations 19 (one `Back` does not
+  leave the player) and 20 (the phone asleep, so the language step read a stale screen) — and two of the row's
+  assertions were strengthened rather than left as proxies (the file that left the album is compared to the one
+  this keep added; the record is compared entry by entry, not by count). Receipt: `breakpoint.md` rows 56 and 57;
+  the run's log is `~/.hermes/cache/scratch/klhu_012_t064/row56_phone8.txt`.
+
 ## Requirement coverage
 
 | Requirement | Tasks |
@@ -1506,7 +1634,7 @@ walk can be run.*
 | FR-009 progress and cancellation; nothing left behind | T007, T014, T017 |
 | FR-010 the action is idle-only and a touch never interrupts | T008, T016, T023 |
 | FR-011 a kept video lives where the galleries look, under the content's name | T026, T029, T030 |
-| FR-012 keeping again leaves exactly one video for that content | T022, T024, T026 |
+| FR-012 keeping again leaves exactly one video for that content | T022, T024, T026, T061 |
 | FR-013 produced on the device — no account, no backend, no upload, no network | T015, T026, T035 |
 | FR-014 the video's text is the reader's typeface and size — never shrunk, wrapped and scrolled when tall, on a line 1.4× the reader's own column | T039, T042, T046, T056 |
 | FR-015 an empty content is refused with the existing message and no file | T004, T014 |
@@ -1525,7 +1653,7 @@ walk can be run.*
 | FR-028 no pictures chosen — and any frame outside every range — is the app's plain background | T040, T042, T048 |
 | FR-029 a sentence too tall for the frame is drawn whole at the reader's own size, wrapped and scrolled by line — and a sentence that fits sits at the bottom of the area | T039, T042, T046, T056 |
 | FR-030 the chosen pictures are shown as thumbnails in a window that scrolls, each with its own remove | T047, T052, T049 |
-| FR-031 every string is the app's own, and the reader's own actions are named in the reader's own terms (the button that adds pictures says *Choose more*) | T051, T052 |
+| FR-031 every string is the app's own, and the reader's own actions are named in the reader's own terms (the button that adds pictures says *Choose more*) | T051, T052, T062 |
 | FR-032 holding a picture and dropping it on another cell puts it there, that order is the video's, and a hold at either end of the window scrolls it so any cell can be reached | T054 |
 | SC-001 a reader makes a video in the app, no network, and is told the file's name and length | T017, T031 |
 | SC-002 it plays start to end: one video stream, one audio stream, the duration within 2 s | T017, T031 |
@@ -1552,3 +1680,9 @@ walk can be run.*
 | SC-023 one thumbnail per picture in the order chosen, each with its own remove, in a window two rows tall that scrolls | T047, T052 |
 | SC-024 the picks exist as files in one directory of the app's own, shown by the page and copied by the render, and the directory is gone once the render is over | T049 |
 | SC-025 a hold-and-drop leaves the picture where it was dropped, the others in place, the count unchanged, and a hold at the window's end scrolls it so any cell can be reached — and the render draws that order | T054 |
+| FR-022 every video kept for a content is remembered, findable and playable on its own | T058, T059, T060, T063 |
+| FR-023 sharing hands the file to the platform's own share surface, before keeping and after | T060, T063 |
+| FR-024 deleting a video warns first, names the video, and is never a single tap | T060, T062, T063 |
+| FR-033 a content's videos are listed like the app's contents: one row per video, its own share and delete, a tap plays it, an empty state, the reader's own language | T060, T062, T063 |
+| SC-026 a content with more than one kept video lists them all, each playable, shareable and deletable on its own | T058, T060, T061, T063, T064 |
+| SC-027 a record written in the shipped one-object-per-content shape reads as one video, nothing lost or duplicated | T058, T063, T064 |

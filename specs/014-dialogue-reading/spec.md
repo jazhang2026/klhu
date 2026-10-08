@@ -186,6 +186,35 @@ name's paragraphs, and the reader settled it rather than leaving it to be re-dis
   *language's* voice in 语音 (row 24's own path, `voice_<language>`), which narration reads with. Settles
   FR-009's remaining half and closes the one question row 25 left open.
 
+### Session 2026-10-06
+
+Two things, both from the reader using the app on their own phone: the video came out but its opening
+sentence hissed, and the picker's own list still came up twice per voice. The hiss is 012's (its encoder
+converts the rate; the rule and the measurement are in 012's Clarifications, Session 2026-10-06, FR-017).
+This session settles the picker.
+
+- **Q**: The picker lists one voice twice — its on-device copy and its network copy, under a single display
+  name, so a reader choosing "普通话 SSA (女)" cannot tell which of the two rows they tapped. The rows are not
+  the same thing: the on-device copy reads with no network and writes 24 kHz, the network copy needs the
+  network and writes 48 kHz. The three role picks stored on the reader's phone — 阿明 YUF, May YUE, 阿芳 YUC —
+  are all network copies, which is how a reader picks one without knowing there was a choice. Options put to
+  the reader: **(a)** keep both rows as they are; **(b)** list one row per voice, the on-device copy; **(c)**
+  one row per voice, with the copy named on each row. **A**: *"选 (b)"* — **one row per voice, and it is the
+  on-device copy**. Settles FR-012's new sentence: a voice the device has only over the network is still
+  offered, as that copy, and nothing is dropped for want of a preferred one.
+
+  What (b) costs, stated rather than discovered later: a reader who wants the *network* copy has no row to
+  choose it with, and the picks already stored as network copies stay as they are — the app does not rewrite
+  a stored pick (FR-014: reopening writes nothing), so those roles keep reading through the network copy
+  until the reader picks again, and the row for their voice shows their pick either way. With 012's FR-017
+  fixed, a mixed read renders cleanly regardless of which copy a pick names.
+
+  Evidence: `test/reader_service_test.dart` (one row per voice; a voice with only a network copy keeps its
+  row), `test/cantonese_dialect_test.dart` (every Cantonese voice is still listed, once, as its on-device
+  copy), `test/voice_mapping_test.dart` (`isOnDeviceVoice`), `test/voice_picker_test.dart` (a pick stored as a
+  network copy still highlights the voice's one row), and rows 24/25 re-walked on the built app (the picker's
+  rows, and a tap storing `cmn-cn-x-ssa-local` — the on-device copy — for the role alone).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A dialogue reads as a dialogue (Priority: P1)
@@ -448,7 +477,11 @@ own; then one Undo restores the earlier text byte for byte.
   already uses, with the same outcomes (`zh-Hans`, `es`, `en`). A dialect is not detected.
 - **FR-012**: The reader MUST be able to give each role its own voice, chosen from the voices the app
   already offers — the same lists as 002, with 广东话 under 中文 as 007 shipped it — and the app MUST NOT
-  offer an age property it has no evidence for.
+  offer an age property it has no evidence for. The list a pick is made from MUST hold **one row per
+  voice**: the engine reports a voice's on-device and network copies as two rows under one name, and what a
+  reader chooses is the voice, so the row offered MUST be the on-device copy where the device has it (and
+  the network copy where it is the only one) — and a pick stored as either copy MUST find and show its row
+  (2026-10-06 Clarifications).
 - **FR-013**: A role's own pick MUST decide that role's voice and pronunciation, including when the
   turn's detected language differs from the voice's own (阿明's Chinese line in a 广东话 voice); the
   turn's language decides the voice only when the role has no pick.
@@ -457,7 +490,10 @@ own; then one Undo restores the earlier text byte for byte.
   records it — and the same content MUST be assigned the same voices on a second open.
 - **FR-015**: The assignment MUST prefer voices not already given to another role of the same content,
   and where fewer suitable voices exist than roles, reuse MUST be allowed rather than a role left
-  unvoiced.
+  unvoiced. A voice counts by its code, not by the engine's row: the engine reports one voice's
+  on-device and network copies as two rows (`…-local`, `…-network`) and the two are one voice, so a role
+  given one of them MUST keep the next role off the other (2026-10-05 Clarifications: the copies do not
+  synthesize at the same rate, and a read that used both could not be mixed into one video).
 - **FR-016**: The role list MUST show each role's voice by its own name (and the gender the app records
   where it has one), so the automatic choice is visible and changeable.
 - **FR-017**: The app MUST NOT model or claim voice age; the reader's own example's 成熟男声/年轻男声 is
@@ -509,7 +545,8 @@ own; then one Undo restores the earlier text byte for byte.
 - **SC-001**: In 多人对话, a read of a four-role content sends the engine exactly the turns' contents in
   order: 100 % of the utterances, read from the app's own per-utterance line, contain no role name and
   no brace of a tag.
-- **SC-002**: A four-role content read with four different picks produces four distinct voices, each
+- **SC-002**: A four-role content read with four different picks produces four distinct voices — distinct
+  by code, so the second row the engine prints for one voice is not a second voice — each
   utterance naming its role's own voice.
 - **SC-003**: With no picks, every role is given a voice of its turn's language; where the device lists a
   voice of the same dialect and gender, that voice is chosen; and the same content assigns the same
