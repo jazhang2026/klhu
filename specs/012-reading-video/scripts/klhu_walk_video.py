@@ -999,26 +999,46 @@ def row_34():
 PREF = f"/data/data/{PKG}/shared_prefs/FlutterSharedPreferences.xml"
 
 
+def kept_store():
+    """The app's own record, as it is written: `{content key: its value}`.
+
+    Read raw on purpose — the value's SHAPE moved with the 2026-10-06 amendment
+    (an ordered list of entries per content now; one object in the shape 012
+    shipped with), and a reader that quietly lifted the old shape to a list would
+    hide the very thing a row about the record has to see.
+    """
+    raw = adb("shell", "run-as", PKG, "cat", PREF).stdout
+    m = re.search(r'name="flutter\.video_record"[^>]*>([^<]*)<', raw)
+    if not m:
+        return {}
+    # `shared_preferences` escapes the JSON's quotes in the XML.
+    text = m.group(1).replace("&quot;", '"').replace("&amp;", "&")
+    try:
+        store = json.loads(text)
+    except ValueError:
+        return {}
+    return store if isinstance(store, dict) else {}
+
+
+def record_entries(value):
+    """The entries [value] holds, whatever shape it is in: the array this feature
+    now writes, or the single object it shipped with — read as one video, which is
+    the contract's read rule 5."""
+    raw = value if isinstance(value, list) else [value] if isinstance(value, dict) else []
+    return [e for e in raw if isinstance(e, dict) and e.get("name") and e.get("uri")]
+
+
 def kept_record():
-    """The app's own record of the video it kept: `{name, uri, keptAt}` per
-    content, under `shared_preferences`' key `video_record`.
+    """The videos the app has kept for the content in force: its ordered entries,
+    oldest first (`{name, uri, keptAt}` each), under `shared_preferences`' key
+    `video_record`.
 
     This is the name the gallery entry has to bear, read from the app that wrote
     it — the page's own "Video made: …" line names the *file the render wrote*,
     which is the working directory's, and reading that instead would be checking
     the wrong name (SC-001's line is about the file, FR-011's rule is about the
     content)."""
-    raw = adb("shell", "run-as", PKG, "cat", PREF).stdout
-    m = re.search(r'name="flutter\.video_record"[^>]*>([^<]*)<', raw)
-    if not m:
-        return None
-    # `shared_preferences` escapes the JSON's quotes in the XML.
-    text = m.group(1).replace("&quot;", '"').replace("&amp;", "&")
-    try:
-        entries = json.loads(text)
-    except ValueError:
-        return None
-    return next(iter(entries.values()), None)
+    return record_entries(next(iter(kept_store().values()), None)) or None
 
 
 def row_33():
@@ -1086,7 +1106,11 @@ def row_33():
     kept_entries = gallery_videos()[1]
     print(f"   gallery after keeping: {kept_files} / {kept_entries}")
     record = wait_for(lambda: kept_record() or None, 20)
-    name = (record or {}).get("name")
+    # The record's own order is oldest first, so the video just kept is its LAST
+    # entry — the shape the 2026-10-06 amendment gave it (a single object here
+    # would be read as a one-entry list by `record_entries`).
+    entry = (record or [{}])[-1]
+    name = entry.get("name")
     check("33: the app's own record names the kept video", bool(name),
           repr(record))
     if not name:
@@ -1203,6 +1227,16 @@ def row_33():
     empty = wait_for(lambda: on_screen(dump(), "no videos yet"), 25)
     check("33: the list says that content has no videos", empty,
           repr(labels(dump())[:10]))
+    # …and the app's own record for it is empty too: the row's last claim is about
+    # the store, and the list's empty state only reflects it. Read over EVERY
+    # content, because "no content names that video any more" is the claim a
+    # delete has to make — a content left pointing at a file that went is the
+    # failure this reads for.
+    store_now = kept_store()
+    still_named = [k for k, v in store_now.items()
+                   if any(e.get("name") == name for e in record_entries(v))]
+    check("33: no content's record names that video any more", not still_named,
+          f"still named by {still_named} (the store: {store_now!r})")
     adb("shell", "input", "keyevent", "4")   # back to the page
     time.sleep(1.5)
     rows = dump()

@@ -388,8 +388,12 @@ content offers to record again. Proves FR-011, FR-021, FR-022, FR-023, FR-024, S
 *(Re-cut 2026-10-07 for the 2026-10-06 amendment (FR-033): the page's own `Play video`, `Share` and
 `Delete video` are gone, so the three acts happen on the list's rows and the steps go through `Videos`. This
 row was `WALKED — PASS` on 2026-09-29 against the controls it then named; `breakpoint.md`'s row 33 carries the
-same note, and `klhu_walk_video.py`'s own `row_33` was re-cut with it. The re-run is owed with T064's walk —
-nothing here claims it has been walked again.)*
+same note, and `klhu_walk_video.py`'s own `row_33` was re-cut with it.)*
+**Re-run 2026-10-08: `WALKED — PASS`, 48/48, exit 0, both playback steps enabled, on `emulator-5554`** — the
+measured lines are [breakpoint.md](./breakpoint.md) row 33's own section. The re-cut's first run died on the
+driver's own reader, which still read the record as the shipped single object; that defect and its fix are
+Deviation 21 there, and the row's last claim now reads the store itself (*no content's record names that video
+any more*).
 
 ### 34. Cancelling on the device cleans up, and leaves the old video alone — [device]
 

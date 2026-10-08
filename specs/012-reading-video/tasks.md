@@ -79,12 +79,14 @@ back from the player landing on the list, a row's own share, a warning that name
 that entry and exactly that file while the earlier one stays; the phone is left holding the one video it started
 with). T064 stood **PART DONE** for a day only because the walk needs a device that is not on this box: `adb devices`
 answered `37e102a0 unauthorized` and no `38821a76`, and the row could not run until the reader's phone was
-authorised. The walk then found two defects in its own driver — Deviations 19 and 20 in `breakpoint.md` — and two of
-the row's own assertions were strengthened rather than left answering proxies. **This closing pass touched the walk
-driver and the spec's own documents only** — no file under `lib/` or `test/` was edited by it — so the suite number
-is carried forward, not re-measured: **558 tests green (541 at this stage's baseline), `flutter analyze` clean**,
-measured 2026-10-07 on this tree, whose `lib/` carries this amendment beside the reader's own uncommitted 011/014
-work. The checkers were re-run after the tick and read `64 tasks (64 done), 15 marked [P]` / OK
+authorised. The walk then found three defects in its own drivers — Deviations 19 and 20 (the list driver) and 21
+(row 33's reader, which still assumed the shipped record shape) — and two of row 56's assertions were strengthened
+rather than left answering proxies. **Row 33's re-cut steps were re-run the same day: 48/48**, exit 0, both
+playback steps enabled, on `emulator-5554`. **This closing pass touched the walk
+drivers and the spec's own documents only** — no file under `lib/` or `test/` was edited by it — so the suite
+number is carried forward, not re-measured: **558 tests green (541 at this stage's baseline), `flutter analyze`
+clean**, measured 2026-10-07 on this tree, whose `lib/` carries this amendment beside the reader's own uncommitted
+011/014 work. The checkers were re-run after the tick and read `64 tasks (64 done), 15 marked [P]` / OK
 (`scripts/task_id_audit.py` agreeing). The ids this block first carried (T055–T061) collided with the 2026-09-28
 block's; they are now T058–T064, and Phase 10's own note names what moved and why.
 
@@ -822,6 +824,15 @@ warns first.
       empties album and library and leaves the content offering to record again. The emulator held through both
       player steps this time (the box was idle, and the T055 `TextureView` is the lighter container); the escape
       hatch stays for the runs where it does not. Receipt: [breakpoint.md](./breakpoint.md) rows 33 and 34.
+      **Re-cut and re-run 2026-10-08 — 48/48 checks, exit 0, both playback steps enabled**, after the amendment
+      moved the three acts onto the list's rows (FR-033): render → play the review → discard → render → Save →
+      tap `Videos` → the row of its own → play it there → share it there → delete it there behind a warning that
+      names the video, with the list's own `'This content has no videos yet'` and the record's own store back at
+      `{}` after the confirm. The re-cut's **first** run died on the driver's own **reader** — `kept_record()`
+      still read the record as the shipped single object and the row called `.get("name")` on an array — so the
+      reader was re-cut with the controls and the row gained the store's own claim (*no content's record names
+      that video any more*). Receipt: [breakpoint.md](./breakpoint.md) row 33's own section; the defect is
+      Deviation 21 there.
 
 **Checkpoint**: all three stories are independently demonstrable, and the file's whole life — working copy,
 kept, shared, deleted — is exercised on the device.

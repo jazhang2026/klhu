@@ -46,7 +46,7 @@ iOS — because a closed file that hides its gaps is worse than an open one that
 |---|---|---|---|
 | 31 | A real render produces a real video (landscape, then vertical, `ffprobe`) | **WALKED — PASS** | **31/31** checks, both files pulled and probed (below) |
 | 32 | The video's own look, frame by frame: the band per slot, the column, no chrome (both aspects) | **WALKED — PASS** | **42/42** checks on the amended line (2026-10-01); 818/818 frames each aspect (below) |
-| 33 | The file's life: kept where the galleries look, shared, deleted, and **played** | **WALKED — PASS** | **44/44** checks, both playback steps enabled (2026-10-01, below; the run before it 45/45 — the one check that moves is the SnackBar catch) |
+| 33 | The file's life: kept where the galleries look, shared, deleted, and **played** | **WALKED — PASS** | **44/44** checks, both playback steps enabled (2026-10-01, below; the run before it 45/45 — the one check that moves is the SnackBar catch) — and **48/48** on the row re-cut onto the list (2026-10-08, below) |
 | 34 | A confirmed Stop at about half way cleans up and leaves the library alone | **WALKED — PASS** | **26/26** checks (2026-10-01 re-run, below) |
 | 35 | Spike S1: does the engine write a usable audio file, and does it carry its own length? | **WALKED — PASS** | Three cases, one engine, one run (below) |
 | 36 | Spike S2: a one-minute render's wall time, which replaces SC-006's placeholder | **WALKED — PASS** | **27/27** checks; measured **60.6 s** wall for 69.3 s / 2078 frames, encoder path 47.1 s (2026-10-01, below) |
@@ -1027,8 +1027,36 @@ carries its receipt.
 **Row 33 is a re-cut row, not a new one.** It was `WALKED — PASS` (44/44, the closing-run section below)
 against the page's own `Play video`, `Share` and `Delete video`. Those three controls are gone with the
 amendment (FR-033) — the acts live on the list's rows, reached through `Videos` — so the row's steps and
-`klhu_walk_video.py`'s own `row_33` were re-cut in the same pass. **The re-cut row has not been re-run**: the
-44/44 below is the record of what those controls did on 2026-09-29, not evidence for the list.
+`klhu_walk_video.py`'s own `row_33` were re-cut in the same pass, and **re-run on 2026-10-08: `WALKED — PASS`,
+48/48** on `emulator-5554` (the section below). The 44/44 stays as the record of what the three withdrawn
+controls did on 2026-09-29, not as evidence for the list. The re-cut's **first** run died on its own reader —
+it still read the record as the single object 012 shipped with — which is Deviation 21.
+
+### Row 33, re-cut onto the list — WALKED — PASS (48/48), 2026-10-08
+
+Device: `emulator-5554` (AVD `klhu`, API 36), the app built from the tree that closed T064 and installed the same
+day; the row **does** clear (a fresh install and an empty gallery are its precondition, and this is the emulator,
+not the reader's phone). Driver: `python3 -u specs/012-reading-video/scripts/klhu_walk_video.py 33`.
+
+**~190 s wall, exit 0, both playback steps enabled** (`~/.hermes/cache/scratch/klhu_012_t064/row33_emu2.txt`;
+`free -g` read 15 total / 11 used / 3 available before it). The two renders took **18 s and 19 s wall** for a
+24.77 s / 743-frame video each. What the run read, in its own lines:
+
+| Step | The run's own reading |
+|---|---|
+| a fresh install, an empty gallery | `files=[] entries=[]` |
+| render, watch the review | the aspect prompt opened; `Video made: klhu_video.mp4 (25 s)`; the review offered `['Discard', 'Share', 'Save']` and its picture was a surface of its own |
+| play the working copy inside the review | `AudioPlaybackConfiguration … type:android.media.MediaPlayer … state:started`; `playing it reported no error — []` |
+| throw it away | the page idle again and `files=[] entries=[]` — nothing kept |
+| render again, Save | the record's own value `[{'name': 'The sun rose over the q….mp4', 'uri': '…/video/media/81', …}]`; the name is the content's, not the render's (`klhu_video.mp4`); the album and the library both hold it |
+| the kept file off the device | `1173771B pulled, the render wrote 1173771B`; `ffprobe` — one `h264` + one `aac` stream, 1920×1080, constant 30/1, `file 743 vs render 743` frames, duration `24.89 s vs render 24.77 s` |
+| the page's own action | `Videos` offered, `Play video` / `Share` / `Delete video` gone from the page |
+| the list | `['Back', 'Videos', 'The sun rose over the q….mp4\nOct 8, 2026', 'Share', 'Delete video']` — one row of its own |
+| play it from that row | `AudioPlaybackConfiguration … state:started` |
+| share from that row | the platform's own sheet (`Sharing 1 file`); album and library unchanged |
+| delete, cancel | the warning names the video; `files=['The sun rose over the q….mp4']` — nothing deleted |
+| delete, confirm | `files=[]`, `entries=[]`, the list's own `'This content has no videos yet'`, and **`no content's record names that video any more`** — the store is back to `{}` |
+| back on the page | `Video` offered again (the render's action), `Videos` gone |
 
 ### Row 56 — a content's videos are listed, and each one is its own — WALKED — PASS (32/32), 2026-10-08
 
@@ -1242,7 +1270,9 @@ the reader's own language, and the warning carries the deleted video's name: ass
  receipt for the amendment**, and the re-run of row 33's re-cut steps is owed with the same walk.
  **Resolved 2026-10-08**: the driver is written and both of its rows are walked — row 57 **6/6** (2026-10-07)
  and row 56 **30/30** (2026-10-08) — on the reader's own phone `37e102a0`, authorised. The two defects the walk
- then found in the driver itself are Deviations 19 and 20. Row 33's re-cut steps are still owed.
+ then found in the driver itself are Deviations 19 and 20. Row 33's re-cut steps are **now walked too** — 48/48
+ on `emulator-5554`, 2026-10-08, and their own first run died on a reader that still assumed the shipped
+ record shape: Deviation 21.
  19. **One `Back` does not leave the player, and the step that reads the next screen is the one that pays
  (2026-10-08).** Row 56's run on 2026-10-07 ended **20/20** — which is not a green, it is an early return: after
  the row's video played, the platform's own control bar inside the playback view consumed the first `Back` (it
@@ -1264,4 +1294,16 @@ the reader's own language, and the warning carries the deleted video's name: ass
  executed nothing. The wake (`WAKEUP`, `wm dismiss-keyguard`, `stayon`) was inside each row, i.e. *after* the
  language step; it is now called in `main` before it. **A device walk's first duty is the device's own state, and
  the step that runs first is the one that forgets it.**
+ 21. **Row 33's re-cut re-cut the controls and left its own reader on the old shape (2026-10-08).** The amendment
+ replaced the record's value — a content's videos are an ordered **array** now, not the single object 012 shipped
+ with — and `row_33` was re-cut for the three withdrawn controls without its own reader being re-read:
+ `kept_record()` still returned the content's value and the row called `.get("name")` on it, so the first run died
+ with `AttributeError: 'list' object has no attribute 'get'` immediately after a keep had **succeeded** (the
+ gallery and the library both showed the kept file, so nothing about the app was wrong). The helper answers the
+ content's ordered entries now — a stored single object read as a one-entry list, the contract's read rule 5 — and
+ the row takes the **last** entry as the video just kept. The row also gained the claim its own last section was
+ missing: after the delete, **no content's record names that video any more** (read over the whole store, which the
+ run shows back at `{}`). The lesson is what a re-cut is for: **when a shape changes, every reader of that shape is
+ part of the re-cut**, and a walk that crashes right after a green step is a defect in the walk before it is a
+ question about the app. The re-run is 48/48.
 
