@@ -10,6 +10,7 @@ import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/dialogue.dart';
 import 'package:klhu/language.dart';
+import 'package:klhu/comment.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
@@ -995,7 +996,11 @@ class _ReadingViewState extends State<ReadingView> {
     final pos =
         obj.getPositionForOffset(obj.globalToLocal(globalPosition));
     await widget.reader.stop();
-    final segment = resolve(_content, pos.offset);
+    // The offset the paragraph reports is a DISPLAY offset — the page paints the
+    // text minus the tags (data-model §3) — so it is mapped back to a content
+    // offset before the segmenter sees it, and the comment rule answers first
+    // (FR-012, SC-009; plan ripple 11).
+    final segment = _segmentAt(_commentDisplay.toContent(pos.offset), resolve);
     setState(() {
       // Win over the stopped loop's `finally` below.
       _readGen++;
@@ -1077,6 +1082,8 @@ class _ReadingViewState extends State<ReadingView> {
       mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
       removed: _roles.removedFor(_rolesVersion),
       picks: _roles.voices,
+      // 015: this content's own answer, in both text types.
+      commentsRead: _roles.commentsRead,
       loadVoice: widget.voiceStore.loadVoice,
       // Only 多人对话 asks for the device's voices, and only because a role with
       // no pick falls back to an assignment over them (FR-014). 标准's path is
@@ -1185,8 +1192,14 @@ class _ReadingViewState extends State<ReadingView> {
     final RenderObject? ancestor =
         ctx.findAncestorRenderObjectOfType<RenderAbstractViewport>();
     if (ancestor is! RenderBox) return null;
+    // 015: the selection is expressed in DISPLAY offsets — what the paragraph
+    // actually laid out — while the spoken span is a content span.
+    final display = _commentDisplay;
     final boxes = obj.getBoxesForSelection(
-      TextSelection(baseOffset: spoken.start, extentOffset: spoken.end),
+      TextSelection(
+        baseOffset: display.toDisplay(spoken.start).clamp(0, display.text.length),
+        extentOffset: display.toDisplay(spoken.end).clamp(0, display.text.length),
+      ),
     );
     if (boxes.isEmpty) return null;
     final rect = boxes
@@ -1364,11 +1377,38 @@ class _ReadingViewState extends State<ReadingView> {
         isDialogue: dialogue,
         removed: _roles.removed,
         voices: _roles.voices,
+        commentsRead: _roles.commentsRead,
       );
     });
     if (key == null) return;
     try {
       await _roleStore.setDialogue(key, dialogue: dialogue);
+    } catch (e) {
+      debugPrint('klhu role settings not saved: $e');
+    }
+  }
+
+  /// Record whether this content's comments are read (015 FR-014, FR-016) and
+  /// read it back: the next read resolves with the new answer, and nothing else
+  /// about the page moves — not the text, not its undo stack, not the position,
+  /// not the highlight in force, not the roles or their voices.
+  ///
+  /// The choice is the content's own, so it is stored against the anchor key the
+  /// text type is stored against, and the page's own copy is what the next read
+  /// and the next tap use.
+  Future<void> _setComments(bool read) async {
+    final key = _anchorKey;
+    setState(() {
+      _roles = RoleSettings(
+        isDialogue: _roles.isDialogue,
+        removed: _roles.removed,
+        voices: _roles.voices,
+        commentsRead: read,
+      );
+    });
+    if (key == null) return;
+    try {
+      await _roleStore.setComments(key, read: read);
     } catch (e) {
       debugPrint('klhu role settings not saved: $e');
     }
@@ -1384,7 +1424,11 @@ class _ReadingViewState extends State<ReadingView> {
     final l10n = AppLocalizations.of(context);
     // Recomputed on open and after every change: the list must show what a read
     // would use, and that answer comes from the device's own voices (FR-016).
-    var turns = turnsOf(_content, removed: _roles.removedFor(_rolesVersion));
+    // The scan gets the display's own comments, so a comment-only paragraph is
+    // no turn here exactly as it is on the read's own path (FR-011, ripple 3).
+    var turns = turnsOf(_content,
+        removed: _roles.removedFor(_rolesVersion),
+        comments: _commentDisplay.comments);
     var roles = rolesOf(turns);
     var voices = await resolveRoleVoices(
       turns: turns,
@@ -1398,7 +1442,9 @@ class _ReadingViewState extends State<ReadingView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) {
           Future<void> refresh() async {
-            turns = turnsOf(_content, removed: _roles.removedFor(_rolesVersion));
+            turns = turnsOf(_content,
+                removed: _roles.removedFor(_rolesVersion),
+                comments: _commentDisplay.comments);
             roles = rolesOf(turns);
             voices = await resolveRoleVoices(
               turns: turns,
@@ -1431,6 +1477,19 @@ class _ReadingViewState extends State<ReadingView> {
                         },
                       ),
                   ],
+                ),
+                const Divider(height: 24),
+                // 015's switch, above the role list and offered in BOTH text
+                // types (FR-014): a 标准 content has comments to read too, and
+                // the sheet is the one entry the reader already knows.
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _roles.commentsRead,
+                  title: Text(l10n?.commentsReadLabel ?? 'Read the comments'),
+                  onChanged: (read) async {
+                    await _setComments(read);
+                    setDialog(() {});
+                  },
                 ),
                 if (_roles.isDialogue) ...[
                   const Divider(height: 24),
@@ -1487,7 +1546,9 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _openRoleVoice(String role) async {
     final l10n = AppLocalizations.of(context);
     final key = _anchorKey;
-    final turns = turnsOf(_content, removed: _roles.removedFor(_rolesVersion));
+    final turns = turnsOf(_content,
+        removed: _roles.removedFor(_rolesVersion),
+        comments: _commentDisplay.comments);
     final first = turns.firstWhere(
       (turn) => turn.role == role,
       orElse: () => turns.first,
@@ -2017,6 +2078,10 @@ class _ReadingViewState extends State<ReadingView> {
         mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
         removed: _roles.removedFor(_rolesVersion),
         picks: _roles.voices,
+        // 015: the file sounds exactly like the read — a comment the reader
+        // turned off is in no frame's audio, while the block still paints it
+        // (FR-013, SC-008).
+        commentsRead: _roles.commentsRead,
         loadInstalled: _installedVoices,
         onProgress: (progress) => _reportRenderProgress(gen, progress),
         onFrame: (frame) {
@@ -2242,16 +2307,61 @@ class _ReadingViewState extends State<ReadingView> {
   /// (plain and highlighted) so selecting text can never change metrics:
   /// plain Text and RichText lay the same string out slightly differently.
   List<InlineSpan> _buildSpans() {
+    // 015: the page paints the reader's text with every comment tag's own
+    // characters elided (FR-005), so the span tree is built from the DISPLAY and
+    // the highlight's own boundaries are mapped into it (FR-012, data-model §3).
+    final display = _commentDisplay;
     final h = _highlight;
-    if (h == null) return [TextSpan(text: _content)];
+    if (h == null) return [TextSpan(text: display.text)];
+    final from = display.toDisplay(h.start).clamp(0, display.text.length);
+    final to = display.toDisplay(h.end).clamp(from, display.text.length);
     return [
-      TextSpan(text: _content.substring(0, h.start)),
+      TextSpan(text: display.text.substring(0, from)),
       TextSpan(
-        text: _content.substring(h.start, h.end),
+        text: display.text.substring(from, to),
         style: const TextStyle(backgroundColor: Colors.yellow),
       ),
-      TextSpan(text: _content.substring(h.end)),
+      TextSpan(text: display.text.substring(to)),
     ];
+  }
+
+  /// 015: what the page paints — the text minus the tags — and the mapping back
+  /// to the content's own offsets.
+  ///
+  /// Derived from [_content] and recomputed whenever it changes, like every
+  /// other derived value on this page: the content itself is never rewritten,
+  /// and a text with no tag repaints exactly what it painted before (SC-004).
+  CommentDisplay? _displayCache;
+  String? _displaySource;
+
+  CommentDisplay get _commentDisplay {
+    final cached = _displayCache;
+    if (cached != null && identical(_displaySource, _content)) return cached;
+    final display = displayOf(_content);
+    _displaySource = _content;
+    _displayCache = display;
+    return display;
+  }
+
+  /// The segment a content offset answers (015 FR-012, SC-009).
+  ///
+  /// A comment answers for its whole span: with the comments read, the comment
+  /// itself; with them not read, the sentence it belongs to — and only a tap
+  /// outside every comment reaches the segmenter's own rule unchanged.
+  TextSegment _segmentAt(int offset, TextSegment Function(String, int) resolve) {
+    for (final comment in _commentDisplay.comments) {
+      if (offset < comment.tag.start || offset >= comment.contentEnd) continue;
+      if (_roles.commentsRead && comment.hasContent) {
+        return TextSegment(
+            comment.contentStart, comment.contentEnd, SegmentUnit.paragraph);
+      }
+      if (comment.hasOwner) {
+        return TextSegment(
+            comment.ownerStart!, comment.ownerEnd!, SegmentUnit.sentence);
+      }
+      break;
+    }
+    return resolve(_content, offset);
   }
 
   /// Explicit body style for the reading text. Two device-quirk-driven

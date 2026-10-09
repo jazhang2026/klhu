@@ -363,6 +363,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get formatButton => '排版';
+
+  @override
+  String get commentsReadLabel => '朗读注释';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -723,4 +726,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get formatButton => '排版';
+
+  @override
+  String get commentsReadLabel => '朗读注释';
 }

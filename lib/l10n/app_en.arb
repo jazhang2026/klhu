@@ -157,5 +157,6 @@
   "roleRemoveConfirmMessage": "Its paragraphs will be read as narration, in the reading voice.",
   "rolePickerTitle": "Voice for {role}",
   "@rolePickerTitle": {"placeholders": {"role": {"type": "String"}}},
-  "formatButton": "Format"
+  "formatButton": "Format",
+  "commentsReadLabel": "Read the comments"
 }

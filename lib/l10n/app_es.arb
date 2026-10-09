@@ -106,5 +106,6 @@
   "roleRemoveConfirmTitle": "¿Quitar este rol?",
   "roleRemoveConfirmMessage": "Sus párrafos se leerán como narración, con la voz de lectura.",
   "rolePickerTitle": "Voz para {role}",
-  "formatButton": "Formato"
+  "formatButton": "Formato",
+  "commentsReadLabel": "Leer los comentarios"
 }

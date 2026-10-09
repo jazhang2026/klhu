@@ -6,6 +6,7 @@
 /// does the synthesis, the painting and the encoding around it.
 library;
 
+import 'package:klhu/comment.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/speech_resolver.dart';
@@ -35,6 +36,7 @@ class VideoSentence {
     required this.language,
     required this.voice,
     this.role,
+    this.isComment = false,
   });
 
   /// Indices into the sentences' own paragraphs and their sentences, as the
@@ -54,6 +56,10 @@ class VideoSentence {
   /// the read's own answer, carried through so the render's log line can name it
   /// (D10) — the frame itself never shows it.
   final String? role;
+
+  /// Whether this unit is a comment's own speech (015 FR-007): it is never a
+  /// slot of its own — it rides the sentence it belongs to (D8).
+  final bool isComment;
 }
 
 /// Splits per-paragraph speeches into the sentences the video will speak.
@@ -85,6 +91,7 @@ List<VideoSentence> videoSentencesOf(List<ParagraphSpeech> speeches) {
           language: paragraph.language,
           voice: paragraph.voice,
           role: paragraph.role,
+          isComment: paragraph.isComment,
         ),
       );
     }
@@ -103,7 +110,11 @@ List<VideoSentence> videoSentencesOf(List<ParagraphSpeech> speeches) {
 /// page's read makes, with the same content type, removals and picks (014 D9),
 /// so the video cannot read or voice something different from what a read would.
 /// The dialogue parameters default to the standard read, which is what this call
-/// was before 014: 012's own callers and tests pass none of them.
+/// was before 014: 012's own callers and tests pass none of them. 015's
+/// [commentsRead] defaults to `true` (the shipped default of FR-006): with it
+/// `false` no comment's characters reach the sentences at all, which is what
+/// makes the file's audio the sentences' own (SC-008) while the block still
+/// paints the comment (`buildVideoPlan`).
 Future<List<VideoSentence>> videoSentencesFrom({
   required String content,
   required int position,
@@ -111,6 +122,7 @@ Future<List<VideoSentence>> videoSentencesFrom({
   ReadingMode mode = ReadingMode.standard,
   Set<String> removed = const {},
   Map<String, VoiceChoice> picks = const {},
+  bool commentsRead = true,
   Future<List<VoiceEntry>> Function()? loadInstalled,
 }) async {
   final from = resolveSentence(content, position).start;
@@ -121,6 +133,7 @@ Future<List<VideoSentence>> videoSentencesFrom({
     mode: mode,
     removed: removed,
     picks: picks,
+    commentsRead: commentsRead,
     loadVoice: loadVoice,
     loadInstalled: loadInstalled,
   );
@@ -141,6 +154,7 @@ class VideoSlot {
     required this.durationMs,
     required this.frames,
     required this.startFrame,
+    this.audio = const [],
     this.role,
   });
 
@@ -164,6 +178,13 @@ class VideoSlot {
   /// The role whose turn this slot speaks, or null for narration (014 FR-018).
   /// The hold repeats the last sentence's, like its text and its voice.
   final String? role;
+
+  /// The utterances this slot plays, in order, as indices into the list
+  /// [buildVideoPlan] was handed — the sentence's own first, then each comment
+  /// that rides it (015 D8). The renderer turns each index into its own audio
+  /// file (`sentence_$i.wav`) and its own segment. Empty on the end hold, which
+  /// plays the sentence's own tail as silence.
+  final List<int> audio;
 
   /// How long this slot lasts, and how many frames that is at the plan's rate.
   final int durationMs;
@@ -216,9 +237,32 @@ class VideoPlan {
   int framesFor(int ms) => (ms * fps / 1000).round();
 }
 
+/// A slot while it is being built: the sentence that opens it ([own], an index
+/// into the plan's sentences) and the comment units that ride it, in order.
+class _SlotDraft {
+  _SlotDraft(this.own);
+
+  final int own;
+  final List<int> riders = <int>[];
+}
+
 /// Builds the finished plan: [sentences] in order, each with the length of the
 /// audio that was measured for it in [audioMs], laid out at [aspect]'s frame and
 /// rate.
+///
+/// 015: a comment does not get a slot of its own — it **rides** the sentence it
+/// belongs to (FR-013, D8). The slot's [VideoSlot.text] is that sentence
+/// followed, on its own line, by each comment that rides it, and its
+/// [VideoSlot.audio] names the utterances it plays, the sentence's own first.
+/// The block is built from the content's own [comments], not from the read's
+/// speeches, so it paints the comment in both switch states while the audio
+/// carries it only when it was read (research D8). The pairing is its own rule: a
+/// comment rides the last non-comment sentence that starts before its tag, and a
+/// comment whose owner is not in the render (a range that begins past it) is a
+/// slot of its own — its own words alone in the frame — rather than dropped
+/// (research's grounding correction 2). A comment the read never speaks (no
+/// sentence precedes it anywhere) is in no frame: a file may not paint what the
+/// read does not say.
 ///
 /// An empty [sentences] is an empty plan, not an error (FR-015). A length
 /// mismatch is a programming error and throws — a plan whose slot count and
@@ -227,6 +271,7 @@ VideoPlan buildVideoPlan({
   required List<VideoSentence> sentences,
   required List<int> audioMs,
   required VideoAspect aspect,
+  List<Comment> comments = const [],
 }) {
   if (sentences.isEmpty) {
     return VideoPlan(
@@ -244,33 +289,67 @@ VideoPlan buildVideoPlan({
 
   int framesOf(int ms) => (ms * aspect.fps / 1000).round();
 
+  // One slot per non-comment sentence; a comment unit (already placed right
+  // after its owner by the resolver) rides the slot it follows, and one with no
+  // sentence before it opens a slot of its own.
+  final drafts = <_SlotDraft>[];
+  for (var i = 0; i < sentences.length; i++) {
+    if (!sentences[i].isComment) {
+      drafts.add(_SlotDraft(i));
+    } else if (drafts.isEmpty || sentences[drafts.last.own].isComment) {
+      drafts.add(_SlotDraft(i));
+    } else {
+      drafts.last.riders.add(i);
+    }
+  }
+
+  // The block each slot paints: its own sentence, then each content comment that
+  // rides it — the last non-comment sentence that starts before the comment's
+  // tag. A comment nothing rides paints nothing (the read never speaks it).
+  final riding = <int, List<String>>{
+    for (var s = 0; s < drafts.length; s++) s: <String>[],
+  };
+  for (final comment in comments) {
+    var target = -1;
+    for (var s = 0; s < drafts.length; s++) {
+      final own = sentences[drafts[s].own];
+      if (!own.isComment && own.start < comment.tag.start) target = s;
+    }
+    if (target >= 0) riding[target]!.add(comment.text);
+  }
+
   final slots = <VideoSlot>[];
   var cursor = 0;
-
-  for (var i = 0; i < sentences.length; i++) {
-    final sentence = sentences[i];
-    final frames = framesOf(audioMs[i]);
+  for (var s = 0; s < drafts.length; s++) {
+    final draft = drafts[s];
+    final own = sentences[draft.own];
+    // The utterances this slot plays, and the frames they run for.
+    final audio = <int>[draft.own, ...draft.riders];
+    final durationMs = audio.fold<int>(0, (sum, i) => sum + audioMs[i]);
+    final frames = framesOf(durationMs);
     slots.add(
       VideoSlot(
         kind: VideoSlotKind.sentence,
-        paragraph: sentence.paragraph,
-        sentence: sentence.sentence,
-        start: sentence.start,
-        end: sentence.end,
-        text: sentence.text,
-        language: sentence.language,
-        voice: sentence.voice,
-        role: sentence.role,
-        durationMs: audioMs[i],
+        paragraph: own.paragraph,
+        sentence: own.sentence,
+        start: own.start,
+        end: own.end,
+        text: <String>[own.text, ...riding[s]!].join('\n'),
+        language: own.language,
+        voice: own.voice,
+        role: own.role,
+        audio: audio,
+        durationMs: durationMs,
         frames: frames,
         startFrame: cursor,
       ),
     );
     cursor += frames;
     // A gap separates consecutive sentences; the hold follows the last one.
-    if (i < sentences.length - 1) cursor += framesOf(VideoPlan.gapMs);
+    if (s < drafts.length - 1) cursor += framesOf(VideoPlan.gapMs);
   }
 
+  final last = slots.last;
   slots.add(
     VideoSlot(
       kind: VideoSlotKind.hold,
@@ -278,10 +357,10 @@ VideoPlan buildVideoPlan({
       sentence: -1,
       start: 0,
       end: 0,
-      text: sentences.last.text,
-      language: sentences.last.language,
-      voice: sentences.last.voice,
-      role: sentences.last.role,
+      text: last.text,
+      language: last.language,
+      voice: last.voice,
+      role: last.role,
       durationMs: VideoPlan.holdMs,
       frames: framesOf(VideoPlan.holdMs),
       startFrame: cursor,

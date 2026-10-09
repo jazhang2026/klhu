@@ -56,16 +56,28 @@ class RoleSettings {
   /// The reader's pick per role name.
   final Map<String, VoiceChoice> voices;
 
+  /// 015: whether this content's comments are read aloud. The shipped default is
+  /// **read** — the reader's own answer of 2026-10-08, which reverses the item's
+  /// own example — and the store's own read, write and tolerance of the field
+  /// are US3's work (T015); the page needs its answer here for the tap rule
+  /// alone (FR-006, FR-012).
+  final bool commentsRead;
+
   const RoleSettings({
     this.isDialogue = false,
     this.removed = const [],
     this.voices = const {},
+    this.commentsRead = true,
   });
 
   /// A content nothing was ever decided about — read as today, exactly (FR-002).
   static const RoleSettings none = RoleSettings();
 
-  bool get isEmpty => !isDialogue && removed.isEmpty && voices.isEmpty;
+  /// Nothing decided about this content. 015's switch is a decision like the
+  /// others: a content whose comments the reader turned off is not "nothing
+  /// decided", or its own entry would not survive its own write.
+  bool get isEmpty =>
+      !isDialogue && removed.isEmpty && voices.isEmpty && commentsRead;
 
   /// The names still removed for a text whose `updatedAt` is [updatedAt].
   ///
@@ -92,6 +104,9 @@ class RoleSettings {
           RoleRemoval(name: name, at: at.toIso8601String()),
         ],
         voices: voices,
+        // 015: every hand-built copy carries the switch, or changing a role
+        // would silently turn the comments back on (plan ripple 4).
+        commentsRead: commentsRead,
       );
 
   /// The settings with [role]'s pick replaced — or cleared, when [voice] is null
@@ -104,7 +119,12 @@ class RoleSettings {
     } else {
       next[role] = voice;
     }
-    return RoleSettings(isDialogue: isDialogue, removed: removed, voices: next);
+    return RoleSettings(
+      isDialogue: isDialogue,
+      removed: removed,
+      voices: next,
+      commentsRead: commentsRead,
+    );
   }
 }
 
@@ -172,6 +192,20 @@ class RoleStore {
           entry.remove('voices');
         } else {
           entry['voices'] = voices;
+        }
+      });
+
+  /// Record whether this content's comments are read (015 FR-006, FR-015).
+  ///
+  /// *Read* is the absence of the field, exactly as 标准 is the absence of
+  /// `"type"`: a content the reader never turned the comments off for stores
+  /// nothing about them, and turning them back on takes the field away again.
+  Future<void> setComments(String contentKey, {required bool read}) =>
+      _write(contentKey, (entry) {
+        if (read) {
+          entry.remove('comments');
+        } else {
+          entry['comments'] = false;
         }
       });
 
@@ -254,6 +288,10 @@ class RoleStore {
       isDialogue: entry['type'] == 'dialogue',
       removed: removed,
       voices: voices,
+      // Tolerant like every other field: only an explicit `false` turns the
+      // comments off, so a string, a number or anything else reads as the
+      // shipped default (FR-006, FR-021).
+      commentsRead: entry['comments'] != false,
     );
   }
 

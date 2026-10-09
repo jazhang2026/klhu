@@ -22,6 +22,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:klhu/comment.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/speech_resolver.dart';
@@ -189,6 +190,7 @@ class VideoRenderer {
     ReadingMode mode = ReadingMode.standard,
     Set<String> removed = const {},
     Map<String, VoiceChoice> picks = const {},
+    bool commentsRead = true,
     Future<List<VoiceEntry>> Function()? loadInstalled,
     void Function(VideoRenderProgress)? onProgress,
     void Function(VideoFrame)? onFrame,
@@ -196,7 +198,9 @@ class VideoRenderer {
     // What a read from this position would speak, resolved exactly as the read
     // resolves it: the same sentence split, the same language per paragraph,
     // the same picked voice (FR-004, A5) — and, since 014, the same roles and
-    // the same per-role voices (FR-018).
+    // the same per-role voices (FR-018). 015's switch decides whether a
+    // comment's utterances exist at all (SC-008); the block paints the comment
+    // either way (the plan's own `comments` below).
     final sentences = await videoSentencesFrom(
       content: content,
       position: position,
@@ -204,6 +208,7 @@ class VideoRenderer {
       mode: mode,
       removed: removed,
       picks: picks,
+      commentsRead: commentsRead,
       loadInstalled: loadInstalled,
     );
     if (sentences.isEmpty) {
@@ -263,6 +268,10 @@ class VideoRenderer {
         sentences: sentences,
         audioMs: audioMs,
         aspect: aspect,
+        // 015: the block is built from the content's own comments, not from the
+        // read's speeches, so it paints a comment whether or not it was read
+        // (research D8).
+        comments: commentsOf(content),
       );
 
       // ---- pass 2: the picture follows the clock --------------------------
@@ -309,17 +318,29 @@ class VideoRenderer {
         }
       }
 
-      // One audio segment per slot, in order, each exactly as long as the
-      // frames it occupies — the frames are the muxer's clock, so a segment's
-      // length comes from the timeline, not from the file (FR-016).
+      // One audio segment per **utterance** inside its slot's frames, in order
+      // (015 D8/T021): a comment rides its sentence's slot, so the flat list the
+      // platform half already takes gains a segment per comment. A segment's
+      // length comes from the timeline, not from the file — the frames are the
+      // muxer's clock, and a slot's last utterance absorbs the gap after it
+      // (FR-016).
       final segments = <VideoAudioSegment>[];
-      var sentenceIndex = 0;
       for (var i = 0; i < plan.slots.length; i++) {
         final slot = plan.slots[i];
-        segments.add(VideoAudioSegment(
-          path: slot.isSentence ? written[sentenceIndex++] : null,
-          durationUs: _spanFrames(plan, i) * 1000000 ~/ plan.fps,
-        ));
+        final spanUs = _spanFrames(plan, i) * 1000000 ~/ plan.fps;
+        if (slot.audio.isEmpty) {
+          // The end hold: the plan's own silence, as before 015.
+          segments.add(VideoAudioSegment(path: null, durationUs: spanUs));
+          continue;
+        }
+        var usedUs = 0;
+        for (var u = 0; u < slot.audio.length; u++) {
+          final index = slot.audio[u];
+          final isLast = u == slot.audio.length - 1;
+          final us = isLast ? spanUs - usedUs : audioMs[index] * 1000;
+          segments.add(VideoAudioSegment(path: written[index], durationUs: us));
+          usedUs += us;
+        }
       }
 
       try {

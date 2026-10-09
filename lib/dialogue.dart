@@ -15,6 +15,7 @@
 library;
 
 import 'models/voice_mapping.dart';
+import 'comment.dart';
 import 'language.dart';
 import 'reader_service.dart';
 import 'segmenter.dart';
@@ -157,24 +158,36 @@ RoleTag? roleTagAt(String text, int paragraphStart, int paragraphEnd) {
 /// [removed] is the set of names the reader has said are not roles: their
 /// paragraphs are narration turns here (FR-007), which is what makes a removal
 /// change what is SPOKEN without changing what is displayed (FR-020).
+///
+/// [comments] is 015's own seam: the comments `lib/comment.dart` derived from
+/// the same text. A turn's own content stops at a comment's tag (FR-011), and a
+/// paragraph that is nothing but a comment produces no turn at all — its
+/// content is empty either way, so it adds no utterance, no role and no count.
+/// The parameter defaults to empty, so every 014 caller keeps today's scan.
 List<Turn> turnsOf(
   String text, {
   int start = 0,
   int? end,
   Set<String> removed = const {},
+  List<Comment> comments = const [],
 }) {
   final to = end ?? text.length;
   final turns = <Turn>[];
   for (final para in paragraphRanges(text)) {
     if (para.start >= to || para.end <= start) continue;
-    final tag = roleTagAt(text, para.start, para.end);
+    // Where the paragraph's own text stops: a comment's characters are not a
+    // turn's, and nothing about the speaker changes with them (FR-011).
+    final commentStart = _commentTagIn(comments, para.start, para.end);
+    final paraEnd =
+        commentStart != null && commentStart < para.end ? commentStart : para.end;
+    final tag = roleTagAt(text, para.start, paraEnd);
     final role =
         tag != null && !removed.contains(tag.name) ? tag.name : null;
     // A removed name keeps its prefix out of the content: the span stays where
     // it was, only the speaker changes (FR-007).
     final from = tag != null ? tag.contentStart : para.start;
     final contentStart = from < start ? start : from;
-    var contentEnd = para.end > to ? to : para.end;
+    var contentEnd = paraEnd > to ? to : paraEnd;
     // The paragraph ranges trim a trailing blank line but not the last
     // paragraph's trailing spaces; a turn's content ends at its last
     // non-whitespace character either way (data-model.md §2).
@@ -437,6 +450,20 @@ int _flag(bool value) => value ? 1 : 0;
 /// a paragraph may carry at its tail.
 bool _isSpace(String char) =>
     char == ' ' || char == '\t' || char == '\n' || char == '\r';
+
+/// The offset of the first comment tag inside `[from, to)`, or null (015).
+///
+/// The comment rule itself lives in `lib/comment.dart` and never calls back
+/// here: this is the whole of the seam between the two tags' implementations
+/// (research D2).
+int? _commentTagIn(List<Comment> comments, int from, int to) {
+  for (final comment in comments) {
+    if (comment.tag.start >= from && comment.tag.start < to) {
+      return comment.tag.start;
+    }
+  }
+  return null;
+}
 
 /// The dialect signal this app actually has: the voice's own LOCALE, not the
 /// mapping table's `dialect` field.

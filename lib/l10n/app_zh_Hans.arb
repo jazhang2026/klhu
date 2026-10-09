@@ -106,5 +106,6 @@
   "roleRemoveConfirmTitle": "移除此角色？",
   "roleRemoveConfirmMessage": "其段落将作为旁白，用朗读语音读出。",
   "rolePickerTitle": "为 {role} 选择语音",
-  "formatButton": "排版"
+  "formatButton": "排版",
+  "commentsReadLabel": "朗读注释"
 }

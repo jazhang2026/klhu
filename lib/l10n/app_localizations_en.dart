@@ -375,4 +375,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get formatButton => 'Format';
+
+  @override
+  String get commentsReadLabel => 'Read the comments';
 }

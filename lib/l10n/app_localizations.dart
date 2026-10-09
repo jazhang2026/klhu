@@ -742,6 +742,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Format'**
   String get formatButton;
+
+  /// No description provided for @commentsReadLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the comments'**
+  String get commentsReadLabel;
 }
 
 class _AppLocalizationsDelegate

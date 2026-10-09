@@ -78,6 +78,14 @@ class ParagraphSpeech {
   /// read back into a name).
   final String? role;
 
+  /// 015: this speech is a comment's own, not a sentence's — the reader's
+  /// second utterance beside the sentence it belongs to (FR-009).
+  ///
+  /// False for everything 014 and 标准 produce, which is what makes this
+  /// additive: the field exists so the read's own log line can say which
+  /// utterance was the comment's, on a device, without a UI dump (T012).
+  final bool isComment;
+
   const ParagraphSpeech({
     required this.text,
     required this.language,
@@ -85,6 +93,7 @@ class ParagraphSpeech {
     required this.start,
     required this.end,
     this.role,
+    this.isComment = false,
   });
 }
 
@@ -230,6 +239,10 @@ class _Utterance {
   /// null for narration and for every 标准 speech.
   final String? role;
 
+  /// 015: this utterance is a comment's own sentence (FR-009), carried from the
+  /// speech it was cut from so the log line can name it.
+  final bool isComment;
+
   const _Utterance({
     required this.text,
     required this.language,
@@ -239,6 +252,7 @@ class _Utterance {
     required this.sentence,
     required this.start,
     required this.end,
+    this.isComment = false,
   });
 }
 
@@ -403,6 +417,7 @@ class ReaderService implements Reader, SentenceSynthesizer {
             language: paragraph.language,
             voice: paragraph.voice,
             role: paragraph.role,
+            isComment: paragraph.isComment,
             paragraph: i,
             sentence: j,
             start: paragraph.start + ranges[j].start,
@@ -523,7 +538,11 @@ class ReaderService implements Reader, SentenceSynthesizer {
           'klhu speak p${unit.paragraph} s${unit.sentence}'
           '${unit.role == null ? '' : ' role=${unit.role}'}'
           '${unit.voice == null ? '' : ' voice=${unit.voice!.name}'}'
-          ' "${_logPrefix(unit.text)}"',
+          ' "${_logPrefix(unit.text)}"'
+          // 015: LAST, after the quoted text — the device drivers' own pattern
+          // reads `s<j>` then an optional `role=`/`voice=` then `"…"`, so a
+          // field between them would break every walk 010/014 wrote.
+          '${unit.isComment ? ' comment=1' : ''}',
         );
         final done = Completer<void>();
         _utterance = done;

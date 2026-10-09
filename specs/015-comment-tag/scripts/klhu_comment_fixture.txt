@@ -1,0 +1,42 @@
+## main
+Hola.
+
+[注] How are you?
+
+## nota
+Hola.
+
+[nota] How are you?
+
+## traditional
+Hola.
+
+[註] How are you?
+
+## inline
+Hola. [注] Hi. Adiós.
+
+## dialogue
+{阿明} 今日个天气真系唔错啊。
+
+[注] How are you?
+
+## standard_tags
+{阿明} 今日个天气真系唔错啊。
+
+[注] How are you?
+
+## head_comment
+[注] Hello.
+
+Hola.
+
+## marker_only
+[注]
+
+Hola.
+
+## full_width
+Hola.
+
+［注］ How are you?

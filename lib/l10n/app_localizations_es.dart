@@ -378,4 +378,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get formatButton => 'Formato';
+
+  @override
+  String get commentsReadLabel => 'Leer los comentarios';
 }

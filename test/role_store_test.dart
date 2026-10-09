@@ -119,6 +119,126 @@ void main() {
     });
   });
 
+  group('the comment setting (FR-006, FR-015, SC-010)', () {
+    const pick = VoiceChoice(
+      language: 'zh-Hans',
+      name: 'yue-hk-x-jar-local',
+      locale: 'yue-HK',
+    );
+
+    test('nothing stored reads read — the shipped default', () async {
+      final settings = await RoleStore().load('content-a');
+      expect(settings.commentsRead, isTrue,
+          reason: 'the comments are read unless the reader says otherwise');
+      // 014's own reading of "nothing decided" still holds for a fresh content.
+      expect(settings.isEmpty, isTrue);
+      expect(await rawValue(), isNull);
+    });
+
+    test('the off state round-trips as the field, and survives on its own',
+        () async {
+      final store = RoleStore();
+      await store.setComments('content-a', read: false);
+      expect(jsonDecode((await rawValue())!),
+          {'content-a': {'comments': false}});
+      final settings = await store.load('content-a');
+      expect(settings.commentsRead, isFalse);
+      expect(settings.isEmpty, isFalse,
+          reason: 'a content the reader turned the comments off for is not '
+              '"nothing decided" — the entry has to survive its own write');
+    });
+
+    test('turning them back on writes nothing at all', () async {
+      final store = RoleStore();
+      await store.setComments('content-a', read: false);
+      await store.setComments('content-a', read: true);
+      expect(await rawValue(), isNull,
+          reason: 'read is the absence of the field, exactly as 标准 is the '
+              'absence of "type" (FR-006)');
+      expect((await store.load('content-a')).commentsRead, isTrue);
+    });
+
+    test('a store that is not JSON turns nothing off', () async {
+      await storeRaw('{ not json');
+      final before = await rawValue();
+      expect((await RoleStore().load('content-a')).commentsRead, isTrue);
+      expect(await rawValue(), before,
+          reason: 'a read never rewrites the store (FR-021)');
+    });
+
+    test('a corrupt entry is ignored for that content only, unrepaired',
+        () async {
+      for (final broken in <Object?>[
+        {'content-a': 'not an object', 'content-b': {'comments': false}},
+        {
+          'content-a': {'comments': 'off'},
+          'content-b': {'comments': false},
+        },
+        {
+          'content-a': {'comments': 0},
+          'content-b': {'comments': false},
+        },
+      ]) {
+        await storeRaw(broken);
+        final before = await rawValue();
+        final store = RoleStore();
+        expect((await store.load('content-a')).commentsRead, isTrue,
+            reason: '$broken');
+        expect((await store.load('content-b')).commentsRead, isFalse,
+            reason: 'the other content keeps its own answer: $broken');
+        expect(await rawValue(), before,
+            reason: 'a read never rewrites the store (FR-021): $broken');
+      }
+    });
+
+    test('the switch leaves every other decision alone', () async {
+      final store = RoleStore();
+      await store.setDialogue('content-a', dialogue: true);
+      await store.removeRole('content-a', name: '阿芳', at: saved);
+      await store.setVoice('content-a', role: '阿明', voice: pick);
+      await store.setComments('content-a', read: false);
+
+      final settings = await store.load('content-a');
+      expect(settings.isDialogue, isTrue);
+      expect(settings.removedFor(saved), {'阿芳'});
+      expect(settings.pickFor('阿明')!.name, pick.name);
+      expect(settings.commentsRead, isFalse);
+      // One entry, four decisions, and the switch is one of them.
+      expect(jsonDecode((await rawValue())!), {
+        'content-a': {
+          'type': 'dialogue',
+          'removed': [
+            {'name': '阿芳', 'at': saved.toIso8601String()},
+          ],
+          'voices': {
+            '阿明': {'name': pick.name, 'locale': pick.locale},
+          },
+          'comments': false,
+        },
+      });
+    });
+
+    test('the page\'s own copy carries it through every change', () async {
+      const off = RoleSettings(commentsRead: false);
+      expect(off.withVoice('阿明', pick).commentsRead, isFalse);
+      expect(off.withVoice('阿明', null).commentsRead, isFalse);
+      expect(off.withRemoval('阿芳', saved).commentsRead, isFalse);
+      expect(RoleSettings.none.commentsRead, isTrue,
+          reason: 'a hand-built settings object that forgets the field would '
+              'silently turn the comments back on (plan ripple 4)');
+    });
+
+    test('deleting the content takes the switch with it', () async {
+      final store = RoleStore();
+      await store.setComments('content-a', read: false);
+      await store.setComments('content-b', read: false);
+      await store.clearFor('content-a');
+      expect((await RoleStore().load('content-a')).commentsRead, isTrue);
+      expect((await RoleStore().load('content-b')).commentsRead, isFalse,
+          reason: 'the other content keeps its own answer');
+    });
+  });
+
   group('tolerant reads (FR-021)', () {
     test('a store that is not JSON, or not an object, is "nothing decided"',
         () async {
