@@ -48,23 +48,23 @@ Requirement:
      
     1.文本格式示例：角色前缀 + 冒号 + 内容
 
-     旁白：今天天气很好，适合出去走走。
+     {旁白}：今天天气很好，适合出去走走。
 
-     阿明：今日个天气真系唔错啊，行下公园好舒服。
+     {阿明}：今日个天气真系唔错啊，行下公园好舒服。
 
-     May：系啊，太阳晒住，风又凉爽，真系适合周末。
+     {May}：系啊，太阳晒住，风又凉爽，真系适合周末。
 
-     阿芳：我好少黎呢个公园，原来呢度风景咁靓。
+     {阿芳}：我好少黎呢个公园，原来呢度风景咁靓。
 
     2.用户为每个角色选择不同的语音。语言由文本内容决定。
 
-     旁白：男声。
+     {旁白}：男声。
 
-     阿明：男声。
+     {阿明}：男声。
 
-     May：女声。
+     {May}：女声。
 
-     阿芳：女声。
+     {阿芳}：女声。
 
      如无设定，系统自动分配， 优先选择同语言，同性别，同方言。
 
@@ -73,3 +73,25 @@ Requirement:
       多人对话: 多个角色分别读各自的内容。不读角色前缀 （即：不读"旁白："，"阿明："等），是对话不是读书。
 
     4.生成视频时，语音与对话(朗读)相同，只显示当前句子，文字不显示 角色前缀 + 冒号，只显示内容。
+
+014的优化：
+    1. 文本格式示例：角色前缀 + 冒号 + 内容
+    2. 用户为每个角色选择不同的语音。语言由文本内容决定。
+    3. 设定文本类型：可选择 (标准，多人对话)
+    4. 生成视频时，语音与对话(朗读)相同，只显示当前句子，文字不显示 角色前缀 + 冒号，只显示内容。
+
+015. besides the 角色前缀 tag. add a new tag for [comment](中文：[注]).
+    comment tag is used to manage the reading of the comment. 
+    example: a spanish sentence followed by a comment of english translation.
+    the spanish sentence is read by the spanish voice.
+    the english translation will not be read. use can see it but not hear it.
+    [comment] tag will never be read. it is only for display and management. 
+    to read or not read the comment can be set by user.
+    [comment] tag can also applied in standard mode contents.
+    comment tag will not be displayed in the video. the comment content will be in the video with the sentence.
+
+    research and help to design the new tag.
+
+    one change for 014:
+    the reading sentence of the short video(9:16) in youtube is covered by the title and some icon.
+    Need to move it up to avoid being covered.

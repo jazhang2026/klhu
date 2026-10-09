@@ -1307,3 +1307,35 @@ the reader's own language, and the warning carries the deleted video's name: ass
  part of the re-cut**, and a walk that crashes right after a green step is a defect in the walk before it is a
  question about the app. The re-run is 48/48.
 
+## The 2026-10-08 amendment — a portrait frame's placement (recorded against rows already in this file)
+
+**A finding against rows this file already carries, not a row of its own.** The reader, watching a finished 9:16
+render in YouTube's own player (2026-10-08): *"the reading sentence of the short video(9:16) in youtube is covered
+by the title and some icon. Need to move it up to avoid being covered."* The sentence those rows measured at the
+**bottom** of the text area is this spec's own D22 of 2026-09-28, made for a frame watched full-screen — and the
+bottom of a 9:16 frame is exactly where the platform draws its title, channel line, subscribe button and progress
+band, plus the action rail down the right edge. So, from this date:
+
+- a **portrait** frame's vertical insets are the platform's published safe box for the same 1080×1920 canvas
+  (15 % of the height above, 35 % below — 288 px and 672 px) and a sentence that fits rests at the **top** of it;
+- this file's driver was re-cut in the same sweep — `scripts/klhu_walk_video.py`'s `column_of` now reads
+  `column_top`/`column_bottom` (the tenth on a landscape frame, the platform's bands on a portrait one) and
+  **row 32's** "where the words sit" check is the aspect's own rule (a portrait frame's words *start* at the
+  column's top and stay above its bottom band; a landscape frame keeps the expectation it had);
+- **a landscape frame is unchanged**, which is why **row 49**'s receipt above still reads true as written and is
+  not re-quoted here, and why row 32's landscape half keeps its expectations;
+- **rows 32 and 49 were re-run on 2026-10-08** on a build of the amended code (`flutter build apk --debug`,
+  `adb -s emulator-5554 install -r`): **row 32 → 42/42, both aspects** (a landscape render 1173771 B and a
+  portrait render 1245535 B, 743 frames each, *"every sampled frame holds the app's own look — 24/24 frames
+  clean"* on each, which is the re-cut check reading the portrait frame against the platform's safe box) and
+  **row 49 → 40/40** (its landscape assertions exactly as written: *"the column's bottom is 972"*, the words' own
+  box ending there, the band's own opposite ink over it). The driver's own printed geometry is the receipt for
+  the rule: **portrait 1080×1920 → the column runs y=288 to y=1248; landscape 1920×1080 → y=108 to y=972.** One
+  note for the record rather than a rounding: this file's 2026-10-01 receipt for row 49 reads **41/41**, one
+  check more than the re-run reported, and the amendment touched none of that row's assertions — the difference
+  belongs to row 49's own section above, and is named here so a later reader does not read it as a check lost to
+  this change;
+- the same amendment reaches **014's own row 27** (the dialogue's video on the device), which was re-walked the
+  same day on the same build — **24/24** — and is recorded in 014's own `breakpoint.md` and `tasks.md` (T037)
+  rather than here.
+

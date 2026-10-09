@@ -1697,3 +1697,22 @@ ticks are the record of what ran then, and its own `T056` (the painter) is still
 | FR-033 a content's videos are listed like the app's contents: one row per video, its own share and delete, a tap plays it, an empty state, the reader's own language | T060, T062, T063 |
 | SC-026 a content with more than one kept video lists them all, each playable, shareable and deletable on its own | T058, T060, T061, T063, T064 |
 | SC-027 a record written in the shipped one-object-per-content shape reads as one video, nothing lost or duplicated | T058, T063, T064 |
+
+## Superseded by later specs
+
+- **Where a sentence that fits its frame rests is the aspect's own rule (2026-10-08).** This file's `spec.md`
+  (its FR-006 prose, the Key Entities' "A sentence's scroll", and A3), its `research.md` D22 and its
+  `data-model.md` placement row all state that a sentence that fits sits at the **bottom** of the text area, which
+  was the reader's own request of 2026-09-28 for a frame watched full-screen. That is now the **landscape**
+  frame's rule: a **portrait** (9:16) frame lays its words inside the video platform's own safe box — 15 % of the
+  frame's height above, 35 % below, the published vertical template for the same 1080×1920 canvas — and rests a
+  fitting sentence at the **top** of it, because the reader reported that the sentence at the bottom of a 9:16
+  file comes back *"covered by the title and some icon"*. The new behaviour is recorded in
+  `specs/014-dialogue-reading/spec.md` (its 2026-10-08 amendment, its Clarifications session of that date, its new
+  requirement and success criterion, and its US4 scenario 5) and implemented in `lib/video_painter.dart`.
+  This spec's artifacts are left as written — they are the record of what was approved on 2026-10-01 — and its
+  **driver** is re-cut in the same sweep (`scripts/klhu_walk_video.py`: `column_top`/`column_bottom`, and row 32's
+  "where the words sit" check made the aspect's own rule), with the finding recorded in `breakpoint.md`'s own new
+ section. **Rows 32 and 49 were re-run on 2026-10-08 on a build of the amended code — 42/42 (both aspects) and
+ 40/40** — so this file's standing receipts for them hold for the current tree as well as for the one they were
+ taken on; their landscape halves are unchanged by the amendment.

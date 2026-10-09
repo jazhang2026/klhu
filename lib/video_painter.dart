@@ -243,7 +243,31 @@ class VideoPainter {
 
   /// The margin above and below the column, as a fraction of the frame's height:
   /// the vertical space is what a text block is laid out inside.
+  ///
+  /// It is the **landscape** frame's own inset. A portrait frame's two insets are
+  /// the platform's safe box instead, and its words rest at the *top* of that box
+  /// ([portraitTopInsetFraction], [portraitFrame]) — the reader's own report of
+  /// 2026-10-08 is what put them there: a 9:16 file on YouTube comes back with its
+  /// bottom covered by the player's title, channel line, subscribe button and
+  /// scrubber plus the action rail down the right edge, so the sentence parked at
+  /// the bottom of the frame was the sentence they could not read.
   static const double marginYFraction = 0.10;
+
+  /// The portrait frame's own insets, as fractions of the frame's height:
+  /// **the platform's safe box** — Google's published vertical template for the
+  /// same 1080×1920 canvas reserves 288 px at the top (the search and menu row)
+  /// and 672 px at the bottom (the title, channel, subscribe and progress band),
+  /// and both are the conservative floor for organic Shorts, whose own measured
+  /// bands are shallower and whose layout YouTube does not publish.
+  ///
+  /// The tenth above would put the frame's first line inside the player's own
+  /// navigation row; the tenth below is the band the reader reported covered.
+  static const double portraitTopInsetFraction = 0.15;
+  static const double portraitBottomInsetFraction = 0.35;
+
+  /// Whether this frame is taller than it is wide — the aspect the platform's
+  /// overlay makes a difference on (`video_aspect.dart`'s 9:16 offer).
+  bool get portraitFrame => plan.height > plan.width;
 
   /// The smallest em the video may paint at the reader's smallest size, in frame
   /// pixels — A3's consequence, stated so it can be tested (quickstart 12): the
@@ -308,10 +332,19 @@ class VideoPainter {
   }
 
   double get _marginX => (plan.width - columnWidth) / 2;
-  double get _marginY => plan.height * marginYFraction;
+
+  /// The inset above the column — the frame's own tenth on a landscape frame, the
+  /// platform's top band on a portrait one ([portraitTopInsetFraction]).
+  double get _marginTop => plan.height *
+      (portraitFrame ? portraitTopInsetFraction : marginYFraction);
+
+  /// The inset below the column — the frame's own tenth on a landscape frame, the
+  /// band the player draws its title and controls in on a portrait one.
+  double get _marginBottom => plan.height *
+      (portraitFrame ? portraitBottomInsetFraction : marginYFraction);
 
   Rect get column => Rect.fromLTRB(
-      _marginX, _marginY, plan.width - _marginX, plan.height - _marginY);
+      _marginX, _marginTop, plan.width - _marginX, plan.height - _marginBottom);
 
   /// Paints [slot]'s frame, with [picture] behind it where the schedule has one.
   ///
@@ -350,15 +383,21 @@ class VideoPainter {
         ? 0
         : (scaled + 1e-6).floor().clamp(0, geometry.steps);
 
-    // A sentence that fits sits at the **bottom** of the area — the reader's own
-    // request from watching a render (2026-09-28 — "move text block from top to
-    // bottom") — so the picture has the frame above the words to itself. A
-    // sentence taller than the area keeps FR-029's own shape instead: its first
-    // line at the top, scrolling down through the block a line at a time, which is
-    // also why the anchor is the block's own `steps` rather than the progress (a
-    // too-tall block's first frame is not a block that fits).
+    // Where a sentence that fits rests is the **aspect's own rule** (2026-10-08):
+    // a landscape frame puts it at the bottom of the area — the reader's own
+    // request from watching a render (2026-09-28, "move text block from top to
+    // bottom"), so the picture has the frame above the words to itself — and a
+    // portrait frame puts it at the **top**, because the bottom of a 9:16 frame is
+    // where the player draws its own title, channel line and controls and the
+    // reader reported the sentence there covered. A sentence taller than the area
+    // keeps FR-029's own shape instead: its first line at the top, scrolling down
+    // through the block a line at a time, which is also why the anchor is the
+    // block's own `steps` rather than the progress (a too-tall block's first frame
+    // is not a block that fits).
     final double blockTop = geometry.steps == 0
-        ? column.bottom - geometry.height
+        ? (portraitFrame
+            ? column.top
+            : column.bottom - geometry.height)
         : column.top - scrollLines * geometry.lineHeight;
 
     // FR-027: the picture's own tone decides the plate and the ink, so the words

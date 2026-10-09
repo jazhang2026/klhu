@@ -233,6 +233,27 @@ utterance with its role and its voice, and `role=` on each of the renderer's own
 output, the spike's answer and the two faults this walk found in its own readers are in
 `specs/014-dialogue-reading/breakpoint.md`.
 
+**Amended 2026-10-08 — a 9:16 render's own placement.** The reader watched a finished vertical render in
+YouTube's own player: the sentence came back *"covered by the title and some icon"*. The sentence that rested at
+the bottom of the text area was 012's own decision of 2026-09-28, made for a landscape frame, and the bottom of a
+9:16 frame is where the platform draws its title, channel line, subscribe button and progress band. So a
+**portrait** frame now lays its words inside the platform's published safe box for a 1080×1920 canvas — 15 % of
+the height above, 35 % below — and rests a sentence that fits at the **top** of it; a **landscape** frame is
+unchanged. `lib/video_painter.dart` carries the rule (`portraitTopInsetFraction` / `portraitBottomInsetFraction`
+and the aspect's own anchor) and the reader's own tests were re-cut with it. 012's own artifacts still describe
+the pre-amendment look — they are the record of what was reviewed — and the two places a later reader needs are
+012's `tasks.md` (`## Superseded by later specs`) and 012's `breakpoint.md`'s section of the same date. **Rows
+012:32, 012:49 and 014:27 have been re-walked on 2026-10-08 against a build of the amended code — 42/42, 40/40
+and 24/24** — so every row this change reaches cites a walk of the current tree:
+
+```bash
+cd specs/012-reading-video/scripts
+python3 klhu_walk_video.py 32      # a frame per slot, both aspects — the portrait half re-cut
+python3 klhu_walk_video.py 49      # the reader's own pictures: every range of a render, frame by frame
+cd ../../014-dialogue-reading/scripts
+python3 klhu_walk_dialogue.py 27   # the dialogue's video: no tag in a frame, a voice per turn
+```
+
 ## Specs
 
 Development is spec-driven: each feature has `specs/<NNN>-<name>/` with

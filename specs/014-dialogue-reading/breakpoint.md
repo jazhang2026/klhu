@@ -915,3 +915,29 @@ report on their phone, and both are walked — row 35's second half (their own c
 not by replacing it (`周末公园散步 (1).mp4`), and the old file's bytes outlive its MediaStore row by a few
 minutes — a naming observation, not the FR-012 violation it first looked like (the row records the
 measurement that corrected it).
+
+## The 2026-10-08 amendment — a portrait frame's placement, and row 27's own re-walk
+
+**A finding against a row this file already carries, and then the row's re-run.** The reader, watching a finished
+9:16 render in YouTube's own player: *"the reading sentence of the short video(9:16) in youtube is covered by the
+title and some icon. Need to move it up to avoid being covered."* The placement that report falsifies is 012's own
+(its D22 of 2026-09-28, made for a landscape frame watched full-screen) — **none of this file's rows ever asserted
+a placement**, which is why the amendment lives in `spec.md`'s 2026-10-08 entries (FR-025, SC-012) and in
+`lib/video_painter.dart`, and why 012's own artifacts and driver are the ones re-cut rather than this file's.
+
+**Row 27, re-walked on `emulator-5554` against a debug build of the amended code (2026-10-08): 24/24 checks.**
+`flutter build apk --debug` → *Built build/app/outputs/flutter-apk/app-debug.apk*; `adb -s emulator-5554 install
+-r build/app/outputs/flutter-apk/app-debug.apk` → *Success*; then
+`/usr/bin/python3.12 specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py 27`. Quoted from the run, not
+summarised: `klhu_video.mp4 20133ms 968584B frames=604 in 19s`; five slots at `[(5, 19), (27, 46), (54, 67),
+(68, 75), (82, 100)]`, matching the sentences' own ranges; roles `['旁白', '阿明', 'May', 'May', '阿芳']`; painted
+lengths `[14, 19, 13, 7, 18]` against `[19, 25, 19, 27, 23]` with the tags (so no slot carries its tag);
+`audio aac at 24000 Hz`; and the assignment line
+`旁白→cmn-cn-x-ccc-local(female) 阿明→cmn-cn-x-ccd-local(male) May→cmn-cn-x-cce-local(male) 阿芳→cmn-cn-x-ssa-local(female)`.
+Row 27 asserts a frame's **content** — no tag painted, one voice per turn, one picture per sentence, the picture
+still inside its own slot — never a placement, so a re-run is what it needed and a re-cut is what it did not.
+
+**One practical note for the next walk of this row.** The driver imports PIL
+(`specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py:71`), which
+this host's default `python3` does not have: run it as `/usr/bin/python3.12 klhu_walk_dialogue.py 27` (Pillow
+12.3.0 is installed there), with `ffmpeg`/`ffprobe` on `PATH` for the frames the row reads back.

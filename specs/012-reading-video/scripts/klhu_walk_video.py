@@ -5,8 +5,10 @@ Row 31: a real render produces a real video (landscape, then vertical), asserted
 with the host's `ffprobe`.
 Row 32: the amended picture on the device — a frame per slot, each one its slot's
 sentence alone and nothing else, at the reader's own size, the sentence that fits
-at the bottom of the text area, and a tall one stepping a line at a time; the
-on-screen picture is the frame written, frame for frame.
+inside the text area's own resting place — at the bottom of it on a landscape
+frame, at the top on a portrait one, whose bottom the platform covers
+(2026-10-08) — and a tall one stepping a line at a time; the on-screen picture is
+the frame written, frame for frame.
 Row 33: the file's whole life — the review played before keeping, one thrown
 away, one kept into the gallery under the content's name, played back, shared
 through the phone's own list, then deleted behind its warning.
@@ -614,8 +616,15 @@ def render(where, aspect_label, pair=None):
         time.sleep(0.3)
     name = os.path.basename(path)
     seconds = round(ms / 1000)
+    # The name and the presence of a length are this check's claim; the number's
+    # own reading is the check below, which keeps the second of tolerance its
+    # sibling has always had. (Dart rounds half away from zero, Python half to
+    # even, so a render landing exactly on .5 s — 2500 ms — reads `3 s` on the
+    # page and 2 in this process; an exact-string match fails there and nowhere
+    # else, which is a property of the arithmetic rather than of the app.)
     check(f"{where}: the app told the reader the file's name and its length",
-          bool(told) and name in told and f"({seconds} s)" in told,
+          bool(told) and name in told
+          and re.search(r"\(\d+ s\)", told or "") is not None,
           f"the app said {told!r}" if told else
           "no 'klhu render told:' line in the log")
     still = screencap(os.path.join(OUT, f"{where.replace('/', '_')}_told.png"))
@@ -839,10 +848,26 @@ def _grow(box, add):
 def column_of(w, h):
     """The app's own text column, in this grid's own pixels — the same rule the
     painter uses (`min(0.92 × width, 1.4 × height)`, from 2026-09-28, when the
-    reader asked for longer lines) and the same tenth-of-the-frame margins. It is
-    a mirror: when the painter's rule changes, this changes with it."""
+    reader asked for longer lines) and the same vertical insets: **the frame's own
+    tenth on a landscape frame, the platform's safe box on a portrait one**
+    (`VideoPainter.portraitTopInsetFraction`/`portraitBottomInsetFraction` — the
+    reader's report of 2026-10-08 that a 9:16 file comes back with its bottom
+    covered). It is a mirror: when the painter's rule changes, this changes with
+    it."""
     col_w = min(0.92 * w, 1.4 * h)
-    return (w - col_w) / 2.0, 0.10 * h, col_w
+    return (w - col_w) / 2.0, column_top(w, h), col_w
+
+
+def column_top(w, h):
+    """The column's own top edge, in this grid's pixels: the frame's tenth, or the
+    platform's top band on a portrait frame."""
+    return (0.15 if h > w else 0.10) * h
+
+
+def column_bottom(w, h):
+    """The column's own bottom edge, in this grid's pixels: the frame's tenth, or
+    the platform's own bottom band on a portrait frame."""
+    return h - (0.35 if h > w else 0.10) * h
 
 
 def scaled_column(w, h, tw, th):
@@ -1401,7 +1426,7 @@ def row_32():
         # colours, the column's own edges and where the words sit can be read.
         step(f"32/{name}: three frames of every slot at {w}x{h}")
         left, top, col_w = column_of(w, h)
-        bottom = h - top
+        bottom = column_bottom(w, h)
         print(f"   the column, by the painter's rule: {col_w:.0f}px wide from "
               f"x={left:.0f} to {w - left:.0f}, y={top:.0f} to {bottom:.0f}")
         sampled, details = 0, []
@@ -1429,14 +1454,28 @@ def row_32():
                     issues.append("no text inside the column")
                 else:
                     boxes.append(ink_box)
-                    # A sentence that fits sits at the **bottom** of the text area,
-                    # so the frame above it is free for a picture (the reader's own
-                    # request of 2026-09-28), and a taller one keeps FR-029's shape
-                    # instead — its own check is below. Every slot of the file is a
-                    # sentence now: the card that used to sit centred at the top of
-                    # the file was withdrawn on 2026-09-29.
+                    # Where a sentence that fits rests is the **aspect's own
+                    # rule** (2026-10-08): the bottom of the text area on a
+                    # landscape frame — so the frame above it is free for a
+                    # picture (the reader's own request of 2026-09-28) — and the
+                    # **top** of it on a portrait one, whose bottom is where the
+                    # platform draws its own title, channel line and controls
+                    # (the reader's report that a 9:16 file came back covered).
+                    # A taller one keeps FR-029's shape instead — its own check
+                    # is below. Every slot of the file is a sentence now: the card
+                    # that used to sit centred at the top of the file was
+                    # withdrawn on 2026-09-29.
                     if not tall_slot:
-                        if abs(ink_box[3] - bottom) > BOTTOM_TOL:
+                        if h > w:
+                            if abs(ink_box[1] - top) > BOTTOM_TOL:
+                                issues.append(
+                                    f"the words start at y={ink_box[1]}, the "
+                                    f"column's top is {top:.0f}")
+                            elif ink_box[3] > h * 0.65 + BOTTOM_TOL:
+                                issues.append(
+                                    f"the words end at y={ink_box[3]}, inside the "
+                                    f"band the platform draws its controls in")
+                        elif abs(ink_box[3] - bottom) > BOTTOM_TOL:
                             issues.append(
                                 f"the words end at y={ink_box[3]}, the column's "
                                 f"bottom is {bottom:.0f}")
@@ -1798,7 +1837,7 @@ def ink_in_column(rgb, w, h, colour):
     near_white = colour == (255, 255, 255)
     count = 0
     box = None
-    for y in range(int(top), int(h - top), 2):
+    for y in range(int(top), int(column_bottom(w, h)), 2):
         for x in range(int(left), int(left + col_w), 2):
             px = at(rgb, w, x, y)
             hit = (all(c >= 240 for c in px) if near_white

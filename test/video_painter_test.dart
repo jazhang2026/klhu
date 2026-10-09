@@ -527,13 +527,54 @@ void main() {
       for (final progress in [0.0, 0.5, 1.0]) {
         final frame = await painter.paint(slot: slot, progress: progress);
         expect(frame.scrollLines, 0);
-        expect(frame.lines.last.bottom,
-            closeTo(painter.column.bottom, 0.01),
-            reason: 'a sentence that fits sits at the bottom of the area — the '
-                'reader\'s own request of 2026-09-28 — and it is the same place '
-                'whatever the progress, which is what makes it still');
+        expect(frame.lines.first.top, closeTo(painter.column.top, 0.01),
+            reason: 'a sentence that fits on a **portrait** frame rests at the '
+                'top of the area — the platform draws its title, channel line '
+                'and controls along the bottom of a 9:16 frame, so the bottom is '
+                'the one place the words may not be (2026-10-08) — and it is the '
+                'same place whatever the progress, which is what makes it still');
         frame.image.dispose();
       }
+    });
+
+    test('the resting place is the aspect\'s own rule, and a portrait frame '
+        'lays its words inside the platform\'s safe box', () async {
+      // The reader's own report of 2026-10-08: the sentence at the bottom of a
+      // 9:16 file comes back covered by YouTube's title and icons. So the
+      // portrait frame's two insets are the platform's published vertical
+      // template (288 px and 672 px of a 1080×1920 frame) and its words rest at
+      // the top of that box, while the landscape frame keeps the tenth of
+      // 2026-09-28 and its block at the bottom.
+      final portrait = _painterFor(VideoAspect.vertical);
+      final landscape = _painterFor(VideoAspect.landscape);
+      expect(portrait.portraitFrame, isTrue);
+      expect(landscape.portraitFrame, isFalse);
+
+      expect(portrait.column.top,
+          closeTo(1920 * VideoPainter.portraitTopInsetFraction, 0.01));
+      expect(1920 - portrait.column.bottom,
+          closeTo(1920 * VideoPainter.portraitBottomInsetFraction, 0.01));
+      expect(landscape.column.top,
+          closeTo(1080 * VideoPainter.marginYFraction, 0.01));
+      expect(1080 - landscape.column.bottom,
+          closeTo(1080 * VideoPainter.marginYFraction, 0.01));
+
+      final portraitFrame =
+          await portrait.paint(slot: portrait.plan.sentences[1]);
+      expect(portraitFrame.lines.first.top,
+          closeTo(portrait.column.top, 0.01));
+      expect(1920 - portraitFrame.lines.last.bottom,
+          greaterThan(1920 * VideoPainter.portraitBottomInsetFraction),
+          reason: 'the words end above the platform\'s own bottom band');
+      portraitFrame.image.dispose();
+
+      final landscapeFrame =
+          await landscape.paint(slot: landscape.plan.sentences[1]);
+      expect(landscapeFrame.lines.last.bottom,
+          closeTo(landscape.column.bottom, 0.01),
+          reason: 'a landscape frame still puts the block at the bottom — the '
+              'reader\'s own request of 2026-09-28, unchanged for 16:9');
+      landscapeFrame.image.dispose();
     });
   });
 
@@ -609,10 +650,11 @@ void main() {
       final slot = painter.plan.sentences.first;
 
       // The frame is 1080×1920 and the picture is its own shape, so the cover
-      // draw is a plain scale and the sentence's band — the **bottom** of the text
-      // area, where a sentence that fits now sits (2026-09-28) — is the dark fifth
-      // of the picture, while the picture as a whole is mostly bright.
-      final picture = await _banded(bright, dark, fraction: 0.8);
+      // draw is a plain scale and the sentence's band — the **top** of the text
+      // area, where a sentence that fits now sits on a portrait frame
+      // (2026-10-08) — is the dark third of the picture, while the picture as a
+      // whole is mostly bright.
+      final picture = await _banded(dark, bright, fraction: 0.3);
       expect(await pictureTone(picture), PictureTone.light,
           reason: 'the picture as a whole reads light');
       final frame = await painter.paint(slot: slot, picture: picture);
@@ -623,9 +665,9 @@ void main() {
       expect(frame.plateColour, VideoPainter.plateOnDarkPicture);
       expect(frame.inkColour, VideoPainter.inkOnDarkPicture);
       for (final plate in frame.plates) {
-        expect(plate.bottom, greaterThan(painter.plan.height * 0.8),
+        expect(plate.top, lessThan(painter.plan.height * 0.3),
             reason: 'the plates are inside the band the tone was read from — the '
-                'bottom of the frame, where the words are — which is what makes '
+                'top of the frame, where the words are — which is what makes '
                 'the two one claim');
       }
 
@@ -651,8 +693,8 @@ void main() {
 
     test('and the other way round: a bright band over a dark picture', () async {
       final painter = _painterFor(VideoAspect.vertical);
-      // Dark all over, with a bright band at the bottom, where the words sit.
-      final picture = await _banded(dark, bright, fraction: 0.8);
+      // Dark all over, with a bright band at the top, where the words sit.
+      final picture = await _banded(bright, dark, fraction: 0.3);
       expect(await pictureTone(picture), PictureTone.dark,
           reason: 'the picture as a whole reads dark');
       final frame = await painter.paint(

@@ -11,9 +11,20 @@ voice, P2), `US3` (the roles I confirmed are the roles in the text, P2), `US4` (
 
 ## Status
 
-**Not started.** Nothing under `lib/` or `test/` has been touched for this feature; the working tree carries
-only the specification stage's own files plus the unrelated in-flight edits that were already there when this
-list was written.
+**Closed 2026-10-08** (the 2026-10-05 close, re-opened once for the reader's own amendment of 2026-10-08 and
+re-closed the same day — **T037**, appended at the end of the list rather than renumbered into it).
+
+The list below was written as **Not started** — nothing under `lib/` or `test/` had been touched for this
+feature at the time, and the working tree carried only the specification stage's own files plus the unrelated
+in-flight edits that were already there. Every task since then is closed, each with its own receipt beside it.
+
+**What the reader's amendment of 2026-10-08 added** (FR-025, SC-012, the US4 scenario 5, the edge case and A13):
+a **portrait** video frame lays its words inside the video platform's own safe box (15 % of the height above,
+35 % below — the published vertical template for a 1080×1920 frame) and rests a sentence that fits at the **top**
+of it, because the reader reported that the sentence at the bottom of a 9:16 file comes back *"covered by the
+title and some icon"*. The landscape frame is untouched. The work is `lib/video_painter.dart`'s two insets and
+its anchor (T037), the shipped painter tests re-cut in the same sweep, and 012's own walk driver's column rule
+and "where the words sit" check re-cut for the portrait half.
 
 The baseline this list is read against: **445 tests green** and `flutter analyze` clean, measured 2026-10-03
 on `306e288` (the figure `quickstart.md`'s Prerequisites carries is 439, from 2026-10-01; the six extra tests
@@ -48,7 +59,11 @@ is what the receipt stops being true about.
 **Device rows**: rows **23 WALKED — PASS (10/10)**, **24 WALKED — PASS (13/13)**, **25 WALKED — PASS
 (19/19)**, **26 WALKED — PASS (25/25)**, **27 WALKED — PASS (24/24)**, **28 WALKED — PASS (7/7)** and
 **33 WALKED — PASS (9/9)** on `emulator-5554` against a debug build of the current code; the driver and the
-raw logcat lines are in `breakpoint.md`. Every device row of this feature is walked.
+raw logcat lines are in `breakpoint.md`. Every device row of this feature is walked. **Row 27 was re-walked on
+2026-10-08** (24/24, after the portrait-frame amendment changed `lib/video_painter.dart`), and the two 012 rows
+that measure a frame's own pixels were re-run with it — 012's **row 32 42/42** (both aspects, the portrait half
+on its re-cut expectation) and 012's **row 49 40/40** — so no row this amendment reaches still cites a walk that
+predates the last code change.
 
 **Suite**: 445 at the baseline (T002) → **529 passing, 0 failing**, `flutter analyze` clean, after T025 —
 83 new tests across the six new files (27 dialogue, 11 assignment, 12 role store, 12 resolver, 15 page, 6
@@ -866,6 +881,64 @@ the working tree holding only intended edits.
 
 ---
 
+## Phase 10: The reader's amendment of 2026-10-08 (appended; the numbering is append-only)
+
+- [x] T037 **A portrait video frame lays its words inside the video platform's safe box, its block at the top of it (FR-025, SC-012; `lib/video_painter.dart`, `test/video_painter_test.dart`, `specs/012-reading-video/scripts/klhu_walk_video.py`)**
+  The reader, watching a finished 9:16 render in YouTube's own player: *"the reading sentence of the short
+  video(9:16) in youtube is covered by the title and some icon. Need to move it up to avoid being covered."* The
+  sentence that rested at the bottom of a portrait frame is 012's own D22 of 2026-09-28 (the reader's request,
+  made for a landscape frame), and the platform draws its own furniture exactly there. So the portrait frame's
+  two vertical insets became the published vertical template for the same 1080×1920 canvas —
+  `portraitTopInsetFraction = 0.15` and `portraitBottomInsetFraction = 0.35` (288 px and 672 px) — and a sentence
+  that fits rests at the **top** of what they leave, because the bottom is the band the platform covers and the
+  eye lands in the upper half. A landscape frame is unchanged: `marginYFraction = 0.10` and its block at the
+  bottom, exactly as 2026-09-28 settled.
+
+  **DONE (the `[unit]` half).** `lib/video_painter.dart` — the two constants and `portraitFrame`, `column`
+  built from `_marginTop`/`_marginBottom`, and the fitting-block anchor made the aspect's own rule; the shipped
+  tests re-cut in the same sweep (`test/video_painter_test.dart`: the "a sentence that fits is still" case now
+  asserts the portrait block's first line at the column's top, and the two tone/plate cases moved their band to
+  the picture's top third, where a portrait frame's words now are) plus one new case — *"the resting place is
+  the aspect's own rule, and a portrait frame lays its words inside the platform's safe box"* — which asserts the
+  two insets, the top anchor, the words ending above the bottom band, and the landscape frame's unchanged bottom
+  anchor. `flutter analyze` → **No issues found!** (exit 0); `flutter test --concurrency=2` → **559 passing, 0
+  failing** (the 558 the tree carried before this change + the one new case; no test was deleted).
+
+  **DONE (the artifacts).** `spec.md` carries the amendment on its `Input` lines, the `### Session 2026-10-08`
+  Clarifications entries (the placement, and 16:9's own answer), FR-025, SC-012, US4's scenario 5, the edge case
+  and A13; FR-018's "exactly what 012 produces today" now names the one exception, and US4 scenario 2 with it.
+
+  **DONE (012's driver, re-cut in the same sweep).** `specs/012-reading-video/scripts/klhu_walk_video.py`:
+  `column_of` now reads `column_top`/`column_bottom` (the tenth on a landscape frame, the platform's bands on a
+  portrait one) and row 32's "where the words sit" check is the aspect's own rule — the words **start** at the
+  column's top on a portrait frame and must end above its bottom band, while the landscape half keeps the
+  expectation it had. The row's own header comment and the module's docstring say so.
+
+  **DONE (the `[device]` half).** All three rows were re-run on `emulator-5554` against a debug build of the
+  current code (`flutter build apk --debug` → *Built build/app/outputs/flutter-apk/app-debug.apk*, then
+  `adb -s emulator-5554 install -r` → *Success*), with the driver's own printed geometry as the receipt for the
+  rule itself: **portrait 1080×1920 → the column runs y=288 to y=1248 (the platform's 15 % / 35 % bands);
+  landscape 1920×1080 → y=108 to y=972 (the tenth of 2026-09-28)**.
+  - **012's row 32 → 42/42 checks, both aspects** (a landscape render 1173771 B and a portrait render 1245535 B,
+    743 frames each, "every sampled frame holds the app's own look — 24/24 frames clean" on each). That check is
+    the re-cut one: it now reads the words against the aspect's own resting place, and it passed on the portrait
+    render — which is SC-012's proof — while the landscape half's expectations were untouched.
+  - **012's row 49 → 40/40 checks** on the same build. Its landscape expectations stand exactly as written ("the
+    column's bottom is 972", the words' own box ending there, the band's own ink over it). *One note for the
+    record: the file's 2026-10-01 receipt for this same row reads 41/41, one check more than this run reported —
+    the amendment did not touch this row's assertions, so the difference belongs to the row's own section above
+    rather than here, and it is named rather than rounded.*
+  - **014's row 27 → 24/24 checks** (a 968584 B file, 604 frames, 20133 ms, five slots, roles
+    `['旁白', '阿明', 'May', 'May', '阿芳']`, no slot's painted text carrying its tag). Row 27's own expectations
+    are layout-independent, so it needed a re-run rather than a re-cut — and a re-run is what it got.
+  Standing receipts this does NOT disturb: the landscape halves of both 012 rows, and every other 014 row
+  (23-26, 28, 33), which no rule this amendment touched.
+
+  **Checkpoint**: analyzer clean, the suite's count recorded (559 against the 014 close's 529 and T002's 445
+  baseline), and every row the amendment reached re-run green on the current build.
+
+---
+
 ## Dependencies & ordering
 
 - **Phase 1 (T001)** blocks everything that compiles against a new key — i.e. T011/T015/T017/T025.
@@ -945,3 +1018,5 @@ demonstrable: rows 15/18 (US1), 16/17 (US2), 16's second half (US3), 20-22 (US4)
 | SC-009 (the switch keeps the position and the highlight) | T009, T011, T030 |
 | SC-010 (no dependency, no network call) | T034 |
 | SC-011 (Format: heads, blank lines only, one Undo) | T022, T023, T024, T025, T033 |
+| FR-025 (a portrait frame's words inside the platform's safe box, at the top of it) | T037 |
+| SC-012 (a 9:16 render's words inside the safe box; 16:9 unchanged) | T037 |

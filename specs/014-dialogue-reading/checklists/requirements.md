@@ -20,18 +20,20 @@
 
 ## Requirement Completeness
 
-- [x] No [NEEDS CLARIFICATION] markers remain — **zero** (`grep -c 'NEEDS CLARIFICATION' spec.md` → 0). Twelve
+- [x] No [NEEDS CLARIFICATION] markers remain — **zero** (`grep -c 'NEEDS CLARIFICATION' spec.md` → 0). Fourteen
       decisions were put to the reader as numbered options: six answered 2026-10-01, three on the tag's own
-      form the next day, and three on 2026-10-03 while the plan was being reviewed (the turn's boundary, what
-      a tag inside a paragraph is, and the editor's Format action); each is recorded in the spec's
+      form the next day, three on 2026-10-03 while the plan was being reviewed (the turn's boundary, what
+      a tag inside a paragraph is, and the editor's Format action), and two on 2026-10-08 (where a 9:16 frame
+      rests its words, and whether 16:9 changes with it); each is recorded in the spec's
       Clarifications section and each names the wording it settles
 - [x] Requirements are testable and unambiguous — each FR names an observable: what the engine is asked to say
       (FR-003/FR-005), what the scan accepts as a tag and what it refuses (FR-004), what a removal does and
       does not do (FR-007/FR-008), which voice a turn gets and in what order of preference (FR-012–FR-015),
       what a frame may contain (FR-018), what a type change may change (FR-020), where the settings live,
-      what deletes them (FR-021) and what the editor's Format press adds and does not add (FR-024).
-      24 FRs, 11 SCs, 12 assumptions, 5 stories, 23 acceptance scenarios,
-      20 edge cases — counted mechanically, not by eye
+      what deletes them (FR-021), what the editor's Format press adds and does not add (FR-024) and where a
+      portrait frame rests its words (FR-025).
+      25 FRs, 12 SCs, 13 assumptions, 5 stories, 24 acceptance scenarios,
+      21 edge cases — counted mechanically, not by eye
 - [x] Success criteria are measurable — the utterances' own text and voice read from the app's device line
       (SC-001/SC-002), the assignment's determinism and its bound when the device has too few voices
       (SC-003/SC-004), the shipped reading reproduced for a content with no stored type (SC-005), a removal's
@@ -41,9 +43,9 @@
       difference, one Undo back (SC-011)
 - [x] Success criteria are technology-agnostic — "the app's own per-utterance line", "the device's voices",
       "sampled frames"; no plugin, codec, store key or language is named as the criterion
-- [x] All acceptance scenarios are defined — US1: 7, US2: 5, US3: 5, US4: 4, US5: 2 (23 in total), each
+- [x] All acceptance scenarios are defined — US1: 7, US2: 5, US3: 5, US4: 5, US5: 2 (24 in total), each
       Given/When/Then and independently demonstrable
-- [x] Edge cases are identified — 20, including the five that decide the feature's feel: a bare `名字：` line
+- [x] Edge cases are identified — 21, including the five that decide the feature's feel: a bare `名字：` line
       that is narration and not a speaker (他说：/ 时间：/ 12:30 / a URL — the class the tag deleted), braces
       that are not a speaker (`{laughs}`, removed once), a paragraph with no tag in 多人对话 (one narration
       turn, never silently attributed to the previous speaker), a tag that is not at a paragraph's head (read
@@ -107,6 +109,21 @@
   four, and a dialogue written correctly by hand never needs the button. Nothing was dropped and nothing was
   re-ranked against their intent; if the reader wants "per-role voices" first, that is a two-line re-cut of the
   priorities.
+- **The amendment of 2026-10-08 is the newest thing in this spec, and it is not about roles at all.** The reader
+  watched a finished **9:16** render in YouTube's own player and reported that the sentence "is covered by the
+  title and some icon"; the sentence that rested at the bottom of a portrait frame is 012's own D22 of
+  2026-09-28, made for a landscape frame. So the amendment gives a portrait frame the platform's own safe box
+  (15 % of the height above, 35 % below — the published vertical template for a 1080×1920 canvas) and rests a
+  fitting sentence at the **top** of it, and leaves 16:9 alone (FR-025, SC-012, US4's scenario 5, the edge case,
+  A13). Two things a reviewer should notice: US4 scenario 2's promise ("exactly what 012 produces today") now
+  names its one exception, because the promise was the sentence the amendment falsified; and **012's own
+  artifacts are reported, not rewritten** — its `spec.md`'s FR-006 prose, its D22, its data-model row and its
+  rows 32/49 still describe the pre-amendment look, because a reviewed spec is the record of what was approved.
+  The two places a later reader needs are 012's `tasks.md` (`## Superseded by later specs`) and 012's
+  `breakpoint.md` row 32, and the driver those rows cite is re-cut in the same sweep. The cost this spec carried
+  was a re-run of 012's rows 32/49 and this spec's row 27: **all three were re-walked on 2026-10-08 on a build of
+  the amended code — 42/42, 40/40 and 24/24** — so the promise the amendment rests on (FR-025, SC-012) has a
+  device receipt of its own rather than the pre-amendment rows' word for it.
 
 **Precision added beyond the reader's wording — each one is a place the plan could otherwise decide silently.**
 

@@ -70,6 +70,20 @@
 > first version of this amendment, and with it the last place this feature rewrote the reader's text behind
 > their back.
 
+> **Amendment, 2026-10-08 — the portrait frame's own placement.** The reader, watching a finished 9:16 render
+> in YouTube's own player: *"the reading sentence of the short video(9:16) in youtube is covered by the title
+> and some icon. Need to move it up to avoid being covered."* The sentence that rests at the bottom of the text
+> area is what 012's D22 decided on 2026-09-28, for a landscape frame watched full-screen — and on a
+> **portrait** frame the same bottom is where YouTube draws its own title, channel line, subscribe button and
+> progress bar, plus the action rail down the right edge: the sentence the viewer has to read is the one the
+> platform covers. From this amendment a portrait frame lays its words inside the platform's safe box and
+> rests them at the **top** of it; a landscape frame is unchanged. FR-025 and SC-012 carry the rule and the
+> 2026-10-08 Clarifications entry below records the measurement and what it cost. 012's own artifacts (its
+> `spec.md`'s FR-006 prose, its `research.md` D22, its `data-model.md` row, its rows 32/49) still describe the
+> pre-amendment behaviour: a reviewed spec is the record of what was approved, so they are **reported, not
+> rewritten** — the two places a later reader needs are 012's `tasks.md` (`## Superseded by later specs`) and
+> 012's `breakpoint.md` row 32.
+
 **Input (the reader's own example, 2026-10-01)**: the same four turns, with the voice each role
 should get — 旁白：成熟男声, 阿明：年轻男声, May：年轻女声, 阿芳：年轻女声 — and the sentence
 "如无设定，系统自动分配". *The age words are the one part of this example the specification does not
@@ -215,6 +229,32 @@ This session settles the picker.
   network copy still highlights the voice's one row), and rows 24/25 re-walked on the built app (the picker's
   rows, and a tap storing `cmn-cn-x-ssa-local` — the on-device copy — for the role alone).
 
+### Session 2026-10-08
+
+One decision, from the reader watching a finished 9:16 render in YouTube's own player (the amendment on the
+`Input` lines above).
+
+- **Q**: The sentence that fits its text area sits at the bottom of it — 012's D22, the reader's own request of
+  2026-09-28 — and on a 9:16 file on YouTube the bottom is exactly where the player draws its own furniture.
+  Where do a portrait frame's words go? **A**: *inside the platform's safe box, and at the top of it.* The two
+  insets are the published vertical template Google keeps for the same 1080×1920 canvas — **288 px above** (the
+  search and menu row) and **672 px below** (the title, channel name, subscribe button and progress band) —
+  and a sentence that fits rests at the top of what those leave, because the eye lands in the upper half and the
+  bottom is the band the platform covers. The number is measured rather than assumed: YouTube publishes **no**
+  safe zone for organic Shorts, and the third-party measurements of its interface disagree with each other
+  (180–380 px at the top, 350–672 px at the bottom, 120–201 px on the right), so the template is taken as the
+  conservative floor. The consequence to accept: a portrait frame keeps 35 % of its height clear even where
+  nothing is ever drawn, and a sentence taller than the box it now has scrolls inside it rather than fitting
+  still. Settles FR-025 and SC-012.
+- **Q**: Does anything change for the 16:9 frame? **A**: *no*. A landscape frame keeps the tenth-of-the-frame
+  insets of 2026-09-28 and its block at the bottom — the reader reported the 9:16 file only, and its own
+  request of 2026-09-28 is untouched where it was made. What this costs is the one aspect it was reported
+  against: 012's rows 31/32/49 render both aspects, and the portrait half of each is re-cut (the driver's
+  `column_of` and its "where the words sit" check), while the landscape half's expectations stand unchanged.
+  The right-hand rail the same player draws is **outside** what this amendment may touch: the text column's
+  width is the reader's own 1.4× request of 2026-09-28, so a portrait frame's words still reach the rail's
+  x-range — they are clear of it vertically, which is the half the report named.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A dialogue reads as a dialogue (Priority: P1)
@@ -337,11 +377,16 @@ a role tag, and each spoken turn's audio is that role's voice, as the read's own
 1. **Given** a 多人对话 content with per-role voices, **When** it is rendered, **Then** each turn's audio
    is the voice the read uses for that turn and the frames show the sentence's content alone.
 2. **Given** the same content in 标准, **When** it is rendered, **Then** the video is what 012 produces
-   today, unchanged.
+   today, unchanged — with the one exception FR-025 makes to a **portrait** frame's own placement (the
+   2026-10-08 amendment: the words of a 9:16 frame rest inside the platform's safe box, its block at the
+   top of it).
 3. **Given** a turn whose content is two sentences, **When** the video is rendered, **Then** each sentence
    has its own frame(s) — the video's own unit is unchanged by roles.
 4. **Given** a content whose roles were auto-assigned, **When** it is rendered, **Then** the video's
    voices are exactly the read's (one resolution, not two).
+5. **Given** a **9:16** render of a content, **When** any frame is inspected, **Then** the sentence's
+   words sit inside the frame's own safe box — the first line at the frame's top inset and the last line
+   above its bottom band — and a 16:9 render of the same content is unchanged (2026-10-08, FR-025).
 
 ---
 
@@ -429,6 +474,11 @@ own; then one Undo restores the earlier text byte for byte.
   blank video.
 - **Roles in a text the reader is still editing** (008's edit mode with its undo history): the text is
   what is read; the roles follow it. Undo restores the previous text and the previous roles with it.
+- **A 9:16 render's own placement** (2026-10-08): a portrait frame's words rest inside the platform's safe box
+  (FR-025), so a sentence that used to sit at the bottom of a 9:16 frame now sits at the top of that box — and
+  012's "the block at the bottom" is read as the landscape frame's own rule from here on. A sentence that fits a
+  landscape frame is unchanged, and a sentence too tall for the area scrolls inside it exactly as 012's own
+  scroll rule (its 2026-09-26 amendment) says, whatever the aspect.
 
 ## Requirements *(mandatory)*
 
@@ -500,7 +550,7 @@ own; then one Undo restores the earlier text byte for byte.
   answered by the reader picking the voice (2026-10-01 Clarifications).
 - **FR-018**: A video of a 多人对话 content MUST use the same per-role voices as the read and MUST show
   only the current sentence's content — no role prefix in any frame; a video of a 标准 content MUST be
-  exactly what 012 produces today.
+  exactly what 012 produces today, **except** for the placement FR-025 gives a portrait frame (2026-10-08).
 - **FR-019**: The read and the video MUST resolve roles, languages and voices through one shared
   resolution, so the same turn cannot be voiced one way on the page and another way in the video.
 - **FR-020**: Changing the text type MUST NOT modify the content (008's text and its undo history are
@@ -519,6 +569,17 @@ own; then one Undo restores the earlier text byte for byte.
   is altered, no tag is added, none is removed, no separator rewritten). It MUST be one ordinary edit (008's
   save path, one undo step), MUST be disabled when it would change nothing, and MUST NOT be a second way to
   change the text beyond those blank lines (2026-10-03).
+- **FR-025**: A **portrait** video frame — a frame taller than it is wide (012's 9:16 offer) — MUST lay its
+  words inside the video platform's own safe box and MUST rest a sentence that fits at the **top** of it. Its
+  text area's vertical insets are the published vertical template for the same 1080×1920 canvas: **15 %** of the
+  height above (the platform's search and menu row) and **35 %** below (its title, channel name, subscribe
+  button and progress band). The reason is the reader's own report of 2026-10-08: on a 9:16 file the sentence
+  that rested at the bottom of the text area — 012's own rule of 2026-09-28 — *"is covered by the title and some
+  icon"*. A **landscape** frame MUST be unchanged: the tenth-of-the-frame insets of 2026-09-28 and its block at
+  the bottom. Nothing else the frame decides changes: the text area's **width** (the reader's own 1.4× request of
+  2026-09-28, so a portrait frame's words still reach the right-hand rail's column range and are clear of it
+  vertically), the reader's appearance, the scroll of a sentence too tall for the area (012's own scroll shape),
+  and the plate/tone rules.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -568,6 +629,10 @@ own; then one Undo restores the earlier text byte for byte.
 - **SC-011**: After Format is pressed in the editor, every role tag in the text stands at the head of its own
   paragraph, the difference from the text before the press is blank lines and nothing else (character for
   character), and one Undo restores the earlier text exactly.
+- **SC-012**: In a 9:16 render every sampled frame's words sit inside the platform's safe box — the text's top
+  edge at the frame's own top inset (15 % of the height) and its last line above the bottom band (35 % of the
+  height) — while the same content rendered 16:9 keeps the layout it had: the words' box still ends at the text
+  area's bottom (measured from the file's own pixels, the same way 012's rows 32/49 read a frame).
 
 ## Assumptions
 
@@ -617,6 +682,15 @@ own; then one Undo restores the earlier text byte for byte.
 - **A12 — the reference device** for the device rows is the AVD `emulator-5554` (API 36) and the reader's
   own phone (OnePlus LE2115) where the reader runs it, with the debug build's own evidence lines
   (`klhu speak …` extended with the role and the voice, FR-016's list, and the video's own lines).
+- **A13 — a portrait frame's placement is the platform's, a landscape frame's is the reader's (2026-10-08).**
+  The 9:16 frame's two vertical insets are the video platform's published safe box for the same 1080×1920 canvas
+  (15 % above, 35 % below) rather than a number this app chose, because what the reader reported is the platform's
+  own furniture and the app cannot see it: YouTube publishes no safe zone for organic Shorts, and the third-party
+  measurements of that interface disagree (180–380 px at the top, 350–672 px at the bottom), so the published
+  template is taken as the conservative floor. The consequence to accept: a 9:16 frame keeps 35 % of its height
+  clear even where nothing is drawn, and the reader's own 2026-09-28 rule ("the block at the bottom") now holds for
+  the landscape frame alone. The 16:9 frame is untouched, which is also why 012's own rows 31/49 are re-cut on
+  their portrait half only (their landscape half's expectations stand).
 
 ## Out of scope
 
