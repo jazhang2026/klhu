@@ -382,6 +382,34 @@ video's three one `Videos` action, and the portrait row is back at Material's 48
 this row reports different numbers for a row that is behaving. The measurement above stays as it was measured;
 the new claim and the reading of it are `breakpoint.md` deviation 9.)*
 
+### 23. On the device: a sentence ends where its paragraph does — [device]
+
+The reader's own question (2026-10-09): "a paragraph can end by a empty line. but a sentence is not end by a
+empty line now. should empty line end a sentence?" — yes, and the app's two halves had disagreed: the read
+spoke one paragraph at a time, while the tap and the stored position asked a view in which a blank line was
+plain whitespace, so a title with no full stop swallowed the sentence under it.
+Test: `python3 specs/011-reading-experience/scripts/klhu_walk_experience.py 23`. The driver writes its own
+content into the app's library (`A quiet morning` — no full stop — a blank line, then a punctuated paragraph)
+and takes it back out at the end.
+Steps: tap the title's own line, read it with ▶, then tap the paragraph under it and read with ⏭.
+Expected: the tap's sentence is the **title and only the title** — ▶ reads `(0, 15)`, not `(0, 50)`; the
+highlight is one line above the body's own line; the anchor a tap stores inside the body is the body's
+sentence start, never 0; and ⏭ from there starts at the body.
+Measured (`emulator-5554`, Extra large, APK built from this tree): the fixture's paragraphs are
+`[(0, 15), (17, 62)]` and its sentence starts `[0, 17, 51]`; **one full read reports three bands** —
+`[(0,0, 3..31), (1,0, 71..99), (1,1, 105..133)]` — the read's own view, one utterance per paragraph, which
+the amendment did not move. Tapping the title stores `record (0, 62)` (the anchor, then the text's own length)
+and paints rows `472..556`: **one line**, its bottom 102 device px above the body's line at `658`; ▶ reads
+`[(0, 15)]`. Tapping the body stores `record (17, 62)`; ⏭ reads `[(17, 62)]`. `PASS`.
+Red on the base: with `lib/segmenter.dart` stashed back to HEAD and the APK rebuilt, the same row reports
+▶ `[(0, 50)]` — the title **and** the body's first sentence — the highlight reaching `736`, into the body's
+line at `658`, an anchor of `0` for a tap inside the body, and ⏭ resuming at `(0, 62)`: `RESULT: FAIL`.
+*(This is 011's first row to write its own content, and it uses the same files-on-disk route 012's and 014's
+rows already use — `content/index.json` plus one text file per entry — which is why the row can hold the
+reader's exact shape instead of a shipped pre-set. 010's driver's own `sentence_starts` mirrors
+`lib/segmenter.dart`, so it was cut per paragraph in the same pass; on all three shipped pre-sets it returns
+byte-identical starts before and after, which is what keeps the earlier rows' numbers standing.)*
+
 ## Troubleshooting
 
 - **`flutter test` segfaults** — the `klhu` emulator is running on a 16 GB host; use

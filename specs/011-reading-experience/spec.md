@@ -47,6 +47,22 @@ the shipped single row (FR-026). Whether both orientations should change was put
 numbered options with their costs (portrait only; both; render both first and decide from the pixels); they
 chose portrait only.
 
+**Input (amendment, 2026-10-09)**: "a paragraph can end by a empty line. but a sentence is not end by a empty
+line now. should empty line end a sentence?" — the reader is right that it did not, and the app's two halves
+disagreed about it. `sentenceRanges` split on `. ! ? ;` and CJK `。！？；` alone, so across the whole text a
+blank line was just whitespace to step over: `我的旅行日记\n\n今天天气很好。` came back as **one** sentence,
+`0..13`. The read never used that view — it cuts its utterances per paragraph (`reader_service.dart:412`) and
+detects one language per paragraph, so it spoke the same text as **two** sentences. What *did* ask the
+whole-text view was the tap, the tracking highlight and the restored position (`reading_view.dart:975`,
+`:538`) — precisely the three things FR-020/FR-021/FR-024 bind to the sentence being spoken. So tapping a
+title selected the title **and** the paragraph under it; a stored position inside the second paragraph pulled
+the anchor back to the title; and a video rendered from there began at the title. A **sentence now ends where
+its paragraph does**: `sentenceRanges` cuts the text into paragraphs (`paragraphRanges`) and applies the
+delimiter rule to each — the rule the read was already using, so there is one rule and both views answer the
+same unit. A text with no blank line is untouched, and the read, the video's slots and 015's comment owner
+(all paragraph-scoped already) do not move. The alternative — let a sentence span a blank line and change the
+read to match — was declined: one language per paragraph (002) means a speech may not cross one.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The page follows the read (Priority: P1)

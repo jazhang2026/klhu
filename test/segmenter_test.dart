@@ -86,4 +86,56 @@ void main() {
       expect(seg.unit, SegmentUnit.page);
     });
   });
+
+  group('a paragraph ends a sentence too', () {
+    // 011's 2026-09-24 amendment: "the highlight, the spoken sentence and the
+    // resume point always name the same unit". The read cuts sentences per
+    // paragraph (`reader_service.dart:412`) and so does the video's slots
+    // (`video_timeline.dart:80`), but the tap and the resume anchor ask the
+    // WHOLE text (`reading_view.dart:975`, `:538`) — so the whole-text view has
+    // to agree with them. A blank line ends a paragraph, and it ends a
+    // sentence with it: nothing here may span one.
+    final blankLine = RegExp(r'\n[ \t]*\n+');
+
+    test('a title with no ender does not swallow the paragraph after it', () {
+      const text = '我的旅行日记\n\n今天天气很好。';
+      expect(sentenceRanges(text).map((r) => text.substring(r.start, r.end)).toList(),
+          ['我的旅行日记', '今天天气很好。']);
+    });
+
+    test('two unpunctuated paragraphs are two sentences', () {
+      const text = '今天天气很好\n\n适合出去走走';
+      expect(sentenceRanges(text).map((r) => text.substring(r.start, r.end)).toList(),
+          ['今天天气很好', '适合出去走走']);
+    });
+
+    test('no sentence range spans a blank line', () {
+      const text = '我的旅行日记\n\n今天天气很好。\n\nY mañana, también.';
+      for (final r in sentenceRanges(text)) {
+        final span = text.substring(r.start, r.end);
+        expect(blankLine.hasMatch(span), isFalse,
+            reason: 'this sentence spans a blank line: "$span"');
+      }
+    });
+
+    test('spaces inside the blank line belong to no sentence', () {
+      const text = '标题\n  \n正文。';
+      expect(sentenceRanges(text).map((r) => text.substring(r.start, r.end)).toList(),
+          ['标题', '正文。']);
+    });
+
+    test('the tap answers one paragraph, the way the read does', () {
+      const text = '我的旅行日记\n\n今天天气很好。';
+      final title = resolveSentence(text, 2);
+      expect(text.substring(title.start, title.end), '我的旅行日记');
+      final body = resolveSentence(text, 10);
+      expect(text.substring(body.start, body.end), '今天天气很好。');
+    });
+
+    test('a text with no blank line is untouched by the rule', () {
+      const text = 'First sentence.\nstill the same sentence? Yes.';
+      expect(sentenceRanges(text).map((r) => text.substring(r.start, r.end)).toList(),
+          ['First sentence.', 'still the same sentence?', 'Yes.']);
+    });
+  });
 }

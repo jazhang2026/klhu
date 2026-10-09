@@ -179,19 +179,34 @@ def preset_text(preset_id="preset_en_sample"):
 
 
 def sentence_starts(text):
-    starts, i = [0], 0
-    while i < len(text):
-        if text[i] in ".!?;。！？；":
-            j = i + 1
-            while j < len(text) and text[j] in "\"'”’)»]}":
-                j += 1
-            while j < len(text) and text[j] in " \t\r\n":
-                j += 1
-            if j < len(text):
-                starts.append(j)
-            i = j
-        else:
-            i += 1
+    """Where each sentence of [text] begins, mirroring `lib/segmenter.dart`.
+
+    A delimiter (`. ! ? ; 。！？；`) ends a sentence — and so does a paragraph:
+    the run between two blank lines is the largest thing one sentence can be
+    (011's 2026-10-09 amendment). Read the other way, with the delimiters
+    scanned across the whole text, a blank line is plain whitespace and a title
+    with no full stop begins ONE sentence running into the paragraph under it —
+    which is what the app's tap and its stored position did, while its read
+    (one utterance per paragraph) had always counted two. Where every paragraph
+    ends with an ender the two readings agree, so the pre-set's rows do not move.
+    """
+    starts = []
+    for a, b in paragraph_ranges(text):
+        if not starts or starts[-1] != a:
+            starts.append(a)
+        i = a
+        while i < b:
+            if text[i] in ".!?;。！？；":
+                j = i + 1
+                while j < b and text[j] in "\"'”’)»]}":
+                    j += 1
+                while j < b and text[j] in " \t\r\n":
+                    j += 1
+                if j < b:
+                    starts.append(j)
+                i = j
+            else:
+                i += 1
     return starts
 
 

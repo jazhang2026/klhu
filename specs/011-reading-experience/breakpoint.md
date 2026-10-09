@@ -72,6 +72,32 @@ After this amendment: `flutter analyze` clean, `flutter test --concurrency=2` �
 red on the shipped code and one of which — landscape — passes both ways on purpose). APK rebuilt
 (`flutter build apk --debug`) and installed on the reader's own phone, where row 22 was walked.
 
+## Amendment (2026-10-09, user-directed): a paragraph ends a sentence too
+
+The reader's own question — "a paragraph can end by a empty line. but a sentence is not end by a empty line
+now. should empty line end a sentence?" — and the answer is yes. `sentenceRanges` cut on the delimiters alone,
+so across the whole text a blank line was whitespace to step over and `我的旅行日记\n\n今天天气很好。` came back
+as **one** sentence, `0..13`. The read never used that view (one utterance per paragraph,
+`reader_service.dart:412`) and neither did the video's slots (`video_timeline.dart:80`) — but the tap, the
+tracking highlight and the restored position did (`reading_view.dart:975`, `:538`), which are exactly the three
+things FR-020/FR-021/FR-024 bind together. `spec.md` carries the amendment of the same date.
+
+| Change | State | Evidence |
+|---|---|---|
+| A sentence now ends where its paragraph does — `sentenceRanges` cuts the text into paragraphs and applies the delimiter rule to each, so one rule answers both views (FR-020/FR-021/FR-024) | **unit — RED then GREEN** | `test/segmenter_test.dart`, new group "a paragraph ends a sentence too" (6 cases), on the shipped code: **`+11 -5`** — the title case, two unpunctuated paragraphs, "no sentence range spans a blank line", "spaces inside the blank line belong to no sentence" and the tap's own resolution failed; after the change **16 tests, all passed**. Whole suite **630 → 636, 0 failing**; `flutter analyze` clean. **No shipped case's expectation had to move** — nothing had locked the old behaviour in |
+| 011 row **23** — the reader's own shape on the device: a title with no full stop over a punctuated paragraph | **WALKED — RED, then PASS** | `python3 specs/011-reading-experience/scripts/klhu_walk_experience.py 23` (the driver writes its own content into the library and takes it back out). **On the shipped segmenter** (`git stash push -- lib/segmenter.dart`, APK rebuilt): ▶ read `[(0, 50)]` — the title **and** the body's first sentence — the highlight reached `736`, into the body's own line at `658`, a tap inside the body stored the anchor `0` (the title), and ⏭ resumed at `(0, 62)`: `RESULT: FAIL`. **On this tree**: ▶ reads `[(0, 15)]` (the title alone), the highlight is one line `472..556` whose bottom is 102 device px above the body's line at `658`, the body tap stores `record (17, 62)`, and ⏭ reads `[(17, 62)]`: `PASS`. One full read reports three bands `[(0,0, 3..31), (1,0, 71..99), (1,1, 105..133)]` — the read's own view was never the broken one |
+| The device rows it reaches still pass: the tap's position, that position across a restart, no position at all, the resume inside a paragraph, the follow, the stored position revealed, no-scroll, Stop, and the tap's own unit | **WALKED — PASS** | 010 `13`, `14`, `15`, `16` → `RESULT: PASS` each; 011 `7`, `8`, `9`, `10`, `20` → `RESULT: PASS` each, on the APK rebuilt from this tree and installed on `emulator-5554`. Part 20's numbers are the change's own subject: a tap low on the page set the position at the paragraph `65..199` and ▶ Read spoke the **sentence** `(112, 159)` inside it, while the long press spoke the paragraph `(65, 199)` |
+
+After this amendment: `flutter analyze` clean, `flutter test --concurrency=2` → **636 passing, 0 failing**
+(015's close of 630 + this file's 6 new cases). APK rebuilt (`flutter build apk --debug`) and installed, and the
+ten rows above re-walked on it.
+
+**Not walked, and it should be said**: `video_timeline.dart:128` asks the whole-text view too — a video
+rendered from a position starts at that position's sentence. No row covers a render from a non-zero position
+(012:32 renders from the start, and 015's receipts re-ran it today on this build, where a start-of-text render
+cannot tell the two rules apart), so that path is **argued from the unit cases, not walked**. A row for it is
+the gap this amendment leaves.
+
 ## Deviations found while validating
 
 1. **Scenario 10's original premise did not hold, twice, and the driver was fixed both times.** The

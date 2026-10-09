@@ -25,8 +25,10 @@ survives a 4x reduction), which is precise to ±4 device px — quoted that way 
 breakpoint.md.
 """
 import importlib.util
+import json
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -1064,6 +1066,230 @@ def scenario_21():
     return ok
 
 
+# --------------------------------------------------------------------------
+# Row 23's own fixture. A title with NO sentence ender, a blank line, then a
+# punctuated paragraph — and the body's first sentence is deliberately the
+# shipped pre-set's opening line, so the reading text stays addressable by the
+# needle every helper here already uses (`text_node`, `origin`, …).
+#   old rule: one sentence, `A quiet morning\n\nThe sun rose over the quiet town.`
+#             (starts [0, 51]) — the title swallowed the body's first sentence
+#   new rule: three, starts [0, 17, 51] — the title, then the body's two
+TITLE_ID = "blank_line_title"
+TITLE_NAME = "A quiet morning"
+TITLE_TEXT = "A quiet morning\n\nThe sun rose over the quiet town. Birds sang."
+LIBRARY = f"/data/data/{PKG}/app_flutter"
+INDEX = f"{LIBRARY}/content/index.json"
+DEV = os.environ.get("ADB_SERIAL", "emulator-5554")
+
+
+def device_write(path, data):
+    """Writes bytes into the app's private storage through `run-as`.
+
+    The redirection has to live inside the command string: `adb shell` joins its
+    arguments with spaces and never quotes them, so a separate `>` would be
+    handed to the device's outer shell, which is not the app's user and cannot
+    write there — the failure is silent (012's own note, born of the same bug).
+    """
+    out = subprocess.run(
+        ["adb", "-s", DEV, "shell", f"run-as {PKG} sh -c 'cat > {path}'"],
+        input=data, capture_output=True)
+    return out.returncode == 0
+
+
+def seed(content_id, name, text):
+    """Writes one content into the app's library and opens it.
+
+    The library is files on disk — `content/index.json` plus one text file per
+    entry — so a debug build is handed a content from here (014's driver does
+    the same). The app caches the index in memory, so it is force-stopped after
+    the write and what the row then reads is the file on disk.
+    """
+    adb("shell", "run-as", PKG, "mkdir", "-p", f"{LIBRARY}/content/contents")
+    if not device_write(f"{LIBRARY}/content/contents/{content_id}.txt",
+                        text.encode()):
+        return None
+    index = json.loads(adb("shell", "run-as", PKG, "cat", INDEX))
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%S.000000Z", time.gmtime())
+    index["entries"] = [e for e in index["entries"] if e["id"] != content_id] + [{
+        "id": content_id, "name": name, "language": "en", "origin": "user",
+        "createdAt": stamp, "updatedAt": stamp, "charCount": len(text),
+    }]
+    index["lastOpenedId"] = content_id
+    if not device_write(INDEX, json.dumps(index).encode()):
+        return None
+    adb("shell", "am", "force-stop", PKG)
+    base.start_app()
+    return text
+
+
+def unseed(content_id):
+    """Takes the row's own content back out, so the library is as it was found."""
+    index = json.loads(adb("shell", "run-as", PKG, "cat", INDEX))
+    index["entries"] = [e for e in index["entries"] if e["id"] != content_id]
+    if index.get("lastOpenedId") == content_id:
+        index["lastOpenedId"] = "preset_en_sample"
+    ok = device_write(INDEX, json.dumps(index).encode())
+    adb("shell", "run-as", PKG, "rm", "-f",
+        f"{LIBRARY}/content/contents/{content_id}.txt")
+    adb("shell", "am", "force-stop", PKG)
+    return ok
+
+
+def scenario_23():
+    """23. a sentence ends where its paragraph does — the 2026-10-09 amendment.
+
+    The reader's question: "a paragraph can end by a empty line. but a sentence
+    is not end by a empty line now. should empty line end a sentence?" — yes, and
+    the app's two halves had disagreed. The read speaks one paragraph at a time
+    and always counted two units here; the tap, the highlight and the stored
+    position asked a view in which a blank line was plain whitespace, so a title
+    with no full stop swallowed the sentence under it. One rule answers both now,
+    and this row is the reader's own shape on a real screen.
+    """
+    step("23. a sentence ends where its paragraph does — the tap, the read, the position")
+    rows = base.start_app(clear=True)
+    if base.find(rows, "Appearance") is None:
+        if not base.tap_node(rows, "Back", "Back to the reading page"):
+            return False
+        time.sleep(1.5)
+        rows = base.dump()
+    rows = set_xlarge(rows)
+    if rows is None:
+        print("   FAIL: the reading page did not accept Extra large")
+        return False
+
+    text = seed(TITLE_ID, TITLE_NAME, TITLE_TEXT)
+    if text is None:
+        print("   FAIL: the fixture did not reach the library")
+        return False
+    time.sleep(2)
+    rows = base.dump()
+    if text_node(rows) is None:
+        print(f"   FAIL: the fixture's text is not on the page — "
+              f"visible: {base.labels(rows)[:8]}")
+        unseed(TITLE_ID)
+        return False
+
+    paras = base.paragraph_ranges(text)
+    starts = base.sentence_starts(text)
+    title = paras[0]
+    first = (starts[1], starts[2] if len(starts) > 2 else len(text))
+    print(f"   the fixture: {text!r}")
+    print(f"   paragraphs {paras}; sentence starts {starts}")
+    print(f"   title {title}; the paragraph under it begins at {paras[1]}, "
+          f"its first sentence is {first}")
+    ok = True
+
+    # The app's own geometry for the two lines: one full read reports a band per
+    # sentence in logical px, and a band's top lands at `origin + top * dpr` in
+    # device px — the conversion 011's rows 7/9/10 already measure with. The log
+    # is cleared first: a band read from a window that still holds the previous
+    # content's lines would be answered by the wrong text.
+    base.clear_log()
+    tap_control(base.dump(), "Continue Read", "Continue Read (one full read, for the bands)")
+    time.sleep(3.0)
+    if not base.wait_for_idle():
+        print("   FAIL: the read did not end")
+        unseed(TITLE_ID)
+        return False
+    bands = {(f["p"], f["s"]): f for f in follow_lines()}
+    ratio, top = dpr(), origin(base.dump())
+    print(f"   follow bands: "
+          f"{[(f['p'], f['s'], f['top'], f['bottom']) for f in follow_lines()]} "
+          f"dpr={ratio:.3f} origin={top}")
+    title_band, first_band = bands.get((0, 0)), bands.get((1, 0))
+    if title_band is None or first_band is None:
+        print(f"   FAIL: the read reported {sorted(bands)}, not a band for p0 s0 "
+              f"(the title) and p1 s0 (the paragraph under it)")
+        unseed(TITLE_ID)
+        return False
+    if first_band["top"] <= title_band["top"]:
+        print("   FAIL: the body's band is not below the title's")
+
+    def tap_band(band, why):
+        x = text_columns(base.dump())[0] + 20
+        y = top + int((band["top"] + band["bottom"]) / 2 * ratio)
+        base.tap_at(x, y, why)
+        time.sleep(1.5)
+        return (x, y)
+
+    # The stored record is `(anchor, the text's own length)` — the length is how a
+    # record computed on other text is recognised and ignored (`_restoreAnchor`
+    # hands it to `Positions.load`), so the ANCHOR is the part that answers which
+    # sentence the page picked.
+    #
+    # 1. A tap on the TITLE's own line: the anchor is the title's start, the
+    #    highlight is one line, and ▶ reads the title alone. Under the old rule
+    #    the sentence under the finger was `0..51` — the title AND the body's
+    #    first sentence — so ▶ would have read into the paragraph.
+    tap_band(title_band, "the title's own line")
+    offset = stored_offset()
+    want = (title[0], len(text))
+    print(f"   tapped the title -> record {offset} (the title begins at {title[0]}, "
+          f"the text is {len(text)} chars)")
+    if offset != want:
+        print(f"   FAIL: the record is {offset}, not (the title's start, the text's "
+              f"length) = {want}")
+        ok = False
+    shot = screencap(os.path.join(OUT, "011_23_title_tap.png"))
+    band_rows = sorted(yellow_rows(shot))
+    if not band_rows:
+        print("   FAIL: the tap painted no highlight")
+        ok = False
+    else:
+        body_top = top + int(first_band["top"] * ratio)
+        print(f"   the highlight's rows {band_rows[0]}..{band_rows[-1]}; "
+              f"the body's own band begins at {body_top}")
+        if band_rows[-1] >= body_top:
+            print(f"   FAIL: the highlight reaches {band_rows[-1]}, into the "
+                  f"body's line at {body_top}")
+            ok = False
+
+    # 2. ▶ reads the title alone: one range, the title's own span. This is the
+    #    discriminating number — the old rule gave `(0, 51)` here.
+    base.clear_log()
+    tap_control(base.dump(), "Read", "Read (the tapped title)")
+    time.sleep(2.5)
+    ranges = base.ranges()
+    print(f"   ▶ ranges={ranges} utterances={spoken()}")
+    if not ranges or ranges[0] != title:
+        print(f"   FAIL: ▶ read {ranges[0] if ranges else None}, not the title {title} — "
+              f"the tap's sentence is swallowing the paragraph under it")
+        ok = False
+    if not base.wait_for_idle():
+        print("   FAIL: the read did not end")
+        unseed(TITLE_ID)
+        return False
+
+    # 3. A tap inside the body: the anchor is where the body's own sentence
+    #    starts, never back at the title.
+    tap_band(first_band, "the body's first sentence")
+    offset = stored_offset()
+    print(f"   tapped the body -> record {offset} (its first sentence begins at "
+          f"{first[0]})")
+    if offset is None or offset[0] != first[0]:
+        print(f"   FAIL: the anchor is {offset[0] if offset else None}, not the "
+              f"body's {first[0]} — the tap went back to the title")
+        ok = False
+
+    # 4. ⏭ from there reads from there: the resume is not pulled back to the
+    #    title, which is what the anchor did with the old rule (it would have
+    #    started at 0).
+    base.clear_log()
+    tap_control(base.dump(), "Continue Read", "Continue Read (from the body)")
+    time.sleep(2.5)
+    ranges = base.ranges()
+    print(f"   ⏭ ranges={ranges} utterances={spoken()}")
+    if not ranges or ranges[0][0] != first[0]:
+        print(f"   FAIL: ⏭ started at {ranges[0][0] if ranges else None}, "
+              f"not at the body's {first[0]}")
+        ok = False
+    base.wait_for_idle()
+    print(f"   left in the library afterwards: "
+          f"{'taken back out' if unseed(TITLE_ID) else 'STILL THERE'}")
+    return ok
+
+
 PARTS = {
     "7": scenario_7,
     "8": scenario_8,
@@ -1073,11 +1299,12 @@ PARTS = {
     "17": scenario_17,
     "20": scenario_20,
     "21": scenario_21,
+    "23": scenario_23,
 }
 
 if __name__ == "__main__":
     part = sys.argv[1] if len(sys.argv) > 1 else ""
     if part not in PARTS:
-        print(f"usage: {os.path.basename(__file__)} 7|8|9|10|16|17|20|21")
+        print(f"usage: {os.path.basename(__file__)} 7|8|9|10|16|17|20|21|23")
         sys.exit(2)
     print("RESULT:", "PASS" if PARTS[part]() else "FAIL")
