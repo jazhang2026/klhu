@@ -435,6 +435,19 @@ comment is what 012 produces today. The measured numbers are written into this r
 [research.md](./research.md) → Spike S2 rather than asserted from memory.
 Proves SC-007, FR-013.
 
+**Re-taken 2026-10-12 by [017](../017-bold-comment-size/spec.md)'s device row 11** (that feature's FR-008: a
+comment is painted one offered size below its sentence's). The same content, the same slot, the same device:
+
+```
+then   text=18   ink box (208, 864, 456, 964)   height 100px of 1080   width 248px
+now    text=18   ink box (208, 872, 420, 966)   height  94px of 1080   width 172px
+```
+
+`text=18` is unchanged — the painted characters are the sentence's 5 plus the line break plus the comment's 12,
+and no tag's characters are in the frame (this row's own `SC-007` claim) — while the box is **6 px shorter** and
+its block narrower, because the comment's own line is now painted at the derived smaller size. This row's
+"strictly taller than the same sentence rendered with no comment" still holds.
+
 ### 23. A comment's video, the audio — [device] (spike S1)
 
 Test: `klhu_walk_comment.py 23`, then

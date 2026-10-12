@@ -497,7 +497,11 @@ reports them rather than asserting from memory.
 
 **Measured (2026-10-09, `klhu_walk_comment.py 22`, AVD `emulator-5554`)**: at 16:9 landscape 1080p the slot's
 block is `Hola.` + one line break + `How are you?` — `text=18` — and its ink box at 1920x1080 is
-**`(208, 864, 456, 964)`: 100 px tall in both files**, identical to the pixel. The same sentence with no
+**`(208, 864, 456, 964)`: 100 px tall in both files**, identical to the pixel. *(Superseded 2026-10-12 by
+[017](../017-bold-comment-size/spec.md)'s device row 11, which re-took these figures on the same device and
+content after a comment's own characters began to be painted one size smaller: the box is now
+`(208, 872, 420, 966)`, **94 px** tall — `text=18` unchanged — and the superseded pair is kept here as the
+record of what this feature measured.)* The same sentence with no
 comment at all is `text=5` and `(208, 924, 298, 954)`: **30 px**. So the comment's line adds **70 px** of
 block height at this size, and the singleton's line sits exactly where the block's *second* line sits
 (y 924..954 inside 864..964) — the block grows **upward**. Frames: 100 with the comments read, 75 with them

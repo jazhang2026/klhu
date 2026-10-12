@@ -35,7 +35,7 @@ value: <typeface>||<size>
 
 | Field | Type | Domain | Default |
 |---|---|---|---|
-| `typeface` | `String` | `default`, `serif`, `mono` | `default` |
+| `typeface` | `String` | `default`, `bold`, `serif`, `serif-bold`, `mono`, `mono-bold` | `default` |
 | `size` | `String` | `small`, `medium`, `large`, `xlarge` | `medium` |
 
 One key rather than one per field, so a confirmed choice is a **single** `setString`: there is no state
@@ -60,8 +60,11 @@ later retune is a code change, not a data migration.
 | `typeface` | Android family | iOS family |
 |---|---|---|
 | `default` | none — the theme's own family (today's look) | none |
+| `bold` *(017, 2026-10-12)* | **none**, at `FontWeight.w700` — the theme's own family carries the weight, which on Android is the variable `Roboto` (its `wght` axis) | none, at `w700` |
 | `serif` | `serif` (measured: `NotoSerif-Regular.ttf`, with the lang-tagged CJK family as fallback) | `Times New Roman` |
+| `serif-bold` *(017, 2026-10-12)* | `serif`, at `FontWeight.w700` (measured: `NotoSerif-Bold.ttf` ships and the family registers a `weight="700"` entry; **no bold CJK face ships**, so a Chinese word is the fallback face with its weight synthesised) | `Times New Roman`, at `w700` |
 | `mono` | `monospace` | `Courier New` |
+| `mono-bold` *(017, 2026-10-12)* | `monospace`, at `FontWeight.w700` (measured: the family's only entry is `DroidSansMono.ttf` at `weight="400"`, so the weight is **synthesised** — 017's probe of 2026-10-12 and its decision 5, taken with the reader's eyes on the result) | `Courier New`, at `w700` |
 
 The iOS column is **unverified on this host** (no macOS): it is the CoreText name for the same
 intent, and research D5 records it as such. `default` never sets a family, so an unverified mapping
@@ -80,7 +83,8 @@ can never make the app's shipped look worse.
 throws:
 
 1. the key exists and the value splits into exactly two non-empty parts;
-2. part 1 is one of the three typeface names — otherwise that field alone falls back to `default`;
+2. part 1 is one of the **six** typeface names (017 added `bold`, `serif-bold`, `mono-bold` on 2026-10-12) —
+   otherwise that field alone falls back to `default`;
 3. part 2 is one of the four size names — otherwise that field alone falls back to `medium`.
 
 Anything else — a missing key, a single-part value, a three-part value, a value from an older or
@@ -108,10 +112,13 @@ and the next confirmed choice overwrites it.
 
 ## Invariants a test can assert
 
-1. **Round-trip**: save `serif||xlarge`, load → `(serif, xlarge)`.
+1. **Round-trip**: save `serif||xlarge`, load → `(serif, xlarge)`; and (017, 2026-10-12) each of
+   `bold||xlarge`, `serif-bold||xlarge`, `mono-bold||xlarge` → itself, with the encoded value splitting into
+   exactly two parts for every offered face (the mutation 2026-10-12 made the grammar's own assertion).
 2. **Absent is default**: nothing stored → `(default, medium)`, and the applied style equals the
    theme's `bodyMedium` (size 14, no family).
-3. **Per-field fallback**: `Helvetica||xlarge` → `(default, xlarge)`; `serif||huge` →
+3. **Per-field fallback**: `Helvetica||xlarge` → `(default, xlarge)`; `serif-bold||huge` →
+   `(serif-bold, medium)` (017, 2026-10-12 — a bold name is a name like any other); `serif||huge` →
    `(serif, medium)`.
 4. **Malformed values** (`''`, `serif`, `serif||`, `||xlarge`, `serif||xlarge||extra`) each return the
    defaults and never throw.

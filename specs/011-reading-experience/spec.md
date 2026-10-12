@@ -274,6 +274,11 @@ entry in the list; repeat and leave without saving instead, and find the library
   choice is malformed or no longer offered
 - **FR-012**: The offered sizes MUST keep every line of the text inside the page at the largest
   offered size
+  *(Re-measured 2026-10-12 for [017](../017-bold-comment-size/spec.md)'s three bold faces, by that feature's
+  device row 9 on the same device: at `xlarge` the painted ink's **right edge is the column's own right bound**
+  (1042 px) in all six captures, so `bold`, `serif-bold` and `mono-bold` keep every line inside the page too. A
+  bold glyph's ink starts up to **10 px** closer to the left margin — a side-bearing property of the weight, not
+  a layout change — which that row bounds and reports.)*
 - **FR-013**: The offered typefaces MUST render the app's content languages — English, Simplified
   Chinese and Spanish — without missing glyphs
 - **FR-014**: System MUST offer the appearance control when the reading page is idle, and MUST NOT

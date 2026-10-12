@@ -103,7 +103,7 @@ The reader's text with the tags' own characters elided, and the mapping between 
 
 | Part | Rule |
 |---|---|
-| `display` | `text` with every `[tagStart, tagEnd)` removed and **nothing else changed** — the comment's content, its line breaks, the comment's owner's text and every role tag (014's `{…}`, which the page does show) all stay exactly where they are. |
+| `display` | `text` with every `[tagStart, tagEnd)` removed and **nothing else changed** — the comment's content, its line breaks, the comment's owner's text and every role tag (014's `{…}`, which the page does show) all stay exactly where they are. **017, 2026-10-12**: the characters are unchanged and their own *size* is not — a comment's span is painted one offered size below the text's (FR-007 there), which is a paint fact, not a change to this row's text. |
 | `toContent(displayOffset)` | The content offset the reader's finger is on. Across an elision the answer is the first content character **after** the elided span — those characters are not painted, so the character at the display position they occupied is the one that follows them, and for a comment's tag that character is inside the comment's own span (so a tap at the seam still answers the comment; corrected 2026-10-08 by the implementation, T007). |
 | `toDisplay(contentOffset)` | Where a content offset is painted. An offset inside an elided span answers the span's display start, so a highlight whose end lands inside a tag paints no marker and covers the comment's content. |
 

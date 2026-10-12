@@ -449,7 +449,10 @@ highlight, no position — for a step **and** for a tap.
 
       **DONE 2026-10-12** — `selectToReadMessage` removed from `lib/l10n/app_en.arb`, `app_zh.arb`,
       `app_zh_Hans.arb` and `app_es.arb` (each at `:15`), `flutter gen-l10n` regenerating the committed Dart.
-      The four ARBs now count **107** message keys each (108 on `409ffe1`, counted in the same script),
+      The four ARBs now count **107** message keys each (108 on `409ffe1`, counted in the same script)
+      — *(dated note, 2026-10-12: [017](../017-bold-comment-size/spec.md) T005 added three labels, so the four
+      count **110** today; the figure above is what this row measured, and the retirement it records is what took
+      the tree from 108 to 107)*,
       `flutter test test/l10n_keys_test.dart` → **3 passing**, `flutter analyze` → **No issues found!** and
       `grep -rn 'selectToReadMessage' lib/ test/` → nothing (exit 1). 015's row 16 receipt, which reads 108, is
       corrected by T022 — not here, and not silently.
@@ -740,8 +743,10 @@ hand-run).
       byte, and `test/l10n_keys_test.dart` green.
       **DONE 2026-10-12** — the two structural checks, run on the finished tree (their numbers are also in the
       Status below): `git diff --stat pubspec.yaml pubspec.lock android/ ios/` → **empty** (FR-014: nothing
-      installed, no platform file touched), and the l10n half of FR-013 — the four ARBs count **107** message
-      keys each, `flutter gen-l10n` reproduces the four committed `app_localizations*.dart` **byte for byte**
+      installed, no platform file touched), and the l10n half of FR-013 — the four ARBs counted **107** message
+      keys each **on this feature's own tree** *(updated 2026-10-12: [017](../017-bold-comment-size/spec.md) added
+      three labels — `fontBoldLabel`, `fontSerifBoldLabel`, `fontMonoBoldLabel` — so the four ARBs now count
+      **110**; 107 is what the tree held when this row ran, and 016's own receipt is unchanged)*, `flutter gen-l10n` reproduces the four committed `app_localizations*.dart` **byte for byte**
       (sha256 before == after) and `flutter test test/l10n_keys_test.dart` → **3 passing**.
 - [x] T032 Run both list checkers and quote them verbatim in `specs/016-sentence-reading/tasks.md`'s Status:
       `python3 ~/.hermes/skills/software-development/spec-driven-development/scripts/check_tasks_format.py

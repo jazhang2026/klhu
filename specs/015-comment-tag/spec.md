@@ -346,9 +346,18 @@ audio carries the comment exactly when the read does.
   tap, highlight and reading-position behaviour MUST keep working over that display: a tap inside a comment
   resolves to the sentence it belongs to when the comments are not read, and to the comment itself when they
   are; the highlight MUST cover a comment exactly when that comment is being read.
+  *(Amended 2026-10-12 by [017](../017-bold-comment-size/spec.md) FR-007: a comment's own characters are painted
+  **one offered size below** the reading text's — 24→18, 18→14, 14→12, and the derived 10 at the smallest offered
+  size — on the reader's own ask of that day (*"comment 字体要比主字体小一号。有区别。"*). Everything else in this rule
+  stands: the tag is painted nowhere, the content sits where the reader wrote it with its line breaks, and the
+  mapping is untouched — which is what 017 FR-010's suites assert by running **unmodified**.)*
 - **FR-013**: A video frame that paints a sentence MUST paint that sentence's comment's content with it, and no
   frame MUST paint a tag (the reader's own words: *"comment tag will not be displayed in the video. the comment
   content will be in the video with the sentence"*). A comment that belongs to no sentence is in no frame.
+  *(Amended 2026-10-12 by [017](../017-bold-comment-size/spec.md) FR-008: the comment's characters in the frame are
+  painted **one offered size below its sentence's** — the same relationship the page uses. The block is then two
+  spans inside one layout, so its lines, its height and its scroll steps still come from a single call; the
+  measured figures this rule's own row holds were re-taken by 017's device row 11.)*
 - **FR-014**: The comment setting MUST be reachable from the reading page's own settings surface — the sheet
   where the text type and the role list already live (the settings sheet 014's own entries sit on) — and every
   new string MUST exist in the app's four locale files.
