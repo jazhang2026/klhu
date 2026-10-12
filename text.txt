@@ -103,9 +103,9 @@ Requirement:
     after read one sentence, the next sentence will be highlighted and ready to read.
     click Read button again will read the next sentence.
     
-    add bold font option in Appearance selection.
-    make comment is always one smaller size than the text if possible.
+017. 1. add bold font option in Appearance selection.
+    2. make comment is always one smaller size than the text if possible.
 
-017. 1. support mark down format.
+018. 1. support mark down format.
     include mark down tags in the text. reading and video display should support mark down format.
     

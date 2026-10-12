@@ -181,6 +181,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fontMonoLabel => '等宽体';
 
   @override
+  String get fontBoldLabel => '加粗';
+
+  @override
+  String get fontSerifBoldLabel => '衬线体加粗';
+
+  @override
+  String get fontMonoBoldLabel => '等宽体加粗';
+
+  @override
   String get sizeSmallLabel => '小';
 
   @override
@@ -539,6 +548,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get fontMonoLabel => '等宽体';
+
+  @override
+  String get fontBoldLabel => '加粗';
+
+  @override
+  String get fontSerifBoldLabel => '衬线体加粗';
+
+  @override
+  String get fontMonoBoldLabel => '等宽体加粗';
 
   @override
   String get sizeSmallLabel => '小';

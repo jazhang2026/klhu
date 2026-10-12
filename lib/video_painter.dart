@@ -37,6 +37,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+
+import 'appearance_store.dart';
 import 'package:klhu/video_timeline.dart';
 
 /// Whether a picture reads as light or dark — what decides the plate the words
@@ -578,10 +580,31 @@ class VideoPainter {
       fontSize: (readingStyle.fontSize ?? 14) * scale,
       color: ink ?? readingStyle.color,
     );
-    // A frame shows one thing — the slot's own sentence — in one style and one
-    // span, drawn from the area's left edge (FR-029).
+    // A frame shows one thing — the slot's own sentence — drawn from the area's
+    // left edge (FR-029).
+    //
+    // 017: a slot that carries a comment is TWO spans in ONE layout, the second
+    // at the derived size (FR-008), so the block's lines, its height and its
+    // scroll steps all still come from this single call. The text itself is
+    // unchanged — `paintedText` is what the renderer's own line reports, and
+    // nothing here moves it.
+    final boundary = slot.commentStart;
+    final sentence = TextSpan(text: slot.text, style: style);
+    final drawn = (boundary == null ||
+            boundary <= 0 ||
+            boundary >= slot.text.length)
+        ? sentence
+        : TextSpan(children: [
+            TextSpan(text: slot.text.substring(0, boundary), style: style),
+            TextSpan(
+              text: slot.text.substring(boundary),
+              style: style.copyWith(
+                fontSize: _commentSizeOf(style),
+              ),
+            ),
+          ]);
     final layout = TextPainter(
-      text: TextSpan(text: slot.text, style: style),
+      text: drawn,
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.start,
     )..layout(maxWidth: column.width);
@@ -610,6 +633,16 @@ class VideoPainter {
           ? 0
           : (overflow / lineHeight).ceil(),
     );
+  }
+
+  /// 017: the comment's own size in the frame — the reading size's derived
+  /// comment size, carried onto the frame's own scale, so the relationship the
+  /// page paints is the one the frame paints (FR-008, one helper: `D2`).
+  double _commentSizeOf(TextStyle frameStyle) {
+    final reading = readingStyle.fontSize ?? 14;
+    return (frameStyle.fontSize ?? reading * scale) *
+        ReadingSize.commentPointsFor(reading) /
+        reading;
   }
 
   /// The part of [picture] to draw so that it covers the frame: the whole of the

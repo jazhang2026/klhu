@@ -156,6 +156,7 @@ class VideoSlot {
     required this.startFrame,
     this.audio = const [],
     this.role,
+    this.commentStart,
   });
 
   final VideoSlotKind kind;
@@ -170,8 +171,15 @@ class VideoSlot {
   final int start;
   final int end;
 
-  /// The sentence being spoken. The end hold repeats the last one's.
+  /// The sentence being spoken, then — on its own line — each comment that
+  /// rides it. The end hold repeats the last one's.
   final String text;
+
+  /// 017: where the comment's own characters begin INSIDE [text], or null when
+  /// the slot carries none. The painter cannot recover it from [text] alone:
+  /// [start]/[end] are CONTENT offsets and the display elides the tag's
+  /// characters, so the boundary is not a difference of offsets (017 D4).
+  final int? commentStart;
   final String language;
   final VoiceChoice? voice;
 
@@ -335,6 +343,7 @@ VideoPlan buildVideoPlan({
         start: own.start,
         end: own.end,
         text: <String>[own.text, ...riding[s]!].join('\n'),
+        commentStart: riding[s]!.isEmpty ? null : own.text.length + 1,
         language: own.language,
         voice: own.voice,
         role: own.role,
@@ -358,6 +367,7 @@ VideoPlan buildVideoPlan({
       start: 0,
       end: 0,
       text: last.text,
+      commentStart: last.commentStart,
       language: last.language,
       voice: last.voice,
       role: last.role,

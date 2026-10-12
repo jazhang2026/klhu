@@ -26,6 +26,30 @@ void main() {
       expect(held.encode(), 'serif||xlarge');
     });
 
+    test('the three bold names round-trip and fall back per field (017 T002)', () {
+      for (final name in const ['bold', 'serif-bold', 'mono-bold']) {
+        final held = ReadingAppearance.decode('$name||xlarge');
+        expect(held.typeface.name, name);
+        expect(held.size.name, 'xlarge');
+        expect(held.encode(), '$name||xlarge');
+      }
+      final unknownSize = ReadingAppearance.decode('serif-bold||huge');
+      expect(unknownSize.typeface.name, 'serif-bold');
+      expect(unknownSize.size.name, 'medium');
+    });
+
+    test('every offered face encodes as exactly two parts (017 INV-1)', () {
+      for (final face in ReadingTypeface.all) {
+        for (final size in ReadingSize.all) {
+          final parts =
+              ReadingAppearance(typeface: face, size: size).encode().split('||');
+          expect(parts.length, 2, reason: '${face.name}||${size.name}');
+          expect(parts[0], isNotEmpty);
+          expect(parts[1], isNotEmpty);
+        }
+      }
+    });
+
     test('a field that names nothing the app ships falls back on its own', () {
       // Invariant 3: the other field still applies.
       final unknownFace = ReadingAppearance.decode('Helvetica||xlarge');
@@ -111,10 +135,12 @@ void main() {
   });
 
   group('the offered sets (contract § What the keys mean when rendered)', () {
-    test('three typefaces, four sizes, and medium is the size the app ships',
+    test('six typefaces, four sizes, and medium is the size the app ships',
         () {
+      // Re-cut by 017 T002: the offered list is the contract's six names, and
+      // this is the case that pins it (the widget tests' label loops do not).
       expect(ReadingTypeface.all.map((face) => face.name),
-          ['default', 'serif', 'mono']);
+          ['default', 'bold', 'serif', 'serif-bold', 'mono', 'mono-bold']);
       expect(ReadingSize.all.map((size) => size.name),
           ['small', 'medium', 'large', 'xlarge']);
       // Invariant 2's "the default is a no-op" is pinned where the style is
@@ -137,6 +163,50 @@ void main() {
           'Times New Roman');
       expect(ReadingTypeface.mono.familyFor(TargetPlatform.iOS),
           'Courier New');
+    });
+
+    test('a comment is one offered size down, and smaller at the smallest '
+        '(017 INV-3/INV-4)', () {
+      expect(ReadingSize.xlarge.commentPoints, ReadingSize.large.points);
+      expect(ReadingSize.large.commentPoints, ReadingSize.medium.points);
+      expect(ReadingSize.medium.commentPoints, ReadingSize.small.points);
+      // Nothing smaller is offered to fall to, and the reader asked for a
+      // visible difference: the derived 10 (017 decision 2).
+      expect(ReadingSize.small.commentPoints, 10);
+      // The invariant the reader's own words make: strictly smaller, always.
+      for (final size in ReadingSize.all) {
+        expect(size.commentPoints, lessThan(size.points), reason: size.name);
+      }
+    });
+
+    test('a bold value keeps its family and changes only the weight (017 INV-9)',
+        () {
+      // D5: `bold` names no family either (the theme's own, the device's one
+      // real-bold family); the named bolds keep their regular's family.
+      expect(ReadingTypeface.bold.familyFor(TargetPlatform.android), isNull);
+      expect(ReadingTypeface.serifBold.familyFor(TargetPlatform.android),
+          'serif');
+      expect(ReadingTypeface.monoBold.familyFor(TargetPlatform.android),
+          'monospace');
+      expect(ReadingTypeface.serifBold.familyFor(TargetPlatform.iOS),
+          'Times New Roman');
+      expect(ReadingTypeface.monoBold.familyFor(TargetPlatform.iOS),
+          'Courier New');
+
+      for (final face in const [
+        ReadingTypeface.bold,
+        ReadingTypeface.serifBold,
+        ReadingTypeface.monoBold,
+      ]) {
+        expect(face.weight, FontWeight.w700, reason: face.name);
+      }
+      for (final face in const [
+        ReadingTypeface.defaultFace,
+        ReadingTypeface.serif,
+        ReadingTypeface.mono,
+      ]) {
+        expect(face.weight, isNot(FontWeight.w700), reason: face.name);
+      }
     });
   });
 }

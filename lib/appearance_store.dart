@@ -1,26 +1,42 @@
+import 'dart:ui' show FontWeight;
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// One offered reading typeface: the app-level [name] the record stores and the
-/// platform family it renders with (spec 011 US2).
+/// One offered reading typeface: the app-level [name] the record stores, the
+/// platform family it renders with, and the [weight] it is painted at
+/// (spec 011 US2; the three bold values are spec 017).
 ///
 /// The stored name is stable, so retuning the mapping later is a code change
 /// rather than a data migration (contract
 /// `specs/011-reading-experience/contracts/appearance-format.md`).
 class ReadingTypeface {
-  /// The name in the stored record: `default`, `serif` or `mono`.
+  /// The name in the stored record: `default`, `bold`, `serif`, `serif-bold`,
+  /// `mono` or `mono-bold`.
   final String name;
 
-  const ReadingTypeface._(this.name);
+  /// The weight this face is painted at. Code only — the record stores the name
+  /// and nothing else (017 D1), so a bold value is a new *value* of an existing
+  /// field and the grammar `<typeface>||<size>` with its read rules do not move.
+  final FontWeight weight;
+
+  const ReadingTypeface._(this.name, [this.weight = FontWeight.normal]);
 
   /// The app's shipped look. No family is set, so the theme's own family
   /// renders — the app ships no font, and neither does this option add one.
   static const defaultFace = ReadingTypeface._('default');
-  static const serif = ReadingTypeface._('serif');
-  static const mono = ReadingTypeface._('mono');
 
-  /// The offered set, in the order the screen shows it.
-  static const all = [defaultFace, serif, mono];
+  /// 017: the default family in bold — the family the walked device paints a
+  /// real bold with (its variable `wght` axis; 017 research D5).
+  static const bold = ReadingTypeface._('bold', FontWeight.w700);
+  static const serif = ReadingTypeface._('serif');
+  static const serifBold = ReadingTypeface._('serif-bold', FontWeight.w700);
+  static const mono = ReadingTypeface._('mono');
+  static const monoBold = ReadingTypeface._('mono-bold', FontWeight.w700);
+
+  /// The offered set, in the order the screen shows it: each family, then its
+  /// bold (017 decision 5).
+  static const all = [defaultFace, bold, serif, serifBold, mono, monoBold];
 
   static ReadingTypeface? byName(String name) {
     for (final face in all) {
@@ -33,13 +49,15 @@ class ReadingTypeface {
   ///
   /// The named faces are platform fonts rather than bundled assets (research
   /// D5): the app ships no font file, so the system's own CJK-capable face
-  /// stays in the fallback chain and Chinese text keeps rendering.
+  /// stays in the fallback chain and Chinese text keeps rendering. A bold value
+  /// asks for the same family as its regular (`bold` alone names none, so the
+  /// theme's own family carries the weight — 017 D5).
   String? familyFor(TargetPlatform platform) => switch (name) {
-        'serif' => platform == TargetPlatform.iOS ||
+        'serif' || 'serif-bold' => platform == TargetPlatform.iOS ||
                 platform == TargetPlatform.macOS
             ? 'Times New Roman'
             : 'serif',
-        'mono' => platform == TargetPlatform.iOS ||
+        'mono' || 'mono-bold' => platform == TargetPlatform.iOS ||
                 platform == TargetPlatform.macOS
             ? 'Courier New'
             : 'monospace',
@@ -78,6 +96,25 @@ class ReadingSize {
     }
     return null;
   }
+
+  /// The size a comment's own characters are painted at when the reading text
+  /// is at [points] (017 D2): the NEXT offered size down, and — below the
+  /// smallest offered size — the derived 10, because the reader asked for a
+  /// visible difference and no smaller size is offered to fall to.
+  ///
+  /// The one helper both paints go through: the page's span split and the
+  /// video's block, so a page and a frame can never disagree about it. Nothing
+  /// is stored and no control offers it (017 FR-012).
+  static double commentPointsFor(double points) {
+    double? below;
+    for (final size in all) {
+      if (size.points < points) below = size.points;
+    }
+    return below ?? 10;
+  }
+
+  /// This size's own comment size — [commentPointsFor] on [points].
+  double get commentPoints => commentPointsFor(points);
 }
 
 /// The reading appearance in force: the reading text's typeface and character

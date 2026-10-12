@@ -307,6 +307,19 @@ class CommentDisplay {
     return content;
   }
 
+  /// 017: where each comment's **own characters** are painted, as display
+  /// offsets — the runs the page gives their own smaller size (FR-007).
+  ///
+  /// Derived through [toDisplay], so the mapping stays the one source of truth
+  /// (017 D3): a comment's span is exactly the characters that are neither its
+  /// tag nor its sentence's, and the arithmetic that answers a tap is the same
+  /// arithmetic that cuts the paint.
+  List<(int, int)> commentSpans() => [
+        for (final comment in comments)
+          if (comment.hasContent)
+            (toDisplay(comment.contentStart), toDisplay(comment.contentEnd)),
+      ];
+
   /// Where a content offset is painted.
   ///
   /// An offset inside an elided span answers the span's display start, so a

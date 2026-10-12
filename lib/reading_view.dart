@@ -2356,19 +2356,57 @@ class _ReadingViewState extends State<ReadingView> {
     // 015: the page paints the reader's text with every comment tag's own
     // characters elided (FR-005), so the span tree is built from the DISPLAY and
     // the highlight's own boundaries are mapped into it (FR-012, data-model §3).
+    //
+    // 017: two decorations meet on the same characters — the highlight's
+    // background and a comment's own smaller size — so the display is cut at
+    // every boundary either of them has, and each piece is painted with the
+    // styles that cover it. The mapping itself is untouched: this is a paint
+    // seam (FR-010), and `toDisplay`/`toContent` remain the only mapping.
     final display = _commentDisplay;
     final h = _highlight;
-    if (h == null) return [TextSpan(text: display.text)];
-    final from = display.toDisplay(h.start).clamp(0, display.text.length);
-    final to = display.toDisplay(h.end).clamp(from, display.text.length);
-    return [
-      TextSpan(text: display.text.substring(0, from)),
-      TextSpan(
-        text: display.text.substring(from, to),
-        style: const TextStyle(backgroundColor: Colors.yellow),
-      ),
-      TextSpan(text: display.text.substring(to)),
+    final from = h == null
+        ? -1
+        : display.toDisplay(h.start).clamp(0, display.text.length);
+    final to =
+        h == null ? -1 : display.toDisplay(h.end).clamp(from, display.text.length);
+    final comments = display.commentSpans();
+    final cuts = <int>{0, display.text.length};
+    if (from >= 0) cuts..add(from)..add(to);
+    for (final span in comments) {
+      cuts
+        ..add(span.$1.clamp(0, display.text.length))
+        ..add(span.$2.clamp(0, display.text.length));
+    }
+    final points = cuts.toList()..sort();
+    final spans = [
+      for (var i = 0; i < points.length - 1; i++)
+        if (points[i] < points[i + 1])
+          TextSpan(
+            text: display.text.substring(points[i], points[i + 1]),
+            style: _spanPaint(points[i], points[i + 1], from, to, comments),
+          ),
     ];
+    return spans.isEmpty ? [TextSpan(text: display.text)] : spans;
+  }
+
+  /// 017: what one run of the display is painted with — the highlight's own
+  /// background where the run is covered by it, and a comment's derived size
+  /// where the run is a comment's own characters. A run can be both, and a run
+  /// that is neither inherits the page's own style (null).
+  TextStyle? _spanPaint(
+    int start,
+    int end,
+    int from,
+    int to,
+    List<(int, int)> comments,
+  ) {
+    final background = from >= 0 && start >= from && end <= to;
+    final inComment = comments.any((c) => start >= c.$1 && end <= c.$2);
+    if (!background && !inComment) return null;
+    return TextStyle(
+      backgroundColor: background ? Colors.yellow : null,
+      fontSize: inComment ? _appearance.size.commentPoints : null,
+    );
   }
 
   /// 015: what the page paints — the text minus the tags — and the mapping back
@@ -2426,11 +2464,13 @@ class _ReadingViewState extends State<ReadingView> {
     final base = color == null ? body : body.copyWith(color: Color(color.toARGB32()));
     // The appearance seam (011 FR-009): this method is the ONE place the
     // reading text's style is built, and the rich text and the edit field both
-    // go through it — so a chosen typeface and size reach both of them and
-    // neither reaches the app's chrome. `default` sets no family, which leaves
-    // the theme's own family (and the system's CJK fallback) in force.
+    // go through it — so a chosen typeface, its weight and its size reach both
+    // of them and neither reaches the app's chrome. `default` sets no family,
+    // which leaves the theme's own family (and the system's CJK fallback) in
+    // force; a bold value carries its weight here (017 FR-002).
     return base.copyWith(
       fontFamily: _appearance.typeface.familyFor(Theme.of(context).platform),
+      fontWeight: _appearance.typeface.weight,
       fontSize: _appearance.size.points,
     );
   }

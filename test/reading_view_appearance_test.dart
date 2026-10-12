@@ -336,4 +336,77 @@ void main() {
     expect(last.bottom, lessThanOrEqualTo(screen.bottom - systemBar),
         reason: 'the last option is behind the system bar');
   });
+
+  testWidgets('17. every face has its bold, and the weight is what changes',
+      (tester) async {
+    await openPage(tester);
+
+    // The theme's own family: what `bold` keeps, because it names none (D5).
+    // Passing `fontFamily: null` to `copyWith` does not clear a family — it
+    // keeps the base style's, which IS the theme's own on every platform. Read
+    // before the screen is pushed, while the page is still on stage.
+    final ownFamily = Theme.of(tester.element(find.byType(ReadingView)))
+        .textTheme
+        .bodyMedium
+        ?.fontFamily;
+
+    await openScreen(tester);
+
+    // Six faces, in the contract's order (017 FR-001). The cases above stay as
+    // they are: they assert labels one per call and pin no set.
+    for (final label in const [
+      'Default',
+      'Bold',
+      'Serif',
+      'Serif bold',
+      'Mono',
+      'Mono bold',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: 'typeface $label');
+    }
+
+    // The preview is the candidate as it will be applied (017 FR-003): bold in
+    // the theme's own family, at the size in force.
+    await choose(tester, 'Bold');
+    // The preview is the page's own first paragraph (011's `_previewText`), not
+    // the whole content: found by what it contains, since nothing else in the
+    // screen carries the reader's words.
+    final preview = tester.widget<Text>(find.descendant(
+      of: find.byType(AppearanceScreen),
+      matching: find.textContaining('The sun rose'),
+    ));
+    expect(preview.style?.fontWeight, FontWeight.w700);
+    expect(preview.style?.fontFamily, ownFamily,
+        reason: 'bold must not name a family (D5)');
+    expect(preview.style?.fontSize, ReadingSize.medium.points);
+
+    await confirm(tester);
+    final style = contentStyle(tester);
+    expect(style.fontWeight, FontWeight.w700);
+    expect(style.fontFamily, ownFamily,
+        reason: 'the bold reading text left the theme\'s own family');
+    expect(await stored(), 'bold||medium');
+
+    // The editor follows the same seam (011 FR-009)…
+    await tester.tap(find.byTooltip('Edit'));
+    await tester.pump();
+    expect(
+        tester.widget<TextField>(find.byType(TextField)).style?.fontWeight,
+        FontWeight.w700);
+
+    // …while the chrome keeps its own.
+    expect(tester.widget<Text>(find.text('KalaHoo Reading')).style, isNull);
+
+    // A named bold keeps its family, and a stored one is in force on a fresh
+    // view (017 FR-002/FR-004).
+    await tester.pumpWidget(const SizedBox());
+    SharedPreferences.setMockInitialValues({
+      AppearanceStore.key: 'mono-bold||large',
+    });
+    await openPage(tester);
+    final named = contentStyle(tester);
+    expect(named.fontFamily, 'monospace');
+    expect(named.fontWeight, FontWeight.w700);
+    expect(named.fontSize, ReadingSize.large.points);
+  });
 }

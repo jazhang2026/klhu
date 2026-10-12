@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/video_aspect.dart';
+import 'package:klhu/appearance_store.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_timeline.dart';
 
@@ -219,20 +220,36 @@ Future<ui.Image> _banded(Color top, Color bottom,
 /// What the painter lays out for [text], recomputed here at the frame's own
 /// style and text area: the scroll claims are then about the text rather than
 /// about the painter's own report.
-TextPainter _layoutOf(VideoPainter painter, String text) => TextPainter(
-      text: TextSpan(
-        text: text,
-        style: painter.readingStyle.copyWith(
-          fontSize: (painter.readingStyle.fontSize ?? 14) * painter.scale,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: painter.column.width);
+TextPainter _layoutOf(VideoPainter painter, String text, {int? commentStart}) {
+  final frameSize = (painter.readingStyle.fontSize ?? 14) * painter.scale;
+  final sentence = TextSpan(
+      text: text,
+      style: painter.readingStyle.copyWith(fontSize: frameSize));
+  // 017: a slot that carries a comment is TWO spans in one layout, the second
+  // one at the derived size — and a slot that carries none is the single span
+  // this helper always laid out, which is why every shipped case stays green
+  // unmodified (FR-011).
+  final laid = commentStart == null || commentStart <= 0 || commentStart >= text.length
+      ? sentence
+      : TextSpan(children: [
+          TextSpan(text: text.substring(0, commentStart), style: sentence.style),
+          TextSpan(
+            text: text.substring(commentStart),
+            style: sentence.style!.copyWith(
+              fontSize: frameSize *
+                  ReadingSize.commentPointsFor(painter.readingStyle.fontSize ?? 14) /
+                  (painter.readingStyle.fontSize ?? 14),
+            ),
+          ),
+        ]);
+  return TextPainter(text: laid, textDirection: TextDirection.ltr)
+    ..layout(maxWidth: painter.column.width);
+}
 
 /// How many whole lines the block must move for its last line to reach the
 /// bottom of the text area — the painter's own quantisation, recomputed.
-int _stepsOf(VideoPainter painter, String text) {
-  final layout = _layoutOf(painter, text);
+int _stepsOf(VideoPainter painter, String text, {int? commentStart}) {
+  final layout = _layoutOf(painter, text, commentStart: commentStart);
   final overflow = layout.height - painter.column.height;
   if (overflow <= 0) return 0;
   final metrics = layout.computeLineMetrics();
@@ -251,7 +268,7 @@ void main() {
             reason: 'the frame is one sentence, not the paragraph it came from');
         // The same text laid out at the frame's own style and width has exactly
         // the lines the frame drew: nothing appended, nothing left out.
-        final layout = _layoutOf(painter, slot.text);
+        final layout = _layoutOf(painter, slot.text, commentStart: slot.commentStart);
         expect(frame.lines, hasLength(layout.computeLineMetrics().length));
         frame.image.dispose();
       }
@@ -451,13 +468,73 @@ void main() {
     });
   });
 
+  group('47. a comment rides its sentence and is painted smaller (017 FR-008)', () {
+    test('the block is two spans: the comment one size below its sentence',
+        () async {
+      final painter = _painterFor(VideoAspect.landscape);
+      final comment = List.filled(
+          6, 'How are you today, and how was the quiet river').join(' ');
+      final text = 'Hola.\n$comment';
+      final slot = VideoSlot(
+        kind: VideoSlotKind.sentence,
+        paragraph: 0,
+        sentence: 0,
+        start: 0,
+        end: 5,
+        text: text,
+        language: 'es',
+        voice: null,
+        durationMs: 1000,
+        frames: 10,
+        startFrame: 0,
+        commentStart: 6,
+      );
+      final frame = await painter.paint(slot: slot);
+
+      // The text it paints is unchanged (015's own render line reports its
+      // length, and nothing here moves it): only how it is laid out changed.
+      expect(frame.paintedText, text);
+      final two = _layoutOf(painter, text, commentStart: 6);
+      final one = _layoutOf(painter, text);
+      expect(frame.lines, hasLength(two.computeLineMetrics().length));
+      // The comment's own lines are the smaller ones, so a block whose comment
+      // wraps is SHORTER than the same text laid out at one size.
+      expect(two.height, lessThan(one.height),
+          reason: 'the comment is painted smaller (FR-008)');
+      // The sentence's own first line is untouched.
+      expect(two.computeLineMetrics().first.height,
+          one.computeLineMetrics().first.height);
+
+      // And a slot with no comment lays out exactly as it always did.
+      final plain = VideoSlot(
+        kind: VideoSlotKind.sentence,
+        paragraph: 0,
+        sentence: 0,
+        start: 0,
+        end: 5,
+        text: 'Hola.',
+        language: 'es',
+        voice: null,
+        durationMs: 1000,
+        frames: 10,
+        startFrame: 0,
+      );
+      final plainFrame = await painter.paint(slot: plain);
+      expect(plainFrame.paintedText, 'Hola.');
+      expect(plainFrame.lines,
+          hasLength(_layoutOf(painter, 'Hola.').computeLineMetrics().length));
+      plainFrame.image.dispose();
+      frame.image.dispose();
+    });
+  });
+
   group('46. a tall sentence wraps and scrolls a line at a time', () {
     test('the block moves one line per step, from its first line to its last',
         () async {
       final painter = _painterFor(VideoAspect.vertical, tall: true);
       final slot = painter.plan.sentences.single;
       final column = painter.column;
-      final steps = _stepsOf(painter, slot.text);
+      final steps = _stepsOf(painter, slot.text, commentStart: slot.commentStart);
       expect(steps, greaterThan(3),
           reason: 'the fixture must not fit: this is the scroll\'s own case');
       // The painter's own count, for the renderer: one picture per line step

@@ -425,6 +425,24 @@ abstract class AppLocalizations {
   /// **'Mono'**
   String get fontMonoLabel;
 
+  /// No description provided for @fontBoldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get fontBoldLabel;
+
+  /// No description provided for @fontSerifBoldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Serif bold'**
+  String get fontSerifBoldLabel;
+
+  /// No description provided for @fontMonoBoldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono bold'**
+  String get fontMonoBoldLabel;
+
   /// No description provided for @sizeSmallLabel.
   ///
   /// In en, this message translates to:

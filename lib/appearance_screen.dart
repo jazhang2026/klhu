@@ -31,19 +31,23 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   late ReadingSize _size = widget.initial.size;
 
   /// The candidate as it renders: the preview here and (on confirm) the page
-  /// share these two fields, so what the reader sees is what they get.
+  /// share these three fields, so what the reader sees is what they get.
   TextStyle _previewStyle(BuildContext context) {
     final body = Theme.of(context).textTheme.bodyMedium!;
     return body.copyWith(
       fontFamily: _typeface.familyFor(Theme.of(context).platform),
+      fontWeight: _typeface.weight,
       fontSize: _size.points,
     );
   }
 
   String _faceLabel(AppLocalizations l10n, ReadingTypeface face) =>
       switch (face.name) {
+        'bold' => l10n.fontBoldLabel,
         'serif' => l10n.fontSerifLabel,
+        'serif-bold' => l10n.fontSerifBoldLabel,
         'mono' => l10n.fontMonoLabel,
+        'mono-bold' => l10n.fontMonoBoldLabel,
         _ => l10n.fontDefaultLabel,
       };
 

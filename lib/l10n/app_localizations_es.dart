@@ -186,6 +186,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get fontMonoLabel => 'Monoespaciada';
 
   @override
+  String get fontBoldLabel => 'Negrita';
+
+  @override
+  String get fontSerifBoldLabel => 'Serif negrita';
+
+  @override
+  String get fontMonoBoldLabel => 'Monoespaciada negrita';
+
+  @override
   String get sizeSmallLabel => 'Pequeño';
 
   @override

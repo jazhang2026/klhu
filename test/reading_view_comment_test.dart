@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:klhu/appearance_store.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/reader_service.dart';
@@ -122,6 +123,27 @@ List<String> highlighted(WidgetTester tester) {
 
   for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
     walk(rich.text);
+  }
+  return found;
+}
+
+/// 017: every span the page paints, as (characters, its own font size) — a
+/// comment's characters carry the derived size, the sentence's carry none
+/// (they inherit the page's own, which is what FR-011's no-regression needs).
+List<(String, double?)> spansOf(WidgetTester tester, {String? plain}) {
+  final wanted = plain ?? kCommentDisplay;
+  final found = <(String, double?)>[];
+  void walk(InlineSpan span) {
+    if (span is! TextSpan) return;
+    final text = span.text ?? '';
+    if (text.isNotEmpty) found.add((text, span.style?.fontSize));
+    for (final child in span.children ?? const <InlineSpan>[]) {
+      walk(child);
+    }
+  }
+
+  for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
+    if (rich.text.toPlainText() == wanted) walk(rich.text);
   }
   return found;
 }
@@ -384,6 +406,54 @@ void main() {
       await openSheet(tester);
       expect(switchInSheet(tester), isFalse,
           reason: 'the choice was remembered across the reopen');
+    });
+  });
+
+  group('17. the comment is painted one size below its text (017 FR-007)', () {
+    testWidgets('the comment carries the derived size, the sentence does not',
+        (tester) async {
+      await pumpPage(tester);
+      final spans = spansOf(tester);
+      final comment = spans.where((s) => s.$1.contains('How are you?')).toList();
+      expect(comment, hasLength(1), reason: 'the comment is its own span');
+      expect(comment.single.$2, ReadingSize.medium.commentPoints,
+          reason: 'the page at medium paints its comment at 12 (017 INV-4)');
+      final sentence = spans.where((s) => s.$1.contains('Hola.')).toList();
+      expect(sentence, hasLength(1));
+      expect(sentence.single.$2, isNull,
+          reason: "the sentence's characters keep the page's own size");
+    });
+
+    testWidgets('at the smallest offered size the comment is still smaller',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({
+        AppearanceStore.key: 'default||small',
+      });
+      await pumpPage(tester);
+      final comment =
+          spansOf(tester).where((s) => s.$1.contains('How are you?')).single;
+      expect(comment.$2, ReadingSize.small.commentPoints);
+      expect(comment.$2, lessThan(ReadingSize.small.points),
+          reason: 'visibly smaller, not nominally (017 FR-009)');
+    });
+
+    testWidgets('a text with no comment is painted as one span, exactly as before',
+        (tester) async {
+      await pumpPage(tester, text: 'Hola. Adiós.');
+      final spans = spansOf(tester, plain: 'Hola. Adiós.');
+      expect(spans, hasLength(1), reason: 'no comment, no split (017 FR-011)');
+      expect(spans.single.$2, isNull);
+    });
+
+    testWidgets('a tap inside the comment still answers the same sentence',
+        (tester) async {
+      // FR-010's page half: the split is a paint change, so the mapping, the
+      // highlight and the tap are the ones the cases above assert.
+      await pumpPage(tester);
+      await tapOn(tester, 'How are you?');
+      expect(highlighted(tester), [kCommentBody]);
+      await tapOn(tester, 'Hola.');
+      expect(highlighted(tester), ['Hola.']);
     });
   });
 
