@@ -192,7 +192,7 @@ void main() {
       expect(fake.spoken, isEmpty);
     });
 
-    testWidgets('Read speaks the pending sentence, and asks for one when there is none',
+    testWidgets('Read speaks the pending sentence, and the first one when there is none',
         (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -211,20 +211,19 @@ void main() {
       await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
-      // Nothing is highlighted: ▶ has no selection to read and asks for one
-      // (FR-023). Reading the page from its first sentence is ⏭'s fallback.
-      expect(fake.spoken, isEmpty);
-      expect(find.text('Select a sentence or paragraph to read'),
-          findsOneWidget);
+      // Nothing is highlighted: ▶ reads the text's first sentence and stops
+      // (016 FR-001, amending 011 FR-023's warning).
+      expect(fake.spoken, [_firstSentence]);
+      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
 
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
-      // The tap that selects a sentence takes the prompt away…
-      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
+      // The tap still picks its own unit…
+      expect(_hasYellow(tester, _firstSentence), isTrue);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
       // …and ▶ reads that selection.
-      expect(fake.spoken, [_firstSentence]);
+      expect(fake.spoken, [_firstSentence, _firstSentence]);
     });
 
     testWidgets('READ long-press highlights paragraph yellow',

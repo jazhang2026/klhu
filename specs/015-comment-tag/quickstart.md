@@ -338,6 +338,10 @@ Expected: the switch's new key(s) are present in `app_en.arb`, `app_zh.arb`, `ap
 hint line; **corrected 2026-10-09**: the row had said 109, but the switch is one `SwitchListTile` title, which
 is what T001 shipped and what [research.md](./research.md) § D6 decided), the generated Dart is regenerated and
 committed, and no translation keeps a key the template dropped.
+**Corrected again 2026-10-12**: the tree carries **107** keys each now, because 016 removed
+`selectToReadMessage` (011 FR-023's warning, whose only call site it took away) and added nothing in its place —
+this row read 108 while that feature was in flight. 015's own work is unaffected: it added
+`commentsReadLabel` and nothing else.
 Proves FR-014's string half.
 
 ### 17. A comment read on the device, in two voices and with no marker painted — [device]

@@ -396,4 +396,95 @@ void main() {
       }
     });
   });
+
+  group("a step's own end (016)", () {
+    // 016 FR-005: one step is one sentence **plus that sentence's comment**
+    // when the comments are being read. A comment's characters begin after its
+    // sentence's last one (015), and a read speaks a comment only when its own
+    // range covers the comment's span (`lib/speech_resolver.dart:190`), so a
+    // step scoped to the sentence alone would drop the comment — silently, and
+    // on exactly the texts that carry one.
+    TextSegment at(String text, String sentence) {
+      final index = text.indexOf(sentence);
+      return TextSegment(index, index + sentence.length, SegmentUnit.sentence);
+    }
+
+    test('a sentence with no comment is its own step, either way', () {
+      const text = 'Hola. Adiós.';
+      final first = at(text, 'Hola.');
+      expect(stepEnd(text, false, first), 5);
+      expect(stepEnd(text, true, first), 5);
+    });
+
+    test('an inline comment extends its owner, and only while it is read', () {
+      const text = 'Hola. [注] Hi.';
+      final first = at(text, 'Hola.');
+      // Read: the step covers the comment's own span, so the resolution speaks
+      // it after its sentence.
+      expect(stepEnd(text, true, first), text.length);
+      // Not read: the comment's words are not read at all, and the step is the
+      // sentence.
+      expect(stepEnd(text, false, first), 5);
+    });
+
+    test('a comment in its own paragraph still belongs to the sentence above', () {
+      const text = 'Hola.\n\n[注] How are you?';
+      final first = at(text, 'Hola.');
+      expect(stepEnd(text, true, first), text.length);
+      expect(stepEnd(text, false, first), 5);
+    });
+
+    test('a comment after a later sentence of the same paragraph leaves the earlier step alone', () {
+      const text = 'Hola. Adiós. [注] Hi.';
+      expect(stepEnd(text, true, at(text, 'Hola.')), 5);
+      expect(stepEnd(text, true, at(text, 'Adiós.')), text.length);
+    });
+
+    test('a sentence in a later paragraph is itself', () {
+      const text = 'Hola. [注] Hi.\n\nAdiós.';
+      expect(stepEnd(text, true, at(text, 'Adiós.')), text.length);
+    });
+
+    test('every sentence of a text with no comment answers its own end', () {
+      const text = 'Hola. Adiós.\n\nBuenos días.';
+      for (final range in sentenceRanges(text)) {
+        expect(stepEnd(text, true, range), range.end, reason: '$range');
+      }
+    });
+
+    // The step CANDIDATES (FR-001/FR-006) are the app's own sentence ranges
+    // minus the ones a comment's characters occupy: a comment's span is no
+    // sentence's span (015 FR-004), and its words are never read as a sentence
+    // of their own — whether or not the comments are being read.
+    test('a text with no comment has today\'s sentences as its steps', () {
+      const text = 'Hola. Adiós.\n\nBuenos días.';
+      expect(
+        stepRanges(text).map((r) => text.substring(r.start, r.end)).toList(),
+        ['Hola.', 'Adiós.', 'Buenos días.'],
+      );
+    });
+
+    test('an inline comment is no step of its own', () {
+      const text = 'Hola. [注] Hi. Adiós.';
+      final steps = stepRanges(text);
+      expect(steps.length, 1);
+      expect(text.substring(steps.first.start, steps.first.end), 'Hola.');
+    });
+
+    test('a comment at the text head is no step, so the first step is the sentence after it', () {
+      const text = '[注] Hello.\n\nReal sentence.';
+      final steps = stepRanges(text);
+      expect(steps.length, 1);
+      expect(text.substring(steps.first.start, steps.first.end), 'Real sentence.');
+    });
+
+    test("the next step starts after the step's own end, never inside the comment", () {
+      const text = 'Hola.\n\n[注] How are you?\n\nAdiós.';
+      final steps = stepRanges(text);
+      expect(steps.length, 2);
+      expect(text.substring(steps[1].start, steps[1].end), 'Adiós.');
+      expect(steps[1].start, greaterThanOrEqualTo(stepEnd(text, true, steps.first)));
+      expect(steps[1].start, greaterThanOrEqualTo(stepEnd(text, false, steps.first)));
+    });
+  });
 }

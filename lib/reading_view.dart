@@ -15,7 +15,6 @@ import 'package:klhu/models/content.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
-import 'package:klhu/read_position_store.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/role_store.dart';
 import 'package:klhu/segmenter.dart';
@@ -210,9 +209,6 @@ class _ReadingViewState extends State<ReadingView> {
   /// yet, which also means nothing can be persisted for it.
   String? _anchorKey;
 
-  /// Position writes in flight: a tap supersedes an earlier one, so only the
-  /// last position the user set may land on disk.
-  int _anchorWrite = 0;
 
   /// The reader's dialogue settings for the text on screen (014): its text type,
   /// the names that are not roles, and the voice each role was given. Loaded
@@ -380,9 +376,6 @@ class _ReadingViewState extends State<ReadingView> {
   /// appearance records in the same per-device store.
   final _aspects = VideoAspectStore();
 
-  /// Per-device position store (010 FR-008); `shared_preferences`, like the
-  /// voice picks and the interface language.
-  final _positions = ReadPositionStore();
 
   /// Per-device appearance store (011 US2): the reading text's typeface and
   /// size, in the same store as the app's other view state.
@@ -498,7 +491,6 @@ class _ReadingViewState extends State<ReadingView> {
     final presets = await _store.catalog();
     if (presets.isEmpty || !mounted) return;
     final preset = presets.first;
-    final previous = _anchorKey;
     setState(() {
       _content = preset.text;
       _loaded = null;
@@ -512,45 +504,23 @@ class _ReadingViewState extends State<ReadingView> {
       _error = null;
       _hint = null;
     });
-    await _adoptAnchor(previous);
+    await _adoptAnchor();
   }
 
   /// The text on screen changed (FR-007): the position in force belonged to the
-  /// text being left — it is forgotten here and on disk — and the incoming
-  /// content's own stored position is put back (FR-008).
-  Future<void> _adoptAnchor(String? previous) async {
-    if (previous != null && previous != _anchorKey) {
-      await _positions.clear(previous);
-    }
-    await _restoreAnchor();
-  }
-
-  /// Puts the stored position for the content on screen back in force, and
-  /// shows it: a restored position that read from an invisible offset would be
-  /// a mystery button. A missing record, a malformed one or one computed on
-  /// different text all mean "read from the beginning" (FR-005/FR-009).
-  Future<void> _restoreAnchor() async {
-    final key = _anchorKey;
-    final length = _content.length;
-    if (key == null || length == 0) return;
-    final stored = await _positions.load(key, length);
-    if (stored == null || !mounted) return;
-    final segment = resolveSentence(_content, stored.offset);
-    setState(() {
-      _anchor = segment.start;
-      _highlight = segment;
-    });
-  }
-
-  /// Forgets the position: the visible text changed (FR-007). The record goes
-  /// with the field, so a restart cannot bring the old offset back.
-  Future<void> _clearAnchor() async {
-    final key = _anchorKey;
-    // A write still in flight is for text that no longer exists.
-    _anchorWrite++;
+  /// text being left, so it is forgotten. Nothing was written down to forget —
+  /// a position lives inside the session and nowhere else (016 decision 5).
+  Future<void> _adoptAnchor() async {
     if (_anchor != null) setState(() => _anchor = null);
-    if (key == null) return;
-    await _positions.clear(key);
+  }
+
+
+  /// Forgets the position in force (FR-007/FR-009, 011 FR-022): Stop, an edit,
+  /// the text's end and ⏭'s own end all leave the page with nothing to
+  /// continue from. Nothing is stored to clear with it (016 decision 5) — the
+  /// position lives inside the session.
+  Future<void> _clearAnchor() async {
+    if (_anchor != null) setState(() => _anchor = null);
   }
 
   /// Invalidates a stale read's `finally` (tap/Stop during SPEAKING must win
@@ -817,8 +787,7 @@ class _ReadingViewState extends State<ReadingView> {
       final text = await _store.read(entry);
       await _store.markOpened(entry.id);
       if (!mounted) return;
-      final previous = _anchorKey;
-      setState(() {
+        setState(() {
         _content = text;
         _loaded = entry;
         _anchor = null;
@@ -840,7 +809,7 @@ class _ReadingViewState extends State<ReadingView> {
         // READ-only action), but a stale PAUSED state must not survive.
         if (_mode == _Mode.speaking) _mode = _Mode.read;
       });
-      await _adoptAnchor(previous);
+      await _adoptAnchor();
     } on ContentStoreException {
       if (!mounted) return;
       setState(() => _error = AppLocalizations.of(context)
@@ -922,8 +891,7 @@ class _ReadingViewState extends State<ReadingView> {
     final l10n = AppLocalizations.of(context);
     final text = _editController!.text;
     try {
-      final previous = _anchorKey;
-      final saved = await _store.saveEdited(_loaded, text);
+        final saved = await _store.saveEdited(_loaded, text);
       if (!mounted) return true;
       setState(() {
         _content = text;
@@ -933,8 +901,9 @@ class _ReadingViewState extends State<ReadingView> {
         // text this Save replaced.
         _setAnchorKey(saved.id, version: saved.updatedAt);
       });
-      _anchorWrite++;
-      if (previous != null) await _positions.clear(previous);
+      // The text this position belonged to is gone with the Save, so it is
+      // forgotten rather than kept for a record that no longer exists (016
+      // decision 5).
       _showMessage(l10n?.savedMessage ?? 'Saved');
       return true;
     } on ContentStoreException catch (e) {
@@ -1001,6 +970,18 @@ class _ReadingViewState extends State<ReadingView> {
     // offset before the segmenter sees it, and the comment rule answers first
     // (FR-012, SC-009; plan ripple 11).
     final segment = _segmentAt(_commentDisplay.toContent(pos.offset), resolve);
+    _select(segment);
+  }
+
+  /// Puts [segment] in force as the page's selection (016 plan §2.1): the
+  /// highlight the reader sees, the anchor the read continues from, and the
+  /// generation that wins over a stopped loop's `finally`.
+  ///
+  /// The gesture and ▶ Read must set a selection the same way, or a press would
+  /// read a range the page is not showing. The record the gesture writes is
+  /// **not** here: it is decision 5's to retire (016 T015), so this seam
+  /// carries the selection alone.
+  void _select(TextSegment segment) {
     setState(() {
       // Win over the stopped loop's `finally` below.
       _readGen++;
@@ -1011,51 +992,47 @@ class _ReadingViewState extends State<ReadingView> {
       _error = null;
       _hint = null;
     });
-    await _persistAnchor();
   }
 
-  /// Stores the position in force for the content on screen (FR-008).
-  ///
-  /// Written on the gesture that set it, not at read start, so a position the
-  /// user set and never played is still remembered. The hop before the write
-  /// lets a burst of taps supersede an earlier one, so the LAST position is the
-  /// one that stays on disk (invariant I10).
-  Future<void> _persistAnchor() async {
-    final key = _anchorKey;
-    final offset = _anchor;
-    if (key == null || offset == null) return;
-    final write = ++_anchorWrite;
-    await Future<void>.microtask(() {});
-    if (write != _anchorWrite) return;
-    await _positions.save(
-      key,
-      ReadingPosition(
-        contentKey: key,
-        offset: offset,
-        charCount: _content.length,
-      ),
-    );
-  }
 
-  /// ▶ Read (FR-023): speaks the SELECTION — the sentence a tap picked, or the
-  /// paragraph a long-press picked — and nothing else. The page's gesture names
-  /// the unit; the button reads exactly what is highlighted.
+  /// ▶ Read (016 FR-001/FR-002/FR-003): one press, ONE unit, and it stops.
   ///
-  /// With nothing highlighted there is no selection to scope the read to, so
-  /// the page asks for one instead of reading aloud. Reading the text from its
-  /// first sentence with nothing selected is ⏭ Continue Read's fallback (010
-  /// FR-005), and two buttons that do the same thing explain neither.
+  /// Nothing highlighted → the text's first step is selected and read, so the
+  /// press is the reader's whole gesture (`stepRanges`: the app's own
+  /// sentences, with a comment's characters excluded — a comment-headed text's
+  /// first step is the sentence after the comment, not the tag). A sentence is
+  /// read exactly; a **paragraph** selection (a long press, 011 FR-024) is read
+  /// whole — the reader's own unit is never overruled by the stepping rule.
+  ///
+  /// The range of a step is the STEP, not the sentence: `stepEnd` reaches over
+  /// the comment that belongs to it, because a read speaks a comment only when
+  /// its range covers the comment's own span (015 — see `lib/comment.dart`).
   Future<void> _readSelection() async {
     final seg = _highlight;
     if (seg == null) {
-      setState(() {
-        _hint = AppLocalizations.of(context)?.selectToReadMessage ??
-            'Select a sentence or paragraph to read';
-        _error = null;
-      });
+      final steps = stepRanges(_content);
+      if (steps.isEmpty) {
+        // An empty text: today's message (010's own row 7), not FR-008's
+        // silence — that one is the END of a text that had something to read.
+        setState(() =>
+            _hint = AppLocalizations.of(context)?.nothingToReadMessage ??
+                'Nothing left to read from here.');
+        return;
+      }
+      final first = steps.first;
+      _select(first);
+      await _readRange(
+          first.start, stepEnd(_content, _roles.commentsRead, first),
+          step: true);
       return;
     }
-    await _readRange(seg.start, seg.end);
+    if (seg.unit == SegmentUnit.paragraph) {
+      await _readRange(seg.start, seg.end, step: true);
+      return;
+    }
+    await _readRange(
+        seg.start, stepEnd(_content, _roles.commentsRead, seg),
+        step: true);
   }
 
   /// ⏭ Continue Read: the selection read to the end of the text — from the
@@ -1074,7 +1051,14 @@ class _ReadingViewState extends State<ReadingView> {
   /// turn's role's voice (FR-019 — the same list the video is built from).
   /// With [track], the sentence being spoken is painted (011 FR-020) and kept
   /// on screen, and the highlight clears at end/Stop.
-  Future<void> _readRange(int start, int end, {bool track = false}) async {
+  Future<void> _readRange(int start, int end,
+      {bool track = false, bool step = false}) async {
+    // 016 FR-004: whether THIS read is a step, and where the step's own range
+    // ends — the key the next step is searched from. Both are read by
+    // `_runRead`'s end, which is also the end a PAUSE'd read reaches through
+    // its own `_runRead` (FR-010).
+    _steppedRead = step;
+    _stepEndKey = end;
     final speeches = await resolveSpeeches(
       content: _content,
       start: start,
@@ -1154,17 +1138,27 @@ class _ReadingViewState extends State<ReadingView> {
       _logFollow(spoken, geometry);
       return;
     }
-    geometry.paragraph.showOnScreen(
-      rect: geometry.rect,
-      duration: _revealDuration,
-      curve: Curves.easeOut,
-    );
+    _scrollIntoView(geometry);
     // The evidence line reports the SETTLED state, one line per sentence: the
     // reveal is animated, so measuring here would report the sentence as off
     // screen — the very sentence the page is moving to. Post-frame callbacks
     // rather than a timer, so a test that never settles leaves nothing
     // pending.
     _logFollowWhenSettled(gen, spoken);
+  }
+
+  /// The move itself — the framework's own `showOnScreen` on the enclosing
+  /// viewport, which leaves a range that already fits where it is (011 FR-002).
+  /// The follow is one doorway today; the step's own reveal (016 FR-012) is the
+  /// other, and it lands with its caller (T011) rather than as an unreferenced
+  /// seam the analyzer rejects.
+  void _scrollIntoView(_SentenceGeometry geometry) {
+    if (geometry.visible) return;
+    geometry.paragraph.showOnScreen(
+      rect: geometry.rect,
+      duration: _revealDuration,
+      curve: Curves.easeOut,
+    );
   }
 
   void _logFollowWhenSettled(int gen, SpokenSentence spoken, [int frames = 0]) {
@@ -1185,7 +1179,13 @@ class _ReadingViewState extends State<ReadingView> {
   /// The reported sentence's box against the visible area, in the visible
   /// area's own coordinates — or null when there is no live paragraph to
   /// measure.
-  _SentenceGeometry? _measure(SpokenSentence spoken) {
+  _SentenceGeometry? _measure(SpokenSentence spoken) =>
+      _measureSpan(spoken.start, spoken.end);
+
+  /// The same measurement for a content range the page holds as a segment
+  /// (016 FR-012): 011's follow and 016's step reveal by one measurement, so
+  /// they cannot disagree about where a range sits on screen.
+  _SentenceGeometry? _measureSpan(int start, int end) {
     final ctx = _textKey.currentContext;
     final obj = ctx?.findRenderObject();
     if (ctx == null || obj is! RenderParagraph) return null;
@@ -1197,8 +1197,8 @@ class _ReadingViewState extends State<ReadingView> {
     final display = _commentDisplay;
     final boxes = obj.getBoxesForSelection(
       TextSelection(
-        baseOffset: display.toDisplay(spoken.start).clamp(0, display.text.length),
-        extentOffset: display.toDisplay(spoken.end).clamp(0, display.text.length),
+        baseOffset: display.toDisplay(start).clamp(0, display.text.length),
+        extentOffset: display.toDisplay(end).clamp(0, display.text.length),
       ),
     );
     if (boxes.isEmpty) return null;
@@ -1229,6 +1229,41 @@ class _ReadingViewState extends State<ReadingView> {
   /// SPEAKING while a read (or its continuation) runs, back to READ when it
   /// ends or throws. [gen] is the read generation the highlight callback was
   /// installed with; a stale one means a newer read owns the view now.
+  /// The read in flight is a **step** (016 FR-004), and where its own range
+  /// ends. Set by `_readRange` when the press that started it was ▶'s, and
+  /// read by `_runRead`'s own end — the same fields a Resume reaches, so a
+  /// parked step advances like a fresh one (FR-010).
+  bool _steppedRead = false;
+  int _stepEndKey = 0;
+
+  /// Moves the highlight to the step AFTER [from] and leaves it there, ready
+  /// for the next press (FR-004) — brought into view, because a highlight the
+  /// reader cannot see is a button they cannot aim (FR-012). At the text's end
+  /// both the highlight and the position go and **nothing is said** (FR-008).
+  void _advanceStep(int from) {
+    TextSegment? next;
+    for (final range in stepRanges(_content)) {
+      if (range.start >= from) {
+        next = range;
+        break;
+      }
+    }
+    setState(() {
+      _highlight = next;
+      _anchor = next?.start;
+      _hint = null;
+    });
+    if (next != null) _revealRange(next);
+  }
+
+  /// Brings a range the page holds as a segment into view (016 FR-012), by the
+  /// same code 011's follow uses — one reveal, so the two cannot disagree.
+  void _revealRange(TextSegment segment) {
+    final geometry = _measureSpan(segment.start, segment.end);
+    if (geometry == null) return;
+    _scrollIntoView(geometry);
+  }
+
   Future<void> _runRead(int gen, Future<void> Function() start) async {
     if (mounted) setState(() => _mode = _Mode.speaking);
     try {
@@ -1241,15 +1276,26 @@ class _ReadingViewState extends State<ReadingView> {
       // kept the queue, so Resume must stay on screen instead of the buttons
       // silently falling back to idle.
       if (mounted && gen == _readGen && _mode == _Mode.speaking) {
+        // A STEP's read that ends by itself advances instead of clearing (016
+        // FR-004): the highlight moves to the next sentence and stays, so the
+        // next press has something to read. Its position survives the session
+        // in memory (FR-007) and is never written down.
+        final stepped = _steppedRead;
+        final advances =
+            stepped && _highlight?.unit == SegmentUnit.sentence;
         setState(() {
           _mode = _Mode.read;
-          _highlight = null;
+          if (!stepped) _highlight = null;
         });
-        // The position lives only as long as the highlight that shows it
-        // (011 FR-022): a read that has ended leaves nothing to continue from,
-        // so ⏭ starts at the first sentence again instead of resuming from a
-        // sentence nothing on screen points at.
-        await _clearAnchor();
+        if (advances) {
+          _advanceStep(_stepEndKey);
+        } else if (!stepped) {
+          // ⏭'s read (and any read that is not a step) still drops the
+          // highlight and the position together (011 FR-022, which 016 narrows
+          // for a step and for nothing else). A paragraph step keeps both: its
+          // unit is the paragraph, and there is no next sentence for it.
+          await _clearAnchor();
+        }
       }
     }
   }

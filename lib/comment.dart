@@ -182,6 +182,50 @@ List<Comment> commentsOf(String text) {
   return comments;
 }
 
+/// The steps a read can take through [text], in text order (016 FR-001/FR-006):
+/// the app's own sentence ranges, minus the ones a comment's characters occupy.
+///
+/// The sentences are [sentenceRanges]' — the same rule the read itself uses, so
+/// no step crosses a blank line and a paragraph with no delimiter is one step.
+/// A comment is filtered out because a comment's span is no sentence's span
+/// (015 FR-004): its words are its owner's read, never a step of their own, and
+/// that holds whether or not the comments are being read. Without the filter a
+/// step would land inside a comment and read the tag's own characters.
+List<TextSegment> stepRanges(String text) {
+  final ranges = sentenceRanges(text);
+  final comments = commentsOf(text);
+  if (comments.isEmpty) return ranges;
+  return [
+    for (final range in ranges)
+      if (!comments.any((comment) =>
+          range.start < comment.contentEnd && range.end > comment.tag.start))
+        range,
+  ];
+}
+
+/// Where the step that starts at [sentence] ends (016 FR-005): the sentence's
+/// own end, or — while the comments are being read and [sentence] is the owner
+/// of a comment — that comment's own end.
+///
+/// A comment's characters begin after its sentence's last one; a read speaks a
+/// comment only when its range covers `contentStart..contentEnd`
+/// (`lib/speech_resolver.dart`), so `sentence.end` would drop the comment
+/// silently on exactly the texts that carry one. The end reached here is also
+/// the search key for the *next* step: a step that stopped at the sentence
+/// would start the next one at the tag's first character.
+int stepEnd(String text, bool commentsRead, TextSegment sentence) {
+  if (!commentsRead) return sentence.end;
+  var end = sentence.end;
+  for (final comment in commentsOf(text)) {
+    if (comment.ownerStart == sentence.start &&
+        comment.ownerEnd == sentence.end &&
+        comment.contentEnd > end) {
+      end = comment.contentEnd;
+    }
+  }
+  return end;
+}
+
 /// The sentence [tag] belongs to (FR-003): the last sentence that ends before
 /// the tag, across paragraph boundaries.
 ///

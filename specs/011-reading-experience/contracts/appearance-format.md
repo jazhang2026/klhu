@@ -19,13 +19,14 @@ iOS:     NSUserDefaults, standard suite, for bundle id com.example.klhu
 ```
 
 `shared_preferences` is already the app's store for per-device UI state (voice picks in
-`lib/voice_store.dart`, interface language in `lib/models/language_preference.dart`, read positions in
-`lib/read_position_store.dart`), so this record needs no new dependency and no new file format.
+`lib/voice_store.dart`, interface language in `lib/models/language_preference.dart`), so this record needs no new
+dependency and no new file format. *(The read-position store this sentence also named left the tree on
+2026-10-12 — 016 decision 5.)*
 
 ## The record
 
 One key for the whole appearance, in the two-field grammar the app's other per-device records already
-use (`voice_*` = `<name>||<locale>`, `read_position_*` = `<offset>||<charCount>`):
+use (`voice_*` = `<name>||<locale>`; its `read_position_*` twin retired with 010's FR-008 on 2026-10-12):
 
 ```text
 key:   reading_appearance
@@ -48,7 +49,8 @@ reading_appearance = default||medium
 ```
 
 The key is namespaced by its own name and shares no prefix with the keys already in use
-(`voice_en`, `voice_zh_Hans`, `voice_es`, `interface_language`, `read_position_<contentKey>`).
+(`voice_en`, `voice_zh_Hans`, `voice_es`, `interface_language`; `read_position_<contentKey>` retired
+2026-10-12).
 
 ### What the keys mean when rendered
 
@@ -114,7 +116,7 @@ and the next confirmed choice overwrites it.
 4. **Malformed values** (`''`, `serif`, `serif||`, `||xlarge`, `serif||xlarge||extra`) each return the
    defaults and never throw.
 5. **Namespace**: the key this store writes collides with no existing key (`voice_*`,
-   `interface_language`, `read_position_*`).
+   `interface_language` — `read_position_*` was the third, and left the tree on 2026-10-12, 016 decision 5).
 6. **Last write wins**: after two saves, load returns the second.
 7. **One write per confirm**: confirming once writes exactly one key (asserted on the mocked prefs
    map), and dismissing the screen writes none.

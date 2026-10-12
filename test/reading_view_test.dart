@@ -196,7 +196,7 @@ void main() {
       expect(fake.stops, stopsBefore + 1);
     });
 
-    testWidgets('Read with nothing selected asks for a selection',
+    testWidgets('Read with nothing selected reads the first sentence',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -215,18 +215,19 @@ void main() {
       await loadPageContent(tester);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
-      // Nothing is highlighted, so there is no selection to scope the read to:
-      // the page asks for one and speaks nothing. Reading the text from its
-      // first sentence with nothing selected is ⏭ Continue Read's fallback
-      // (010 FR-005), and a button that duplicates it explains neither
-      // (FR-023).
-      expect(fake.spoken, isEmpty);
-      expect(fake.isSpeaking, isFalse);
-      expect(find.text('Select a sentence or paragraph to read'),
-          findsOneWidget);
+      // Nothing is highlighted: ▶ takes the first sentence, brings it into
+      // view and reads it, then stops (016 FR-001 — the warning 011 FR-023
+      // asked for is gone).
+      expect(fake.spoken, [firstSentence]);
+      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
+      // The highlight is left on what the NEXT press reads (016 FR-004,
+      // decision 1): the sentence just heard is no longer painted.
+      expect(hasYellowHighlight(tester, firstSentence), isFalse);
+      expect(hasYellowHighlight(tester, 'Birds sang in the tall trees.'), isTrue);
     });
 
-    testWidgets('Read after a stop asks for a selection again', (tester) async {
+    testWidgets('Read after a stop starts at the first sentence again',
+        (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
@@ -251,17 +252,17 @@ void main() {
           hasYellowHighlight(tester, 'Birds sang in the tall trees.'), isTrue);
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
-      // Stop takes the highlight away, and the position with it (FR-022): with
-      // no selection left there is nothing for ▶ to read, and reading the page
-      // from the top is ⏭'s job, not ▶'s.
+      // Stop takes the highlight away and the position with it (011 FR-022,
+      // 016 FR-009): with nothing in force ▶ starts at the first sentence
+      // again, which is what the tap's position bought it before.
       expect(hasAnyYellow(tester), isFalse);
       await tester.tap(find.byTooltip('Read'));
       await tester.pump();
-      expect(fake.spoken, isEmpty,
-          reason: 'a stopped read left its position in force; ▶ Read is not '
-              'Continue Read');
-      expect(find.text('Select a sentence or paragraph to read'),
-          findsOneWidget);
+      expect(fake.spoken, [firstSentence],
+          reason: '▶ after a Stop starts the text again (016 FR-009)');
+      expect(hasYellowHighlight(tester, 'Birds sang in the tall trees.'), isTrue,
+          reason: 'and the highlight is where the next press will read');
+      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
     });
 
     testWidgets('missing voice shows error instead of crashing', (tester) async {

@@ -139,15 +139,17 @@ Steps: set a position, then (a) Edit → Done, (b) Edit → Save, (c) load anoth
 Expected: each case reads from offset 0 and the `read_position_<key>` record is gone
 (FR-007, I7).
 
-### 9. The position survives a restart, and nothing else does — [unit]
+### 9. A relaunch is a clean page — [unit]
 
-Test: `reading_view_continue_test.dart` + `test/read_position_store_test.dart`.
-Steps: set a position, capture the mocked prefs map, pump a **fresh** view with those
-prefs, tap Continue Read. Then repeat with a malformed value, and with a `charCount` that
-no longer matches the text.
-Expected: the fresh view starts at the stored position and paints its segment; the
-malformed and mismatched records are ignored (read from 0, nothing thrown, message-free).
-Proves FR-008/SC-004 and the contract's read rules (I8/I9).
+*Amended 2026-10-12 by 016 decision 5* — the reader's own *"重启一律干净"*. This row asserted the opposite of
+what it now does, and what it asserted is withdrawn with FR-008 and the contract; the store's own test file
+went with the record.
+
+Test: `reading_view_continue_test.dart`, "a fresh view restores NOTHING — no highlight, ⏭ from the top".
+Steps: put a position in force, capture the mocked prefs map and check it holds **no** `read_position_*` key,
+then pump a **fresh** view with that map and tap Continue Read.
+Expected: no highlight is painted and Continue Read reads from the first sentence — the read a never-tapped
+page gives. Proves FR-005, and 016's FR-007/SC-005.
 
 ### 10. Rapid taps leave the last position in force — [unit]
 
@@ -196,6 +198,11 @@ of the text. This is the device proof of FR-004/FR-010 that a UI dump cannot giv
 (`research.md` D10).
 
 ### 14. On the device: the position survives a restart — [device]
+
+*Amended 2026-10-12 by 016 decision 5* — **not re-walked, because there is no record to survive.** Its
+replacement is that feature's own row 8 (`specs/016-sentence-reading/quickstart.md`: a relaunch after a step and
+after a tap paints no highlight, leaves no `read_position_*` record at all, and ⏭ reads from the first
+sentence). The row below stands as the ask that was reversed.
 
 Steps:
 1. Tap a middle paragraph, confirm the record exists:

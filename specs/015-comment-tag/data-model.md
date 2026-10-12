@@ -177,7 +177,8 @@ one Undo takes it back (the spec's edge case about a text still being edited).
 | `VideoSlot` | `lib/video_timeline.dart:131-178` | the slot's `text` now carries the block (its sentence **and** the comments riding it, D8); its `audio` names the WAVs it plays, in order (its own sentence first, then each comment's sentences), so the renderer can hand the muxer one segment per utterance inside the slot's frames. `span=` is unchanged — still the **sentence's** own offsets, which is what 012's row 32 reads. |
 | `RoleSettings` | `lib/role_store.dart:48-109` | one field (`commentsRead`, default `true`) plus its two callers kept in step (`withRemoval`, `withVoice`) and `isEmpty`; the page's own `RoleSettings(...)` construction follows (`lib/reading_view.dart:1360-1368`). |
 | `VideoPlan` / `buildVideoPlan` | `lib/video_timeline.dart:183-297` | the plan's own arithmetic is unchanged for a content with no comment; a slot whose audio has several parts sums its own `durationMs` from them, and `audio` (above) is what the renderer walks for the muxer's segments. |
-| `ReadingPosition`, `SavedContent`, `TextSegment`, `VoiceChoice`, `VoiceEntry` | `lib/read_position_store.dart`, `lib/models/content.dart`, `lib/segmenter.dart`, `lib/voice_store.dart` | **nothing** — every offset this feature produces is a content offset, and every stored position stays one. |
+| `SavedContent`, `TextSegment`, `VoiceChoice`, `VoiceEntry` | `lib/models/content.dart`, `lib/segmenter.dart`, `lib/voice_store.dart` | **nothing** — every offset this feature produces is a content offset, and every position it puts in force stays one. |
+| `ReadingPosition` (`lib/read_position_store.dart`) | — | **left the tree 2026-10-12** (016 decision 5). This feature never needed it to change, and this line is kept to say so. |
 
 ---
 

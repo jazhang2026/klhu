@@ -1,5 +1,10 @@
 # Storage Contract: Continue Read start position
 
+> **RETIRED 2026-10-12 by [016-sentence-reading](../../016-sentence-reading/spec.md) decision 5** (the reader's
+> own *"重启一律干净"*). The record this contract describes no longer exists: `lib/read_position_store.dart`, its
+> 11 cases in `test/read_position_store_test.dart` and every write site left the tree in that feature's
+> T015/T016, and 010's FR-008 is withdrawn with them. The document is kept as the contract that **was**, because
+> rows were walked against it and their evidence reads off it.
 **Feature**: [spec.md](../spec.md) | **Plan**: [plan.md](../plan.md) | **Decisions**: [research.md](../research.md) D4–D7
 **Date**: 2026-09-24
 

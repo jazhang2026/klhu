@@ -51,7 +51,7 @@ class VideoAspect {
 }
 
 /// Persists the chosen video format in `shared_preferences`, the app's store for
-/// per-device view state (`VoiceStore`, `ReadPositionStore`, `AppearanceStore`,
+/// per-device view state (`VoiceStore`, `AppearanceStore`,
 /// the interface language) — it is NOT library metadata and never touches
 /// `index.json`.
 ///
@@ -62,8 +62,7 @@ class VideoAspect {
 /// beside a stale rate.
 class VideoAspectStore {
   /// The single key this store addresses, namespaced so it collides with no
-  /// `voice_*`, `interface_language`, `read_position_*` or
-  /// `reading_appearance` record.
+  /// `voice_*`, `interface_language` or `reading_appearance` record.
   static const String key = 'video_aspect';
 
   /// The stored choice, or the defaults under every failure: a missing or

@@ -220,11 +220,20 @@ entry in the list; repeat and leave without saving instead, and find the library
   MUST be dropped — in memory and on disk — wherever the highlight is cleared (Stop, the end of a read,
   entering EDIT). A read MUST NOT resume from a position whose highlight is gone; with no position in
   force ⏭ reads from the first sentence, as 010 FR-005 requires. This narrows 010 FR-002/FR-004/FR-008:
-  a position outlives a restart only while its highlight is up when the app is left.
+  ~~a position outlives a restart only while its highlight is up when the app is left~~ — **replaced
+  2026-10-12 by [016](../016-sentence-reading/spec.md) decision 5**: a position never outlives a restart at all,
+  a relaunch being a clean page. The condition above still stands and is now the whole of the rule — the
+  highlight is what keeps the position in force, and a position **inside** a session is all there is.
 - **FR-023**: ▶ Read MUST speak the highlighted sentence or paragraph, and MUST NOT read aloud when
   nothing is highlighted: the page asks the user to select a sentence or paragraph instead. Reading the
   text from its first sentence with nothing selected stays ⏭ Continue Read's fallback (010 FR-005,
   kept by FR-022), so no two buttons answer the same tap with the same read.
+  *(Amended 2026-10-12 by [016](../016-sentence-reading/spec.md) FR-001, on the reader's own ask of
+  2026-10-09: with nothing highlighted ▶ now reads the text's **first sentence**, brings it into view and
+  stops — one sentence per press — and the "select a sentence or paragraph" prompt and its message key are
+  gone. The rule above stands for the highlighted case and only for it. The button no longer duplicates ⏭:
+  ▶ reads one sentence, ⏭ reads from there to the end, and that difference in scope is what the 2026-09-25
+  amendment was reaching for.)*
 - **FR-024**: The unit ▶ Read speaks MUST be the unit the page's own gesture selected: a **tap** on the
   text selects its sentence and a **long-press** its paragraph (003, unchanged), and ▶ reads that
   selection as it stands — never a larger block than what is highlighted. ⏭ Continue Read MUST read

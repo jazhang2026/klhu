@@ -349,11 +349,15 @@ FR-008, FR-012, SC-006, SC-007.
 ### 26. Switching the type mid-read keeps the reader's place — [device]
 
 Test: `klhu_walk_dialogue.py 26`.
-Steps: read a few sentences into the content (letting 010's position be saved); note the highlight and the
-stored `read_position`; open the entry and switch to 多人对话; then switch back.
+Steps: read a few sentences into the content (putting 010's position in force); note the highlight; open the
+entry and switch to 多人对话; then switch back.
 Expected: the highlight is where it was, the stored offset's value is unchanged (a content offset is a
 content offset), the text is untouched (008's `updatedAt` unmoved) and reading resumes from the same
 sentence. Proves FR-020, SC-009.
+
+*Amended 2026-10-12 by 016 decision 5*: the stored `read_position` this row's steps used to name is gone from
+the app, and the step now reads the in-session highlight — the rule it proves (an offset is an offset, whatever
+type the text is read in) is untouched.
 
 ### 27. A dialogue's video on the device: no tag in a frame, the read's own voices — [device]
 

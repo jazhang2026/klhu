@@ -258,30 +258,14 @@ void main() {
       });
     });
 
-    testWidgets('Continue Read from a stored position shows it first',
-        (tester) async {
-      useViewport(tester);
-      final offset = longText.indexOf('Sentence number 60.');
-      SharedPreferences.setMockInitialValues({
-        'read_position_$longKey': '$offset||${longText.length}',
-      });
-      final fake = FollowingReader();
-      final logs = <String>[];
-      await withCapturedLogs(logs, () async {
-        await openPage(tester, fake);
-
-        // 010 D8: the restored position is shown before any read starts.
-        expect(hasYellow(tester, 'Sentence number 60.'), isTrue);
-        await continueRead(tester);
-        expect(fake.plan.first.start, offset);
-
-        fake.fireAt(0);
-        await tester.pumpAndSettle();
-        expect(hasYellow(tester, 'Sentence number 60.'), isTrue);
-        expect(boxIsInsideViewport(tester, fake.plan.first), isTrue);
-        expect(FollowLine.parse(logs.last).visible, 1);
-      });
-    });
+    // A case lived here — "Continue Read from a stored position shows it
+    // first" — which seeded a `read_position_*` record and asserted the view
+    // restored it before any read (010 D8). 016 decision 5 retires the record
+    // itself: there is nothing to seed and nothing to restore, and the reader
+    // asked for exactly that ("重启一律干净"). The reveal it proved lives on in
+    // the case above (a manual scroll, then a read from a position in force),
+    // and its device half is re-walked as 016's quickstart row 10 — 011's own
+    // row 8, whose restore half 011's record notes with its date (016 T020).
 
     testWidgets('manual scroll is not undone; a resumed sentence repaints',
         (tester) async {

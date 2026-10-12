@@ -173,12 +173,6 @@ abstract class AppLocalizations {
   /// **'Nothing left to read from here'**
   String get nothingToReadMessage;
 
-  /// No description provided for @selectToReadMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a sentence or paragraph to read'**
-  String get selectToReadMessage;
-
   /// No description provided for @genderMale.
   ///
   /// In en, this message translates to:

@@ -101,10 +101,6 @@ void main() {
   Future<int> entryCount(WidgetTester tester, ContentStore store) async =>
       (await tester.runAsync(() => store.list()))!.length;
 
-  Future<String?> storedPosition() async => (await SharedPreferences
-          .getInstance())
-      .getString('read_position_preset_en_sample');
-
   testWidgets('the add action opens a blank editor, with nothing created',
       (tester) async {
     final store = pageStore(root);
@@ -184,15 +180,16 @@ void main() {
     expect(find.byType(TextField), findsNothing);
   });
 
-  testWidgets('Done saves the draft, and the earlier content keeps its position',
+  testWidgets('Done saves the draft, and the earlier content keeps its place',
       (tester) async {
     final store = pageStore(root);
     await openPage(tester, store);
 
-    // A 010 position on the content that is on screen.
+    // A position in force on the content that is on screen — a tap's highlight
+    // (010), which after 016 lives inside the session and nowhere else.
     await tester.tapAt(offsetOf(tester, 'Birds sang'));
     await tester.pump();
-    expect(await storedPosition(), isNotNull);
+    expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
 
     // A draft, finished with Done: the check icon commits AND saves, so the
     // typed text cannot be lost by leaving the editor.
@@ -206,15 +203,18 @@ void main() {
     final entries = await tester.runAsync(() => store.list());
     expect(entries!.map((e) => e.name), contains('A draft that is kept.'));
 
-    // The earlier content's record is untouched (FR-019) — the draft never
-    // belonged to it.
-    expect(await storedPosition(), isNotNull);
+    // The earlier content is untouched (FR-019): the draft is a new entry, and
+    // saving it replaced nothing. What the tap put in force belonged to the
+    // page the draft replaced and is gone with it (010 FR-007, 016 decision 5).
 
-    // Re-opening that content brings its own position back.
+
+    // Re-opening that content shows a clean page: the place lived inside the
+    // session that set it and went with the switch (010 FR-007) — there is no
+    // record to bring back (016 decision 5).
     await openList(tester);
     await tester.tap(find.textContaining('The sun rose'));
     await loadPageContent(tester);
-    expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
+    expect(hasYellow(tester, 'Birds sang in the tall trees.'), isFalse);
   });
 }
 

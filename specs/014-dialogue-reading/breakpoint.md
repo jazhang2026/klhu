@@ -389,6 +389,12 @@ content_roles = None                        # after 标准 — the text is 标�
 the index's updatedAt = 2026-10-05T18:11:05.000000Z        # unmoved from the first tap to the last check
 ```
 
+*Amended 2026-10-12 by 016 decision 5*: `read_position_dialogue_fixture` is gone from the app — the record and
+its store left the tree in that feature, with 010's own FR-008. Every row below that cites it still proves what
+it says (a tap anchors a sentence, the reader's own place survives a switch, pausing leaves it alone, a finished
+read takes it away); the line they read it off is now the **in-session highlight and `klhu read range`**, which
+is what 016's row 8 asserts. Nothing else in this record moves.
+
 **The highlight, read off the framebuffer** — the text band `(0, 260)-(1080, 1300)`, cropped by `ffmpeg` and
 digested (`sha256` of raw pixels). The highlight is *paint*, so no dump carries it; each comparison below is
 preceded by a control pair taken 3s apart, and every pair came back identical:

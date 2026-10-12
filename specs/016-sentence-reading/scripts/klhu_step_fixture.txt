@@ -1,0 +1,19 @@
+## main
+A quiet morning
+
+The sun rose over the quiet town. Birds sang in the tall trees.
+
+## comment
+Hola.
+
+[注] How are you?
+
+Adiós.
+
+## inline_comment
+Hola. Adiós. [注] Fine.
+
+## dialogue
+{阿明} 今天嘅天气真系唔错啊。我哋去公园散步啦。
+
+[注] How are you?

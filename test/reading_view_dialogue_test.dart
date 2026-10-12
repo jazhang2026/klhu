@@ -245,7 +245,7 @@ void main() {
           reason: 'nothing was saved, so nothing changed the content');
     });
 
-    testWidgets('it keeps the highlight and writes no reading position',
+    testWidgets('it keeps the highlight, and nothing is written down',
         (tester) async {
       await pumpPage(tester);
       const firstSentence = 'The sun rose over the quiet town.';
@@ -254,10 +254,8 @@ void main() {
       await tester.tapAt(topLeft + const Offset(10, 10));
       await tester.pump();
       expect(hasYellowHighlight(tester, firstSentence), isTrue);
-      // A tap is what sets the position (010); the switch must not move it.
-      final prefs = await SharedPreferences.getInstance();
-      final afterTap = prefs.getString('read_position_preset_en_sample');
-      expect(afterTap, isNotNull);
+      // A tap is what puts the reader's place in force (010); the switch must
+      // not move it. Nothing is written down to compare (016 decision 5).
 
       await openChooser(tester);
       await tester.tap(find.text('Dialogue'));
@@ -267,7 +265,7 @@ void main() {
 
       expect(hasYellowHighlight(tester, firstSentence), isTrue,
           reason: 'switching the type moves nothing (FR-020)');
-      expect(prefs.getString('read_position_preset_en_sample'), afterTap,
+      expect(hasYellowHighlight(tester, firstSentence), isTrue,
           reason: 'the reader\'s place is where the tap put it (FR-020, SC-009)');
     });
   });

@@ -46,9 +46,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nothingToReadMessage => '从这里开始没有可朗读的内容';
 
   @override
-  String get selectToReadMessage => '请先选择要朗读的句子或段落';
-
-  @override
   String get genderMale => '男';
 
   @override
@@ -407,9 +404,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get nothingToReadMessage => '从这里开始没有可朗读的内容';
-
-  @override
-  String get selectToReadMessage => '请先选择要朗读的句子或段落';
 
   @override
   String get genderMale => '男';

@@ -321,6 +321,11 @@ store shape (014's own rules and the shape of its stored entries), SC-008's inva
 
 ## Deviations
 
+*2026-10-12 — the key count moved again, by 016.* Section 15-16's receipt reads **108** message keys; 016
+removed `selectToReadMessage` (011 FR-023's warning, used at exactly one call site) and added nothing in its
+place, so the four ARBs carry **107** each and that row is corrected in place with its date. This feature's own
+work is untouched by it.
+
 1. **Row 18's expectation was wrong, and was corrected — the fixture text is kept (the reader's answer,
    2026-10-09).** The comment's language is `detectLanguage` of its **own** content (FR-008/A3), and the
    detector's rule table treats an accented Spanish letter as Spanish: `Adiós.` carries `ó`, so `Hi. Adiós.`

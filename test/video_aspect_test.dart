@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/appearance_store.dart';
-import 'package:klhu/read_position_store.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -88,7 +87,6 @@ void main() {
         VoiceStore.keyFor('en'),
         VoiceStore.keyFor('es'),
         VoiceStore.keyFor('zh-Hans'),
-        ReadPositionStore.keyFor('any-content'),
         'interface_language',
       };
       expect(others, isNot(contains(VideoAspectStore.key)));

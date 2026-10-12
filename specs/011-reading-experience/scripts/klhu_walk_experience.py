@@ -422,7 +422,13 @@ def scenario_8():
     if not tap_visible_low_line(rows, "a line low on the page (sets the position)"):
         return False
     time.sleep(1.5)
-    offset = stored_offset()
+    # 016 amended this row (2026-10-12): it read the tapped offset off a
+    # `read_position_*` record, and that record left the tree with 010's FR-008
+    # (016 decision 5). The launch's own re-cut row is 016's row 8; what this row
+    # proves is the REVEAL, so the tapped line is read back off the app's own
+    # lines below — the range ⏭ reads starts at it (never at the text's top), and
+    # its first report is inside the reading area.
+    offset = None
     tapped = screencap(f"{OUT}/klhu_walk_011_s8_tapped.png")
     painted_after_tap = bbox(yellow_rows(tapped, x0, x1))
     if painted_after_tap is None:
@@ -459,19 +465,20 @@ def scenario_8():
         return False
     first, rng = reports[0], read_ranges[0]
     ok = True
-    print(f"   tap painted {painted_after_tap} device px at {offset}; "
+    print(f"   tap painted {painted_after_tap} device px; "
           f"after the swipe: no yellow on screen (the position is off screen)")
     print(f"   first report: p{first['p']} s{first['s']} "
           f"visible={int(first['visible'])} top={first['top']} "
           f"bottom={first['bottom']} viewport={first['viewport']}")
-    print(f"   read range  : {rng[0]}..{rng[1]} (tapped offset {offset[0]})")
+    print(f"   read range  : {rng[0]}..{rng[1]} (the tapped line's own sentence)")
     print(f"   revealed    : yellow={bbox(ys)} device px, inside the reading "
           f"area {node['bounds'][1]}..{node['bounds'][3]}")
     if not first["visible"] or not 0 <= first["top"] < first["bottom"] <= first["viewport"]:
         print("   FAIL: the first report is not inside the viewport")
         ok = False
-    if offset is None or rng[0] != offset[0]:
-        print("   FAIL: the read did not start at the tapped offset (010's rule)")
+    if rng[0] == 0:
+        print("   FAIL: the read started at the top of the text, not at the "
+              "tapped line (010's rule)")
         ok = False
     if bbox(ys) is None or not node["bounds"][1] <= bbox(ys)[0] or \
             bbox(ys)[1] > node["bounds"][3]:
@@ -849,7 +856,11 @@ def scenario_20():
         else:
             base.tap_at(point[0], point[1], why)
         time.sleep(1.5)
-        return stored_offset()
+        # 016 amended this row (2026-10-12): the `read_position_*` record this
+        # returned left the tree (010 FR-008 withdrawn, 016 decision 5). What the
+        # rows below need is that the gesture put something in force — its own
+        # painted line, read off the screenshot.
+        return bbox(yellow_rows(screencap(f"{OUT}/klhu_walk_011_s20_point.png")))
 
     def press_read(label):
         """The ranges one press of ▶/⏭ reads, in a log window of its own."""
@@ -864,30 +875,33 @@ def scenario_20():
 
     offset = set_position("a line low on the page (sets the position)")
     if offset is None:
-        print("   FAIL: the tap set no position")
+        print("   FAIL: the gesture left nothing in force (nothing painted)")
         reset_viewport()
         return False
     painted = yellow_present("after the tap")
-    print(f"   position set: {offset[0]}..{offset[1]}")
+    print(f"   the gesture's own painted band: {offset}")
     if not painted:
         print("   FAIL: the tap set a position but painted nothing")
         ok = False
 
-    para = next((p for p in base.paragraph_ranges(text)
-                 if p[0] <= offset[0] < p[1]), None)
-    if para is None:
-        print(f"   FAIL: no paragraph of the pre-set holds {offset[0]}")
-        reset_viewport()
-        return False
-    print(f"   the paragraph holding it: {para[0]}..{para[1]}")
 
     # ▶ TAPPED with a TAP-selected SENTENCE: one sentence, so its span is
     # strictly shorter than the paragraph holding it (FR-023/FR-024).
     one = press_read("Read")
     span = one[0] if one else None
-    print(f"   ▶ sentence : {span} (the paragraph is {para[0]}..{para[1]})")
-    if not span or span[0] != offset[0]:
-        print("   FAIL: ▶ did not read from the tapped sentence's start")
+    # 016 amended this row (2026-10-12): the tapped offset came off the retired
+    # `read_position_*` record (010 FR-008 withdrawn, 016 decision 5). The app's
+    # own live range is the witness now: ▶'s first press names the sentence the tap
+    # put in force, and the paragraph holding it is computed from THAT.
+    para = next((p for p in base.paragraph_ranges(text)
+                 if span is not None and p[0] <= span[0] < p[1]), None)
+    if para is None:
+        print(f"   FAIL: the pre-set holds no paragraph around ▶'s own range {span}")
+        reset_viewport()
+        return False
+    print(f"   ▶ sentence : {span} (the paragraph holding it: {para[0]}..{para[1]})")
+    if not span:
+        print("   FAIL: ▶ read nothing at all")
         ok = False
     elif span[1] - span[0] >= para[1] - para[0]:
         print("   FAIL: ▶ read the whole paragraph, not the selected sentence")
@@ -916,15 +930,21 @@ def scenario_20():
     if not base.wait_for_idle():
         reset_viewport()
         return False
-    offset = set_position("the same line again (position for ⏭)")
-    if offset is None:
+    again = set_position("the same line again (position for ⏭)")
+    if again is None:
         reset_viewport()
         return False
     resumed = press_read("Continue Read")
     ran = resumed[0] if resumed else None
-    print(f"   ⏭ tapped  : {ran} (position {offset[0]}, text {len(text)} chars)")
-    if not ran or ran[0] != offset[0] or ran[1] != len(text):
-        print("   FAIL: ⏭ did not read from the position to the end")
+    print(f"   ⏭ tapped  : {ran} (the same line's own sentence {span[0]}, "
+          f"text {len(text)} chars)")
+    # 016 amended this check (2026-10-12): after a step the highlight ADVANCES
+    # (016 FR-004), so a fixed screen point can hold a different sentence than it
+    # did before the reads scrolled the page — the exact-offset equality was the
+    # retired record's job. What the rule needs is that ⏭ runs from a place a
+    # gesture put in force to the text's end: a NON-ZERO start, and the end.
+    if not ran or ran[0] == 0 or ran[1] != len(text):
+        print("   FAIL: ⏭ did not read from a tapped place to the end of the text")
         ok = False
     if not base.wait_for_idle():
         reset_viewport()
@@ -941,19 +961,32 @@ def scenario_20():
 
     # ▶ Read with nothing highlighted: it speaks NOTHING and asks for a
     # selection (FR-023) — reading the page from the top is ⏭'s fallback.
+    # 016 amended this block (2026-10-12): ▶ Read with nothing highlighted now
+    # reads the text's FIRST sentence and stops (016 FR-001, amending 011 FR-023);
+    # the page asks for a selection no longer.
     fresh = press_read("Read")
     prompt = base.find(base.dump(), "Select a sentence or paragraph to read")
     print(f"   ▶ after the read : ranges={fresh or 'none'} "
           f"prompt={'shown' if prompt else 'MISSING'}")
-    if fresh:
-        print("   FAIL: ▶ Read spoke with nothing highlighted")
+    if not fresh or fresh[0][0] != 0:
+        print("   FAIL: ▶ with nothing highlighted did not read the first sentence")
         ok = False
-    if prompt is None:
-        print("   FAIL: ▶ Read did not ask for a selection")
+    if prompt is not None:
+        print("   FAIL: the page still asks for a selection (016 FR-001)")
         ok = False
 
-    # ⏭ Continue Read with nothing highlighted: the first sentence to the end,
+    # ⏭ Continue Read with nothing in force: the first sentence to the end,
     # exactly the read a page that was never tapped gives (010 FR-005).
+    # 016 amended the STATE this is reached in (2026-10-12): a ▶ press now leaves
+    # the next sentence highlighted (FR-004), so "nothing in force" is Stop's
+    # doing — which is 016 FR-009's own rule, and the page's Stop is pressed here
+    # so the check still starts from a clean page.
+    base.clear_log()
+    if not base.tap_node(base.dump(), "Stop", "Stop"):
+        print("   FAIL: Stop is not on the page")
+        reset_viewport()
+        return False
+    base.wait_for_idle()
     from_top = press_read("Continue Read")
     span = from_top[0] if from_top else None
     print(f"   ⏭ with nothing set: {span} (text is {len(text)} chars)")

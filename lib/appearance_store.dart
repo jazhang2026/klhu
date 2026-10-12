@@ -129,7 +129,7 @@ class ReadingAppearance {
 /// beside a stale size because a write was cut short.
 class AppearanceStore {
   /// The single key this store addresses, namespaced so it collides with no
-  /// `voice_*`, `interface_language` or `read_position_*` record.
+  /// `voice_*` or `interface_language` record.
   static const String key = 'reading_appearance';
 
   /// The stored appearance, or the defaults under every failure: a missing or

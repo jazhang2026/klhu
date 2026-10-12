@@ -176,9 +176,6 @@ void main() {
     await tester.pump();
   }
 
-  Future<String?> record() async =>
-      (await SharedPreferences.getInstance()).getString('read_position_$contentKey');
-
   group('US1: Continue Read with a start position', () {
     testWidgets('the toolbar offers Continue Read in every shipped locale',
         (tester) async {
@@ -209,7 +206,6 @@ void main() {
       expect(fake.speeches.first.text, text.substring(0, p1End));
       expect(fake.speeches.map((s) => s.text).join('\n\n'), text.trimRight());
       expect(fake.speeches.last.end, readEnd);
-      expect(await record(), isNull);
     });
 
     testWidgets('a tap sets the position; Continue Read starts there',
@@ -223,7 +219,6 @@ void main() {
       expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
       expect(fake.reads, isEmpty);
       // A position a tap set and never played is already remembered (FR-008).
-      expect(await record(), '$s2Start||${text.length}');
 
       await continueRead(tester);
 
@@ -240,7 +235,6 @@ void main() {
       }
       // The read ended, so its highlight is gone and the position with it
       // (FR-022) — the record the tap wrote does not outlive the read.
-      expect(await record(), isNull);
     });
 
     testWidgets('a long-press sets the position at the paragraph start',
@@ -250,7 +244,6 @@ void main() {
 
       await tester.longPressAt(offsetOf(tester, 'codebase runs'));
       await tester.pump();
-      expect(await record(), '$p2Start||${text.length}');
       await continueRead(tester);
 
       // The paragraph start, not the sentence the finger landed in.
@@ -283,7 +276,6 @@ void main() {
       expect(fake.speaking, isTrue);
       expect(find.byTooltip('Pause'), findsOneWidget);
       expect(hasAnyYellow(tester), isFalse, reason: 'nothing was selected');
-      expect(await record(), isNull, reason: 'no position was written');
 
       // PAUSED is a read in progress too: the same touch changes nothing, so
       // Resume stays on offer and nothing was re-anchored.
@@ -296,7 +288,6 @@ void main() {
       expect(fake.stops, stopsBefore);
       expect(find.byTooltip('Resume'), findsOneWidget);
       expect(find.byTooltip('Continue Read'), findsNothing);
-      expect(await record(), isNull);
     });
 
     testWidgets('tracking follows the read, and the read takes the position with it',
@@ -329,7 +320,6 @@ void main() {
       // …and the position goes with it, in memory and on disk (FR-022): a read
       // that has ended leaves nothing to continue from, so a later ⏭ starts at
       // the first sentence instead of resuming from an unpainted one.
-      expect(await record(), isNull);
       await continueRead(tester);
       expect(fake.speeches.first.start, 0);
     });
@@ -340,7 +330,6 @@ void main() {
 
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
       await tester.pump();
-      expect(await record(), '$s2Start||${text.length}');
 
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
@@ -348,7 +337,6 @@ void main() {
       // The highlight is gone, so the position is gone with it (FR-022) — the
       // leftovers must not decide where the next read starts.
       expect(hasAnyYellow(tester), isFalse);
-      expect(await record(), isNull);
       await continueRead(tester);
       expect(fake.speeches.first.start, 0);
       expect(fake.speeches.first.text, text.substring(0, p1End));
@@ -364,7 +352,6 @@ void main() {
       await tester.tapAt(offsetOf(tester, 'third paragraph'));
       await tester.pump();
       // The LAST of them is the one on disk (invariant I10)…
-      expect(await record(), '$p3Start||${text.length}');
       await continueRead(tester);
 
       // …and the one the read starts from.
@@ -438,72 +425,48 @@ void main() {
     });
   });
 
-  group('US1: the position survives a restart, and a text change forgets it',
+  group('US1: a relaunch is a clean page, and a text change forgets the place',
       () {
-    testWidgets('a fresh view restores the stored position', (tester) async {
+    testWidgets('a fresh view restores NOTHING — no highlight, ⏭ from the top',
+        (tester) async {
       final first = RecordingReader();
       await openPage(tester, first);
       await tester.longPressAt(offsetOf(tester, 'codebase runs'));
       await tester.pump();
+      // The long press picked the paragraph, and that is the painted span.
+      expect(hasYellow(tester, text.substring(p2Start, p3Start - 2)), isTrue);
+
+      // A restart: the same prefs, a brand new view. 016 decision 5 retired the
+      // record this group used to seed and read back ("重启一律干净"): nothing
+      // was written, so nothing comes back.
       final prefs = await SharedPreferences.getInstance();
       final stored = <String, Object>{
         for (final key in prefs.getKeys())
           if (prefs.get(key) != null) key: prefs.get(key)!,
       };
-      expect(stored['read_position_$contentKey'], '$p2Start||${text.length}');
-
-      // A restart: same prefs, a brand new view.
+      expect(stored['read_position_$contentKey'], isNull);
       SharedPreferences.setMockInitialValues(stored);
       await tester.pumpWidget(const SizedBox());
       final second = RecordingReader();
       await openPage(tester, second);
 
-      // D8: the restored position is shown, not silent — its sentence, which
-      // is what a read from it starts with.
-      expect(hasYellow(tester, 'Flutter makes it easy to build beautiful apps.'),
-          isTrue);
+      expect(hasAnyYellow(tester), isFalse,
+          reason: 'no highlight is restored (FR-007)');
       await continueRead(tester);
-      expect(second.speeches.first.start, p2Start);
+      expect(second.speeches.first.start, 0,
+          reason: 'and ⏭ starts at the first sentence (010 FR-005)');
     });
 
-    testWidgets('a malformed stored position is ignored', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'read_position_$contentKey': 'garbage-no-separator',
-      });
-      final fake = RecordingReader();
-      await openPage(tester, fake);
-
-      expect(hasAnyYellow(tester), isFalse);
-      await continueRead(tester);
-      expect(fake.speeches.first.start, 0);
-    });
-
-    testWidgets('a stored position whose text length changed is ignored',
-        (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'read_position_$contentKey': '$p2Start||${text.length + 1}',
-      });
-      final fake = RecordingReader();
-      await openPage(tester, fake);
-
-      expect(hasAnyYellow(tester), isFalse);
-      await continueRead(tester);
-      expect(fake.speeches.first.start, 0);
-    });
-
-    testWidgets('a committed edit clears the position and its record',
-        (tester) async {
+    testWidgets('a committed edit clears the position in force', (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
       await tester.pump();
-      expect(await record(), isNotNull);
 
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       // EDIT paints no highlight, so the position is gone the moment the
       // editor opens (011 FR-022); the commit below only keeps it gone.
-      expect(await record(), isNull);
       await tester.enterText(find.byType(TextField), 'A new text entirely.');
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
@@ -512,18 +475,16 @@ void main() {
       // the record with it — inside a real event-loop window.
       await loadPageContent(tester);
 
-      expect(await record(), isNull);
       await continueRead(tester);
       expect(fake.speeches.first.start, 0);
       expect(fake.speeches.single.text, 'A new text entirely.');
     });
 
-    testWidgets('Save clears the position and its record', (tester) async {
+    testWidgets('Save clears the position in force', (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
       await tester.pump();
-      expect(await record(), isNotNull);
 
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
@@ -532,7 +493,6 @@ void main() {
       await tester.tap(find.byTooltip('Save'));
       await loadPageContent(tester);
 
-      expect(await record(), isNull);
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
       await continueRead(tester);
@@ -542,13 +502,12 @@ void main() {
       expect(fake.speeches.single.text, 'Saved text. Second one.');
     });
 
-    testWidgets('emptying the text clears the position and its record',
+    testWidgets('emptying the text clears the position in force',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
       await tester.pump();
-      expect(await record(), isNotNull);
 
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
@@ -557,25 +516,22 @@ void main() {
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
 
-      expect(await record(), isNull);
       await continueRead(tester);
       expect(fake.reads, isEmpty);
     });
 
-    testWidgets('switching content clears the position and its record',
+    testWidgets('switching content clears the position in force',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
       await tester.pump();
-      expect(await record(), isNotNull);
 
       await tester.tap(find.byTooltip('Contents'));
       await loadPageContent(tester);
       await tester.tap(find.textContaining('El sol salió'));
       await loadPageContent(tester);
 
-      expect(await record(), isNull);
       expect(hasAnyYellow(tester), isFalse);
       await continueRead(tester);
       expect(fake.speeches.first.start, 0);

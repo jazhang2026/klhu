@@ -74,7 +74,14 @@ its start and the first sentence is not repeated.
 - **FR-005**: System MUST start reading from beginning when no start position is set
 - **FR-006**: System MUST provide visual feedback when start position is set
 - **FR-007**: System MUST clear start position when content is changed or cleared
-- **FR-008**: System MUST persist start position across app restarts
+- **FR-008**: ~~System MUST persist start position across app restarts~~ — **withdrawn 2026-10-12 by
+  [016-sentence-reading](../016-sentence-reading/spec.md) decision 5**, on the reader's own answer of
+  2026-10-09 (*"(B) 谁都别留,重启一律干净"*): a relaunch shows a clean page, and ⏭ starts at the first sentence.
+  What stands where this requirement did is the position's life **inside** a session (FR-002/FR-004/FR-005, in
+  memory) — and FR-005's fallback is now also what a launch does. The store, its record, its tests and every
+  write site left the tree with it (016 T015/T016); rows 9 and 14 of this feature's quickstart and breakpoint
+  are re-cut as this amendment's rows, and
+  [contracts/read-position-format.md](./contracts/read-position-format.md) is marked retired.
 - **FR-009**: System MUST handle start position beyond text length gracefully
 - **FR-010**: System MUST maintain reading progress tracking from set position
 - **FR-011**: System MUST pause and resume at sentence granularity: after Resume, reading continues from the start of the sentence that was in progress when Pause was tapped, never from the start of its paragraph, and no already-completed sentence is spoken again

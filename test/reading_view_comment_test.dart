@@ -190,12 +190,6 @@ void main() {
     await tester.pump();
   }
 
-  /// The stored reading position for the one content, as `offset||charCount`.
-  Future<String?> storedPosition() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('read_position_comments');
-  }
-
   /// Lets a write, a read or the sheet's own rounds finish on the fake clock —
   /// `reading_view_dialogue_test.dart`'s helper, same rounds.
   Future<void> settle(WidgetTester tester) async {
@@ -270,8 +264,8 @@ void main() {
 
       expect(highlighted(tester), [kCommentBody],
           reason: 'the highlight covers the comment exactly (FR-012)');
-      expect(await storedPosition(), '$kCommentStart||${kCommentText.length}',
-          reason: 'the position is a CONTENT offset (FR-012, SC-009)');
+      // The stored record is gone (016 decision 5): the highlight's own span
+      // above is what proves the unit is a CONTENT offset (FR-012, SC-009).
     });
 
     testWidgets('the character right after the elision is still the comment',
@@ -287,7 +281,6 @@ void main() {
       await pumpPage(tester);
       await tapOn(tester, 'Hola.');
       expect(highlighted(tester), ['Hola.']);
-      expect(await storedPosition(), '0||${kCommentText.length}');
     });
   });
 
