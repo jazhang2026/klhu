@@ -147,3 +147,21 @@ quotes no count, so nothing there was owed (T029).
 
 Nothing. Every row this feature planned is walked and green: the device rows (8, 9, 10, 11, 12) and the structural
 row (13). `tasks.md`'s Phase 5 carries those runs' receipts and the closing ones (T030-T032).
+
+## Amendment of 2026-10-13 — a comment's step down takes the weight first (019's FR-015)
+
+This walk closed with 32/32 done; the reader then amended one rule **this feature ships**, while reviewing 019's
+plan (*"可否把加粗字体 计入 大一号，大二号。及计算小一号等 …"*, and, for this rule, *"要：正文已是粗体时，注释 =
+同字号常规（改 017 已发货规则，需重测其设备行）"*). Recorded here rather than folded into the rows above, because the
+rows above are the record of what was walked on the face they were walked with.
+
+**What moves**: with a **bold** face in force, a comment is the sentence's own size at the **regular** weight
+(24 w700 → 24 w400). **What does not**: every figure in this file. Rows 8-12 — and the Spanish/English fixture
+behind them — use a **regular** face, so `24 → 18` (row 10's `medium`/`small` pair and row 11's frame) and every
+ink box stand exactly as measured; rows 8, 9 and 12 carry no comment at all.
+
+**The two sentences of this feature's spec that the amendment makes false, and only for the bold case**: SC-003's
+*"measure smaller"* and SC-005's same phrase. What holds instead is 019's SC-007 — *"never larger, and never the
+same size **and** weight"* — and that feature's `quickstart.md` row 8b is the row that measures it, on its own
+build, with 017's figures quoted beside its own. `tasks.md`'s `## Superseded by later specs` section is the
+pointer, and no row here is re-run: a closed walk's receipt belongs to the revision that was walked.

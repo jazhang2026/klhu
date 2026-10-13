@@ -401,3 +401,26 @@ the sibling specs' records are amended in the same pass as the code that makes t
 | SC-004 | T014, T018, T025 |
 | SC-005 | T015, T020, T026 |
 | SC-006 | T027 |
+
+## Superseded by later specs
+
+**2026-10-13 — a comment's step down now takes the weight first (019's `spec.md` FR-015, its US4 and its
+decision 11).** The reader asked, while reviewing 019's plan: *"可否把加粗字体 计入 大一号，大二号。及计算小一号等。
+扩充可用字体数"*, and answered the follow-up question for this feature with *"要：正文已是粗体时，注释 = 同字号常规
+（改 017 已发货规则，需重测其设备行）"*. What that changes here:
+
+- **FR-007/FR-008/FR-009 and the derived-size table (`data-model.md` § The comment's size) are superseded for a
+  **bold** body only**: with a bold face in force a comment is the sentence's own size at the regular weight
+  (24 w700 → 24 w400), where this feature shipped one offered size down at the same weight (24 → 18). With a
+  **regular** body — every fixture and every row below — nothing moves: `24 → 18`, `18 → 14`, `14 → 12`,
+  `small → 10`.
+- **SC-003 and SC-005's *"measure smaller"* is the one sentence this makes false**, and only for the bold case:
+  the invariant FR-015 leaves in force is *"never larger, and never the same size **and** weight"*. The numbers
+  below are quoted as they were measured, on the face they were measured with.
+- **No row here is re-cut or re-run**: rows 8-12 and their fixture use a **regular** face (and rows 8/9/12 do not
+  carry a comment at all), so every figure stands. The new case has no row of this feature's to move, and is walked
+  by **019's own row 8b** (`specs/019-head-tags/quickstart.md`), which that feature's plan names as this
+  amendment's receipt. `breakpoint.md` carries the dated section beside its rows.
+- **What is NOT this amendment's**: the ladder that raises a mark (019's FR-006/FR-007), the six faces the reader
+  picks from, the record's grammar, and the 110 message keys — the ladder is derived on 019's side and adds no
+  entry to any control.
