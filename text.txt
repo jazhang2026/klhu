@@ -112,4 +112,4 @@ Requirement:
     而「永不画、永不读的字符」与逐句切分相冲突（URL/代码里的句末符会在标记内部切句）；
     只有「强调(粗/斜)」一处是真缺口，将来若要做，只做那一块 ≈ 三分之一成本。)
     
-018（new）. support mark down title tags: #, ##.
+019. support mark down title tags: #, ##.
