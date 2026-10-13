@@ -78,9 +78,11 @@ marks' spelling, the required space, the elision, the resolution, the video's ru
 The four artifacts of the plan stage are written beside this file, and the checks below were re-run on them after
 the amendment. `spec_consistency.py` → **15 FR · 7 SC · 4 stories · 17 scenarios · no divergent fence** (the
 ladder's table is a fenced block kept byte-identical in `research.md` and `data-model.md`, which the checker
-reports `IDENTICAL`); `check_quickstart_coverage.py` → **15 rows ([unit] 11, [device] 3, [structural] 1),
+reports `IDENTICAL`); `check_quickstart_coverage.py` → **16 rows ([unit] 11, [device] 4, [structural] 1),
 `unclaimed: none`, `no 'Proves' line: none`**; `check_artifact_refs.py` → **95 line references checked, 9
-unresolved**, and every unresolved one is a citation of a file this stage is about to create (`lib/head_tag.dart`
+unresolved** *on this stage's four artifacts, before the tasks file landed* (its own run over the whole directory
+now reports 97 and 13, the four extra citations being the files the tasks stage names as about to be created),
+and every unresolved one is a citation of a file this stage is about to create (`lib/head_tag.dart`
 ×2, `test/head_tag_test.dart` ×2, `test/reading_view_head_test.dart` ×2) or of `lib/display.dart`, which exists
 only as the **refused** alternative of `research.md`'s D7. `check-prerequisites.sh --json` lists this stage's whole
 file set (`AVAILABLE_DOCS` = `research.md`, `data-model.md`, `quickstart.md`). **Every `spec.md:NN` citation the

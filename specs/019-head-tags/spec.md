@@ -49,6 +49,11 @@ line's first character, the never-painted and never-spoken characters and the vi
 moves is how a mark's size and weight are derived (FR-006/FR-007 rewritten, FR-015 new, SC-006/SC-007 new, US4
 new), and with them 017's shipped comment rule, which that feature's own records report with its date.
 
+
+> The device walk's own record — every row's command, evidence and state — is `breakpoint.md`,
+> beside these artifacts; its driver and fixture are `scripts/klhu_walk_head.py` and
+> `scripts/klhu_head_fixture.txt`.
+
 ## Clarifications
 
 ### Session 2026-10-13

@@ -1,5 +1,9 @@
 # Quickstart: Head tags (`#` a title, `##` a subtitle)
 
+
+> This feature's own device walk — every row's command, evidence and state — is `breakpoint.md`, beside
+> these artifacts; its driver and fixture are `scripts/klhu_walk_head.py` and `scripts/klhu_head_fixture.txt`.
+
 ## Prerequisites
 
 The line's own measured baseline, taken on **2026-10-13 09:05** on the checked-out tree (`35f34cc` + the
@@ -223,6 +227,17 @@ every sibling driver's parser still matches the app's own lines, whose fields ar
 **Evidence**: the commands' own output; the suite count read against the baseline's 663 with the difference
 decomposed by file.
 Proves FR-010, SC-003.
+
+### 14. A bold body's comment, measured on the page — [device]
+
+**Steps**: with 017's **Bold** in force, open a content whose sentence carries a comment; screenshot the page at
+each of the four Appearance sizes; scan each PNG (Python + PIL) for the ink rows of the comment's line and of the
+sentence's line; then repeat with the regular `default` face beside them and put 017's own measured pair next to it.
+**Expected**: with Bold in force the comment's ink height **equals** the sentence's own at every size (the same
+size at the regular weight — lighter, not smaller), and with the regular face the comment's ink is the one 017's
+own row measured (strictly smaller at each size) — so the picture shows the amendment moving the bold case alone.
+**Evidence**: the eight screenshots and the sixteen measured heights, in `breakpoint.md`.
+Proves FR-015, SC-007.
 
 ## Troubleshooting
 

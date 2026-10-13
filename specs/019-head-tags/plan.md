@@ -13,6 +13,10 @@ taller line box; no *spacing rule* is added). A fourth item is a contract step F
 own type: a speech's text becomes the display's, and the speech carries the display so the read's offsets stay the
 content's.
 
+
+> This feature's own device walk — every row's command, evidence and state — is `breakpoint.md`, beside
+> these artifacts; its driver and fixture are `scripts/klhu_walk_head.py` and `scripts/klhu_head_fixture.txt`.
+
 ## Summary
 
 A line that starts with `# ` or `## ` is a **title** or a **subtitle**, and the marker itself is nowhere: the page
@@ -113,7 +117,7 @@ specs/019-head-tags/
 ├── plan.md                  ← this file
 ├── research.md              (Grounding corrections, the verified facts, D1-D9, open questions)
 ├── data-model.md            (HeadTag, the display, ParagraphSpeech, VideoSlot, the ladder, INV-1..INV-11)
-├── quickstart.md            (15 rows — [unit] 11, [device] 3, [structural] 1 — read against the 663 baseline)
+├── quickstart.md            (16 rows — [unit] 11, [device] 4, [structural] 1 — read against the 663 baseline)
 ├── checklists/requirements.md
 └── scripts/                 (implement time: klhu_walk_head.py — the device rows' own driver, importing
                               015's and 016's drivers for the device mechanics, the content seeding and the

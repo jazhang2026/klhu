@@ -156,9 +156,26 @@ plan (*"可否把加粗字体 计入 大一号，大二号。及计算小一号�
 rows above are the record of what was walked on the face they were walked with.
 
 **What moves**: with a **bold** face in force, a comment is the sentence's own size at the **regular** weight
-(24 w700 → 24 w400). **What does not**: every figure in this file. Rows 8-12 — and the Spanish/English fixture
-behind them — use a **regular** face, so `24 → 18` (row 10's `medium`/`small` pair and row 11's frame) and every
-ink box stand exactly as measured; rows 8, 9 and 12 carry no comment at all.
+(24 w700 → 24 w400). **What does not**: every **verdict** in this file — and no figure unchanged. Read row by row on 2026-10-13,
+against the finished 019 tree; this is a correction of what this section first said (*"Rows 8-12 … use a regular
+face … every ink box stands"*), which was written from the walker's docstring instead of from its rows:
+
+- **Row 10** (`default` at `medium` and `small`) is the only row whose face is regular throughout, so `24 → 18`,
+  `14 → 12` and the ten-point floor stand exactly as measured, and *"the comment's own line is shorter than the
+  text's"* is the rule FR-015 keeps for a regular body.
+- **Rows 8, 9 and 12 drive the six faces, the three bold ones included** (`set_appearance` over `FACES`) — what the
+  first version of this section got wrong. What saves them is that **no comment is in their content**: what they
+  measure is the face's weight itself. Their claims are directional (*bold carries > 10% more ink*, *crosses
+  neither edge of its own family's column*, *the synthesised CJK weight is heavier*) and FR-015 moves their ink
+  **numbers** — a bold body's comment is the same size now instead of one size down, so a bold fixture that carried
+  a comment would gain ink — never their verdicts. The figures quoted in the rows above are as measured, on the
+  rule that was in force when they were walked.
+- **Row 11 is the row that needs re-measuring.** It asserts *"the block is SHORTER than 015 measured — the
+  comment's line is smaller"* and sets no appearance of its own: it runs on whatever `reading_appearance` the
+  device holds, and the 8/9/12 sequence above leaves a **bold** one. Under FR-015 a bold body's comment is the
+  same size, so on a bold record that block is *taller* and the claim fails. Not re-run here: a closed walk's
+  receipt belongs to the revision that was walked, and this row's own re-run with the appearance pinned is
+  listed in 019's `tasks.md` T022's receipt.
 
 **The two sentences of this feature's spec that the amendment makes false, and only for the bold case**: SC-003's
 *"measure smaller"* and SC-005's same phrase. What holds instead is 019's SC-007 — *"never larger, and never the

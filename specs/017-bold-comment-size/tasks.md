@@ -417,8 +417,10 @@ decision 11).** The reader asked, while reviewing 019's plan: *"可否把加粗�
 - **SC-003 and SC-005's *"measure smaller"* is the one sentence this makes false**, and only for the bold case:
   the invariant FR-015 leaves in force is *"never larger, and never the same size **and** weight"*. The numbers
   below are quoted as they were measured, on the face they were measured with.
-- **No row here is re-cut or re-run**: rows 8-12 and their fixture use a **regular** face (and rows 8/9/12 do not
-  carry a comment at all), so every figure stands. The new case has no row of this feature's to move, and is walked
+- **No row here is re-cut**, and one row's re-run is owed **to 019's pass**: row 11 sets no appearance of its own
+  and asserts the frame's comment line is smaller, which on a bold record FR-015 makes false; rows 8/9/12 drive
+  the bold faces too but carry no comment, so their directional claims stand with their ink numbers moved
+  (`breakpoint.md`'s amendment section carries the row-by-row reading, and its first version said otherwise). The new case has no row of this feature's to move, and is walked
   by **019's own row 8b** (`specs/019-head-tags/quickstart.md`), which that feature's plan names as this
   amendment's receipt. `breakpoint.md` carries the dated section beside its rows.
 - **What is NOT this amendment's**: the ladder that raises a mark (019's FR-006/FR-007), the six faces the reader
