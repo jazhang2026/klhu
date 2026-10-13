@@ -28,6 +28,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/appearance_store.dart';
+import 'package:klhu/comment.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_timeline.dart';
 
@@ -970,6 +971,64 @@ void main() {
       expect(_dirt(rgba, frame.image.width, top, _background), isNull,
           reason: 'with no picture the frame is the app\'s plain background');
       frame.image.dispose();
+    });
+  });
+
+  group('019: a marked slot paints its line at its rung, marker nowhere (FR-013)', () {
+    const marked = '# Basic Spanish 1\n\nHola.';
+
+    Future<VideoPlan> markedPlan() async {
+      final sentences = await videoSentencesFrom(
+        content: marked,
+        position: 0,
+        loadVoice: (language) async => null,
+      );
+      return buildVideoPlan(
+        sentences: sentences,
+        audioMs: [for (final _ in sentences) 1000],
+        aspect: VideoAspect.landscape,
+        display: displayOf(marked),
+      );
+    }
+
+    test('the title\'s frame is taller than the body\'s, and no marker is painted',
+        () async {
+      final plan = await markedPlan();
+      final painter = VideoPainter(
+        plan: plan,
+        readingStyle: TextStyle(fontSize: 14, color: _ink),
+        background: _background,
+      );
+      final title = await painter.paint(slot: plan.sentences.first);
+      final body = await painter.paint(slot: plan.sentences[1]);
+      expect(title.paintedText, 'Basic Spanish 1');
+      expect(title.paintedText.contains('#'), isFalse);
+      expect(title.lines.first.height, greaterThan(body.lines.first.height),
+          reason: "the title's own line is painted at the ladder's rung");
+      expect(body.lines.first.height, isNotNull);
+    });
+
+    test('a content with no mark paints one line, exactly as before', () async {
+      const plain = 'One two.\n\nThree four.';
+      final sentences = await videoSentencesFrom(
+        content: plain,
+        position: 0,
+        loadVoice: (language) async => null,
+      );
+      final plan = buildVideoPlan(
+        sentences: sentences,
+        audioMs: [for (final _ in sentences) 1000],
+        aspect: VideoAspect.landscape,
+        display: displayOf(plain),
+      );
+      final painter = VideoPainter(
+        plan: plan,
+        readingStyle: TextStyle(fontSize: 14, color: _ink),
+        background: _background,
+      );
+      final frame = await painter.paint(slot: plan.sentences.first);
+      expect(frame.paintedText, 'One two.');
+      expect(frame.lines, hasLength(1));
     });
   });
 }

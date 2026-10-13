@@ -474,4 +474,67 @@ void main() {
           reason: "阿明's paragraph holds nothing but a comment (FR-011)");
     });
   });
+
+  group("019: a comment's step down takes the weight first (FR-015, quickstart 8b)", () {
+    const marked = '# Title\n\nHola. [注] How are you?';
+    const markedDisplay = 'Title\n\nHola. How are you?';
+
+    /// (characters, its own size, its own weight) for the content on screen.
+    List<(String, double?, FontWeight?)> styled(WidgetTester tester, String plain) {
+      final found = <(String, double?, FontWeight?)>[];
+      void walk(InlineSpan span) {
+        if (span is! TextSpan) return;
+        final text = span.text ?? '';
+        if (text.isNotEmpty) {
+          found.add((text, span.style?.fontSize, span.style?.fontWeight));
+        }
+        for (final child in span.children ?? const <InlineSpan>[]) {
+          walk(child);
+        }
+      }
+
+      for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
+        if (rich.text.toPlainText() == plain) walk(rich.text);
+      }
+      return found;
+    }
+
+    (String, double?, FontWeight?) runOf(WidgetTester tester, String text) =>
+        styled(tester, markedDisplay).where((run) => run.$1 == text).single;
+
+    for (final size in ReadingSize.all) {
+      testWidgets("bold ${size.name}: a comment is the body's own size at w400",
+          (tester) async {
+        SharedPreferences.setMockInitialValues({
+          AppearanceStore.key: 'bold||${size.name}',
+        });
+        await pumpPage(tester, text: marked);
+        final comment = runOf(tester, 'How are you?');
+        expect(comment.$2, size.points,
+            reason: 'the weight steps down first, so the size does not');
+        expect(comment.$3, FontWeight.w400,
+            reason: 'the step down IS the weight: the face is w700');
+      });
+
+      testWidgets('${size.name}: a regular body still steps the size down, as 017 shipped it',
+          (tester) async {
+        SharedPreferences.setMockInitialValues({
+          AppearanceStore.key: 'default||${size.name}',
+        });
+        await pumpPage(tester, text: marked);
+        expect(runOf(tester, 'How are you?').$2, size.commentPoints);
+      });
+    }
+
+    testWidgets('a marked line that carries a comment keeps both treatments apart',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({
+        AppearanceStore.key: 'default||medium',
+      });
+      await pumpPage(tester, text: marked);
+      expect(runOf(tester, 'Title').$2, 24, reason: "medium's title rung");
+      expect(runOf(tester, 'How are you?').$2, 12, reason: "medium's comment step");
+      expect(runOf(tester, 'How are you?').$3, FontWeight.w400);
+    });
+  });
 }

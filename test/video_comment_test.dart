@@ -42,7 +42,7 @@ void main() {
         sentences: sentences,
         audioMs: audioMs,
         aspect: VideoAspect.landscape,
-        comments: commentsOf(content),
+        display: displayOf(content),
       );
 
   group("the slot's block and its audio (14)", () {

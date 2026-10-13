@@ -487,4 +487,59 @@ void main() {
       expect(steps[1].start, greaterThanOrEqualTo(stepEnd(text, false, steps.first)));
     });
   });
+
+  group('019 — the display elides a mark as it elides a tag (FR-003)', () {
+    test('the marker is painted nowhere and the words after it are', () {
+      final display = displayOf('# Basic Spanish 1\n\nHola.');
+      expect(display.text, 'Basic Spanish 1\n\nHola.');
+      expect(display.heads, hasLength(1));
+      expect(display.headSpans(), [(0, 15, 1)]);
+    });
+
+    test('each mark is its own span, at its own level', () {
+      final display = displayOf('## Greetings\n\n# Basic Spanish 1');
+      expect(display.text, 'Greetings\n\nBasic Spanish 1');
+      expect(display.headSpans(), [(0, 9, 2), (11, 26, 1)]);
+    });
+
+    test('a text with no tag and no mark is its own display, mapping included', () {
+      final display = displayOf('Hola. Adiós.');
+      expect(display.text, 'Hola. Adiós.');
+      expect(display.heads, isEmpty);
+      expect(display.headSpans(), isEmpty);
+      expect(display.toContent(3), 3);
+      expect(display.toDisplay(3), 3);
+    });
+
+    test('every offset outside an elided span maps back to itself (INV-2)', () {
+      const text = '# Title\n\n[注] Hola.\n\n## Sub';
+      final display = displayOf(text);
+      expect(display.text, 'Title\n\nHola.\n\nSub');
+      final elided = <int>{
+        for (final head in display.heads)
+          for (var i = head.start; i < head.markEnd; i++) i,
+        for (final comment in display.comments)
+          for (var i = comment.tag.start; i < comment.tag.tagEnd; i++) i,
+      };
+      for (var offset = 0; offset < text.length; offset++) {
+        if (elided.contains(offset)) continue;
+        expect(display.toContent(display.toDisplay(offset)), offset,
+            reason: 'offset $offset');
+      }
+    });
+
+    test('a comment on a later line does not cut the marked line', () {
+      const text = '# Title\n[注] Hola.';
+      final display = displayOf(text);
+      expect(display.text, 'Title\nHola.');
+      expect(display.headSpans(), [(0, 5, 1)]);
+    });
+
+    test("a marked line stops where the comment's own characters begin", () {
+      const text = '# Title [注] Hola';
+      final display = displayOf(text);
+      expect(display.text, 'Title Hola');
+      expect(display.headSpans(), [(0, 6, 1)]);
+    });
+  });
 }

@@ -2370,9 +2370,18 @@ class _ReadingViewState extends State<ReadingView> {
     final to =
         h == null ? -1 : display.toDisplay(h.end).clamp(from, display.text.length);
     final comments = display.commentSpans();
+    // 019: a marked line is a third boundary set — its own rung, and the marker
+    // already gone (the display elides it, FR-003), so nothing here ever paints
+    // the `#`s.
+    final heads = display.headSpans();
     final cuts = <int>{0, display.text.length};
     if (from >= 0) cuts..add(from)..add(to);
     for (final span in comments) {
+      cuts
+        ..add(span.$1.clamp(0, display.text.length))
+        ..add(span.$2.clamp(0, display.text.length));
+    }
+    for (final span in heads) {
       cuts
         ..add(span.$1.clamp(0, display.text.length))
         ..add(span.$2.clamp(0, display.text.length));
@@ -2383,29 +2392,54 @@ class _ReadingViewState extends State<ReadingView> {
         if (points[i] < points[i + 1])
           TextSpan(
             text: display.text.substring(points[i], points[i + 1]),
-            style: _spanPaint(points[i], points[i + 1], from, to, comments),
+            style: _spanPaint(points[i], points[i + 1], from, to, comments, heads),
           ),
     ];
     return spans.isEmpty ? [TextSpan(text: display.text)] : spans;
+  }
+
+  /// 019: the marked line that covers the run `[start, end)`, or null.
+  static (int, int, int)? _headCovering(
+      int start, int end, List<(int, int, int)> heads) {
+    for (final head in heads) {
+      if (start >= head.$1 && end <= head.$2) return head;
+    }
+    return null;
   }
 
   /// 017: what one run of the display is painted with — the highlight's own
   /// background where the run is covered by it, and a comment's derived size
   /// where the run is a comment's own characters. A run can be both, and a run
   /// that is neither inherits the page's own style (null).
+  ///
+  /// 019: a run covered by a mark's line is painted at the rung the ladder gives
+  /// it — its size **and** its weight (FR-006) — and a comment keeps its own rung
+  /// inside a marked line (FR-012): the comment's step down takes the weight
+  /// first (FR-015), so a bold body's comment is the same size at `w400` and a
+  /// regular body's is 017's next size down.
   TextStyle? _spanPaint(
     int start,
     int end,
     int from,
     int to,
     List<(int, int)> comments,
+    List<(int, int, int)> heads,
   ) {
     final background = from >= 0 && start >= from && end <= to;
     final inComment = comments.any((c) => start >= c.$1 && end <= c.$2);
-    if (!background && !inComment) return null;
+    final head = _headCovering(start, end, heads);
+    if (!background && !inComment && head == null) return null;
+    final points = _appearance.size.points;
+    final weight = _appearance.typeface.weight;
+    final rung = inComment
+        ? ReadingSize.commentRungFor(points, weight)
+        : head == null
+            ? null
+            : ReadingSize.headingRungFor(points, weight, head.$3);
     return TextStyle(
       backgroundColor: background ? Colors.yellow : null,
-      fontSize: inComment ? _appearance.size.commentPoints : null,
+      fontSize: rung?.$1,
+      fontWeight: rung?.$2,
     );
   }
 

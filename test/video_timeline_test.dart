@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:klhu/comment.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_timeline.dart';
 import 'package:klhu/voice_store.dart';
@@ -231,6 +232,80 @@ void main() {
         expect(slot.end, lessThanOrEqualTo(_content.length));
         expect(_content.substring(slot.start, slot.end), slot.text);
       }
+    });
+  });
+
+  group("019: a slot's words carry no marker, and its own line's rung (FR-013)", () {
+    const marked = '# Basic Spanish 1\n\nHola.';
+
+    Future<List<VideoSentence>> markedSentences() => videoSentencesFrom(
+          content: marked,
+          position: 0,
+          loadVoice: (language) async => null,
+        );
+
+    VideoPlan planOf(String content, List<VideoSentence> sentences) =>
+        buildVideoPlan(
+          sentences: sentences,
+          audioMs: [for (final _ in sentences) 1000],
+          aspect: VideoAspect.landscape,
+          display: displayOf(content),
+        );
+
+    test("the sentence's words lose the marker and its span stays the content's",
+        () async {
+      final sentences = await markedSentences();
+      expect(sentences.map((s) => s.text).toList(), ['Basic Spanish 1', 'Hola.']);
+      // The SPAN is the words' own (FR-011): the marker is not spoken, so it is
+      // not covered — the speech's own span still starts at the paragraph (0).
+      expect(sentences.first.start, 2);
+      expect(sentences.first.end, 17);
+      expect(sentences.first.text.contains('#'), isFalse);
+    });
+
+    test("the title's slot holds its line's rung; the body's holds none", () async {
+      final plan = planOf(marked, await markedSentences());
+      expect(plan.sentences.first.headings, [(0, 15, 1)]);
+      expect(plan.sentences[1].headings, isEmpty);
+    });
+
+    test("the end hold repeats the last sentence's spans", () async {
+      final plan = planOf(marked, await markedSentences());
+      expect(plan.slots.last.kind, VideoSlotKind.hold);
+      expect(plan.slots.last.headings, plan.sentences.last.headings);
+      expect(plan.slots.last.text, plan.sentences.last.text);
+    });
+
+    test('a content with no mark has empty spans and today\'s blocks', () async {
+      const plain = 'One two.\n\nThree four.';
+      final sentences = await videoSentencesFrom(
+        content: plain,
+        position: 0,
+        loadVoice: (language) async => null,
+      );
+      final plan = planOf(plain, sentences);
+      for (final slot in plan.slots) {
+        expect(slot.headings, isEmpty);
+      }
+      expect(plan.sentences.first.text, 'One two.');
+      expect(plan.sentences.first.start, 0);
+    });
+
+    test('a line two sentences share is painted at its rung in both slots', () async {
+      // A mark rules the LINE it starts (FR-008), and each slot paints its own
+      // sentence: both halves of a marked line therefore carry the rung.
+      const oneLine = '# Title. Hola.';
+      final sentences = await videoSentencesFrom(
+        content: oneLine,
+        position: 0,
+        loadVoice: (language) async => null,
+      );
+      final plan = planOf(oneLine, sentences);
+      expect(plan.sentences.first.text, 'Title.');
+      expect(plan.sentences.first.headings, [(0, 6, 1)],
+          reason: 'the sentence is cut where the slot carries it');
+      expect(plan.sentences[1].text, 'Hola.');
+      expect(plan.sentences[1].headings, [(0, 5, 1)]);
     });
   });
 }

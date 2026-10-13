@@ -15,6 +15,7 @@
 /// `［注］`, a Chinese IME's own default, is the reader's ordinary text.
 library;
 
+import 'head_tag.dart';
 import 'language.dart';
 import 'segmenter.dart';
 
@@ -277,19 +278,25 @@ int stepEnd(String text, bool commentsRead, TextSegment sentence) {
 }
 
 /// What the reading page paints: the reader's text with every comment tag's own
-/// characters elided, and the mapping between the two index spaces (data-model
-/// §3, FR-005/FR-012).
+/// characters elided **and, since 019, every mark's** (FR-003), and the mapping
+/// between the two index spaces (data-model §3, FR-005/FR-012).
 ///
 /// The content itself is never rewritten — this is a derived view of it — so the
 /// page keeps painting from the same text the app stores, edits, saves, reads
 /// and renders, and only the two seams where a *display* offset is created or
 /// consumed need the mapping: a tap's answer
 /// ([toContent]) and a highlight's own box ([toDisplay]). For a text with no
-/// tag the display **is** the content and both mappings are the identity, which
-/// is what makes "a content with no tag paints what it painted before" true by
-/// construction (SC-004).
+/// tag and no mark the display **is** the content and both mappings are the
+/// identity, which is what makes "a content with no tag paints what it painted
+/// before" true by construction (SC-003).
+///
+/// A mark is the second kind of never-painted character (019 D1) and rides the
+/// same elision and the same mapping: the marker's `[start, markEnd)` is removed
+/// beside the tags', and both kinds are disjoint (019's FR-009 — the caller
+/// passes the comments' spans to `headTagsOf`, so a mark is never recognised
+/// inside a comment).
 class CommentDisplay {
-  /// The string the page paints: the content minus every `[start, tagEnd)`.
+  /// The string the page paints: the content minus every elided span.
   final String text;
 
   /// The text's own comments, in text order — the same ones [commentsOf] gives,
@@ -297,10 +304,16 @@ class CommentDisplay {
   /// the elided spans are their tags (one source of truth, not two).
   final List<Comment> comments;
 
-  const CommentDisplay._({
-    required this.text,
-    required this.comments,
-  });
+  /// 019: the text's own marks, in text order — empty for a content with no
+  /// `#`/`##` line.
+  final List<HeadTag> heads;
+
+  /// The spans this display removes, in text order: every comment tag's own
+  /// characters and every mark's, which are disjoint (019 FR-009).
+  final List<(int, int)> _elided;
+
+  const CommentDisplay._(
+      this.text, this.comments, this.heads, this._elided);
 
   /// The content offset a display offset is painted at.
   ///
@@ -310,10 +323,9 @@ class CommentDisplay {
   /// comment's tag that character is inside the comment — research D3/D7).
   int toContent(int displayOffset) {
     var content = displayOffset;
-    for (final comment in comments) {
-      final tag = comment.tag;
-      if (displayOffset < toDisplay(tag.start)) break;
-      content += tag.tagEnd - tag.start;
+    for (final span in _elided) {
+      if (displayOffset < toDisplay(span.$1)) break;
+      content += span.$2 - span.$1;
     }
     return content;
   }
@@ -331,6 +343,29 @@ class CommentDisplay {
             (toDisplay(comment.contentStart), toDisplay(comment.contentEnd)),
       ];
 
+  /// 019: where each mark's **line** is painted, as `(start, end, level)` in
+  /// display offsets — the runs the page and a frame give their own size and
+  /// weight (FR-005).
+  ///
+  /// A span stops where a comment's own characters begin: a comment keeps its
+  /// own treatment inside a marked line (FR-012), and the tag's characters are
+  /// elided anyway, so nothing of the marker or the tag is ever painted.
+  List<(int, int, int)> headSpans() {
+    final spans = <(int, int, int)>[];
+    for (final head in heads) {
+      final start = toDisplay(head.lineStart);
+      var end = toDisplay(head.lineEnd);
+      for (final comment in comments) {
+        final contentStart = toDisplay(comment.contentStart);
+        if (comment.contentStart > head.lineStart && contentStart < end) {
+          end = contentStart;
+        }
+      }
+      if (end > start) spans.add((start, end, head.level));
+    }
+    return spans;
+  }
+
   /// Where a content offset is painted.
   ///
   /// An offset inside an elided span answers the span's display start, so a
@@ -338,11 +373,10 @@ class CommentDisplay {
   /// the comment's own characters (FR-005, FR-012).
   int toDisplay(int contentOffset) {
     var removed = 0;
-    for (final comment in comments) {
-      final tag = comment.tag;
-      if (contentOffset <= tag.start) break;
-      final inside = contentOffset < tag.tagEnd ? contentOffset : tag.tagEnd;
-      removed += inside - tag.start;
+    for (final span in _elided) {
+      if (contentOffset <= span.$1) break;
+      final inside = contentOffset < span.$2 ? contentOffset : span.$2;
+      removed += inside - span.$1;
     }
     return contentOffset - removed;
   }
@@ -351,18 +385,27 @@ class CommentDisplay {
 /// The display of [content] — what the reading page paints (data-model §3).
 CommentDisplay displayOf(String content) {
   final comments = commentsOf(content);
-  if (comments.isEmpty) {
-    return CommentDisplay._(text: content, comments: const []);
+  final spans = [
+    for (final comment in comments) (comment.tag.start, comment.tag.tagEnd),
+  ];
+  // 019: a mark is recognised outside every comment's span only (FR-009), and
+  // its own characters join the same elision as the tags'.
+  final heads = headTagsOf(content, inside: [
+    for (final comment in comments) (comment.tag.start, comment.contentEnd),
+  ]);
+  spans.addAll([for (final head in heads) (head.start, head.markEnd)]);
+  if (spans.isEmpty) {
+    return CommentDisplay._(content, comments, heads, const []);
   }
+  spans.sort((a, b) => a.$1.compareTo(b.$1));
   final buffer = StringBuffer();
   var cursor = 0;
-  for (final comment in comments) {
-    final tag = comment.tag;
-    buffer.write(content.substring(cursor, tag.start));
-    cursor = tag.tagEnd;
+  for (final span in spans) {
+    buffer.write(content.substring(cursor, span.$1));
+    cursor = span.$2;
   }
   buffer.write(content.substring(cursor));
-  return CommentDisplay._(text: buffer.toString(), comments: comments);
+  return CommentDisplay._(buffer.toString(), comments, heads, spans);
 }
 
 /// The separator and the spaces after it belong to the tag (FR-001): spaces,

@@ -209,4 +209,83 @@ void main() {
       }
     });
   });
+
+  group('019 — the ladder a mark and a comment are derived from (FR-006/FR-007/FR-015)', () {
+    test('the rungs are the four offered sizes, then the top size at bold and at black', () {
+      expect(ReadingSize.rungs.map((rung) => rung.$1).toList(),
+          [12.0, 14.0, 18.0, 24.0, 24.0, 24.0]);
+      expect(ReadingSize.rungs.map((rung) => rung.$2).toList(), [
+        FontWeight.w400,
+        FontWeight.w400,
+        FontWeight.w400,
+        FontWeight.w400,
+        FontWeight.w700,
+        FontWeight.w900,
+      ]);
+    });
+
+    test("a reader's own rung is the last one not above their own choice", () {
+      expect(ReadingSize.rungOf(12, FontWeight.w400), 0);
+      expect(ReadingSize.rungOf(14, FontWeight.w400), 1);
+      expect(ReadingSize.rungOf(18, FontWeight.w400), 2);
+      expect(ReadingSize.rungOf(24, FontWeight.w400), 3);
+      expect(ReadingSize.rungOf(24, FontWeight.w700), 4);
+      // 017's faces below the top size sit where their size sits (019's own
+      // mapping: a rung carries one weight, so a bold body's marks are the
+      // regular rungs above it).
+      expect(ReadingSize.rungOf(14, FontWeight.w700), 1);
+      expect(ReadingSize.rungOf(18, FontWeight.w900), 2);
+    });
+
+    test('a title is two rungs up, a subtitle one, clamped at the last', () {
+      expect(ReadingSize.headingRungFor(12, FontWeight.w400, 2),
+          (14.0, FontWeight.w400));
+      expect(ReadingSize.headingRungFor(12, FontWeight.w400, 1),
+          (18.0, FontWeight.w400));
+      expect(ReadingSize.headingRungFor(14, FontWeight.w400, 2),
+          (18.0, FontWeight.w400));
+      expect(ReadingSize.headingRungFor(14, FontWeight.w400, 1),
+          (24.0, FontWeight.w400));
+      expect(ReadingSize.headingRungFor(18, FontWeight.w400, 2),
+          (24.0, FontWeight.w400));
+      expect(ReadingSize.headingRungFor(18, FontWeight.w400, 1),
+          (24.0, FontWeight.w700));
+      expect(ReadingSize.headingRungFor(24, FontWeight.w400, 2),
+          (24.0, FontWeight.w700));
+      expect(ReadingSize.headingRungFor(24, FontWeight.w400, 1),
+          (24.0, FontWeight.w900));
+    });
+
+    test('a bold body below the top size: bigger marks at the regular weight', () {
+      expect(ReadingSize.headingRungFor(14, FontWeight.w700, 2),
+          (18.0, FontWeight.w400));
+      expect(ReadingSize.headingRungFor(14, FontWeight.w700, 1),
+          (24.0, FontWeight.w400));
+    });
+
+    test("a bold body at the top size: the ladder ends, both marks equal (SC-006)", () {
+      expect(ReadingSize.headingRungFor(24, FontWeight.w700, 2),
+          (24.0, FontWeight.w900));
+      expect(ReadingSize.headingRungFor(24, FontWeight.w700, 1),
+          (24.0, FontWeight.w900));
+    });
+
+    test("a comment's step down: 017's four values are unchanged", () {
+      for (final size in ReadingSize.all) {
+        expect(ReadingSize.commentRungFor(size.points, FontWeight.w400),
+            (size.commentPoints, FontWeight.w400),
+            reason: size.name);
+      }
+      expect(ReadingSize.commentRungFor(12, FontWeight.w400), (10.0, FontWeight.w400));
+    });
+
+    test('a comment under a bold body is the same size at the regular weight (FR-015)', () {
+      expect(ReadingSize.commentRungFor(14, FontWeight.w700),
+          (14.0, FontWeight.w400));
+      expect(ReadingSize.commentRungFor(24, FontWeight.w700),
+          (24.0, FontWeight.w400));
+      expect(ReadingSize.commentRungFor(24, FontWeight.w900),
+          (24.0, FontWeight.w400));
+    });
+  });
 }

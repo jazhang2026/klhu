@@ -107,4 +107,37 @@ void main() {
               .toList());
     });
   });
+
+  group('019: a mark is not a step of its own (the control)', () {
+    // The reader's own content with the first line a title and the "Hola" line
+    // a subtitle — and the control, the same text with the markers written as
+    // spaces: two and three characters, exactly the markers' own lengths, so
+    // every offset in the two texts coincides.
+    String marked(String text) => text
+        .replaceFirst('Basic Spanish 1', '# Basic Spanish 1')
+        .replaceFirst('Hola [comment]', '## Hola [comment]');
+    String spaced(String text) => text
+        .replaceFirst('Basic Spanish 1', '  Basic Spanish 1')
+        .replaceFirst('Hola [comment]', '   Hola [comment]');
+
+    List<(int, int)> pairs(String text) =>
+        [for (final step in stepRanges(text)) (step.start, step.end)];
+
+    test('the markers written as spaces give the same steps, in the same order', () {
+      expect(pairs(marked(readerContent)), pairs(spaced(readerContent)));
+      expect(marked(readerContent).length, spaced(readerContent).length);
+    });
+
+    test('a marked line is the line the reader sees, marker included', () {
+      expect(steps(marked(readerContent)).first, '# Basic Spanish 1');
+      expect(steps(marked(readerContent)), contains('## Hola [comment] Hello'));
+      expect(steps(marked(readerContent)).contains('# '), isFalse);
+      expect(steps(marked(readerContent)).contains('## '), isFalse);
+    });
+
+    test("the reader's own content is untouched by 019", () {
+      expect(steps(readerContent).first, 'Basic Spanish 1');
+      expect(pairs(readerContent), hasLength(7));
+    });
+  });
 }

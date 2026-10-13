@@ -66,6 +66,11 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
   // somewhere in the text (FR-003) — a tag at the very head belongs to nothing,
   // so it is displayed and never spoken.
   final comments = commentsOf(content);
+  // 019: the content's own display, once — the elision every speech's words come
+  // from. A content that holds nothing elided (no tag, no mark) hands over null
+  // instead, which is what keeps its speeches byte-for-byte today's (SC-003).
+  final shown = displayOf(content);
+  final display = shown.text.length == content.length ? null : shown;
   final spoken = commentsRead
       ? [
           for (final comment in comments)
@@ -75,15 +80,15 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
 
   if (mode == ReadingMode.standard) {
     final speeches =
-        await _paragraphSpeeches(content, start, to, loadVoice, comments);
-    return _withComments(speeches, spoken, content, start, to, loadVoice);
+        await _paragraphSpeeches(content, start, to, loadVoice, comments, display);
+    return _withComments(speeches, spoken, content, start, to, loadVoice, display);
   }
 
   final turns = turnsOf(content,
       start: start, end: to, removed: removed, comments: comments);
   final turnSpeeches =
-      await _turnSpeeches(turns, picks, loadVoice, loadInstalled);
-  return _withComments(turnSpeeches, spoken, content, start, to, loadVoice);
+      await _turnSpeeches(turns, picks, loadVoice, loadInstalled, content, display);
+  return _withComments(turnSpeeches, spoken, content, start, to, loadVoice, display);
 }
 
 /// 标准's own read: today's per-paragraph resolution (`lib/language.dart:110`)
@@ -100,6 +105,7 @@ Future<List<ParagraphSpeech>> _paragraphSpeeches(
   int end,
   Future<VoiceChoice?> Function(String language) loadVoice,
   List<Comment> comments,
+  CommentDisplay? display,
 ) async {
   final speeches = <ParagraphSpeech>[];
   for (final para in paragraphRanges(content)) {
@@ -114,14 +120,16 @@ Future<List<ParagraphSpeech>> _paragraphSpeeches(
         _isSpace(content[speakableEnd - 1])) {
       speakableEnd--;
     }
-    final language = detectLanguage(content.substring(para.start, speakableEnd));
+    final language =
+        detectLanguage(_words(display, content, para.start, speakableEnd));
     final from = start < para.start ? para.start : start;
     final to = end > speakableEnd ? speakableEnd : end;
     if (from >= to) continue;
     speeches.add(
       ParagraphSpeech(
-        text: content.substring(from, to),
+        text: _words(display, content, from, to),
         language: language,
+        display: display,
         voice: await loadVoice(language),
         start: from,
         end: to,
@@ -138,6 +146,8 @@ Future<List<ParagraphSpeech>> _turnSpeeches(
   Map<String, VoiceChoice> picks,
   Future<VoiceChoice?> Function(String language) loadVoice,
   Future<List<VoiceEntry>> Function()? loadInstalled,
+  String content,
+  CommentDisplay? display,
 ) async {
   if (turns.isEmpty) return const [];
 
@@ -157,12 +167,14 @@ Future<List<ParagraphSpeech>> _turnSpeeches(
   return [
     for (var i = 0; i < turns.length; i++)
       ParagraphSpeech(
-        text: turns[i].text,
-        language: detectLanguage(turns[i].text),
+        text: _words(display, content, turns[i].contentStart, turns[i].contentEnd),
+        language: detectLanguage(
+            _words(display, content, turns[i].contentStart, turns[i].contentEnd)),
         voice: voices[i],
         start: turns[i].contentStart,
         end: turns[i].contentEnd,
         role: turns[i].role,
+        display: display,
       ),
   ];
 }
@@ -183,6 +195,7 @@ Future<List<ParagraphSpeech>> _withComments(
   int start,
   int end,
   Future<VoiceChoice?> Function(String language) loadVoice,
+  CommentDisplay? display,
 ) async {
   if (spoken.isEmpty) return speeches;
   final pending = <({int tagStart, ParagraphSpeech speech})>[];
@@ -194,8 +207,9 @@ Future<List<ParagraphSpeech>> _withComments(
     pending.add((
       tagStart: comment.tag.start,
       speech: ParagraphSpeech(
-        text: content.substring(from, to),
+        text: _words(display, content, from, to),
         language: comment.language,
+        display: display,
         voice: await loadVoice(comment.language),
         start: from,
         end: to,
@@ -232,6 +246,16 @@ Comment? _commentIn(List<Comment> comments, TextSegment paragraph) {
   }
   return null;
 }
+
+/// 019: the words of the content span `[from, to)` as a read hands them over —
+/// the display's own characters when there is one (no marker and no tag reaches
+/// an engine, FR-004), and the content's own slice when there is nothing elided,
+/// which is what every content without a tag or a mark is (SC-003).
+String _words(CommentDisplay? display, String content, int from, int to) =>
+    display == null
+        ? content.substring(from, to)
+        : display.text
+            .substring(display.toDisplay(from), display.toDisplay(to));
 
 bool _isSpace(String char) =>
     char == ' ' || char == '\t' || char == '\n' || char == '\r';

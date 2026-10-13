@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:klhu/comment.dart';
 import 'package:klhu/models/voice_mapping.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/voice_store.dart';
@@ -86,6 +87,16 @@ class ParagraphSpeech {
   /// utterance was the comment's, on a device, without a UI dump (T012).
   final bool isComment;
 
+  /// 019: the content's own display when [text] is a slice of it — the marker's
+  /// characters (and 015's tags) are gone from [text] while [start]/[end] stay
+  /// **content** offsets (FR-004, FR-011).
+  ///
+  /// Null for a content that holds nothing elided and for every speech a test
+  /// builds by hand: with it null, [text] is exactly
+  /// `content.substring(start, end)` as before (SC-003), and [sentenceAt] is
+  /// today's own arithmetic.
+  final CommentDisplay? display;
+
   const ParagraphSpeech({
     required this.text,
     required this.language,
@@ -94,7 +105,34 @@ class ParagraphSpeech {
     required this.end,
     this.role,
     this.isComment = false,
+    this.display,
   });
+
+  /// One of this speech's own local sentence ranges, as the two producers that
+  /// cut a speech into sentences need it: the words to hand the engine — the
+  /// display's own, so no marker and no tag reaches it (FR-004) — and the span
+  /// those words occupy in the **content**'s offsets (FR-011: 016's units are
+  /// unmoved).
+  ///
+  /// [local] is a range of [text], so with a display the arithmetic is one
+  /// translation: the display offset the speech starts at, then the range inside
+  /// it, mapped back. With no display the pair is today's own.
+  ({String text, int start, int end}) sentenceAt(TextSegment local) {
+    final shown = display;
+    if (shown == null) {
+      return (
+        text: text.substring(local.start, local.end),
+        start: start + local.start,
+        end: start + local.end,
+      );
+    }
+    final base = shown.toDisplay(start);
+    return (
+      text: shown.text.substring(base + local.start, base + local.end),
+      start: shown.toContent(base + local.start),
+      end: shown.toContent(base + local.end),
+    );
+  }
 }
 
 /// One sentence about to be handed to the engine, as the tracking callback
@@ -411,17 +449,21 @@ class ReaderService implements Reader, SentenceSynthesizer {
       final paragraph = paragraphs[i];
       final ranges = sentenceRanges(paragraph.text);
       for (var j = 0; j < ranges.length; j++) {
+        // 019: the words and the span both come from the speech's own pair, so a
+        // display-bearing speech contributes no marker and no tag to the queue
+        // while its offsets stay the content's (FR-004, FR-011).
+        final cut = paragraph.sentenceAt(ranges[j]);
         units.add(
           _Utterance(
-            text: paragraph.text.substring(ranges[j].start, ranges[j].end),
+            text: cut.text,
             language: paragraph.language,
             voice: paragraph.voice,
             role: paragraph.role,
             isComment: paragraph.isComment,
             paragraph: i,
             sentence: j,
-            start: paragraph.start + ranges[j].start,
-            end: paragraph.start + ranges[j].end,
+            start: cut.start,
+            end: cut.end,
           ),
         );
       }

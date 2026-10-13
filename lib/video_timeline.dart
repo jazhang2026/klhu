@@ -79,15 +79,18 @@ List<VideoSentence> videoSentencesOf(List<ParagraphSpeech> speeches) {
     final paragraph = speeches[i];
     final ranges = sentenceRanges(paragraph.text);
     for (var j = 0; j < ranges.length; j++) {
-      final text = paragraph.text.substring(ranges[j].start, ranges[j].end);
-      if (text.trim().isEmpty) continue;
+      // 019: the words and the span both come from the speech's own pair (FR-004,
+      // FR-011), so a marked line's slot carries no marker while its offsets stay
+      // the content's.
+      final cut = paragraph.sentenceAt(ranges[j]);
+      if (cut.text.trim().isEmpty) continue;
       units.add(
         VideoSentence(
           paragraph: i,
           sentence: j,
-          start: paragraph.start + ranges[j].start,
-          end: paragraph.start + ranges[j].end,
-          text: text,
+          start: cut.start,
+          end: cut.end,
+          text: cut.text,
           language: paragraph.language,
           voice: paragraph.voice,
           role: paragraph.role,
@@ -157,6 +160,7 @@ class VideoSlot {
     this.audio = const [],
     this.role,
     this.commentStart,
+    this.headings = const [],
   });
 
   final VideoSlotKind kind;
@@ -174,6 +178,13 @@ class VideoSlot {
   /// The sentence being spoken, then — on its own line — each comment that
   /// rides it. The end hold repeats the last one's.
   final String text;
+
+  /// 019: where the marks' lines sit INSIDE [text], in that text's own index
+  /// space, as `(start, end, level)` — empty for a slot whose own sentence has
+  /// no mark, which is every slot of a content without one (FR-013). Built by
+  /// [buildVideoPlan] from the content's display, so no marker's characters ever
+  /// reach this text.
+  final List<(int, int, int)> headings;
 
   /// 017: where the comment's own characters begin INSIDE [text], or null when
   /// the slot carries none. The painter cannot recover it from [text] alone:
@@ -262,7 +273,7 @@ class _SlotDraft {
 /// belongs to (FR-013, D8). The slot's [VideoSlot.text] is that sentence
 /// followed, on its own line, by each comment that rides it, and its
 /// [VideoSlot.audio] names the utterances it plays, the sentence's own first.
-/// The block is built from the content's own [comments], not from the read's
+/// The block is built from the content's own [display], not from the read's
 /// speeches, so it paints the comment in both switch states while the audio
 /// carries it only when it was read (research D8). The pairing is its own rule: a
 /// comment rides the last non-comment sentence that starts before its tag, and a
@@ -279,8 +290,11 @@ VideoPlan buildVideoPlan({
   required List<VideoSentence> sentences,
   required List<int> audioMs,
   required VideoAspect aspect,
-  List<Comment> comments = const [],
+  CommentDisplay? display,
 }) {
+  // 015/019: the comments the blocks paint and the marks' lines come from the
+  // content's own display — one derivation, whether or not the read spoke them.
+  final comments = display?.comments ?? const <Comment>[];
   if (sentences.isEmpty) {
     return VideoPlan(
       slots: const [],
@@ -344,6 +358,7 @@ VideoPlan buildVideoPlan({
         end: own.end,
         text: <String>[own.text, ...riding[s]!].join('\n'),
         commentStart: riding[s]!.isEmpty ? null : own.text.length + 1,
+        headings: _headingsOf(own, display),
         language: own.language,
         voice: own.voice,
         role: own.role,
@@ -368,6 +383,7 @@ VideoPlan buildVideoPlan({
       end: 0,
       text: last.text,
       commentStart: last.commentStart,
+      headings: last.headings,
       language: last.language,
       voice: last.voice,
       role: last.role,
@@ -383,4 +399,27 @@ VideoPlan buildVideoPlan({
     width: aspect.width,
     height: aspect.height,
   );
+}
+
+/// 019: the marks' lines inside [own]'s own text, in that text's index space
+/// (D5, the page's `headSpans()` read onto a frame).
+///
+/// A line that reaches past the sentence the slot carries is painted as far as
+/// the slot does — the clamp — so every span satisfies `0 <= start < end <=
+/// text.length` (the data model's rule). A line a comment's own characters
+/// reach is cut the same way: those characters are the block's **second** part,
+/// after the `\n`, so the clamp is that cut.
+List<(int, int, int)> _headingsOf(VideoSentence own, CommentDisplay? display) {
+  if (display == null || display.heads.isEmpty) return const [];
+  final base = display.toDisplay(own.start);
+  final spans = <(int, int, int)>[];
+  for (final head in display.heads) {
+    if (head.lineEnd <= own.start || head.lineStart >= own.end) continue;
+    final start =
+        (display.toDisplay(head.lineStart) - base).clamp(0, own.text.length);
+    final end =
+        (display.toDisplay(head.lineEnd) - base).clamp(0, own.text.length);
+    if (end > start) spans.add((start, end, head.level));
+  }
+  return spans;
 }

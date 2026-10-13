@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/reader_service.dart';
+import 'package:klhu/segmenter.dart';
 import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/voice_store.dart';
 
@@ -103,7 +104,11 @@ void main() {
           ['你好。\n我很好。', 'Hello there.']);
       // The prefix is outside every span: never spoken, never highlighted.
       for (final speech in speeches) {
-        expect(content.substring(speech.start, speech.end), speech.text);
+        // Nothing is elided in this content, so the words and the substring are
+        // the same thing — the mark group at the end of this file is the other
+        // shape, where they differ by the marker alone (019 T011).
+        expect(content.substring(speech.start, speech.end), speech.text,
+            reason: 'no tag and no mark: display is null for every speech');
         expect(speech.text.contains('{'), isFalse);
       }
       expect(speeches.first.start, content.indexOf('你好'));
@@ -184,6 +189,60 @@ void main() {
       final speeches =
           await dialogue('{阿明} 你好。', loadInstalled: () async => const []);
       expect(speeches.single.voice, isNull);
+    });
+  });
+
+  group("019: the words are the display's — a mark reaches no engine (FR-004)", () {
+    test("a title's speech carries the words without the marker, and its span stays the content's",
+        () async {
+      const content = '# Basic Spanish 1\n\nHola.';
+      final speeches = await standard(content);
+      expect(speeches.map((s) => s.text).toList(), ['Basic Spanish 1', 'Hola.']);
+      final title = speeches.first;
+      expect(title.start, 0);
+      expect(title.end, 17);
+      expect(content.substring(title.start, title.end), '# Basic Spanish 1',
+          reason: "the span is the paragraph's own; only the WORDS lose the marker");
+      expect(title.display, isNotNull);
+      // The other end of the pair: the words, and the span in content offsets.
+      final range = sentenceRanges(title.text).single;
+      expect(range.start, 0);
+      expect(title.sentenceAt(range),
+          (text: 'Basic Spanish 1', start: 2, end: 17));
+    });
+
+    test('a subtitle loses its own three marker characters', () async {
+      final speeches = await standard('## Greetings\n\nHola.');
+      expect(speeches.map((s) => s.text).toList(), ['Greetings', 'Hola.']);
+      expect(speeches.first.start, 0);
+      expect(speeches.first.end, 12);
+    });
+
+    test('a marked line with a comment keeps both rules', () async {
+      const content = '# Title [注] Hola.';
+      final speeches = await standard(content);
+      expect(speeches.map((s) => s.text).toList(), ['Title', 'Hola.']);
+      expect(speeches.first.isComment, isFalse);
+      expect(speeches.last.isComment, isTrue);
+    });
+
+    test('a lone # is spoken as written, and its speech has no display', () async {
+      const content = '#\n\nHola.';
+      final speeches = await standard(content);
+      expect(speeches.map((s) => s.text).toList(), ['#', 'Hola.']);
+      expect(speeches.first.start, 0);
+      expect(speeches.first.end, 1);
+    });
+
+    test("a content with no tag and no mark is today's exactly: display is null",
+        () async {
+      const content = 'Hola.\n\nAdiós.';
+      final speeches = await standard(content);
+      expect(speeches, hasLength(2));
+      for (final speech in speeches) {
+        expect(speech.display, isNull);
+        expect(content.substring(speech.start, speech.end), speech.text);
+      }
     });
   });
 }

@@ -589,19 +589,55 @@ class VideoPainter {
     // unchanged — `paintedText` is what the renderer's own line reports, and
     // nothing here moves it.
     final boundary = slot.commentStart;
-    final sentence = TextSpan(text: slot.text, style: style);
-    final drawn = (boundary == null ||
-            boundary <= 0 ||
-            boundary >= slot.text.length)
-        ? sentence
+    // 019: the block's own runs. A marked line is painted at the rung the ladder
+    // gives it — size **and** weight, carried onto the frame's own scale
+    // (FR-013) — and a comment's characters at theirs, the weight first (017's
+    // step down, FR-015). A slot with neither is ONE span, exactly as before.
+    final cuts = <int>{0, slot.text.length};
+    for (final span in slot.headings) {
+      cuts
+        ..add(span.$1.clamp(0, slot.text.length))
+        ..add(span.$2.clamp(0, slot.text.length));
+    }
+    if (boundary != null && boundary > 0 && boundary < slot.text.length) {
+      cuts.add(boundary);
+    }
+    final points = cuts.toList()..sort();
+    final base = readingStyle.fontSize ?? 14;
+    final faceWeight = readingStyle.fontWeight;
+    // The weight is set only where the rung's own differs from the frame's: a
+    // regular face's rungs carry nothing the frame does not already have.
+    TextStyle at((double, FontWeight) rung) => style.copyWith(
+          fontSize: rung.$1 * scale,
+          fontWeight: rung.$2 == faceWeight ? null : rung.$2,
+        );
+    TextStyle runStyle(int start, int end) {
+      if (boundary != null && start >= boundary) {
+        return at(ReadingSize.commentRungFor(base, faceWeight ?? FontWeight.w400));
+      }
+      for (final span in slot.headings) {
+        if (start >= span.$1 && end <= span.$2) {
+          return at(
+              ReadingSize.headingRungFor(base, faceWeight ?? FontWeight.w400, span.$3));
+        }
+      }
+      return style;
+    }
+
+    // The single span is the shape 015 and 017 shipped, and it is chosen by what
+    // the slot carries rather than by how many cuts there are: a mark whose line
+    // is the whole slot adds no cut at all, and it is still a rung.
+    final plain = slot.headings.isEmpty &&
+        (boundary == null || boundary <= 0 || boundary >= slot.text.length);
+    final drawn = plain
+        ? TextSpan(text: slot.text, style: style)
         : TextSpan(children: [
-            TextSpan(text: slot.text.substring(0, boundary), style: style),
-            TextSpan(
-              text: slot.text.substring(boundary),
-              style: style.copyWith(
-                fontSize: _commentSizeOf(style),
-              ),
-            ),
+            for (var i = 0; i < points.length - 1; i++)
+              if (points[i] < points[i + 1])
+                TextSpan(
+                  text: slot.text.substring(points[i], points[i + 1]),
+                  style: runStyle(points[i], points[i + 1]),
+                ),
           ]);
     final layout = TextPainter(
       text: drawn,
@@ -638,12 +674,6 @@ class VideoPainter {
   /// 017: the comment's own size in the frame — the reading size's derived
   /// comment size, carried onto the frame's own scale, so the relationship the
   /// page paints is the one the frame paints (FR-008, one helper: `D2`).
-  double _commentSizeOf(TextStyle frameStyle) {
-    final reading = readingStyle.fontSize ?? 14;
-    return (frameStyle.fontSize ?? reading * scale) *
-        ReadingSize.commentPointsFor(reading) /
-        reading;
-  }
 
   /// The part of [picture] to draw so that it covers the frame: the whole of the
   /// shorter side and the centred part of the longer one, so the picture is

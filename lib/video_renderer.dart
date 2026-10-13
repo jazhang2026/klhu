@@ -268,10 +268,10 @@ class VideoRenderer {
         sentences: sentences,
         audioMs: audioMs,
         aspect: aspect,
-        // 015: the block is built from the content's own comments, not from the
-        // read's speeches, so it paints a comment whether or not it was read
-        // (research D8).
-        comments: commentsOf(content),
+        // 015/019: the block is built from the content's own display — the
+        // comments it paints whether or not they were read (research D8) and the
+        // marks' lines it paints by the ladder (FR-013).
+        display: displayOf(content),
       );
 
       // ---- pass 2: the picture follows the clock --------------------------

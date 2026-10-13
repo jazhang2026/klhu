@@ -115,6 +115,61 @@ class ReadingSize {
 
   /// This size's own comment size — [commentPointsFor] on [points].
   double get commentPoints => commentPointsFor(points);
+
+  /// 019: the ladder a mark's and a comment's look is derived from — the four
+  /// offered sizes in the reader's own order, then the **largest** offered size
+  /// at the bold weight 017's faces carry and at the black weight beyond them
+  /// (FR-006, data-model.md § The ladder).
+  ///
+  /// A rung carries **both** a size and a weight: the ladder is one list, and
+  /// the two heavier rungs are values no control offers — 017's derived
+  /// ten-point comment size is the precedent (FR-010, A6).
+  static const List<(double, FontWeight)> rungs = [
+    (12, FontWeight.w400),
+    (14, FontWeight.w400),
+    (18, FontWeight.w400),
+    (24, FontWeight.w400),
+    (24, FontWeight.w700),
+    (24, FontWeight.w900),
+  ];
+
+  /// The rung a reader's own choice sits on (FR-006): the last rung **not
+  /// above** their choice — their size at their face's weight.
+  ///
+  /// A bold face below the top size sits where its size sits, which is what
+  /// makes a bold body's marks the regular rungs above it.
+  static int rungOf(double points, FontWeight weight) {
+    var rung = 0;
+    for (var i = 0; i < rungs.length; i++) {
+      final above = rungs[i].$1 > points ||
+          (rungs[i].$1 == points && rungs[i].$2.value > weight.value);
+      if (above) break;
+      rung = i;
+    }
+    return rung;
+  }
+
+  /// 019: the rung a mark is painted at — **two** steps above the reader's own
+  /// for a title (`level == 1`), **one** for a subtitle, clamped at the
+  /// ladder's last rung (FR-006).
+  static (double, FontWeight) headingRungFor(
+      double points, FontWeight weight, int level) {
+    final up = rungOf(points, weight) + (level == 1 ? 2 : 1);
+    return rungs[up < rungs.length ? up : rungs.length - 1];
+  }
+
+  /// 019/017: the rung a comment is painted at — the step **down**, the weight
+  /// first and the size second (FR-015): from a body heavier than the regular
+  /// weight the comment is the **same size at `w400`**; from a regular body it
+  /// is 017's own next size down, and below the smallest offered size, 017's
+  /// derived 10.
+  static (double, FontWeight) commentRungFor(
+      double points, FontWeight weight) {
+    if (weight.value > FontWeight.w400.value) {
+      return (points, FontWeight.w400);
+    }
+    return (commentPointsFor(points), FontWeight.w400);
+  }
 }
 
 /// The reading appearance in force: the reading text's typeface and character
