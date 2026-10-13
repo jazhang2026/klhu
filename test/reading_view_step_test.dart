@@ -43,6 +43,18 @@ final readEnd = text.trimRight().length;
 const commentText = 'Hola.\n\n[注] How are you?\n\nAdiós.';
 const inlineCommentText = 'Hola. Adiós. [注] Fine.';
 
+/// The reader's own content (2026-10-12), verbatim off their phone: a title,
+/// then lines each followed by a blank line, one comment per line and **no
+/// delimiter before the tag**. Every line is a step — it used to jump from the
+/// title straight to the first line that happened to end with `?`.
+const readerContent = 'Basic Spanish 1\n'
+    '\n'
+    '[comment]Greetings\n'
+    '\n'
+    'Hola [comment] Hello\n'
+    '\n'
+    '¿Cómo estás? [comment] How are you?';
+
 /// Records what it was asked to speak, with the offsets.
 class RecordingReader implements Reader {
   final List<List<ParagraphSpeech>> reads = [];
@@ -400,6 +412,32 @@ void main() {
       await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
       expect(relaunched.speeches.first.start, 0);
+    });
+  });
+
+  group('the reader\'s own content: a line with no delimiter before its tag',
+      () {
+    testWidgets('▶ walks the lines one at a time, and each keeps its comment',
+        (tester) async {
+      final fake = RecordingReader();
+      await openPage(tester, fake, body: readerContent);
+
+      // The title, with the comment that rides it.
+      await pressRead(tester);
+      expect(fake.speeches.first.start, 0);
+      expect(fake.speeches.first.text.trim(), 'Basic Spanish 1');
+      expect(fake.speeches.last.text.trim(), 'Greetings');
+
+      // The very next line — not the third, which is where it used to land.
+      await pressRead(tester);
+      expect(fake.speeches.first.start, readerContent.indexOf('Hola'));
+      expect(fake.speeches.first.text.trim(), 'Hola');
+      expect(fake.speeches.last.text.trim(), 'Hello');
+
+      // And then the line after that.
+      await pressRead(tester);
+      expect(fake.speeches.first.start, readerContent.indexOf('¿Cómo estás?'));
+      expect(fake.speeches.last.text.trim(), 'How are you?');
     });
   });
 }

@@ -183,14 +183,25 @@ List<Comment> commentsOf(String text) {
 }
 
 /// The steps a read can take through [text], in text order (016 FR-001/FR-006):
-/// the app's own sentence ranges, minus the ones a comment's characters occupy.
+/// the app's own sentence ranges, minus the sentences that lie **inside** a
+/// comment's own span (`tag.start..contentEnd`).
 ///
 /// The sentences are [sentenceRanges]' — the same rule the read itself uses, so
 /// no step crosses a blank line and a paragraph with no delimiter is one step.
-/// A comment is filtered out because a comment's span is no sentence's span
-/// (015 FR-004): its words are its owner's read, never a step of their own, and
-/// that holds whether or not the comments are being read. Without the filter a
-/// step would land inside a comment and read the tag's own characters.
+/// A sentence inside a comment's span is no sentence of the reader's (015
+/// FR-004): its words are its owner's read, never a step of their own, and that
+/// holds whether or not the comments are being read.
+///
+/// The sentence that only **carries** a comment stays a step: with no delimiter
+/// before the tag (`Hola [comment] Hello`, the reader's own content) the
+/// sentence runs through the comment, and it is exactly the line the reader
+/// sees — its read reaches the comment's own end through [stepEnd].
+///
+/// Until 2026-10-12 this dropped every sentence that merely *overlapped* a
+/// comment, which silently took whole lines out of the reader's own text: in
+/// their Spanish greetings, four of the seven content lines and five of the
+/// eight steps. An overlap is not a span, and the shape that shows the
+/// difference is the one with no delimiter before the tag.
 List<TextSegment> stepRanges(String text) {
   final ranges = sentenceRanges(text);
   final comments = commentsOf(text);
@@ -198,7 +209,7 @@ List<TextSegment> stepRanges(String text) {
   return [
     for (final range in ranges)
       if (!comments.any((comment) =>
-          range.start < comment.contentEnd && range.end > comment.tag.start))
+          range.start >= comment.tag.start && range.end <= comment.contentEnd))
         range,
   ];
 }
