@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>020 — 句子分配给图片：界面示意（三版）</title>
+<style>
+  :root { --ink:#1a1a1a; --dim:#6b6b6b; --line:#d8d8d8; --paper:#faf9f7; --box:#ffffff; --hi:#f3efe6; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:32px 28px 56px; background:var(--paper); color:var(--ink);
+         font:15px/1.55 -apple-system,"Segoe UI","Noto Sans CJK SC",sans-serif; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--dim); margin:0 0 28px; font-size:14px; }
+  .grid { display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap; }
+  .col { width:340px; }
+  .col > h2 { font-size:16px; margin:0 0 2px; }
+  .cost { color:var(--dim); font-size:13px; margin:0 0 12px; min-height:34px; }
+  .phone { background:var(--box); border:1px solid var(--line); border-radius:14px; padding:16px 14px;
+           box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .bar { font-size:12px; color:var(--dim); letter-spacing:.04em; text-transform:uppercase; margin:0 0 10px; }
+  .row { display:flex; justify-content:space-between; gap:10px; padding:9px 10px; border-radius:8px;
+         border:1px solid var(--line); margin-bottom:8px; font-size:14px; background:#fff; }
+  .row.sel { background:var(--hi); border-color:#cbbfa4; }
+  .row .n { color:var(--dim); font-size:13px; }
+  .btns { display:flex; gap:8px; margin-top:12px; }
+  .btn { flex:1; text-align:center; padding:9px 0; border-radius:9px; border:1px solid var(--line);
+         font-size:14px; background:#fff; }
+  .btn.go { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+  .chip { display:inline-block; font-size:12px; color:var(--dim); border:1px dashed var(--line);
+          border-radius:6px; padding:1px 6px; margin-left:4px; }
+  ol { margin:12px 0 0; padding-left:20px; font-size:13.5px; color:#333; }
+  ol li { margin-bottom:3px; }
+  .note { margin-top:28px; font-size:13.5px; color:#333; border-left:3px solid var(--line); padding-left:12px; }
+  .late { background:var(--box); border:1px solid var(--line); border-radius:14px; padding:16px 14px; width:340px; }
+  .band { background:var(--hi); border:1px solid #cbbfa4; border-radius:8px; padding:8px 10px;
+          font-size:13px; margin-bottom:8px; }
+</style>
+</head>
+<body>
+
+<h1>020 · 句子分配给图片 — 界面示意 <span style="font-size:14px;color:#6b6b6b">（读者 2026-10-13 选定 <b>方案 A</b>）</span></h1>
+<p class="sub">按你说的三条（0 句的图跳过 · 未分配的句子沿用前图 · 视频屏上、挑图那一步旁边）。左下是<b>今天的对话框</b>，它的字是设备上真实抓到的（“Video format / 16:9 landscape 1080p / No pictures chosen / Choose pictures / Cancel / Start”）。</p>
+
+<div class="grid">
+
+  <div class="col">
+    <h2>今天（012）</h2>
+    <p class="cost">没有分配这件事：挑完图，图自己跟着时钟走。</p>
+    <div class="phone">
+      <p class="bar">Video format</p>
+      <div class="row"><span>16:9 landscape 1080p</span></div>
+      <div class="row"><span>9:16 vertical (Shorts)</span></div>
+      <div class="row"><span>No pictures chosen</span></div>
+      <div class="row"><span>Choose pictures</span></div>
+      <div class="btns"><div class="btn">Cancel</div><div class="btn go">Start</div></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>方案 A — 对话框里加一行，点开全屏分配页 &#10003; 已选</h2>
+    <p class="cost">成本：一个对话框改一行 + 新的一屏（列表 + 多选 + 两句提示）。改动最小、最像 app 已有的“挑图”入口。</p>
+    <div class="phone">
+      <p class="bar">Video format</p>
+      <div class="row"><span>16:9 landscape 1080p</span></div>
+      <div class="row"><span>3 pictures</span></div>
+      <div class="row sel"><span>Sentences assigned<span class="chip">4 of 10</span></span><span class="n">›</span></div>
+      <div class="row"><span>Choose pictures</span></div>
+      <div class="btns"><div class="btn">Cancel</div><div class="btn go">Start</div></div>
+    </div>
+    <ol>
+      <li>点 “Sentences assigned” → 全屏页：三张图各一行，行下挂着它的句子。</li>
+      <li>点一张图 → 句子列表（已分配的连着高亮），点句子加/减。</li>
+      <li>违规时该句变灰 + 一行原因（“不连续 / 顺序不对”），已生效的分配不动。</li>
+      <li>返回 → 那一行变成 “5 of 10”。</li>
+      <li><b>渲染前若分配已过期</b>（内容改过）：Start 之前先出一行警告，写明对不上的是哪几句；<b>点它直接进那张图的分配页</b>，改完再渲染 —— 不改也能渲，那一段按规则丢掉、其余照旧。</li>
+    </ol>
+  </div>
+
+  <div class="col">
+    <h2>方案 B — 全部塞进对话框</h2>
+    <p class="cost">成本：对话框要能滚动、能展开/收起三张图的句子；小屏上容易变成一堵列表。省掉一屏。</p>
+    <div class="phone">
+      <p class="bar">Video format</p>
+      <div class="row"><span>16:9 landscape 1080p</span></div>
+      <div class="row"><span>Picture 1<span class="chip">s1–s4</span></span><span class="n">⌄</span></div>
+      <div class="row"><span>Picture 2<span class="chip">s5–s7</span></span><span class="n">⌄</span></div>
+      <div class="row"><span>Picture 3<span class="chip">s8–s10</span></span><span class="n">⌄</span></div>
+      <div class="row"><span>Choose pictures</span></div>
+      <div class="btns"><div class="btn">Cancel</div><div class="btn go">Start</div></div>
+    </div>
+    <ol>
+      <li>点那张图展开它下面的句子列表，就地加/减。</li>
+      <li>同一套连续性/顺序规则。</li>
+    </ol>
+  </div>
+
+  <div class="col">
+    <h2>方案 C — 先渲染，再看视频时分配</h2>
+    <p class="cost">成本：要改渲染之后的那一屏（现在是 Discard / Share / Save），而且第一次渲染必然是“没分配”的版本 —— 与“分配好再生成”的心智相反。</p>
+    <div class="late">
+      <p class="bar">After the render</p>
+      <div class="band">Picture 3 of 3 · sentences 8–10</div>
+      <div class="row"><span>Picture 1<span class="chip">s1–s4</span></span></div>
+      <div class="row"><span>Picture 2<span class="chip">none — skipped</span></span></div>
+      <div class="row"><span>Picture 3<span class="chip">s5–s10</span></span></div>
+      <div class="btns"><div class="btn">Discard</div><div class="btn go">Re-render</div></div>
+    </div>
+    <ol>
+      <li>看完再调，每次调整要重渲染一遍（渲染是整段的）。</li>
+    </ol>
+  </div>
+
+</div>
+
+<p class="note">
+  <b>我建议 A</b>：它和 app 已有的“挑图”是同一种入口（对话框里一行 → 一屏），改动面最小，也让“分配了多少句”在
+  Start 之前一眼可见 —— 这正是你第 4 个问题（生成之后还能不能改）的一半答案：分配是<b>存下来的设置</b>，不是视频的一部分，
+  所以任何时候都能改、再渲染一次；渲染出来的 mp4 本身永远不被编辑。
+  <br><br>
+  证据优先的一步：这个示意图用的是设备上真实抓到的字；如果你要在真机上先看它，我可以做一张当前对话框的真机截图放在旁边
+  （一条命令），或者直接把 A 版做成两张真机截图（分配前 / 分配后那一行）。
+</p>
+
+</body>
+</html>
