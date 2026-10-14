@@ -113,3 +113,14 @@ Requirement:
     只有「强调(粗/斜)」一处是真缺口，将来若要做，只做那一块 ≈ 三分之一成本。)
     
 019. support mark down title tags: #, ##.
+
+020. Create video function: assign sentences to pictures.
+    display selected pictures from first to last.
+    When a picture is displayed, assign sentences to it.
+    a picture can have 0 or multiple sentences assigned to it.
+    a picture have no sentence assigned to it, it will be excluded from the video.
+    not assigned sentences default assigned to the previous picture.
+    only continuous sentences can be assigned to one picture.
+    sentences assigned must be in order.
+
+    Keep existing function if no assignment is made.
