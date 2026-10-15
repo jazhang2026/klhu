@@ -109,5 +109,15 @@
   "roleRemoveConfirmMessage": "其段落将作为旁白，用朗读语音读出。",
   "rolePickerTitle": "为 {role} 选择语音",
   "formatButton": "排版",
-  "commentsReadLabel": "朗读注释"
+  "commentsReadLabel": "朗读注释",
+  "assignmentOpenButton": "分配句子",
+  "assignmentNothingAssigned": "未分配句子",
+  "assignmentSentenceCount": "{count, plural, =1 {1 句} other {{count} 句}}",
+  "assignmentRemoveSentence": "解除这句话的分配",
+  "assignmentRefusedNotContinuous": "只能添加与这张图已有的句子相邻的句子。",
+  "assignmentRefusedNotInOrder": "这句话排在前一张图已有句子的前面。",
+  "assignmentRefusedMiddle": "只能解除一张图的第一句或最后一句。",
+  "assignmentRefusedHoldsSentences": "这张图已有句子；先解除分配再移动它。",
+  "assignmentStaleWarning": "{count, plural, =1 {有 1 条分配已不匹配这篇文字} other {有 {count} 条分配已不匹配这篇文字}}",
+  "assignmentStaleDetail": "{picture}：{sentences} 句"
 }

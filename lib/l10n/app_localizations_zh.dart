@@ -372,6 +372,54 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get commentsReadLabel => '朗读注释';
+
+  @override
+  String get assignmentOpenButton => '分配句子';
+
+  @override
+  String get assignmentNothingAssigned => '未分配句子';
+
+  @override
+  String assignmentSentenceCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 句',
+      one: '1 句',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assignmentRemoveSentence => '解除這句話的分配';
+
+  @override
+  String get assignmentRefusedNotContinuous => '只能加入與這張圖已有句子相鄰的句子。';
+
+  @override
+  String get assignmentRefusedNotInOrder => '這句話排在前一張圖已有句子的前面。';
+
+  @override
+  String get assignmentRefusedMiddle => '只能解除一張圖的第一句或最後一句。';
+
+  @override
+  String get assignmentRefusedHoldsSentences => '這張圖已有句子；先解除分配再移動它。';
+
+  @override
+  String assignmentStaleWarning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '有 $count 條分配已不匹配這篇文字',
+      one: '有 1 條分配已不匹配這篇文字',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assignmentStaleDetail(String picture, String sentences) {
+    return '$picture：$sentences 句';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -741,4 +789,52 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get commentsReadLabel => '朗读注释';
+
+  @override
+  String get assignmentOpenButton => '分配句子';
+
+  @override
+  String get assignmentNothingAssigned => '未分配句子';
+
+  @override
+  String assignmentSentenceCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 句',
+      one: '1 句',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assignmentRemoveSentence => '解除这句话的分配';
+
+  @override
+  String get assignmentRefusedNotContinuous => '只能添加与这张图已有的句子相邻的句子。';
+
+  @override
+  String get assignmentRefusedNotInOrder => '这句话排在前一张图已有句子的前面。';
+
+  @override
+  String get assignmentRefusedMiddle => '只能解除一张图的第一句或最后一句。';
+
+  @override
+  String get assignmentRefusedHoldsSentences => '这张图已有句子；先解除分配再移动它。';
+
+  @override
+  String assignmentStaleWarning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '有 $count 条分配已不匹配这篇文字',
+      one: '有 1 条分配已不匹配这篇文字',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assignmentStaleDetail(String picture, String sentences) {
+    return '$picture：$sentences 句';
+  }
 }

@@ -109,5 +109,15 @@
   "roleRemoveConfirmMessage": "Sus párrafos se leerán como narración, con la voz de lectura.",
   "rolePickerTitle": "Voz para {role}",
   "formatButton": "Formato",
-  "commentsReadLabel": "Leer los comentarios"
+  "commentsReadLabel": "Leer los comentarios",
+  "assignmentOpenButton": "Asignar oraciones",
+  "assignmentNothingAssigned": "Sin oraciones asignadas",
+  "assignmentSentenceCount": "{count, plural, =1 {1 oración} other {{count} oraciones}}",
+  "assignmentRemoveSentence": "Quitar esta oración",
+  "assignmentRefusedNotContinuous": "Solo se pueden añadir las oraciones contiguas a las que ya tiene esta imagen.",
+  "assignmentRefusedNotInOrder": "Esa oración va antes de oraciones que ya tiene una imagen anterior.",
+  "assignmentRefusedMiddle": "Solo se puede quitar la primera o la última oración de una imagen.",
+  "assignmentRefusedHoldsSentences": "Esta imagen tiene oraciones; quítalas antes de moverla.",
+  "assignmentStaleWarning": "{count, plural, =1 {1 asignación ya no encaja en este texto} other {{count} asignaciones ya no encajan en este texto}}",
+  "assignmentStaleDetail": "{picture}: {sentences} oraciones"
 }

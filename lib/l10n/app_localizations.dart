@@ -760,6 +760,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read the comments'**
   String get commentsReadLabel;
+
+  /// No description provided for @assignmentOpenButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign sentences'**
+  String get assignmentOpenButton;
+
+  /// No description provided for @assignmentNothingAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'No sentences assigned'**
+  String get assignmentNothingAssigned;
+
+  /// No description provided for @assignmentSentenceCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0 {No sentences} =1 {1 sentence} other {{count} sentences}}'**
+  String assignmentSentenceCount(int count);
+
+  /// No description provided for @assignmentRemoveSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this sentence'**
+  String get assignmentRemoveSentence;
+
+  /// No description provided for @assignmentRefusedNotContinuous.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the sentences next to the ones this picture already has can be added.'**
+  String get assignmentRefusedNotContinuous;
+
+  /// No description provided for @assignmentRefusedNotInOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'That sentence comes before sentences an earlier picture already has.'**
+  String get assignmentRefusedNotInOrder;
+
+  /// No description provided for @assignmentRefusedMiddle.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the first or last sentence of a picture can be removed.'**
+  String get assignmentRefusedMiddle;
+
+  /// No description provided for @assignmentRefusedHoldsSentences.
+  ///
+  /// In en, this message translates to:
+  /// **'This picture holds sentences; un-assign them before moving it.'**
+  String get assignmentRefusedHoldsSentences;
+
+  /// No description provided for @assignmentStaleWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 assigned run no longer fits this text} other {{count} assigned runs no longer fit this text}}'**
+  String assignmentStaleWarning(int count);
+
+  /// No description provided for @assignmentStaleDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'{picture}: sentences {sentences}'**
+  String assignmentStaleDetail(String picture, String sentences);
 }
 
 class _AppLocalizationsDelegate

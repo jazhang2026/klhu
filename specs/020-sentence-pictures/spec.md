@@ -67,6 +67,42 @@ rather than in a plan:
    alternative recorded**: edit the rendered video itself (a non-linear editor). That is a different product, and
    this feature's own cost would be paid on every frame; recorded in Out of scope.
 
+### Session 2026-10-14
+
+A finding from the tasks stage, put to the reader at its own gate because it changes a requirement rather than a
+plan:
+
+5. **What makes an assignment outlive the prompt that made it?** No run can be keyed by the picture's **path**: the
+   app's own rule (012) is that the picks are never remembered, and the directory a pick was written into is deleted
+   when the prompt ends. **Decided by the reader (2026-10-14): option A — a run is keyed by the picture's own file
+   name, and re-attaches when the same files are picked again.** FR-010's own sentence is rewritten in place and
+   SC-006 gains its second half; no new id is minted, because what changed is the rule a requirement already owns.
+   **The alternatives recorded**: (B) the assignment keeps its own copy of the pictures, so the screen shows it
+   without a re-pick — a second picture source beside the prompt's own pick, and the reader's photos' bytes stored
+   per content; (C) the assignment is a record with no effect after the prompt closes — cheapest, but the reader
+   meets "N assigned runs no longer match" on every visit. The finding, with the tree's own symbols: `research.md`
+   D7 and `plan.md`'s amendment of 2026-10-14.
+
+6. **Where does a video start when the page has a sentence highlighted?** (The reader's own statement and answer at
+   this gate, 2026-10-14: *"视频永远是从第一句开始的，最后一句结束。现在没有部分或分段视频的功能。请确定。"* → **"要 B"**.)
+   **Decided**: a video is the **whole content** — it opens on the content's first sentence and runs to its last,
+   whatever the page shows (FR-017, SC-011, User Story 6). 012's FR-004 had the video start where the page's own
+   position was; that half is **superseded**, and 011's position keeps deciding only where a *read* starts.
+   **The alternatives recorded**: **(A)** keep 012's rule — a highlight starts the video there — which was the
+   shipped behaviour, proven by `test/video_timeline_test.dart`'s four start-point cases and by a probe taken before
+   this change (the last sentence highlighted → the renderer's own line read `sentences=1 … span=22..31`);
+   **(C)** treat the reader's sentence as "do not build a start/end picker" and change nothing — refused, because
+   they answered B when put to them.
+
+7. **What can a stale warning name?** (Found while implementing it, 2026-10-14; not a decision the reader was asked
+   for, so it is recorded here for them to overrule.) FR-014 says the warning names "what no longer fits", and
+   SC-008 says "naming the sentences involved". A stored run holds **character spans** of the text it was made on
+   (data-model §1) — which is what makes staleness detectable at all — and after the edit that text is gone, so
+   which sentences the run held cannot be recovered. **What the warning names**: each offending picture's own file
+   name and how many sentences its run held (`sunset.png: 4 sentences`). The alternative — storing the sentences'
+   own text beside their spans — would answer SC-008's letter and change the record's shape (and its size) for a
+   line the reader reads once; it is not in this feature, and this is the place to say so.
+
 ---
 
 ## User Scenarios & Testing *(mandatory)*
@@ -164,8 +200,6 @@ device row for the same content and pictures: the frame counts, the durations an
 2. **Given** no pictures chosen at all, **When** the video renders, **Then** it is the text-only video of today.
 3. **Given** an assignment that the reader then discards before rendering, **When** the render starts, **Then** the
    video is again the unassigned one.
-
----
 ### User Story 5 - A content that changed is caught before the render, and the prompt leads to the fix (Priority: P2)
 
 The reader assigned sentences to three pictures last week, then edited the content: it now has two fewer sentences.
@@ -188,6 +222,30 @@ assignment page with that picture in view; rendering anyway drops the run and ke
    picture in view, and the reader can fix the run there.
 3. **Given** that warning, **When** the reader starts the render without changing anything, **Then** the runs that no
    longer fit are dropped and the rest of the assignment stands.
+
+
+---
+
+### User Story 6 - A video is the whole content, whatever the page is showing (Priority: P1)
+
+The reader taps a sentence near the end to hear it, then makes a video: the video is the whole content — it opens
+on the first sentence and runs to the last — and the highlight they left on the page decides what they *hear*, not
+what the file holds.
+
+**Why this priority**: it is the reader's own rule of 2026-10-14 (*"视频永远是从第一句开始的，最后一句结束。现在没有部分或分段视频的功能。"*),
+and it is what makes the file the same one however the page happens to be left.
+
+**Independent Test**: highlight a sentence at the end of a content, render, and read the renderer's own line: its
+`sentences=` count and its first slot's `span=` are the content's own (quickstart row 17).
+
+**Acceptance Scenarios**:
+
+1. **Given** a content open with its last sentence highlighted, **When** the reader starts a video, **Then** the
+   render holds every sentence of the content and opens on its first one.
+2. **Given** the same content with nothing highlighted, **When** the reader starts a video, **Then** the file is
+   the same one — the highlight is not part of a video's own input.
+3. **Given** a highlight set while a render is in flight, **When** the render finishes, **Then** the file is
+   unchanged — a render reads its own inputs once (012's own rule).
 
 
 - **More pictures than sentences**: a content of two sentences with five pictures — the three pictures left
@@ -235,8 +293,25 @@ answer at the gate, 2026-10-13; the fallback is the same reader's refinement of 
   assigned.
 - **FR-009**: With no assignment in force, the render MUST produce exactly what 012 produces today for the same
   content and pictures.
-- **FR-010**: The assignment MUST survive leaving and reopening the video screen, and MUST survive a relaunch, as
-  the pictures themselves do today.
+- **FR-010**: The assignment MUST survive leaving and reopening the video screen and a relaunch, and MUST come back
+  into force when the reader's pictures are picked again: a run names its picture by the picture's own **file name**
+  (`HeldPicture.name`, the reader's own basename — `lib/video_pictures.dart`), so re-picking the same files
+  re-attaches the run, and a run whose file name is not among the picks in force is **stale** (FR-014) — never
+  re-pointed at whatever now sits in its place.
+  *(Amended 2026-10-14, at the tasks gate. As written this read "…and MUST survive a relaunch, as the pictures
+  themselves do today", and that premise is false in the shipped tree: 012's own rule is that the picks are never
+  remembered — `storePicks` writes them into a directory the prompt deletes the moment the render ends
+  (`discardPictures`, `lib/reading_view.dart`) — so the key the plan first chose for a run, the held picture's
+  **path**, was a path inside a directory that no longer exists. Measured against the tree: a second prompt in one
+  page instance renames that directory (`picks_1`), so every stored run went stale in exactly the case this
+  requirement's first half names, while a relaunch re-created `picks_0` and re-attached the runs **by accident**.
+  The reader answered at the tasks gate (2026-10-14, **option A** of the three put to them): key the run by the
+  picture's own file name and re-attach on the next pick. **012's rule is untouched** — the app still remembers no
+  pick; what survives is the reader's assignment, matched by name when the same files are picked again. The
+  rejected alternatives: **(B)** the assignment keeps its own copy of the pictures' bytes, so the screen can show it
+  without a re-pick, at the price of a second picture source beside the prompt's own pick; **(C)** the assignment is
+  a record with no effect once the prompt closes, at the price of the reader meeting "N assigned runs no longer
+  match" on every visit.)*
 - **FR-011**: The assignment MUST be the reader's own: no rule of this feature may assign a sentence to a picture
   the reader did not.
 - **FR-012**: The refusals of User Story 2 MUST be told to the reader (which rule was broken), and MUST leave the
@@ -254,6 +329,11 @@ them) and the runs that still fit stand (FR-011: nothing is assigned the reader 
   it would change which pictures the unassigned tail falls to. Moving an unassigned picture MUST NOT disturb any
   other picture's sentences: it holds none. (The reader's own rule at the gate, 2026-10-13: *"只有没分配到句子的图能改
   顺序。分配了句子图的不能改顺序。必须等分配的句子解除后才可以改顺序"*.)
+- **FR-017**: A video MUST be the **whole content**: it MUST open on the content's first sentence and run to its
+  last, whatever the reading page is showing. The page's own position (010/011's highlighted sentence or paragraph)
+  decides where a **read** starts and MUST NOT move a video's start.
+  *(Added 2026-10-14 on the reader's own words at the tasks gate — its Clarifications entry and its decision row are
+  of that date. It supersedes 012's own FR-004 first half; 012's records carry the pointer rather than an edit.)*
 - **FR-016**: A sentence already assigned to a picture MUST be un-assignable there. A sentence at either **end** of
   its picture's run is always removable; one in the **middle** MUST be refused with the reason (removing it would
   leave that picture's sentences non-continuous, FR-003), and the assignment in force MUST not change (FR-012).
@@ -280,7 +360,8 @@ them) and the runs that still fit stand (FR-011: nothing is assigned the reader 
 - **SC-004**: A picture with no sentences appears in the video and no utterance is spoken over it.
 - **SC-005**: The rendered video's audio is the content's own: the same utterances, in the same order, for the same
   total duration, with and without an assignment.
-- **SC-006**: An assignment survives the app being stopped and relaunched, read back from the app's own stores.
+- **SC-006**: An assignment survives the app being stopped and relaunched, read back from the app's own stores, and
+  its runs are in force again once the same pictures are picked again (FR-010 as amended 2026-10-14).
 
 ---
 - **SC-007**: The assignment survives a render and a relaunch and can be changed afterwards; a second render with a
@@ -289,10 +370,17 @@ them) and the runs that still fit stand (FR-011: nothing is assigned the reader 
 - **SC-008**: A content edit that invalidates an assignment produces a warning **before** the render's own line,
   naming the sentences involved, and tapping it reaches the offending picture's assignment in one gesture —
   measured on the device, one row.
+  *(2026-10-14, in place: "naming the sentences involved" reads as **the picture and how many sentences its lost run
+  held** — a stale run stores spans into text that went with the edit, so the sentences themselves cannot be
+  recovered from the text in force. FR-014's own words, "naming what no longer fits", are met; the narrower reading
+  of SC-008 is put to the reader rather than settled quietly. Clarifications item 7 of this date, tasks T019.)*
 - **SC-009**: Dragging an unassigned picture changes the order the render walks, read off the renderer's own
   `pictures=… ranges=…` line, and no other picture's range moves.
 - **SC-010**: A picture holding sentences refuses the drag, with the reason, and the order in force is unchanged;
   once its sentences are un-assigned it moves.
+- **SC-011**: With a sentence or a paragraph highlighted on the page, a render holds **every** sentence of the
+  content — the renderer's own `sentences=` count and its first slot's `span=` are the content's own, whatever the
+  page is on — measured on the device, one row.
 
 
 ## Assumptions
@@ -326,6 +414,7 @@ them) and the runs that still fit stand (FR-011: nothing is assigned the reader 
 | Contiguity and order are enforced at assignment time (FR-003/FR-004) | **Accept any shape and normalise it at render time**: the video would show something the reader never chose. |
 | The pass's shape is **(A)**: a line in the dialog, opening a full-screen page (the sketch) | **Expand the runs inside the dialog** (B): it scrolls into a wall of sentences on a phone. **Assign after a render** (C): the first render is always the unassigned one, which is backwards. |
 | A stale assignment is warned about **before** the render (FR-014) | **Warn after it, in the render's result**: the reader would get a video they did not choose and find out afterwards. **Silently drop it**: the reader's work disappears with no telling. |
+| A video is the **whole content**, whatever the page is on (FR-017, 2026-10-14) | **Start where the page's own position is** — 012's FR-004, and what shipped: a highlighted sentence cut the video to the rest of the text, so the same reader doing the same thing twice got a whole file or a partial one depending on whether a sentence happened to be highlighted. |
 | An unassigned **tail** falls back to 012's even split (FR-006) | **Hold it on the last assigned picture**: the reader assigned nothing there, so the tail is theirs, not the last picture's — and the refined rule is what the reader asked for by name (2026-10-13). |
 | A picture with nothing assigned is skipped **unless the fallback feeds it** (FR-007) | **Always skip it**: it would make the fallback impossible. **Always show it**: a still nobody asked for, already overturned. |
 | Un-assigning a **middle** sentence is refused (FR-016) | **Allow it and split the picture's run in two**: two runs on one picture is what the reader's own "only continuous" rule forbids. |

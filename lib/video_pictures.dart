@@ -12,6 +12,7 @@ library;
 
 import 'dart:io';
 
+import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/video_timeline.dart';
 
@@ -235,6 +236,75 @@ PictureSchedule buildPictureSchedule({
     first += held;
   }
   return PictureSchedule(pictures);
+}
+
+/// The assignment's own split: every picture's stretch, from the sentences the
+/// reader gave it (spec 020 D3, FR-006, FR-007).
+///
+/// It is [buildPictureSchedule]'s **sibling** — the same `PictureSchedule`
+/// shape, the same frame maths, the same end hold — with the *split* taken from
+/// [runs] instead of shared out evenly. Its own call is the reason the reader's
+/// render can be compared with 012's at all: with nothing in force — no runs, or
+/// none of them holding a sentence — it answers exactly what [buildPictureSchedule]
+/// answers, **because it is that call**, so "an unassigned render is 012's own"
+/// is a diff rather than a claim (FR-009, SC-003).
+///
+/// [runs] holds one entry per path, in the same order, each naming the indices of
+/// the plan's sentences that picture carries, ascending. A picture holding nothing
+/// keeps 012's own undrawn entry — an empty range at the seam where its own place
+/// begins — which is what the renderer's own `ranges=` line prints as `-` for a
+/// picture it does not draw (FR-007, D5).
+PictureSchedule buildAssignedSchedule({
+  required VideoPlan plan,
+  required List<String> paths,
+  required List<AssignedRun> runs,
+}) {
+  final sentences = plan.sentences;
+  if (paths.isEmpty || sentences.isEmpty || plan.totalFrames <= 0) {
+    return PictureSchedule.none;
+  }
+  if (runs.length != paths.length ||
+      !runs.any((run) => run.sentences.isNotEmpty)) {
+    // Nothing effective is no assignment: 012's own split, frame for frame.
+    return buildPictureSchedule(plan: plan, paths: paths);
+  }
+  final pictures = <ScheduledPicture>[];
+  for (var i = 0; i < paths.length; i++) {
+    final held = List<int>.of(runs[i].sentences)..sort();
+    // Where the next picture that holds something begins — the seam this
+    // picture's own stretch ends at, and where an empty one sits.
+    final next = _heldAfter(runs, i);
+    final int startFrame;
+    final int endFrame;
+    if (held.isEmpty) {
+      startFrame = next == null ? plan.totalFrames : sentences[next].startFrame;
+      endFrame = startFrame - 1;
+    } else {
+      startFrame = sentences[held.first].startFrame;
+      endFrame = next == null
+          ? plan.totalFrames - 1
+          : sentences[next].startFrame - 1;
+    }
+    pictures.add(
+      ScheduledPicture(
+        path: paths[i],
+        startFrame: startFrame,
+        endFrame: endFrame,
+      ),
+    );
+  }
+  return PictureSchedule(pictures);
+}
+
+/// The first sentence the pictures after [i] hold, or null when none of them
+/// holds anything.
+int? _heldAfter(List<AssignedRun> runs, int i) {
+  for (var picture = i + 1; picture < runs.length; picture++) {
+    final held = runs[picture].sentences;
+    if (held.isEmpty) continue;
+    return held.reduce((a, b) => a < b ? a : b);
+  }
+  return null;
 }
 
 /// Copies every pick's stored file into [workDir] and returns the copies' paths,

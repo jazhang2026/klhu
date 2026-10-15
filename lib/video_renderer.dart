@@ -23,6 +23,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:klhu/comment.dart';
+import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/speech_resolver.dart';
@@ -149,6 +150,7 @@ class VideoRenderer {
     required this.readingStyle,
     required this.background,
     this.pictures = const [],
+    this.runs = const [],
   });
 
   final SentenceSynthesizer synthesizer;
@@ -170,6 +172,16 @@ class VideoRenderer {
   /// the picks themselves are never remembered.
   final List<HeldPicture> pictures;
 
+  /// The reader's own assignment for this render (020 FR-006): which sentences
+  /// each picture carries, as it is stored. Read with the pictures and for this
+  /// render only, and resolved against **this render's own sentence list** by
+  /// the same resolver the page's pass and its warning read (020 research D4),
+  /// so what the reader was shown and what the frames paint are one answer.
+  ///
+  /// Empty is the no-assignment state: the split is then 012's own, frame for
+  /// frame (020 FR-009).
+  final List<PictureRun> runs;
+
   bool _cancelled = false;
 
   /// Stop the render. Whatever is in flight finishes, then nothing further is
@@ -177,8 +189,15 @@ class VideoRenderer {
   /// is deleted.
   void cancel() => _cancelled = true;
 
-  /// Renders [content] from [position] — 011's stored offset, which need not be
-  /// a sentence boundary — to the content's end.
+  /// Renders [content] from [position] — the video's own first sentence, which
+  /// it resolves [position] to when the offset is not already at a sentence
+  /// boundary — to the content's end.
+  ///
+  /// **The app's page always passes the content's first sentence**, because a
+  /// video is the whole content (020 FR-017, the reader's rule of 2026-10-14,
+  /// which supersedes 012 FR-004's "start where the page would start" half:
+  /// 011's position decides where a **read** starts, not where a video does).
+  /// The parameter stays because the timeline still starts where it is told.
   ///
   /// Throws [VideoRenderException] for every failure; a cancelled render
   /// returns a [VideoRenderResult] with `cancelled == true` rather than
@@ -278,7 +297,7 @@ class VideoRenderer {
       // The reader's pictures are copied in first, so the frames that draw them
       // are painted after the copies exist and the copies go with everything
       // else this render deletes however it ends (D15).
-      final schedule = await _preparePictures(plan, written);
+      final schedule = await _preparePictures(plan, sentences, written);
       // The schedule in the video's own frames: the device row (quickstart 49)
       // samples a frame inside each picture's range and at every seam between
       // two, and the ranges exist nowhere else it can read them (FR-026). A
@@ -446,18 +465,33 @@ class VideoRenderer {
           : plan.slots[index].frames;
 
   /// Copies the reader's pictures into this render's working directory and lays
-  /// out the schedule over the plan's sentences (FR-026, D15).
+  /// out the schedule over the plan's sentences (FR-026, D15; 020's assignment).
   ///
   /// The copies are recorded in [written] the moment they exist, so every ending
   /// — a finish, a cancel, a failure — takes them with the render's own files.
+  ///
+  /// The reader's runs are resolved here, against [sentences] — the list **this
+  /// render** speaks, not the one the page resolved — and handed to the
+  /// assignment's own split, which with nothing in force is 012's own
+  /// `buildPictureSchedule` (020 D3/D4).
   Future<PictureSchedule> _preparePictures(
     VideoPlan plan,
+    List<VideoSentence> sentences,
     List<String> written,
   ) async {
     if (pictures.isEmpty) return PictureSchedule.none;
     final copies = await copyPictures(pictures: pictures, workDir: workDir);
     written.addAll(copies);
-    return buildPictureSchedule(plan: plan, paths: copies);
+    final assignment = assignmentsFor(
+      sentences: sentences,
+      pictures: pictures,
+      runs: runs,
+    );
+    return buildAssignedSchedule(
+      plan: plan,
+      paths: copies,
+      runs: assignment.effective,
+    );
   }
 
   /// One run per line step of [slot]'s text: the block's own positions, each

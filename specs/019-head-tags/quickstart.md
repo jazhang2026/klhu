@@ -224,6 +224,14 @@ driver's row would now read differently (`grep -rn "klhu speak\|klhu render" spe
 feature adds none); the regenerated Dart reproduces the committed files byte for byte; the key test passes; the
 Appearance control is untouched — the ladder is derived, never offered (the reader's answer of 2026-10-13); and
 every sibling driver's parser still matches the app's own lines, whose fields are **unchanged** in this feature.
+
+*(2026-10-14: **110 is this row's figure for 019's own tree and no longer what the four files hold** — 020 adds the
+assignment pass's, its two refusals' and its warning's keys on top of it, so re-reading this row means reading the
+count 020's own structural row states. **Measured 2026-10-15 on 020's tree: `120` in each of the four files** —
+`110` plus the ten keys T010 lists (`doneButton` is 015's own word and is reused, not minted again) — so this row's
+figure to read is 120, and no key of this feature's was dropped or renamed since that list was written. The rest of
+the expectation — the dependency and platform diff, the regeneration, the Appearance control, the sibling drivers'
+parsers — is unmoved.)*
 **Evidence**: the commands' own output; the suite count read against the baseline's 663 with the difference
 decomposed by file.
 Proves FR-010, SC-003.

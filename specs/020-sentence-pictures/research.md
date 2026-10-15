@@ -15,7 +15,7 @@ its file and symbol named; nothing here is inferred from the spec's prose.
 | "This feature **adds** the reader's own assignment" (`spec.md`, *What already exists*) | **The app already assigns sentences to pictures — evenly and automatically.** `buildPictureSchedule` (`lib/video_pictures.dart:200`) partitions the plan's sentences across the picked pictures: `each = sentences.length ~/ paths.length` and the remainder goes to the first `extra` pictures (`:208-210`), producing `ScheduledPicture{path, startFrame, endFrame}` (`:126-139`) and `PictureSchedule` (`:152`), with `PictureSchedule.none` for no pictures (`:457`). | This feature is **an override of a split that already exists**, not the introduction of one. `buildPictureSchedule` stays as the no-assignment path *verbatim* — which is exactly what SC-003 measures. The new code decides the runs *before* frames exist, and the frames come from the schedule as they do today. |
 | "'display selected pictures from first to last' leaves the order open" (review point 3) | **The reader's order already exists in shipped code**: `movePicture` (`lib/video_pictures.dart:115`) moves a picture within the list, and `mergePicks` (`:104`) appends. The order the renderer walks is the reader's own arranged order. | The question is answered by 012, not by this plan: the assignment shows the pictures **in the reader's arranged order** and offers no reordering of its own. Review point 3 closes itself. |
 | "the reader is warned, and told" — as if a message were enough | **The renderer already writes the assignment's own shape into its log**: `klhu render pictures=<n> ranges=<start..end,…>` (`lib/video_renderer.dart:286-287`), one range per drawn picture, `-` for a picture that is not drawn. | SC-001 and SC-005 do not need new instrumentation: the device row reads the app's **own** line and compares it with the reader's assignment. The warning of FR-014 is a *separate* surface (before the render), and the row checks both. |
-| "a picture is displayed" (the spec's whole vocabulary) | **The schedule is frame-based, not sentence-based**: `ScheduledPicture.startFrame/endFrame` (`:138-139`), and the painter reads `isDrawn`/the frame range. A picture's *duration* is a consequence of the sentences over it, not a setting of its own. | The assignment's unit is the **sentence** (the reader's words), and the plan translates it into frame ranges at render time — the seam `buildPictureSchedule` already is. FR-007's "skipped" then means: the picture's `ScheduledPicture` is not emitted at all (the `-` the log already prints for an undrawn picture). |
+| "a picture is displayed" (the spec's whole vocabulary) | **The schedule is frame-based, not sentence-based**: `ScheduledPicture.startFrame/endFrame` (`:138-139`), and the painter reads `isDrawn`/the frame range. A picture's *duration* is a consequence of the sentences over it, not a setting of its own. | The assignment's unit is the **sentence** (the reader's words), and the plan translates it into frame ranges at render time — the seam `buildPictureSchedule` already is. FR-007's "skipped" then means: the picture's `ScheduledPicture` stays in the schedule **undrawn** — `isDrawn == false`, `frames == 0`, an empty range at the seam where its place begins — which is exactly the `-` the log already prints for a picture that found no sentence. *(Corrected 2026-10-14 at the implement stage: this row first said "is not emitted at all", and then the `-` it names would have had nothing to print it.)* |
 
 ---
 
@@ -57,6 +57,9 @@ its file and symbol named; nothing here is inferred from the spec's prose.
   picks with the same basename would carry the same name. The correlary the plan must carry: **a picture that is no
   longer held** (removed, or the pick re-done) **has its runs dropped by the same rule as a stale run** (D4), with
   the same warning — never silently re-pointed to whatever now sits at that position.
+  **[Superseded in one respect on 2026-10-14, at the tasks gate: the key is the picture's own file name, not its
+  path — D7. The reasons for rejecting the index, and the rule about a picture that is no longer held, stand as
+  written.]**
 - **D3 — one derivation, read twice.** The reader's runs become the *same* `PictureSchedule` shape
   `buildPictureSchedule` produces, so the painter, the frame maths and the renderer's log line are untouched: the
   new function replaces only the *split*, and `buildPictureSchedule` remains the no-assignment branch (SC-003).
@@ -67,6 +70,17 @@ its file and symbol named; nothing here is inferred from the spec's prose.
   `ScheduledPicture`, which is the state the renderer's own log already prints as `-`.
 - **D6 — the assignment does not touch the read.** The video's audio, its sentence order and its total duration come
   from the timeline (`lib/video_timeline.dart`), which this feature does not hand anything new (SC-005).
+- **D7 — the run's key is the picture's own file name (2026-10-14; it replaces D2's key and nothing else of D2).**
+  D2 keyed a run by the held picture's **path**, and the tree disproves that key: a path is `_pictureDirSeq`-scoped
+  (`<tmp>/picks_<n>/pick_<i>_<name>`, `storePicks`, `lib/video_pictures.dart`) and the whole directory is deleted
+  when the prompt ends (`discardPictures`, `lib/reading_view.dart:1862`), so a stored run could not match a later
+  prompt's pictures at all — while a **relaunch** re-created `picks_0` and matched them again by the accident of
+  that sequence number. The value that does survive is `HeldPicture.name` — the reader's own basename, which
+  `storePicks` keeps beside the sanitised copy's name — and the reader chose it at the tasks gate (option A,
+  2026-10-14). What D2 was protecting stays protected: a picture that is not among the picks in force leaves its
+  runs **stale** (D4), never re-pointed; and the collision D2 named (two files with the same basename) now has a
+  rule instead of an avoidance — **the first pick carrying that name takes the run**, and the pass shows which
+  picture each run is attached to, so a mis-attachment is visible and un-assignable.
 
 ---
 

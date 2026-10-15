@@ -386,4 +386,56 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get commentsReadLabel => 'Leer los comentarios';
+
+  @override
+  String get assignmentOpenButton => 'Asignar oraciones';
+
+  @override
+  String get assignmentNothingAssigned => 'Sin oraciones asignadas';
+
+  @override
+  String assignmentSentenceCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count oraciones',
+      one: '1 oración',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assignmentRemoveSentence => 'Quitar esta oración';
+
+  @override
+  String get assignmentRefusedNotContinuous =>
+      'Solo se pueden añadir las oraciones contiguas a las que ya tiene esta imagen.';
+
+  @override
+  String get assignmentRefusedNotInOrder =>
+      'Esa oración va antes de oraciones que ya tiene una imagen anterior.';
+
+  @override
+  String get assignmentRefusedMiddle =>
+      'Solo se puede quitar la primera o la última oración de una imagen.';
+
+  @override
+  String get assignmentRefusedHoldsSentences =>
+      'Esta imagen tiene oraciones; quítalas antes de moverla.';
+
+  @override
+  String assignmentStaleWarning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count asignaciones ya no encajan en este texto',
+      one: '1 asignación ya no encaja en este texto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assignmentStaleDetail(String picture, String sentences) {
+    return '$picture: $sentences oraciones';
+  }
 }

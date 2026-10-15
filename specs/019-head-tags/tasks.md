@@ -43,6 +43,11 @@ message keys per ARB (four files)    → 110 each          (this feature adds no
 test/*.dart files in the tree        → 50
 ```
 
+*(2026-10-14: the ARB figure above is 019's own, taken on 019's tree and true of it. 020 adds interface text, so the
+four files no longer hold 110 — its structural row states the count that applies now. **Measured 2026-10-15 on 020's
+tree: `120` each**, the ten keys T010 lists on top of 019's 110. The other three figures are 019's own measurements
+and are not re-taken here.)*
+
 **The ladder is the rule every paint row is read against** (`data-model.md` § The ladder): the four offered sizes
 in the reader's order, then the largest offered size at the **bold** weight (017's faces') and at the **black**
 weight — `12 w400 → 14 w400 → 18 w400 → 24 w400 → 24 w700 → 24 w900`. A title takes the rung **two** steps above

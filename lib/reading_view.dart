@@ -12,6 +12,9 @@ import 'package:klhu/dialogue.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/comment.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/picture_assignment.dart';
+import 'package:klhu/picture_assignment_screen.dart';
+import 'package:klhu/picture_assignment_store.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
@@ -28,6 +31,7 @@ import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_record.dart';
 import 'package:klhu/video_renderer.dart';
 import 'package:klhu/video_review.dart';
+import 'package:klhu/video_timeline.dart';
 import 'package:klhu/voice_picker_screen.dart';
 import 'package:klhu/voice_store.dart';
 import 'package:klhu/l10n/app_localizations.dart';
@@ -375,6 +379,12 @@ class _ReadingViewState extends State<ReadingView> {
   /// The remembered video format (012 A8), beside the voice, position and
   /// appearance records in the same per-device store.
   final _aspects = VideoAspectStore();
+
+  /// The reader's assignment for the content in force (020 FR-010): a stored
+  /// setting of the content, read when the video prompt opens and written when
+  /// the reader confirms the pass — like 015's role settings, and unlike 012's
+  /// picks, which are never remembered.
+  final _assignments = PictureAssignmentStore();
 
 
   /// Per-device appearance store (011 US2): the reading text's typeface and
@@ -1851,10 +1861,17 @@ class _ReadingViewState extends State<ReadingView> {
         l10n: l10n,
         remembered: remembered,
         picturesDir: picturesDir,
+        // What the reader has stored for this content, read on open (020
+        // FR-010): the pass starts from it rather than from nothing.
+        runs: await _assignments.load(_anchorKey!),
       );
       if (answer == null || !mounted) return;
       await _aspects.save(answer.aspect);
-      await _startRender(answer.aspect, pictures: answer.pictures);
+      await _startRender(
+        answer.aspect,
+        pictures: answer.pictures,
+        runs: answer.runs,
+      );
     } finally {
       // The render copies the stored pictures into its own directory as it works
       // and takes the copies with it (FR-009): once the render is over — however
@@ -1877,12 +1894,17 @@ class _ReadingViewState extends State<ReadingView> {
   /// way: each picture draws a sentence's own run of frames (FR-026), so the
   /// pictures past the last sentence are simply not drawn — the same answer the
   /// schedule has always given a picture that found no sentence.
-  Future<({VideoAspect aspect, List<HeldPicture> pictures})?> _askVideoFormat({
+  Future<({VideoAspect aspect, List<HeldPicture> pictures, List<PictureRun> runs})?>
+      _askVideoFormat({
     required AppLocalizations? l10n,
     required VideoAspect remembered,
     required Directory picturesDir,
+    required List<PictureRun> runs,
   }) async {
     var chosen = remembered;
+    // The reader's assignment in force for this prompt (020 FR-010): what the
+    // pass opens on, and what Done leaves behind.
+    var assigned = runs;
     // The pictures this prompt holds, stored at the pick: nothing here keeps them
     // once the render is done (FR-025), and nothing caps how many the reader may
     // keep — every picture chosen is kept, in the order chosen, and one they no
@@ -2000,6 +2022,54 @@ class _ReadingViewState extends State<ReadingView> {
                     ? l10n?.videoPicturesButton ?? 'Choose pictures'
                     : l10n?.videoPicturesChooseMore ?? 'Choose more'),
               ),
+              // The assignment pass, one line beside the pick (020 FR-001 —
+              // the reader's own layout (A) of its sketch, 2026-10-13). What
+              // the line says is what is in force: the reader sees their own
+              // decision before the render starts, and can change it here as
+              // often as they like (020 FR-010/FR-013).
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  l10n?.assignmentOpenButton ?? 'Assign sentences',
+                ),
+                subtitle: Builder(
+                  builder: (context) {
+                    // One number, read once: the sentences the reader has
+                    // assigned across every picture.
+                    final assignedCount = assigned.fold<int>(
+                      0,
+                      (total, run) => total + run.spans.length,
+                    );
+                    return Text(
+                      assignedCount == 0
+                          ? (l10n?.assignmentNothingAssigned ??
+                                'No sentences assigned')
+                          : (l10n?.assignmentSentenceCount(assignedCount) ??
+                                '$assignedCount sentences'),
+                    );
+                  },
+                ),
+                // With no picture picked there is nothing to give a sentence
+                // to, so the line is offered (020 FR-001) and does not open
+                // yet.
+                onTap: held.isEmpty
+                    ? null
+                    : () async {
+                        final answer = await _assignSentences(
+                          pictures: held,
+                          runs: assigned,
+                        );
+                        if (answer == null || !context.mounted) return;
+                        // The pass answers its runs **and the order it showed**
+                        // (020 FR-015): a picture holding nothing has no run to
+                        // carry that order, so the pictures are taken back with
+                        // them.
+                        setDialog(() {
+                          held = answer.pictures;
+                          assigned = answer.runs;
+                        });
+                      },
+              ),
             ],
           ),
           actions: [
@@ -2008,14 +2078,169 @@ class _ReadingViewState extends State<ReadingView> {
               child: Text(l10n?.cancelButton ?? 'Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () async {
+                // 020 FR-014: a content edit can have left the stored
+                // assignment behind, and the reader is told **before** the
+                // render begins — from the very answer the render will read
+                // (D4), resolved here with the pass's own call and parameters
+                // (D6), so the warning can only name what is really stale.
+                final sentences = await _videoSentences();
+                if (!context.mounted) return;
+                final answer = assignmentsFor(
+                  sentences: sentences,
+                  pictures: held,
+                  runs: assigned,
+                );
+                if (answer.stale.isNotEmpty) {
+                  final offending = await _warnStale(l10n, answer.stale);
+                  if (!context.mounted) return;
+                  if (offending != null) {
+                    // The reader's own tap: the pass, on the picture that no
+                    // longer fits — handed the runs that still fit, because
+                    // the ones that do not are what they came here to fix —
+                    // and this prompt stays behind it, so they come back and
+                    // start again (FR-014).
+                    final draft = await _assignSentences(
+                      pictures: held,
+                      runs: runsThatFit(answer, assigned),
+                      inView: offending.name,
+                    );
+                    if (draft == null || !context.mounted) return;
+                    setDialog(() {
+                      held = draft.pictures;
+                      assigned = draft.runs;
+                    });
+                    return;
+                  }
+                  // Started anyway: what reaches the render is the runs that
+                  // still fit (FR-014/FR-011) — a run that survived a content
+                  // edit cannot paint a frame the reader did not choose.
+                  setDialog(() => assigned = runsThatFit(answer, assigned));
+                }
+                Navigator.of(context).pop(true);
+              },
               child: Text(l10n?.videoStartButton ?? 'Start'),
             ),
           ],
         ),
       ),
     );
-    return start == true ? (aspect: chosen, pictures: held) : null;
+    return start == true
+        ? (aspect: chosen, pictures: held, runs: assigned)
+        : null;
+  }
+
+  /// The sentences **this render will speak**, resolved the one way both the
+  /// pass and the warning read them (020 D6, FR-017): the whole content, from
+  /// its first sentence, with the reading mode and the role settings in force.
+  Future<List<VideoSentence>> _videoSentences() => videoSentencesFrom(
+    content: _content,
+    // 020 FR-017: the video is the whole content — a highlighted sentence no
+    // longer hides the rest from the pass, nor from the stale warning.
+    position: 0,
+    loadVoice: widget.voiceStore.loadVoice,
+    mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
+    removed: _roles.removedFor(_rolesVersion),
+    picks: _roles.voices,
+    commentsRead: _roles.commentsRead,
+  );
+
+  /// What no longer fits, **before** the render begins (020 FR-014): the reader
+  /// is told which pictures' runs survived the content's own edit and how many
+  /// sentences each of them held, and the telling is the gesture — the line that
+  /// names a picture is the thing they tap.
+  ///
+  /// What is said about a lost run, and why that is all there is to say: the
+  /// sentences a run held are **gone with the old text** — the run stores
+  /// character spans (data-model §1), so "which sentences" cannot be recovered
+  /// from the text in force. The picture's own name and how many sentences its
+  /// run held is what the reader can act on, and it is what this says.
+  ///
+  /// Answers the run whose line the reader tapped — the page opens the pass on
+  /// that picture — or null when they started the render anyway.
+  Future<PictureRun?> _warnStale(
+    AppLocalizations? l10n,
+    List<PictureRun> stale,
+  ) => showDialog<PictureRun>(
+    context: context,
+    // Nothing here is a mistake to dismiss: both answers are the reader's
+    // (FR-014's two, and no third).
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: Text(
+        l10n?.assignmentStaleWarning(stale.length) ??
+            '${stale.length} assigned runs no longer fit this text',
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final run in stale)
+            InkWell(
+              onTap: () => Navigator.of(context).pop(run),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  l10n?.assignmentStaleDetail(run.name, '${run.spans.length}') ??
+                      '${run.name}: ${run.spans.length}',
+                ),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          // The pass's own word for it (015's Done lesson, read again): the
+          // reader's fix is the assignment page.
+          onPressed: () => Navigator.of(context).pop(stale.first),
+          child: Text(l10n?.assignmentOpenButton ?? 'Assign sentences'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n?.videoStartButton ?? 'Start'),
+        ),
+      ],
+    ),
+  );
+
+  /// Opens the assignment pass on the video's own sentences (020 FR-001,
+  /// FR-002) and answers what the reader confirmed, having **stored** it
+  /// (FR-010).
+  ///
+  /// The sentences are resolved here, once, with the same call and the same
+  /// parameters the render will make (020 D6) — **including the start**: the
+  /// whole content, from its first sentence (020 FR-017), which is where the
+  /// render now always begins. What the reader assigns on is what the video will
+  /// speak, not a second derivation of it, and the same resolver reads the
+  /// stored runs back at render time (020 D4).
+  ///
+  /// A pass the reader left without Done answers null and changes nothing: the
+  /// assignment in force stands (020 FR-012's rule for a refused edit).
+  ///
+  /// What it answers is the reader's own page's draft — the runs **and the
+  /// pictures' order** (FR-015) — and only the runs are stored: the order of the
+  /// picks is 012's own, never remembered (its FR-025), while the assignment the
+  /// reader made here is a setting of the content (FR-010).
+  Future<AssignmentDraft?> _assignSentences({
+    required List<HeldPicture> pictures,
+    required List<PictureRun> runs,
+    String? inView,
+  }) async {
+    final sentences = await _videoSentences();
+    if (!mounted) return null;
+    final answer = await Navigator.of(context).push<AssignmentDraft>(
+      MaterialPageRoute(
+        builder: (context) => PictureAssignmentScreen(
+          pictures: pictures,
+          sentences: sentences,
+          runs: runs,
+          inView: inView,
+        ),
+      ),
+    );
+    if (answer == null) return null;
+    await _assignments.save(_anchorKey!, runs: answer.runs);
+    return answer;
   }
 
   /// Asks the platform for the reader's pictures (FR-025) and answers with the
@@ -2061,6 +2286,7 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _startRender(
     VideoAspect aspect, {
     List<HeldPicture> pictures = const [],
+    List<PictureRun> runs = const [],
   }) async {
     final l10n = AppLocalizations.of(context);
     if (_content.trim().isEmpty) {
@@ -2071,9 +2297,14 @@ class _ReadingViewState extends State<ReadingView> {
       });
       return;
     }
-    // The page's own start point, read before anything else touches the state
-    // (FR-004): the sentence in force, else the content's first.
-    final from = _anchor ?? 0;
+    // The video's own start (020 FR-017, the reader's rule of 2026-10-14): the
+    // **whole content**, from its first sentence to its last. 012's FR-004 had
+    // the video open where the page's own position is (010/011's highlight);
+    // that half is superseded — the position still decides where a **read**
+    // starts, and no longer where a video does. Zero resolves through
+    // `resolveSentence` to the first sentence's own start, so a text that opens
+    // on whitespace still opens on a sentence.
+    const from = 0;
     final title = _loaded?.name ?? contentNameFrom(_content);
     // The text this render belongs to (FR-011). The action is only offered for a
     // text the library can own a video for (`_canOfferVideo`), so the key is in
@@ -2103,6 +2334,10 @@ class _ReadingViewState extends State<ReadingView> {
       // is the only place that can happen, because where a picture lands depends
       // on the sentences the render's own synth pass finds (FR-026).
       pictures: pictures,
+      // The reader's own assignment for this render (020 FR-006): resolved
+      // against the sentences this render will speak, and read once here, with
+      // the pictures, so a change made during the render cannot move it.
+      runs: runs,
     );
     setState(() {
       _mode = _Mode.rendering;

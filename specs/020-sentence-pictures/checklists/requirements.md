@@ -55,7 +55,18 @@ open three were put at this gate and answered in the spec's `## Clarifications` 
 
 ## Notes added at the plan stage
 
-_(none yet)_
+_(the plan stage left this empty; the tasks stage's own finding is Amendment 5 below.)_
+
+## Notes added at the tasks stage
+
+The counts do not move for Amendment 5: **no `FR`/`SC` id is minted**, because the requirement that owns the rule
+(FR-010) is rewritten in its own sentence rather than duplicated — the readers' own id counts (`FRs 16 · SCs 10 ·
+stories 5 · scenarios 17 · decisions 12`) stand. What moves is the artifact set around it, each dated in place:
+`research.md`'s D2 (a bracketed pointer) and a new decision **D7**; `data-model.md`'s key row, a new §2 store shape
+and **INV-8**; `plan.md`'s D2 pointer plus its own amendment block of 2026-10-14 (which also records two other
+claims the stage found false: the split function's home, and the ARB total's own structural row); and
+`quickstart.md`'s rows 1, 12 and 14 corrected plus **two rows appended** (15 the store's contract, 16 the relaunch
+and the second render) for FR-010, FR-013, SC-006 and SC-007, which had no row at all.
 
 ## Amendment, 2026-10-13 — the reader's answers at the gate
 
@@ -154,3 +165,61 @@ the same order. A picture that holds sentences therefore has a *place fixed by i
 would either re-order the reader's sentences or leave the run where it was — both of which are things this spec
 forbids elsewhere. An unassigned picture holds nothing, so it can go anywhere without touching a sentence; the rule
 falls out of FR-003/FR-004 rather than sitting beside them.
+
+## Amendment 5, 2026-10-14 — the run's key, and the requirement it changed
+
+Found by the tasks stage against the tree at `a3a25e1`, and answered by the reader at that gate. The plan keyed a run
+by the held picture's **path** (`plan.md` D2), and 012's own shipped rule is that the picks are **never remembered**:
+`storePicks` writes each one into `<tmp>/picks_<seq>/pick_<i>_<name>` and the prompt's own `finally` deletes that
+directory the moment the render ends (`discardPictures`, `lib/reading_view.dart:1862`). So the key was a path that
+ceases to exist when the prompt closes — and FR-010's two halves landed the wrong way round: leaving and reopening
+the video screen renamed the directory (`picks_1`: a **page-instance** sequence, `lib/reading_view.dart:271`) and
+left every stored run stale, which is exactly the case FR-010's first half names, while a relaunch re-created
+`picks_0` and re-attached the runs **by accident**.
+
+    the reader's answer       **A** — a run names its picture by the picture's own **file name** (`HeldPicture.name`,
+                              the reader's own basename), and it re-attaches when the same files are picked again.
+                              FR-010 and SC-006 are amended in place; no new id, because the rule a requirement
+                              already owns is what moved.
+    the alternatives          **B** — the assignment keeps its own copy of the pictures, so the screen shows it
+                              without a re-pick: a second picture source beside the prompt's own pick, and the
+                              reader's photos' bytes stored per content. **C** — the assignment is a record with no
+                              effect once the prompt closes: cheapest, but the reader meets "N assigned runs no
+                              longer match" on every visit.
+    012's rule                **untouched.** Nothing remembers a pick; what survives is the reader's assignment,
+                              matched by name when the same files are picked again.
+    same-name picks           the collision D2 avoided by choosing paths now has a rule: the **first** pick carrying
+                              that name takes the run, and the pass shows which picture a run is attached to, so a
+                              mis-attachment is visible and un-assignable (research D7, INV-8).
+
+## Amendment 6, 2026-10-14 — a video is the whole content
+
+The reader's own statement and answer at the tasks gate, quoted: *"视频永远是从第一句开始的，最后一句结束。现在没有部分或分段视频的功能。请确定。"*
+→ **"要 B"**.
+
+    what the tree did      with a sentence **highlighted** on the page (010/011's position, set by the reader's own
+                           tap), a render started at that sentence and held only the rest of the text — 012's FR-004
+                           first half, shipped and receipted. A throwaway probe read the renderer's own line as
+                           `sentences=1 … span=22..31` for a content of three sentences whose last one was
+                           highlighted; the probe was deleted after its run.
+    the rule now           **FR-017 / SC-011 / User Story 6**: a video is the whole content — its first sentence to
+                           its last — and 011's position decides only where a **read** starts. The rule lives in the
+                           page (`lib/reading_view.dart`), not in the renderer, so the timeline's own API and 012's
+                           four start-point cases stay true.
+    what is not swept      012's `spec.md`, `research.md`, `data-model.md` and `quickstart.md` stand as the record of
+                           what was approved on 2026-10-01; the pointer is one bullet in 012's `tasks.md`
+                           `## Superseded by later specs`. No shipped device row ever recorded a render started from
+                           a highlight, so 012's walk needs no re-cut.
+    the alternatives       **(A)** keep 012's rule (the shipped behaviour, and the probe above is its evidence);
+                           **(C)** read the reader's sentence as "do not build a start/end picker" and change
+                           nothing — refused: they answered B when put to them.
+
+    counts after this amendment  FRs 17 (was 16) · SCs 11 (was 10) · stories 6 (was 5) · scenarios 18 (was 17)
+                                 · quickstart rows 18 (was 16)
+
+    the stage's other two findings, both corrected in place this pass: `quickstart.md` row 14 asserted the four ARBs
+    stay unchanged while the plan's own structural rule has this feature adding interface text (the row was a draft
+    leftover); and row 12 asked for a comparison "with that row's recorded figures" for a case 012's records carry
+    **no** frame count or duration for — the figures that do exist (row 31's 818 frames / 27.39 s, row 49's eight
+    ranges for eight sentences) are now named in the row itself, and no driver had ever parsed the renderer's own
+    `pictures=… ranges=…` line, which the walk's driver must now do.

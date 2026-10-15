@@ -160,5 +160,18 @@
   "rolePickerTitle": "Voice for {role}",
   "@rolePickerTitle": {"placeholders": {"role": {"type": "String"}}},
   "formatButton": "Format",
-  "commentsReadLabel": "Read the comments"
+  "commentsReadLabel": "Read the comments",
+  "assignmentOpenButton": "Assign sentences",
+  "assignmentNothingAssigned": "No sentences assigned",
+  "assignmentSentenceCount": "{count, plural, =0 {No sentences} =1 {1 sentence} other {{count} sentences}}",
+  "assignmentRemoveSentence": "Remove this sentence",
+  "assignmentRefusedNotContinuous": "Only the sentences next to the ones this picture already has can be added.",
+  "assignmentRefusedNotInOrder": "That sentence comes before sentences an earlier picture already has.",
+  "assignmentRefusedMiddle": "Only the first or last sentence of a picture can be removed.",
+  "assignmentRefusedHoldsSentences": "This picture holds sentences; un-assign them before moving it.",
+  "assignmentStaleWarning": "{count, plural, =1 {1 assigned run no longer fits this text} other {{count} assigned runs no longer fit this text}}",
+  "assignmentStaleDetail": "{picture}: sentences {sentences}",
+  "@assignmentSentenceCount": {"placeholders": {"count": {"type": "int"}}},
+  "@assignmentStaleWarning": {"placeholders": {"count": {"type": "int"}}},
+  "@assignmentStaleDetail": {"placeholders": {"picture": {"type": "String"}, "sentences": {"type": "String"}}}
 }

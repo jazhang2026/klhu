@@ -37,6 +37,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_pictures.dart';
@@ -521,6 +522,144 @@ void main() {
       expect(schedule.pictures.last.path, 'one.png',
           reason: 'and the one that moved to the back is the one the video '
               'ends on');
+    });
+  });
+
+  group('the assignment\'s own split (020, row 3)', () {
+    test('the ranges follow the runs the reader made', () {
+      final schedule = buildAssignedSchedule(
+        plan: plan,
+        paths: const ['a.png', 'b.png', 'c.png'],
+        runs: const [
+          AssignedRun(name: 'a.png', sentences: [0, 1, 2, 3]),
+          AssignedRun(name: 'b.png', sentences: [4]),
+          AssignedRun(name: 'c.png', sentences: [5]),
+        ],
+      );
+
+      expect(schedule.pictures, hasLength(3));
+      expect(schedule.pictures[0].startFrame, plan.sentences[0].startFrame);
+      expect(schedule.pictures[0].endFrame, plan.sentences[4].startFrame - 1,
+          reason: 'the first picture gives way where its last sentence ends');
+      expect(schedule.pictures[1].startFrame, plan.sentences[4].startFrame);
+      expect(schedule.pictures[1].endFrame, plan.sentences[5].startFrame - 1);
+      expect(schedule.pictures[2].startFrame, plan.sentences[5].startFrame);
+      expect(schedule.pictures[2].endFrame, plan.totalFrames - 1,
+          reason: 'and the last one holds to the video\'s last frame');
+      _expectSpokenPartPartitioned(plan, schedule);
+    });
+
+    test('a picture holding nothing keeps 012\'s own undrawn entry', () {
+      final schedule = buildAssignedSchedule(
+        plan: plan,
+        paths: const ['a.png', 'b.png', 'c.png'],
+        runs: const [
+          AssignedRun(name: 'a.png', sentences: [0, 1, 2]),
+          AssignedRun(name: 'b.png', sentences: []),
+          AssignedRun(name: 'c.png', sentences: [4, 5]),
+        ],
+      );
+
+      // FR-007/D5: the picture is in the schedule and no frame paints it — the
+      // entry 012 already writes for a picture that found no sentence, which is
+      // what its own line prints as `-`.
+      expect(schedule.pictures, hasLength(3));
+      expect(schedule.pictures[1].isDrawn, isFalse);
+      expect(schedule.pictures[1].frames, 0);
+      expect(schedule.pictures[1].startFrame, plan.sentences[4].startFrame,
+          reason: 'its empty range sits at the seam before the next picture');
+      expect(schedule.pictures[0].endFrame, plan.sentences[4].startFrame - 1,
+          reason: 'and the picture before it still reaches the seam');
+      _expectSpokenPartPartitioned(plan, schedule);
+    });
+
+    test('a picture moved to another place takes its own place in the walk, '
+        'and no other range moves (SC-009)', () {
+      // The reader's drag (US2, FR-015): only a picture holding **nothing**
+      // moves, and b holds nothing here because a and c cover every sentence
+      // between them. The pass hands the pictures and their runs over in the
+      // order it was left in, so the schedule is built from that order alone.
+      PictureSchedule inOrder(List<String> paths) => buildAssignedSchedule(
+            plan: plan,
+            paths: paths,
+            runs: [
+              for (final path in paths)
+                AssignedRun(
+                  name: path,
+                  sentences: switch (path) {
+                    'a.png' => const [0, 1, 2],
+                    'b.png' => const [],
+                    _ => const [3, 4, 5],
+                  },
+                ),
+            ],
+          );
+      Map<String, String> rangesOf(PictureSchedule schedule) => {
+            for (final picture in schedule.pictures)
+              picture.path: '${picture.startFrame}..${picture.endFrame}',
+          };
+
+      final before = inOrder(const ['a.png', 'b.png', 'c.png']);
+      final after = inOrder(const ['b.png', 'a.png', 'c.png']);
+
+      expect(
+        after.pictures.map((picture) => picture.path),
+        ['b.png', 'a.png', 'c.png'],
+        reason: 'the walk follows the order the reader left',
+      );
+      expect(
+        after.pictures.first.frames,
+        0,
+        reason: 'and the picture that moved still paints nothing (FR-007)',
+      );
+      final moved = rangesOf(before)
+        ..remove('b.png');
+      final rest = rangesOf(after)
+        ..remove('b.png');
+      expect(rest, moved,
+          reason: 'every other picture keeps the range it had — the move is a '
+              'place in the walk, not a re-cut of the ranges (SC-009)');
+    });
+
+    test('with no runs at all the schedule is buildPictureSchedule\'s own', () {
+      final assigned = buildAssignedSchedule(
+        plan: plan,
+        paths: const ['a.png', 'b.png'],
+        runs: const [],
+      );
+      final plain = buildPictureSchedule(
+        plan: plan,
+        paths: const ['a.png', 'b.png'],
+      );
+
+      expect(
+        assigned.pictures.map((p) => '${p.path} ${p.startFrame}..${p.endFrame}'),
+        plain.pictures.map((p) => '${p.path} ${p.startFrame}..${p.endFrame}'),
+        reason: 'FR-009/SC-003: the unassigned render is 012\'s, frame for frame',
+      );
+      expect(assigned.pictures.map((p) => p.frames),
+          plain.pictures.map((p) => p.frames));
+    });
+
+    test('runs that hold nothing between them are 012\'s own schedule too', () {
+      final assigned = buildAssignedSchedule(
+        plan: plan,
+        paths: const ['a.png', 'b.png'],
+        runs: const [
+          AssignedRun(name: 'a.png', sentences: []),
+          AssignedRun(name: 'b.png', sentences: []),
+        ],
+      );
+      final plain = buildPictureSchedule(
+        plan: plan,
+        paths: const ['a.png', 'b.png'],
+      );
+
+      expect(
+        assigned.pictures.map((p) => '${p.startFrame}..${p.endFrame}'),
+        plain.pictures.map((p) => '${p.startFrame}..${p.endFrame}'),
+        reason: 'nothing effective is no assignment (research D7, FR-009)',
+      );
     });
   });
 }

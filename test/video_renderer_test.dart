@@ -17,12 +17,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/video_aspect.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_renderer.dart';
+import 'package:klhu/video_timeline.dart';
 import 'package:klhu/voice_store.dart';
 
 /// Two paragraphs, three sentences, two languages.
@@ -269,6 +271,7 @@ void main() {
     FakeEncoder encoder, {
     VideoAspect aspect = VideoAspect.landscape,
     List<HeldPicture> pictures = const [],
+    List<PictureRun> runs = const [],
   }) {
     encoder.workDir = work;
     return VideoRenderer(
@@ -279,6 +282,7 @@ void main() {
       readingStyle: const TextStyle(fontSize: 14, color: Color(0xFFF2F2F2)),
       background: const Color(0xFF101014),
       pictures: pictures,
+      runs: runs,
     );
   }
 
@@ -295,10 +299,11 @@ void main() {
     int position = 0,
     String content = _content,
     List<HeldPicture> pictures = const [],
+    List<PictureRun> runs = const [],
     List<VideoRenderProgress>? progress,
     List<VideoFrame>? published,
   }) =>
-      rendererFor(engine, encoder, pictures: pictures).render(
+      rendererFor(engine, encoder, pictures: pictures, runs: runs).render(
         content: content,
         position: position,
         loadVoice: (language) async =>
@@ -743,4 +748,124 @@ void main() {
       expect(copiesIn(), isEmpty, reason: 'after a failure');
     });
   });
+
+  group('020. the reader\'s assignment is the split', () {
+    /// The ranges the renderer's own line printed, parsed the way the device
+    /// rows read them (`klhu render pictures=N ranges=a..b,… sentences=M`).
+    List<String> rangesIn(String line) =>
+        RegExp(r'ranges=([^ ]*)').firstMatch(line)!.group(1)!.split(',');
+
+    Future<String> lineFor(
+      List<HeldPicture> pictures, {
+      List<PictureRun> runs = const [],
+    }) async {
+      final engine = FakeSynthEngine();
+      final logs = <String>[];
+      await withLogs(logs, () => run(engine, FakeEncoder(), pictures: pictures, runs: runs));
+      return logs.firstWhere((l) => l.startsWith('klhu render pictures='));
+    }
+
+    test('the runs the reader made are the ranges, and the line keeps its '
+        'fields', () async {
+      final pictures = [
+        _picked('a.png', await _pngOf(const Color(0xFFFF0000))),
+        _picked('b.png', await _pngOf(const Color(0xFF0000FF))),
+      ];
+      final sentences = await videoSentencesFrom(
+        content: _content,
+        position: 0,
+        loadVoice: (language) async =>
+            language == 'zh-Hans' ? _zhVoice : null,
+      );
+      expect(sentences, hasLength(3), reason: 'fixture drift');
+      final runs = [
+        PictureRun(
+          name: 'a.png',
+          spans: [(sentences[0].start, sentences[0].end)],
+        ),
+        PictureRun(name: 'b.png', spans: [
+          (sentences[1].start, sentences[1].end),
+          (sentences[2].start, sentences[2].end),
+        ]),
+      ];
+
+      final assigned = await lineFor(pictures, runs: runs);
+      expect(assigned, contains('pictures=2'));
+      expect(assigned, contains('sentences=3'));
+      final assignedRanges = rangesIn(assigned);
+      expect(assignedRanges, hasLength(2));
+      expect(assignedRanges.first, startsWith('0..'),
+          reason: 'the first picture opens the video');
+      final firstEnd = int.parse(assignedRanges.first.split('..')[1]);
+      final secondStart = int.parse(assignedRanges.last.split('..')[0]);
+      expect(secondStart, firstEnd + 1,
+          reason: 'the two ranges meet at a sentence boundary, with no gap '
+              'and no frame painted twice');
+
+      // The same pictures with nothing assigned are 012's own split: one
+      // sentence to the first picture and two to the second, where the reader's
+      // assignment gave the first one only — the video's own length is the same
+      // either way (FR-008/SC-005).
+      final plain = await lineFor(pictures);
+      final plainRanges = rangesIn(plain);
+      expect(plainRanges, hasLength(2));
+      expect(plainRanges.first, isNot(assignedRanges.first),
+          reason: 'the reader\'s assignment is what moved the boundary');
+      expect(plainRanges.last.split('..')[1], assignedRanges.last.split('..')[1],
+          reason: 'the video ends where it ended');
+    });
+
+    test('a picture the reader gave nothing prints as `-`, and its neighbour '
+        'still reaches the seam', () async {
+      final pictures = [
+        _picked('a.png', await _pngOf(const Color(0xFFFF0000))),
+        _picked('b.png', await _pngOf(const Color(0xFF0000FF))),
+      ];
+      final sentences = await videoSentencesFrom(
+        content: _content,
+        position: 0,
+        loadVoice: (language) async =>
+            language == 'zh-Hans' ? _zhVoice : null,
+      );
+
+      // The second picture holds nothing; the first holds the whole text.
+      final line = await lineFor(
+        pictures,
+        runs: [
+          PictureRun(name: 'a.png', spans: [
+            for (final sentence in sentences)
+              (sentence.start, sentence.end),
+          ]),
+          const PictureRun(name: 'b.png', spans: []),
+        ],
+      );
+
+      final ranges = rangesIn(line);
+      expect(ranges, hasLength(2));
+      expect(ranges.last, '-',
+          reason: 'FR-007/D5: it is in the schedule and no frame paints it — '
+              '`-` is what the line prints for an undrawn picture');
+      expect(ranges.first, startsWith('0..'));
+    });
+  });
+}
+
+/// Runs [body] with `debugPrint` captured: the renderer's own `klhu render …`
+/// line is what the device rows read, so its shape is pinned here too.
+///
+/// Restored in the body's own `finally` rather than a tearDown — the binding
+/// asserts `debugPrint` is back to normal at the end of the test BODY.
+Future<void> withLogs(
+  List<String> logs,
+  Future<void> Function() body,
+) async {
+  final original = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) {
+    if (message != null) logs.add(message);
+  };
+  try {
+    await body();
+  } finally {
+    debugPrint = original;
+  }
 }

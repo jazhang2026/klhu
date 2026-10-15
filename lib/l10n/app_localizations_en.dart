@@ -384,4 +384,57 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commentsReadLabel => 'Read the comments';
+
+  @override
+  String get assignmentOpenButton => 'Assign sentences';
+
+  @override
+  String get assignmentNothingAssigned => 'No sentences assigned';
+
+  @override
+  String assignmentSentenceCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sentences',
+      one: '1 sentence',
+      zero: 'No sentences',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get assignmentRemoveSentence => 'Remove this sentence';
+
+  @override
+  String get assignmentRefusedNotContinuous =>
+      'Only the sentences next to the ones this picture already has can be added.';
+
+  @override
+  String get assignmentRefusedNotInOrder =>
+      'That sentence comes before sentences an earlier picture already has.';
+
+  @override
+  String get assignmentRefusedMiddle =>
+      'Only the first or last sentence of a picture can be removed.';
+
+  @override
+  String get assignmentRefusedHoldsSentences =>
+      'This picture holds sentences; un-assign them before moving it.';
+
+  @override
+  String assignmentStaleWarning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count assigned runs no longer fit this text',
+      one: '1 assigned run no longer fits this text',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String assignmentStaleDetail(String picture, String sentences) {
+    return '$picture: sentences $sentences';
+  }
 }

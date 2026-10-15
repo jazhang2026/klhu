@@ -1700,6 +1700,30 @@ ticks are the record of what ran then, and its own `T056` (the painter) is still
 
 ## Superseded by later specs
 
+- **Row 49's own "said nothing about the count" check moved (2026-10-14).** 020 puts a line in the video prompt
+  (`Assign sentences` / `N sentences`), and this row's check asserts that **no** label on that prompt mentions the
+  video's sentences — so it now finds one. The count is still said nothing about; the assertion's own filter is what
+  tripped. Re-walked on 020's tree: **40/41**, with this as the one that moved (`specs/020-sentence-pictures/`
+  `breakpoint.md`, T032). This file's own artifacts are otherwise as written. Also re-read that day: the row renders
+  **743 frames / 24766 ms** today, where row 31's record of 2026-10-07 carries 818 frames / 27.39 s for the same
+  pre-set — a difference in the synthesis' own durations (the voice's speed is the device's), not in the schedule:
+  020's own no-assignment render reaches the same 743, frame for frame.
+- **A video is the whole content, whatever the page is showing (2026-10-14).** This file's `spec.md` states, in
+  FR-004 and in US1's Independent Test and scenario 1, that the video starts where the reading page would start —
+  **at the sentence in force when a sentence or paragraph is highlighted**, and at the content's first sentence when
+  nothing is — and that it runs to the content's last sentence. The **start** half is superseded: a video is now the
+  whole content, from its first sentence to its last, whatever the page is showing, and 011's position decides only
+  where a **read** starts. The reader's own words and answer are the record:
+  *"视频永远是从第一句开始的，最后一句结束。现在没有部分或分段视频的功能。请确定。"* → *"要 B"* — and the behaviour they
+  replaced was proven before it was changed (a probe with the last sentence of a three-sentence content highlighted
+  read the renderer's own line as `sentences=1 … span=22..31`). The new behaviour is recorded in
+  `specs/020-sentence-pictures/` (its FR-017, its SC-011, its User Story 6, its Clarifications item 6 of that date,
+  its `plan.md`'s Amendment 2 and its quickstart rows 17 and 18) and implemented in `lib/reading_view.dart` — the
+  page passes the content's first sentence, so the timeline's own API (and this file's four start-point cases in
+  `test/video_timeline_test.dart`) stay true and are **not** re-cut. This file's artifacts are left as written — they
+  are the record of what was approved on 2026-10-01 — and **no walk row here needed re-cutting**: no row of this
+  file's `breakpoint.md` carries a `sentences=` or `slot=0/` line, so no received figure was taken on a render that
+  started mid-content (checked, not assumed).
 - **Where a sentence that fits its frame rests is the aspect's own rule (2026-10-08).** This file's `spec.md`
   (its FR-006 prose, the Key Entities' "A sentence's scroll", and A3), its `research.md` D22 and its
   `data-model.md` placement row all state that a sentence that fits sits at the **bottom** of the text area, which
