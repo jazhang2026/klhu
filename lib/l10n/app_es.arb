@@ -119,5 +119,14 @@
   "assignmentRefusedMiddle": "Solo se puede quitar la primera o la última oración de una imagen.",
   "assignmentRefusedHoldsSentences": "Esta imagen tiene oraciones; quítalas antes de moverla.",
   "assignmentStaleWarning": "{count, plural, =1 {1 asignación ya no encaja en este texto} other {{count} asignaciones ya no encajan en este texto}}",
-  "assignmentStaleDetail": "{picture}: {sentences} oraciones"
+  "assignmentStaleDetail": "{picture}: {sentences} oraciones",
+  "assignmentClose": "Cerrar",
+  "assignmentMoveLeft": "Mover a la izquierda",
+  "assignmentMoveRight": "Mover a la derecha",
+  "assignmentDeletePicture": "Eliminar esta imagen",
+  "assignmentDeleteTitle": "¿Eliminar esta imagen?",
+  "assignmentDeleteBody": "Esta imagen se quitará del vídeo.",
+  "assignmentSwitchTitle": "¿Dar esta frase a la imagen seleccionada?",
+  "assignmentSwitchBody": "«{sentence}» pertenece ahora a otra imagen; pasará a la seleccionada.",
+  "assignmentSwitchConfirm": "Moverla"
 }

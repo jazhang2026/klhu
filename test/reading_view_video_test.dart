@@ -1820,9 +1820,29 @@ void main() {
     expect(find.byTooltip(l10n.videoPicturesRemove), findsNWidgets(2));
     expect(find.text(l10n.videoPicturesChosen(2)), findsOneWidget);
 
-    // Taking one back takes exactly one back, and the count follows.
+    // Taking one back asks first (021 FR-008, FR-014): the confirmation names
+    // the picture, and cancelling takes nothing back.
+    Finder confirmation() => find.ancestor(
+      of: find.text(l10n.assignmentDeleteTitle),
+      matching: find.byType(AlertDialog),
+    );
     await tester.tap(find.byTooltip(l10n.videoPicturesRemove).first);
-    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(confirmation(), findsOneWidget, reason: 'the prompt asks');
+    await tester.tap(
+      find.descendant(of: confirmation(), matching: find.text(l10n.cancelButton)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ChosenThumbnail), findsNWidgets(2),
+        reason: 'cancelling takes exactly nothing back');
+
+    // And confirming takes exactly one back, with the count following.
+    await tester.tap(find.byTooltip(l10n.videoPicturesRemove).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: confirmation(), matching: find.text(l10n.deleteButton)),
+    );
+    await tester.pumpAndSettle();
     expect(find.byType(ChosenThumbnail), findsOneWidget,
         reason: 'the remove removes its own picture and no other');
     expect(find.text(l10n.videoPicturesChosen(1)), findsOneWidget);

@@ -420,6 +420,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String assignmentStaleDetail(String picture, String sentences) {
     return '$picture：$sentences 句';
   }
+
+  @override
+  String get assignmentClose => '关闭';
+
+  @override
+  String get assignmentMoveLeft => '向左移动';
+
+  @override
+  String get assignmentMoveRight => '向右移动';
+
+  @override
+  String get assignmentDeletePicture => '删除这张图片';
+
+  @override
+  String get assignmentDeleteTitle => '删除这张图片？';
+
+  @override
+  String get assignmentDeleteBody => '这张图片将从视频中移除。';
+
+  @override
+  String get assignmentSwitchTitle => '把这句交给选中的图片？';
+
+  @override
+  String assignmentSwitchBody(String sentence) {
+    return '「$sentence」现在属于另一张图片，将移到选中的这张。';
+  }
+
+  @override
+  String get assignmentSwitchConfirm => '移动';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -837,4 +866,33 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String assignmentStaleDetail(String picture, String sentences) {
     return '$picture：$sentences 句';
   }
+
+  @override
+  String get assignmentClose => '关闭';
+
+  @override
+  String get assignmentMoveLeft => '向左移动';
+
+  @override
+  String get assignmentMoveRight => '向右移动';
+
+  @override
+  String get assignmentDeletePicture => '删除这张图片';
+
+  @override
+  String get assignmentDeleteTitle => '删除这张图片？';
+
+  @override
+  String get assignmentDeleteBody => '这张图片将从视频中移除。';
+
+  @override
+  String get assignmentSwitchTitle => '把这句交给选中的图片？';
+
+  @override
+  String assignmentSwitchBody(String sentence) {
+    return '「$sentence」现在属于另一张图片，将移到选中的这张。';
+  }
+
+  @override
+  String get assignmentSwitchConfirm => '移动';
 }

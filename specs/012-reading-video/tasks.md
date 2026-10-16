@@ -1740,3 +1740,12 @@ ticks are the record of what ran then, and its own `T056` (the painter) is still
  section. **Rows 32 and 49 were re-run on 2026-10-08 on a build of the amended code — 42/42 (both aspects) and
  40/40** — so this file's standing receipts for them hold for the current tree as well as for the one they were
  taken on; their landscape halves are unchanged by the amendment.
+
+- **2026-10-15 — the prompt's own remove and reorder, by 021** (`specs/021-picture-pass`, FR-008 and FR-005):
+  the picker prompt's chosen pictures now draw the **shared cell** (`PictureCell`, 021 FR-010) instead of a bare
+  decode, its own remove **asks first** (`Delete this picture?` / Cancel / Delete — the same keys the pass uses),
+  and a picture holding a sentence of the reader's offers **neither** the hold that moves it nor the remove that
+  takes it back: the narrowing of this file's own reorder (FR-030/FR-032) is 021's decision of that day, stated by
+  the reader as "picture has sentences assigned cannot move and delete". `MovableThumbnail` keeps its own name and
+  its gesture is unchanged where the rule allows it — this file's drag/reorder cases are green as shipped, because
+  they reorder pictures the reader had assigned nothing to. This file's own rows and receipts stand as written.

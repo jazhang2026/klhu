@@ -203,7 +203,23 @@ statement and answer at this file's own gate (`spec.md`'s Clarifications item 6,
 **The device row is owed**: T039 (quickstart row 18) is walked in Phase 7's pass, with the rest of the walk — the
 unit case above is the rule's own receipt until then.
 
-## Implement pass 2 (2026-10-14) — US1, end to end
+
+- **2026-10-15 — the movability rule, by 021** (`specs/021-picture-pass`, FR-005's own decision of that day):
+  what decides whether a picture may take another place is **the reader's own run**, not `AssignmentAnswer`'s
+  `effective` answer — that answer carries FR-006's tail fallback, and counting it as "holding" is what refused a
+  move on a picture the reader had given nothing. `mayDrag(AssignmentAnswer, int)` became
+  `mayMove(List<PictureRun>, int)`, its cases live in `test/picture_assignment_test.dart` under that name, and the
+  drag this file's FR-015 put on the pass is retired there (021 D10) — the move is two buttons under the large
+  picture, and a hold now opens it. This file's own rows and receipts stand as written.
+- **2026-10-15 — the pass's own walk parser's subject, by 021** (FR-002's own decision): the file name is no longer
+  **painted** on the pass; it survives as each cell's **semantic label** and the count beside it is the number alone
+  (021 FR-019). `chip_line`'s one-node shape (`<name>\n<count>`) still reads the strip, so this file's rows 6-11 and
+  16 remain valid — what changed under them is the *text* of the count (`No sentences assigned` → `0`, `N sentences`
+  → `N`). Two of this file's own helper preconditions are therefore stale under 021 and are met on the device:
+  `assign()`'s clean-row check reads the cell's words, and its closing check writes `1 sentences` where the app's
+  own plural is `1 sentence` (this file's rows never assigned exactly one sentence). `klhu_walk_assignment.py` is
+  left as written; 021's own driver carries `assign_own()` and says why. The device evidence is in
+  `specs/021-picture-pass/breakpoint.md`.## Implement pass 2 (2026-10-14) — US1, end to end
 
 Rows **T008-T013**: the pass the reader assigns on, the keys it says things with, the dialog's own seam, and the
 renderer's split. The story's own Independent Test is row 6's, and it is walked in Phase 7 — what this pass
@@ -1176,3 +1192,8 @@ per this repository's rule that a record keeps what was true of its tree: the ch
 T021 created it. The closing paragraph of the coverage table — the requirements of **other** specs this feature
 moves or re-cuts — was lost with them and is restored here too, and the table itself is the one this pass
 re-read, which now carries FR-017's and SC-011's rows as well.
+- **2026-10-15 (later) — the cancelled prompt, by 021's own Amendment 2**: this file's FR-010/FR-013 (the
+  assignment outliving the prompt) now hold for a visit that ends in **Start** only. The reader's own decision:
+  "Cancel 之后记录本身就清掉（包括再选同样文件也不恢复）" — the prompt's own Cancel clears this content's stored
+  assignment, so picking the same files again finds nothing. The case that left a record by cancelling was re-cut to
+  write the store directly, in `test/reading_view_video_assignment_test.dart`.

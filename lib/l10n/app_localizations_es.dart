@@ -438,4 +438,34 @@ class AppLocalizationsEs extends AppLocalizations {
   String assignmentStaleDetail(String picture, String sentences) {
     return '$picture: $sentences oraciones';
   }
+
+  @override
+  String get assignmentClose => 'Cerrar';
+
+  @override
+  String get assignmentMoveLeft => 'Mover a la izquierda';
+
+  @override
+  String get assignmentMoveRight => 'Mover a la derecha';
+
+  @override
+  String get assignmentDeletePicture => 'Eliminar esta imagen';
+
+  @override
+  String get assignmentDeleteTitle => '¿Eliminar esta imagen?';
+
+  @override
+  String get assignmentDeleteBody => 'Esta imagen se quitará del vídeo.';
+
+  @override
+  String get assignmentSwitchTitle =>
+      '¿Dar esta frase a la imagen seleccionada?';
+
+  @override
+  String assignmentSwitchBody(String sentence) {
+    return '«$sentence» pertenece ahora a otra imagen; pasará a la seleccionada.';
+  }
+
+  @override
+  String get assignmentSwitchConfirm => 'Moverla';
 }

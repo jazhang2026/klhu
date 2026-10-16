@@ -124,3 +124,27 @@ Requirement:
     sentences assigned must be in order.
 
     Keep existing function if no assignment is made.
+
+021. Assign sentences page: show the picture itself, and the controls on it.
+    1. On Assign sentences page, I like to see the picture not the file name, so I can better understand the picture and to match sentences.
+    2. On Assign sentences page, I like to be able to move the position of  an un-assigned picture.
+    3. On Assign sentences page, I like to be able to delete an un-assigned picture.
+    4. On Assign sentences page, an already assigned sentence should have the selection check box disabled for other pictures.
+
+    filename is useless on the UI, don't show it. Only show sentences number on top right of thumnail. the number change in real time.
+    one tap select the thumnail to assign sentences(the thumnail is highlighted). sentence list is showing below.
+    tap+hold show large picture below. the thumnail is highlighted. the sentence list is hidden. If no sentences assigned to this picture, show move buttons and delete button. when move or delete is heppen, show the real change on the thumnails.
+    use close button to close the large picture and show the sentences list.
+    the pictures chosen dialog page should have same UI and function on the large picture, move and delete button.
+    Since the move and delete only happen to the selected large picture, file name is not needed. switch happens on two closed pictured. not use file name is OK.
+    the selected thumnail auto scroll to the middle of thumnail bar.
+
+    (2026-10-15 修订，读者本人：第 4 条已推翻 —— 不用「勾选框禁用」，改成别的图持有的句子仍可点、
+     弹警告并确认后换手（switch）。本条的原文保留如上，撤销只在此处注明；规格里的记录见
+     specs/021-picture-pass/spec.md 的 Clarifications 第 4 条。)
+
+    Issues:
+    1. last sentence already assigned to previous picture still able to assign to following picture.
+        (2026-10-15 定：这是 020 自己的实现缺陷，不是新需求 —— lib/picture_assignment.dart:149-151
+         两处次序边界用了严格比较，邻居的最后一句因此被静默接受、落进两条 run，违反 020 自己的 FR-005。
+         修法归 020，与 021 的 switch 同一段代码路径。)

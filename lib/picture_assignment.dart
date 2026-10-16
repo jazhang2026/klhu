@@ -117,8 +117,10 @@ enum AssignmentRefusal {
   /// removing one from the middle would leave that picture's sentences in two.
   middleOfRun,
 
-  /// FR-015: a picture that holds a sentence — assigned, or fed by the tail
-  /// fallback — cannot be moved.
+  /// FR-015: a picture that holds a sentence of the reader's cannot take
+  /// another place. The tail fallback does **not** count (spec 021 D3), so this
+  /// is no longer what decides the controls — the pass hides them (T012) — and
+  /// the reason stays for the record of what it answered.
   holdsSentences,
 }
 
@@ -131,6 +133,11 @@ enum AssignmentRefusal {
 /// territory is answered as "not in order", which is the more useful reason when
 /// both are broken (FR-012 asks for the rule that was broken, not for all of
 /// them).
+///
+/// A boundary sentence — the first of a later picture's run, the last of an
+/// earlier one's — is that picture's, and is refused here (spec 021): a tap on
+/// it is the **switch**'s gesture, and the reader is asked to confirm the
+/// sentence leaving its holder. Nothing is assigned across a boundary.
 AssignmentRefusal? refusedAdd({
   required List<VideoSentence> sentences,
   required List<PictureRun> runs,
@@ -146,10 +153,16 @@ AssignmentRefusal? refusedAdd({
     if (other == picture) continue;
     final held = indicesOfSpans(runs[other].spans, sentences);
     if (held.isEmpty) continue;
-    if (other < picture && index < held.last) {
+    // Inclusive on both sides: a run's own last (or first) sentence is that
+    // picture's, so it is refused here rather than written into two runs — the
+    // shape the reader reported on 2026-10-15, where a neighbour's last
+    // sentence passed both comparisons and landed in this picture's run as
+    // well. What the reader wanted from that tap is `refusedSwitch`, which
+    // takes the sentence away from its holder first.
+    if (other < picture && index <= held.last) {
       return AssignmentRefusal.notInOrder;
     }
-    if (other > picture && index > held.first) {
+    if (other > picture && index >= held.first) {
       return AssignmentRefusal.notInOrder;
     }
   }
@@ -179,14 +192,138 @@ AssignmentRefusal? refusedRemove({
   return null;
 }
 
-/// Whether the picture at [picture] may be dragged to another place (FR-015):
-/// only one that holds **nothing** may — and holding counts the sentences the
-/// tail fallback fed it, because moving such a picture would change which
-/// pictures the unassigned tail falls to (the reader's own rule of 2026-10-13).
-bool mayDrag(AssignmentAnswer answer, int picture) =>
-    picture >= 0 &&
-    picture < answer.effective.length &&
-    answer.effective[picture].sentences.isEmpty;
+/// Which picture's run holds the sentence at [index], or null when no run does
+/// (spec 021 D4).
+///
+/// The pass reads this before it decides what a tap means — the picture's own
+/// (take it back), another picture's (propose the switch), or nobody's (give it
+/// to the selected picture) — and the switch's own rule reads it the same way,
+/// so "mine" cannot come out one way on the page and another in the rule.
+int? holderOf({
+  required List<VideoSentence> sentences,
+  required List<PictureRun> runs,
+  required int index,
+}) {
+  for (var p = 0; p < runs.length; p++) {
+    if (indicesOfSpans(runs[p].spans, sentences).contains(index)) return p;
+  }
+  return null;
+}
+
+/// The reader's own [runs] with the sentence at [index] taken away from the
+/// picture at [picture]: the span goes, the picture and its other spans stay
+/// (spec 021 D4). The holder's own rule is what says whether it may go —
+/// this is the edit, not the answer to whether the edit is allowed.
+List<PictureRun> withoutSentence({
+  required List<VideoSentence> sentences,
+  required List<PictureRun> runs,
+  required int picture,
+  required int index,
+}) {
+  if (picture < 0 || picture >= runs.length) return runs;
+  final span = (sentences[index].start, sentences[index].end);
+  return [
+    for (var p = 0; p < runs.length; p++)
+      if (p != picture)
+        runs[p]
+      else
+        PictureRun(
+          name: runs[p].name,
+          spans: [for (final held in runs[p].spans) if (held != span) held],
+        ),
+  ];
+}
+
+/// Why giving the sentence at [index], which another picture's run holds, to
+/// the picture at [picture] is refused, or null when the reader may be warned
+/// and asked to confirm it (FR-011, FR-012, FR-013).
+///
+/// The switch is a **repair**, not a second assignment: the sentence leaves the
+/// picture that holds it, and only then does the target's own rule answer for
+/// it. So the holder's rule is read first — only an **end** of the holder's run
+/// can leave without leaving two behind, which is FR-016's own reason
+/// (`middleOfRun`) — and the target's rule second, against the runs the holder
+/// has already let go of.
+///
+/// Null is the answer for a sentence the target itself holds and for one no run
+/// holds: neither is a switch, and `refusedAdd` is what answers those taps.
+AssignmentRefusal? refusedSwitch({
+  required List<VideoSentence> sentences,
+  required List<PictureRun> runs,
+  required int picture,
+  required int index,
+}) {
+  if (picture < 0 || picture >= runs.length) return null;
+  final holder = holderOf(sentences: sentences, runs: runs, index: index);
+  if (holder == null || holder == picture) return null;
+  if (refusedRemove(
+        sentences: sentences,
+        runs: runs,
+        picture: holder,
+        index: index,
+      ) !=
+      null) {
+    return AssignmentRefusal.middleOfRun;
+  }
+  return refusedAdd(
+    sentences: sentences,
+    runs: withoutSentence(
+      sentences: sentences,
+      runs: runs,
+      picture: holder,
+      index: index,
+    ),
+    picture: picture,
+    index: index,
+  );
+}
+
+/// The reader's own [runs] with the sentence at [index] given to the picture at
+/// [picture] — the repair the switch applies once the reader has confirmed it
+/// (FR-012).
+///
+/// The span leaves whoever held it and joins the target's own spans **in the
+/// content's order**, so the run a render reads is still ascending and a
+/// sentence that was in one picture's run is in exactly one after the call:
+/// FR-013 by construction, rather than by a caller remembering to remove first.
+List<PictureRun> applySwitch({
+  required List<VideoSentence> sentences,
+  required List<PictureRun> runs,
+  required int picture,
+  required int index,
+}) {
+  if (picture < 0 || picture >= runs.length) return runs;
+  final span = (sentences[index].start, sentences[index].end);
+  final holder = holderOf(sentences: sentences, runs: runs, index: index);
+  return [
+    for (var p = 0; p < runs.length; p++)
+      if (p == holder)
+        PictureRun(
+          name: runs[p].name,
+          spans: [for (final held in runs[p].spans) if (held != span) held],
+        )
+      else if (p == picture) ...[
+        PictureRun(
+          name: runs[p].name,
+          spans: [...runs[p].spans, span]
+            ..sort((a, b) => a.$1.compareTo(b.$1)),
+        ),
+      ] else
+        runs[p],
+  ];
+}
+
+/// Whether the picture at [picture] may take another place (FR-015, spec 021
+/// D3): only one the **reader** gave nothing may.
+///
+/// The reader's own [runs] are the question, not the resolver's answer, because
+/// that answer carries FR-006's tail fallback as well: a picture the render
+/// feeds by itself is still a picture the reader assigned nothing to, and
+/// moving it is theirs to do. Counting the fallback as holding is what refused
+/// a move on a picture the reader had left empty (their report of 2026-10-15),
+/// and it is why this reads [runs].
+bool mayMove(List<PictureRun> runs, int picture) =>
+    picture >= 0 && picture < runs.length && runs[picture].spans.isEmpty;
 
 /// The reader's own [runs], minus the ones the resolver could not apply — what
 /// still fits after a content edit (FR-014), in the record's own form, ready for

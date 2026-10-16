@@ -820,6 +820,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{picture}: sentences {sentences}'**
   String assignmentStaleDetail(String picture, String sentences);
+
+  /// No description provided for @assignmentClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get assignmentClose;
+
+  /// No description provided for @assignmentMoveLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move left'**
+  String get assignmentMoveLeft;
+
+  /// No description provided for @assignmentMoveRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Move right'**
+  String get assignmentMoveRight;
+
+  /// No description provided for @assignmentDeletePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this picture'**
+  String get assignmentDeletePicture;
+
+  /// No description provided for @assignmentDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this picture?'**
+  String get assignmentDeleteTitle;
+
+  /// No description provided for @assignmentDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This picture will be removed from this video.'**
+  String get assignmentDeleteBody;
+
+  /// No description provided for @assignmentSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Give this sentence to the selected picture?'**
+  String get assignmentSwitchTitle;
+
+  /// No description provided for @assignmentSwitchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{sentence}\" belongs to another picture now; it moves to the selected one.'**
+  String assignmentSwitchBody(String sentence);
+
+  /// No description provided for @assignmentSwitchConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Move it'**
+  String get assignmentSwitchConfirm;
 }
 
 class _AppLocalizationsDelegate

@@ -119,5 +119,14 @@
   "assignmentRefusedMiddle": "只能解除一张图的第一句或最后一句。",
   "assignmentRefusedHoldsSentences": "这张图已有句子；先解除分配再移动它。",
   "assignmentStaleWarning": "{count, plural, =1 {有 1 条分配已不匹配这篇文字} other {有 {count} 条分配已不匹配这篇文字}}",
-  "assignmentStaleDetail": "{picture}：{sentences} 句"
+  "assignmentStaleDetail": "{picture}：{sentences} 句",
+  "assignmentClose": "关闭",
+  "assignmentMoveLeft": "向左移动",
+  "assignmentMoveRight": "向右移动",
+  "assignmentDeletePicture": "删除这张图片",
+  "assignmentDeleteTitle": "删除这张图片？",
+  "assignmentDeleteBody": "这张图片将从视频中移除。",
+  "assignmentSwitchTitle": "把这句交给选中的图片？",
+  "assignmentSwitchBody": "「{sentence}」现在属于另一张图片，将移到选中的这张。",
+  "assignmentSwitchConfirm": "移动"
 }

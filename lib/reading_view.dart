@@ -15,6 +15,7 @@ import 'package:klhu/models/content.dart';
 import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/picture_assignment_screen.dart';
 import 'package:klhu/picture_assignment_store.dart';
+import 'package:klhu/picture_cell.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
@@ -1865,7 +1866,17 @@ class _ReadingViewState extends State<ReadingView> {
         // FR-010): the pass starts from it rather than from nothing.
         runs: await _assignments.load(_anchorKey!),
       );
-      if (answer == null || !mounted) return;
+      if (!mounted) return;
+      if (answer == null) {
+        // **A cancelled prompt takes the record with it** (the reader's own
+        // decision of 2026-10-15: "Cancel 之后记录本身就清掉（包括再选同样文件也不
+        // 恢复）"). What they assigned in this visit — and what an earlier visit
+        // left for this content — is cleared, so picking the same files again
+        // does not bring it back. 020's FR-010 still holds for a visit that ends
+        // in Start: that is the only way a visit keeps its record now.
+        await _assignments.clearFor(_anchorKey!);
+        return;
+      }
       await _aspects.save(answer.aspect);
       await _startRender(
         answer.aspect,
@@ -1974,13 +1985,27 @@ class _ReadingViewState extends State<ReadingView> {
                           for (var i = 0; i < held.length; i++)
                             MovableThumbnail(
                               picture: held[i],
+                              count: _countOf(assigned, held[i]),
                               index: i,
+                              mayMove: _countOf(assigned, held[i]) == 0,
                               removeLabel: l10n?.videoPicturesRemove ??
                                   'Remove this picture',
-                              onRemove: () => setDialog(() {
-                                held = [...held]..removeAt(i);
-                                pickFailure = null;
-                              }),
+                              // The reader's own words for taking a picture
+                              // back stayed 012's; what changed is that the
+                              // prompt now **asks** first (021 FR-008).
+                              onRemove: () async {
+                                final go = await _confirmRemovePicture(
+                                  context,
+                                  l10n,
+                                  held[i],
+                                  _countOf(assigned, held[i]),
+                                );
+                                if (!go) return;
+                                setDialog(() {
+                                  held = [...held]..removeAt(i);
+                                  pickFailure = null;
+                                });
+                              },
                               onMoveTo: (from) => setDialog(() {
                                 held = movePicture(held, from, i);
                               }),
@@ -2034,12 +2059,28 @@ class _ReadingViewState extends State<ReadingView> {
                 ),
                 subtitle: Builder(
                   builder: (context) {
-                    // One number, read once: the sentences the reader has
-                    // assigned across every picture.
-                    final assignedCount = assigned.fold<int>(
-                      0,
-                      (total, run) => total + run.spans.length,
-                    );
+                    // **What is in force, not what is stored** (the reader's own
+                    // report of 2026-10-15: pick, assign, cancel, and the prompt
+                    // came back with no pictures and "8 sentences" under this
+                    // line). A record left by an earlier pick of the same content
+                    // stays **stored** — 020 FR-010 re-attaches it by name when
+                    // the same files are picked again — so the number counts the
+                    // reader's own runs **for the pictures in the prompt now**,
+                    // and with none picked it is the app's own "No sentences
+                    // assigned".
+                    //
+                    // What this still does not do, and 020's own line did not
+                    // either: resolve those runs against the render's own
+                    // sentences. A run whose text has moved on is counted here
+                    // until the pass, FR-014's warning and the render answer for
+                    // it — bringing that resolution here would mean handing this
+                    // prompt the video's sentence list.
+                    final inForce = <String>{
+                      for (final picture in held) picture.name,
+                    };
+                    final assignedCount = assigned
+                        .where((run) => inForce.contains(run.name))
+                        .fold<int>(0, (total, run) => total + run.spans.length);
                     return Text(
                       assignedCount == 0
                           ? (l10n?.assignmentNothingAssigned ??
@@ -3000,20 +3041,77 @@ const double pictureWindowHeight = 152;
 /// when the picture was chosen (D18), so what the reader sees here is exactly
 /// what the render will copy — and the decode is bounded by [cacheWidth], since a
 /// phone photo is many megapixels and this is a thumbnail.
+/// How many sentences the reader's own runs give [picture] — what the prompt's
+/// own cell carries (021 FR-010, FR-019), counted the way the pass counts.
+int _countOf(List<PictureRun> runs, HeldPicture picture) => runs
+    .firstWhere(
+      (run) => run.name == picture.name,
+      orElse: () => PictureRun(name: picture.name, spans: const []),
+    )
+    .spans
+    .length;
+
+/// Asks before taking a picture back from the prompt (021 FR-008, FR-014): the
+/// confirmation names the picture by its own cell — never by its file name — and
+/// cancelling leaves the choice exactly as it was.
+Future<bool> _confirmRemovePicture(
+  BuildContext context,
+  AppLocalizations? l10n,
+  HeldPicture picture,
+  int count,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(l10n?.assignmentDeleteTitle ?? 'Delete this picture?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PictureCell(picture: picture, count: count, size: 120, showCount: false),
+          const SizedBox(height: 12),
+          Text(
+            l10n?.assignmentDeleteBody ??
+                'This picture will be removed from this video.',
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n?.cancelButton ?? 'Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l10n?.deleteButton ?? 'Delete'),
+        ),
+      ],
+    ),
+  );
+  return confirmed ?? false;
+}
+
 class ChosenThumbnail extends StatelessWidget {
   const ChosenThumbnail({
     super.key,
     required this.picture,
+    required this.count,
     required this.removeLabel,
-    required this.onRemove,
+    this.onRemove,
   });
 
   final HeldPicture picture;
 
+  /// How many sentences the reader's own runs give it (021 FR-010, FR-019).
+  final int count;
+
   /// What the remove button says, from the app's own copy (FR-031).
   final String removeLabel;
 
-  final VoidCallback onRemove;
+  /// The remove, or null where there is none to offer: a picture holding a
+  /// sentence of the reader's is not theirs to delete (021 FR-005), and the
+  /// control is simply absent — what says why is the picture's own count on the
+  /// cell (021 FR-019).
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -3022,40 +3120,26 @@ class ChosenThumbnail extends StatelessWidget {
     child: Stack(
       fit: StackFit.expand,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.file(
-            File(picture.path),
-            fit: BoxFit.cover,
-            cacheWidth: 144,
-            // A picture the platform handed over but nothing can decode is shown
-            // as what it is — a hole in the choice — rather than crashing the
-            // prompt the reader is standing in.
-            errorBuilder: (context, error, stack) => ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: const Icon(Icons.broken_image_outlined, size: 20),
+        PictureCell(picture: picture, count: count),
+        if (onRemove != null)
+          Align(
+            alignment: Alignment.topRight,
+            child: IconButton(
+              tooltip: removeLabel,
+              onPressed: onRemove,              iconSize: 14,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black54,
+                foregroundColor: Colors.white,
+                // A padded tap target is 48×48 — two thirds of the cell — and it
+                // would take the hold that moves the picture with it: the corner
+                // button is the size it looks, and the rest of the cell is the
+                // reader's own to move (FR-032).
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.close),
             ),
-          ),
-        ),
-        Align(
-          alignment: Alignment.topRight,
-          child: IconButton(
-            tooltip: removeLabel,
-            onPressed: onRemove,
-            iconSize: 14,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.black54,
-              foregroundColor: Colors.white,
-              // A padded tap target is 48×48 — two thirds of the cell — and it
-              // would take the hold that moves the picture with it: the corner
-              // button is the size it looks, and the rest of the cell is the
-              // reader's own to move (FR-032).
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            icon: const Icon(Icons.close),
-          ),
         ),
       ],
     ),
@@ -3075,7 +3159,9 @@ class MovableThumbnail extends StatelessWidget {
   const MovableThumbnail({
     super.key,
     required this.picture,
+    required this.count,
     required this.index,
+    required this.mayMove,
     required this.removeLabel,
     required this.onRemove,
     required this.onMoveTo,
@@ -3085,13 +3171,27 @@ class MovableThumbnail extends StatelessWidget {
 
   final HeldPicture picture;
 
+  /// How many sentences the reader's own runs give it — what its own cell shows
+  /// (021 FR-010, FR-019).
+  final int count;
+
   /// Where this picture stands in the choice, which is what the drag carries.
   final int index;
+
+  /// Whether the reader may take this picture to another place at all (021
+  /// FR-005): a picture holding a sentence of the reader's may not be moved, and
+  /// the prompt offers neither the hold that moves it nor the remove that takes
+  /// it back. What says why is the count on its own cell.
+  final bool mayMove;
 
   /// What the remove button says, from the app's own copy (FR-031).
   final String removeLabel;
 
-  final VoidCallback onRemove;
+  /// The remove, or null where there is none to offer: a picture holding a
+  /// sentence of the reader's is not theirs to delete (021 FR-005), and the
+  /// control is simply absent — what says why is the picture's own count on the
+  /// cell (021 FR-019).
+  final VoidCallback? onRemove;
 
   /// Move the picture at [from] to this cell.
   final void Function(int from) onMoveTo;
@@ -3104,7 +3204,21 @@ class MovableThumbnail extends StatelessWidget {
   final VoidCallback? onDragEnd;
 
   @override
-  Widget build(BuildContext context) => DragTarget<int>(
+  Widget build(BuildContext context) {
+    // A picture the reader gave sentences to is the reader's own to un-assign,
+    // not to move or delete (021 FR-005, decided 2026-10-15): the prompt offers
+    // no gesture on it, and its own count on the cell says why.
+    if (!mayMove) {
+      return ChosenThumbnail(
+        picture: picture,
+        count: count,
+        removeLabel: removeLabel,
+      );
+    }
+    return _draggable(context);
+  }
+
+  Widget _draggable(BuildContext context) => DragTarget<int>(
     onWillAcceptWithDetails: (details) => details.data != index,
     onAcceptWithDetails: (details) => onMoveTo(details.data),
     builder: (context, candidate, rejected) => LongPressDraggable<int>(
@@ -3122,6 +3236,7 @@ class MovableThumbnail extends StatelessWidget {
         color: Colors.transparent,
         child: ChosenThumbnail(
           picture: picture,
+          count: count,
           removeLabel: removeLabel,
           onRemove: () {},
         ),
@@ -3130,6 +3245,7 @@ class MovableThumbnail extends StatelessWidget {
         opacity: 0.3,
         child: ChosenThumbnail(
           picture: picture,
+          count: count,
           removeLabel: removeLabel,
           onRemove: onRemove,
         ),
@@ -3141,6 +3257,7 @@ class MovableThumbnail extends StatelessWidget {
         color: Colors.transparent,
         child: ChosenThumbnail(
           picture: picture,
+          count: count,
           removeLabel: removeLabel,
           onRemove: onRemove,
         ),

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>021 — Assign sentences 页：缩略图、选中、大图与控件（读者 2026-10-15 定稿）</title>
+<style>
+  :root { --ink:#1a1a1a; --dim:#6b6b6b; --line:#d8d8d8; --paper:#faf9f7; --box:#ffffff; --hi:#f3efe6;
+          --no:#f6e9e6; --ok:#e9f1ea; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:32px 28px 56px; background:var(--paper); color:var(--ink);
+         font:15px/1.55 -apple-system,"Segoe UI","Noto Sans CJK SC",sans-serif; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--dim); margin:0 0 8px; font-size:14px; max-width:1120px; }
+  .note { color:var(--dim); font-size:13px; margin:0 0 26px; max-width:1120px; }
+  .grid { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  .col { width:330px; }
+  .col > h2 { font-size:15.5px; margin:0 0 2px; }
+  .tag { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim);
+         display:inline-block; margin:0 0 6px; padding:1px 7px; border:1px solid var(--line); border-radius:99px; }
+  .tag.chosen { background:var(--ok); border-color:#b7cbb9; color:#33513a; }
+  .tag.refused { background:var(--no); border-color:#d9b7ad; color:#7a4030; }
+  .cost { color:var(--dim); font-size:13px; margin:0 0 12px; min-height:56px; }
+  .phone { background:var(--box); border:1px solid var(--line); border-radius:14px; padding:14px 12px;
+           box-shadow:0 1px 2px rgba(0,0,0,.04); min-height:300px; }
+  .bar { display:flex; justify-content:space-between; align-items:center; font-size:14px;
+         font-weight:600; margin:0 0 12px; }
+  .bar .done { font-weight:400; }
+  /* the thumbnail bar: an overflow strip whose selected cell is centred (FR-007) */
+  .strip { position:relative; overflow:hidden; border:1px dashed var(--line); border-radius:10px;
+           padding:8px 4px; margin-bottom:12px; }
+  .strip .mid { position:absolute; left:50%; top:0; bottom:0; width:1px; background:#cbbfa4; opacity:.55; }
+  .chips { display:flex; gap:8px; justify-content:center; }
+  .chip { position:relative; border:2px solid transparent; border-radius:10px; padding:3px; background:#fff;
+          min-width:86px; }
+  .chip.sel { border-color:#c9a227; background:var(--hi); }
+  .th { width:100%; height:56px; border-radius:7px; }
+  .w { background:linear-gradient(#fff,#f2f2f2); border:1px solid #e3e3e3; }
+  .b { background:linear-gradient(#3a3a3a,#111); border:1px solid #111; }
+  .r { background:linear-gradient(#e05a4a,#b41f14); border:1px solid #b41f14; }
+  .dot { position:absolute; top:-6px; right:-6px; background:#1a1a1a; color:#fff; border-radius:99px;
+         font-size:11px; padding:1px 6px; }
+  .row { display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:8px;
+         border:1px solid var(--line); margin-bottom:6px; font-size:13.5px; background:#fff; }
+  .row .n { color:var(--dim); font-size:12px; }
+  .row.held { background:#fbfaf6; }
+  .row.other { background:#f7f6f2; }
+  .box { border:1px solid var(--line); border-radius:12px; background:#fff; padding:12px; margin:0 0 10px;
+         box-shadow:0 2px 6px rgba(0,0,0,.06); }
+  .box h3 { margin:0 0 6px; font-size:14px; }
+  .box p { margin:0 0 10px; font-size:13px; }
+  .btns { display:flex; gap:8px; margin-top:8px; }
+  .btn { flex:1; text-align:center; padding:8px 0; border-radius:9px; border:1px solid var(--line);
+         font-size:13.5px; background:#fff; }
+  .btn.go { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+  .moves { display:flex; gap:6px; margin-top:8px; }
+  .mv { flex:1; text-align:center; border:1px solid var(--line); border-radius:8px; padding:7px 0;
+        font-size:12.5px; background:#fff; }
+  .pair { display:flex; gap:10px; align-items:center; margin:0 0 8px; }
+  .pair .mini { width:74px; height:48px; border-radius:6px; flex:0 0 auto; }
+  .qa { margin:34px 0 0; }
+  .qa table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  .qa th, .qa td { border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top; }
+  .qa th { background:#f2f0eb; font-weight:600; }
+  .small { font-size:12.5px; color:var(--dim); }
+</style>
+</head>
+<body>
+<h1>021 — Assign sentences 页：缩略图 · 选中 · 大图 · 控件</h1>
+<p class="sub">画的是读者 2026-10-15 亲自定下的形状（<code>text.txt</code> 的 021 条 + 会话里的第二版说明），不是本阶段最初的 1B 读法。
+<b>页面上没有任何文件名</b>：只有图片本身，和它右上角的句子数。被拒的邻居同样画出并标注，字符串来源见文末表格。</p>
+<p class="note">今日实况的对照：020 走查的静帧（<code>/tmp/020_row6_pass_open.png</code> 等）已随 /tmp 清掉，所以第一栏是
+<code>breakpoint.md</code> 里逐字的 dump。证据优先那一步要重做：改代码前先在 <code>emulator-5554</code> 上按同一夹具再取静帧。</p>
+
+<div class="grid">
+
+  <div class="col">
+    <span class="tag">今天（走查记录）</span>
+    <h2>1. 只有文件名</h2>
+    <p class="cost">chip 两行都是文字；要分辨两张图只能读文件名。移动只有长按拖拽：读者实测「长按 1.6s 再移动」被拒，
+    「直接拖动」是页面滚动。</p>
+    <div class="phone">
+      <div class="bar"><span>Assign sentences</span><span class="done">Done</span></div>
+      <div class="chips" style="justify-content:flex-start">
+        <div class="chip sel" style="padding:7px 9px"><div class="small">w020_white.png</div><div class="small">4 sentences</div></div>
+        <div class="chip" style="padding:7px 9px"><div class="small">w020_black.png</div><div class="small">No sentences assigned</div></div>
+      </div>
+      <div class="row"><span>Line one is here.</span><span class="n">w020_white.png</span></div>
+      <div class="row"><span>Line two says this.</span><span class="n">w020_white.png</span></div>
+      <div class="row"><span>Line five now.</span><span class="n">w020_white.png</span></div>
+      <p class="small">长按尝试的结果是这条（逐字）：<br>“This picture holds sentences; un-assign them before moving it.”</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <span class="tag chosen">读者定 — 选中与分配</span>
+    <h2>2. 点一下选中，实时计数</h2>
+    <p class="cost">缩略图右上角是句子数（角标，读者原话「Only show sentences number on top right of thumnail」），
+    给一句就变一次，没有文件名。选中的那张自动滚到缩略图条的正中。</p>
+    <div class="phone">
+      <div class="bar"><span>Assign sentences</span><span class="done">Done</span></div>
+      <div class="strip">
+        <div class="mid"></div>
+        <div class="chips">
+          <div class="chip"><span class="dot">0</span><div class="th w"></div></div>
+          <div class="chip sel"><span class="dot">4</span><div class="th b"></div></div>
+          <div class="chip"><span class="dot">0</span><div class="th r"></div></div>
+        </div>
+      </div>
+      <div class="row held"><span>Line one is here.</span><span class="n">✓</span></div>
+      <div class="row held"><span>Line two says this.</span><span class="n">✓</span></div>
+      <div class="row"><span>Line three is next.</span><span class="n"></span></div>
+      <div class="row other"><span>Line five now.</span><span class="n">▪ 另一张图持有</span></div>
+      <p class="small">句子列表在下面，属于选中的那张；别的图持有的句子在这里标出「属于哪张图」——用图，不用名字。</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <span class="tag chosen">读者定 — 大图与控件</span>
+    <h2>3. tap+hold → 大图，列表收起</h2>
+    <p class="cost">按住缩略图：大图画在条纹下方，句子列表收起，缩略图仍高亮。<b>这张图没有被分配句子时</b>，
+    大图下面出现移动（左右）与删除两个按钮；有句子被分配时，两个按钮都不出现。移动/删除后，条纹上立刻是结果。</p>
+    <div class="phone">
+      <div class="bar"><span>Assign sentences</span><span class="done">Done</span></div>
+      <div class="strip"><div class="mid"></div>
+        <div class="chips">
+          <div class="chip"><span class="dot">4</span><div class="th w"></div></div>
+          <div class="chip sel"><span class="dot">0</span><div class="th b"></div></div>
+          <div class="chip"><span class="dot">0</span><div class="th r"></div></div>
+        </div>
+      </div>
+      <div class="th b" style="height:132px"></div>
+      <div class="moves"><div class="mv">◀ Move left</div><div class="mv">Move right ▶</div></div>
+      <div class="btns"><div class="btn">Delete this picture</div></div>
+      <div class="btns"><div class="btn">Close</div></div>
+      <p class="small">同一张缩略图，若它持有句子：大图下只有 <b>Close</b>（没有移动、没有删除），也就没有那条
+      「This picture holds sentences…」的拒绝要弹。</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <span class="tag chosen">读者定 — 两个确认框</span>
+    <h2>4. 删除与切换都要先确认</h2>
+    <p class="cost">读者原话「all delete should have worning/confirm msg box」；切换的警告用<b>两张图</b>说清谁持有、谁将持有
+    （「switch happens on two closed pictured. not use file name is OK」）。</p>
+    <div class="phone">
+      <div class="box">
+        <h3>Delete this picture?</h3>
+        <div class="pair"><div class="mini th b"></div><div class="small">This picture is not used by any sentence yet.</div></div>
+        <div class="btns"><div class="btn">Cancel</div><div class="btn go">Delete</div></div>
+      </div>
+      <div class="box">
+        <h3>Give this sentence to the selected picture?</h3>
+        <div class="pair"><div class="mini th w"></div><div class="small">“Line four follows it.” — held by this picture now</div></div>
+        <div class="pair"><div class="mini th b"></div><div class="small">moves to the selected picture (4 sentences)</div></div>
+        <div class="btns"><div class="btn">Cancel</div><div class="btn go">Move it</div></div>
+      </div>
+      <p class="small">切换不放宽连续与次序：中间那句仍按原文被拒（“Only the first or last sentence of a picture can
+      be removed.”），不弹这个框。</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <span class="tag chosen">读者定 — 对话框同款</span>
+    <h2>5. pictures chosen 页同 UI 同功能</h2>
+    <p class="cost">对话框里已选的图片同样是缩略图条：按住出大图，大图下是同一套移动/删除（同样只在「这张图没有被分配句子」时出现），
+    <b>Remove this picture</b> 也改成先确认。代价：012 的「任何已选图都能移动」在已分配时被改窄。</p>
+    <div class="phone">
+      <div class="bar"><span>Video format</span><span class="done">Cancel</span></div>
+      <div class="small">16:9 landscape 1080p · 3 pictures chosen</div>
+      <div class="strip" style="margin-top:10px"><div class="mid"></div>
+        <div class="chips">
+          <div class="chip"><span class="dot">4</span><div class="th w"></div></div>
+          <div class="chip sel"><span class="dot">0</span><div class="th b"></div></div>
+        </div>
+      </div>
+      <div class="th b" style="height:110px"></div>
+      <div class="moves"><div class="mv">◀ Move left</div><div class="mv">Move right ▶</div></div>
+      <div class="btns"><div class="btn">Delete this picture</div></div>
+      <div class="btns"><div class="btn">Close</div></div>
+      <div class="btns"><div class="btn go">Start</div></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <span class="tag refused">被拒的邻居</span>
+    <h2>6. 读者没有选的形状</h2>
+    <p class="cost">同样按真实字符串画出，只写清拒绝的理由。</p>
+    <div class="phone">
+      <div class="chips" style="justify-content:flex-start;opacity:.6">
+        <div class="chip" style="padding:6px"><div class="th w"></div><div class="small">w020_white.png</div><span class="dot">4</span></div>
+        <div class="chip" style="padding:6px"><div class="th b"></div><div class="small">w020_black.png</div><span class="dot">4</span></div>
+      </div>
+      <p class="small"><b>(1A / 1B 初读)</b> 缩略图旁保留文件名（醒目或降权）—— 读者原话「filename is useless on the UI, don't show it」。</p>
+      <p class="small"><b>(点一下出大图)</b> 单击=预览浮层 —— 读者把单击改成「选中并分配」，大图挪到按住了。</p>
+      <div class="row other" style="opacity:.7"><span>Line four follows it.</span><span class="n">🔒</span></div>
+      <p class="small"><b>(4A)</b> 别的图持有的句子不可点、勾选框置灰 —— 读者自己推翻（<code>4.</code>）：要的是「确认后换手」。</p>
+      <p class="small"><b>(拖拽)</b> 保留长按拖拽作为唯一移动方式 —— 读者两次实测为判据，手势被滚动轴抢走，不可依赖。</p>
+      <div class="box" style="opacity:.7">
+        <h3>No confirmation</h3>
+        <p class="small">delete 立即执行、不弹框 —— 读者原话「all delete should have worning/confirm msg box」。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="qa">
+<h2 style="font-size:16px;margin:0 0 8px">每一条字符串的来源</h2>
+<table>
+<tr><th>字符串</th><th>来源</th></tr>
+<tr><td><code>Assign sentences</code> · <code>Done</code> · <code>4 sentences</code> · <code>No sentences assigned</code> · <code>Remove this sentence</code></td>
+    <td>020 设备走查记录（<code>breakpoint.md</code> 行 6-13 的 dump 逐字），app 现有文案</td></tr>
+<tr><td><code>This picture holds sentences; un-assign them before moving it.</code> · <code>Only the first or last sentence of a picture can be removed.</code> · <code>That sentence comes before sentences an earlier picture already has.</code> · <code>Only the sentences next to the ones this picture already has can be added.</code></td>
+    <td>同上（四条拒绝的逐字）；第一条在新形状下<b>没有界面可弹</b>（按钮直接不出现），plan 阶段要交代它在别处是否还可达</td></tr>
+<tr><td><code>Remove this picture</code> · <code>3 pictures chosen</code> · <code>Start</code> · <code>Cancel</code> · <code>16:9 landscape 1080p</code></td>
+    <td>012 的对话框，走查日志逐字</td></tr>
+<tr><td>缩略图右上角的<b>数字</b>（<code>0</code> / <code>4</code>）</td>
+    <td><b>新</b>：读者要求「Only show sentences number」。角标里只有数字；<code>N sentences</code>/<code>No sentences assigned</code>
+        这两个现有词是否还留在别处，由 plan 决定</td></tr>
+<tr><td><code>Close</code> · <code>Move left</code> / <code>Move right</code> · <code>Delete this picture</code> · <code>Delete this picture?</code> · <code>Give this sentence to the selected picture?</code> · <code>Move it</code></td>
+    <td><b>新文案</b>（本示意图提出，plan 门定稿）；四个 ARB 都必须有</td></tr>
+</table>
+<p class="small" style="margin-top:10px"><b>证据优先</b>：改代码前，先在模拟器上用同一夹具（三张图；未分配、以及 4-3-3）
+各取一张静帧，与第 1 栏并排看 —— 这是 021 第一条走查行的第一个动作，不靠记忆。</p>
+</div>
+</body>
+</html>

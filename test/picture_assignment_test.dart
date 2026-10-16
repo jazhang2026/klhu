@@ -381,41 +381,47 @@ void main() {
           isNull);
     });
 
-    test('only a picture holding nothing may be dragged, and the fallback '
-        'counts as holding', () {
-      // a holds 0, and b is the picture the tail falls back to, so b carries
-      // sentences although the reader assigned it none (FR-006/FR-015).
-      final runs = runsOf({
-        'a.png': [0],
-      });
-      final answer = assignmentsFor(
-        sentences: s,
-        pictures: picks,
-        runs: runs,
-      );
+    test('a picture the reader gave nothing may take another place, even when '
+        'the render\'s fallback feeds it', () {
+      // a holds sentence 1, and the tail falls back to b and c, so b and c
+      // carry sentences although the reader assigned them none (FR-006). What
+      // decides whether the reader may move a picture is **the reader's own
+      // run** (spec 021 D3): the fallback is an outcome of the render, not a
+      // decision of theirs — the reader's own report of 2026-10-15 was that a
+      // picture they gave nothing to was refused a move because of it.
+      final runs = [
+        _run(s, 'a.png', [0]),
+        _run(s, 'b.png', []),
+        _run(s, 'c.png', []),
+      ];
+      final answer = assignmentsFor(sentences: s, pictures: picks, runs: runs);
 
       expect(answer.effective[1].sentences, isNotEmpty,
           reason: 'the tail fell to b');
-      expect(mayDrag(answer, 0), isFalse, reason: 'a holds a sentence');
-      expect(mayDrag(answer, 1), isFalse,
-          reason: 'and b holds the tail the render fed it (FR-015)');
-      expect(mayDrag(answer, 2), isFalse,
-          reason: 'c is fed by the same fallback');
+      expect(answer.effective[2].sentences, isNotEmpty,
+          reason: 'and to c');
+      expect(mayMove(runs, 0), isFalse,
+          reason: 'a holds a sentence of the reader\'s');
+      expect(mayMove(runs, 1), isTrue,
+          reason: 'b holds only what the render fed it');
+      expect(mayMove(runs, 2), isTrue, reason: 'and c the same');
     });
 
-    test('a picture nothing reaches may be dragged', () {
+    test('a picture the reader gave nothing and nothing reaches may be moved',
+        () {
       // a holds 0..2, b holds 3..5: nothing is left for c, and neither a nor b
-      // can move.
-      final runs = runsOf({
-        'a.png': [0, 1, 2],
-        'b.png': [3, 4, 5],
-      });
+      // may move.
+      final runs = [
+        _run(s, 'a.png', [0, 1, 2]),
+        _run(s, 'b.png', [3, 4, 5]),
+        _run(s, 'c.png', []),
+      ];
       final answer = assignmentsFor(sentences: s, pictures: picks, runs: runs);
 
       expect(answer.effective[2].sentences, isEmpty);
-      expect(mayDrag(answer, 2), isTrue);
-      expect(mayDrag(answer, 0), isFalse);
-      expect(mayDrag(answer, 1), isFalse);
+      expect(mayMove(runs, 2), isTrue);
+      expect(mayMove(runs, 0), isFalse);
+      expect(mayMove(runs, 1), isFalse);
     });
   });
 

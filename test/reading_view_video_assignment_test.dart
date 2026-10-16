@@ -15,7 +15,6 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -24,6 +23,8 @@ import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/picture_assignment_screen.dart';
+import 'package:klhu/picture_assignment_store.dart';
+import 'package:klhu/picture_cell.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/reading_view.dart';
 import 'package:klhu/services/content_store.dart';
@@ -248,33 +249,38 @@ void main() {
       .map((row) => (row.title! as Text).data!)
       .toList();
 
-  /// The name line of every picture chip, in the pass's own order.
-  List<String> passChips(WidgetTester tester) => tester
-      .widgetList<ChoiceChip>(
+  /// The strip's cell for [name], found by the name it **carries** (FR-002) and
+  /// scoped to the pass itself: the prompt standing behind it draws the same
+  /// cell at the same size now (021 FR-010), so an unscoped finder matches two
+  /// pictures for one name.
+  Finder cellOf(String name) => find.descendant(
+    of: find.byType(PictureAssignmentScreen),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is PictureCell && widget.size == 72 && widget.picture.name == name,
+    ),
+  );
+
+  /// The strip's own pictures, in the pass's own order (spec 021 FR-001): the
+  /// cells carry them, since the name is not painted any more (FR-002).
+  List<String> passCells(WidgetTester tester) => tester
+      .widgetList<PictureCell>(
         find.descendant(
           of: find.byType(PictureAssignmentScreen),
-          matching: find.byType(ChoiceChip),
+          matching: find.byType(PictureCell),
         ),
       )
-      .map((chip) => ((chip.label as Column).children.first as Text).data!)
+      .where((cell) => cell.size == 72)
+      .map((cell) => cell.picture.name)
       .toList();
 
-  /// The count line under picture [name]'s chip.
-  String passCount(WidgetTester tester, String name) {
-    final chips = tester.widgetList<ChoiceChip>(
-      find.descendant(
-        of: find.byType(PictureAssignmentScreen),
-        matching: find.byType(ChoiceChip),
-      ),
-    );
-    for (final chip in chips) {
-      final column = chip.label as Column;
-      if ((column.children.first as Text).data == name) {
-        return (column.children[1] as Text).data!;
-      }
-    }
-    throw StateError('no chip for $name');
-  }
+  /// What picture [name]'s own cell shows at its top right — the number alone
+  /// (FR-019), read off the painted badge rather than off the widget.
+  String passCount(WidgetTester tester, String name) => tester
+      .widget<Text>(
+        find.descendant(of: cellOf(name), matching: find.byType(Text)),
+      )
+      .data!;
 
   Future<void> tapSentence(WidgetTester tester, String text) async {
     await tester.tap(
@@ -286,13 +292,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-    /// The chip itself, not the sentence list's own label for the same picture
-  /// (a held sentence shows its holder's name): the chip is the one inside a
-  /// `ChoiceChip`, and there is exactly one of those per picture.
-  Finder chipOf(String name) => find
-      .ancestor(of: find.text(name), matching: find.byType(ChoiceChip))
-      .first;
-
+  
   /// A library holding the reader's **own** content — no pre-set, because
   /// FR-014's story is a content **edited under** an assignment and a pre-set
   /// cannot be edited in place (016's own rule: editing a pre-set makes new
@@ -314,43 +314,51 @@ void main() {
     return (store, entry!);
   }
 
-  /// The reader's own assignment on the **old** text: sunset the first sentence,
-  /// hills the second, forest the last two — in order, as the rule asks — then
-  /// the prompt is left without rendering (the store keeps the assignment).
+  /// The record a visit leaves on the **old** text, written where the record
+  /// lives: sunset the first sentence, hills the second, forest the last two — in
+  /// order, as the rule asks.
+  ///
+  /// Written through the store rather than walked through the prompt, because of
+  /// the reader's own decision of 2026-10-15 ("Cancel 之后记录本身就清掉（包括再选
+  /// 同样文件也不恢复）"): the path that used to leave a record behind — assign, then
+  /// cancel — now takes it away, so the state these cases need is the store's own
+  /// to set. What the app does with it is unchanged: the prompt loads it, the
+  /// resolver matches it by name, and the pass shows it.
   Future<void> assignOnTheOldText(
     WidgetTester tester,
     ContentStore store,
+    SavedContent entry,
   ) async {
-    await openDialogWith(
-      tester,
-      ShortEngine(),
-      RecordingEncoder(work),
-      [_sunset, _hills, _forest],
-      store: store,
+    final before = await tester.runAsync(
+      () => videoSentencesFrom(
+        content: _oldText,
+        position: 0,
+        loadVoice: (language) async => null,
+      ),
     );
-    final l10n = AppLocalizations.of(
-      tester.element(find.byType(ReadingView)),
-    )!;
-    await tester.tap(find.text(l10n.assignmentOpenButton));
-    await letWorkRun(
-      tester,
-      () => find.byType(PictureAssignmentScreen).evaluate().isNotEmpty,
+    expect(before, hasLength(4), reason: 'fixture drift');
+    await tester.runAsync(
+      () => PictureAssignmentStore().save(
+        entry.id,
+        runs: [
+          PictureRun(
+            name: _sunset,
+            spans: [(before![0].start, before[0].end)],
+          ),
+          PictureRun(
+            name: _hills,
+            spans: [(before[1].start, before[1].end)],
+          ),
+          PictureRun(
+            name: _forest,
+            spans: [
+              (before[2].start, before[2].end),
+              (before[3].start, before[3].end),
+            ],
+          ),
+        ],
+      ),
     );
-    await tapSentence(tester, 'One two.');
-    await tester.tap(find.text(_hills));
-    await tester.pumpAndSettle();
-    await tapSentence(tester, 'Three four.');
-    await tester.tap(find.text(_forest));
-    await tester.pumpAndSettle();
-    await tapSentence(tester, 'Five six.');
-    await tapSentence(tester, 'Seven eight.');
-    await tester.tap(find.text('Done'));
-    await letWorkRun(
-      tester,
-      () => find.byType(PictureAssignmentScreen).evaluate().isEmpty,
-    );
-    await tester.tap(find.text('Cancel'));
-    await letWorkRun(tester, () => find.text('Video format').evaluate().isEmpty);
   }
 
   group('the pass itself', () {
@@ -372,9 +380,9 @@ void main() {
       // The sentences are the render's own, in the render's own order: what the
       // reader assigns here is what the video will paint (D6).
       expect(passRows(tester), ['One two.', 'Three four.', 'Five six.']);
-      expect(passChips(tester), [_sunset, _hills]);
-      expect(passCount(tester, _sunset), 'No sentences assigned');
-      expect(passCount(tester, _hills), 'No sentences assigned');
+      expect(passCells(tester), [_sunset, _hills]);
+      expect(passCount(tester, _sunset), '0');
+      expect(passCount(tester, _hills), '0');
     });
 
     testWidgets('a tap gives the sentence to the picture selected, and the '
@@ -386,15 +394,15 @@ void main() {
       );
 
       await tapSentence(tester, 'One two.');
-      expect(passCount(tester, _sunset), '1 sentence');
+      expect(passCount(tester, _sunset), '1');
       await tapSentence(tester, 'Three four.');
-      expect(passCount(tester, _sunset), '2 sentences');
+      expect(passCount(tester, _sunset), '2');
 
       // The second picture carries the third sentence.
-      await tester.tap(find.text(_hills));
+      await tester.tap(cellOf(_hills));
       await tester.pumpAndSettle();
       await tapSentence(tester, 'Five six.');
-      expect(passCount(tester, _hills), '1 sentence');
+      expect(passCount(tester, _hills), '1');
 
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
@@ -412,13 +420,13 @@ void main() {
     testWidgets('a sentence another picture holds says so', (tester) async {
       await openPass(tester, pictures: pictures, sentences: sentences);
 
-      await tester.tap(find.text(_hills));
+      await tester.tap(cellOf(_hills));
       await tester.pumpAndSettle();
       await tapSentence(tester, 'Five six.');
       // Back on the first picture, that sentence is visibly someone else's —
       // FR-002's "each picture's own sentences visible" (FR-005: a sentence
       // belongs to one picture).
-      await tester.tap(find.text(_sunset));
+      await tester.tap(cellOf(_sunset));
       await tester.pumpAndSettle();
 
       final rows = tester.widgetList<ListTile>(
@@ -427,8 +435,19 @@ void main() {
           matching: find.byType(ListTile),
         ),
       );
-      expect(rows.last.trailing, isA<Text>());
-      expect((rows.last.trailing! as Text).data, _hills);
+      // The holder is the picture itself — the same cell the strip draws, small
+      // — because nothing on this page paints a file name any more (FR-002).
+      final holder = (rows.last.trailing! as SizedBox).child! as PictureCell;
+      expect(holder.picture.name, _hills);
+      expect(holder.size, lessThan(40), reason: 'a marker, not a strip cell');
+      expect(
+        find.descendant(
+          of: find.byType(PictureAssignmentScreen),
+          matching: find.text(_hills),
+        ),
+        findsNothing,
+        reason: 'FR-002: the name is carried, not painted',
+      );
     });
 
     testWidgets('a stored run opens in force; Done answers it back',
@@ -445,8 +464,8 @@ void main() {
         ],
       );
 
-      expect(passCount(tester, _hills), '1 sentence');
-      expect(passCount(tester, _sunset), 'No sentences assigned');
+      expect(passCount(tester, _hills), '1');
+      expect(passCount(tester, _sunset), '0');
 
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
@@ -491,7 +510,7 @@ void main() {
     });
   });
 
-  group('the pass\'s refusals, and the drag (US2)', () {
+  group('the pass\'s refusals (US2)', () {
     late List<VideoSentence> sentences;
     late List<HeldPicture> pictures;
 
@@ -515,11 +534,6 @@ void main() {
       return null;
     }
 
-    Future<void> holdChip(WidgetTester tester, String name) async {
-      await tester.longPress(chipOf(name));
-      await tester.pumpAndSettle();
-    }
-
     testWidgets('a sentence that is not next to the run is refused with its '
         'reason, and nothing moves', (tester) async {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
@@ -538,7 +552,7 @@ void main() {
       await tapSentence(tester, 'Five six.');
 
       expect(shownRefusal(tester), l10n.assignmentRefusedNotContinuous);
-      expect(passCount(tester, _sunset), '1 sentence',
+      expect(passCount(tester, _sunset), '1',
           reason: 'FR-012: a refusal leaves the assignment in force alone');
 
       await tester.tap(find.text('Done'));
@@ -563,7 +577,7 @@ void main() {
       await tapSentence(tester, 'Three four.');
 
       expect(shownRefusal(tester), isNull);
-      expect(passCount(tester, _sunset), '2 sentences');
+      expect(passCount(tester, _sunset), '2');
     });
 
     testWidgets('a middle sentence refuses to be taken back; an end one goes',
@@ -583,70 +597,32 @@ void main() {
 
       await tapSentence(tester, 'Three four.');
       expect(shownRefusal(tester), l10n.assignmentRefusedMiddle);
-      expect(passCount(tester, _sunset), '3 sentences');
+      expect(passCount(tester, _sunset), '3');
 
       await tapSentence(tester, 'One two.');
-      expect(passCount(tester, _sunset), '2 sentences',
+      expect(passCount(tester, _sunset), '2',
           reason: 'an end of the run is always free to take back');
     });
 
-    testWidgets('a picture holding sentences refuses the drag, with its reason',
-        (tester) async {
-      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      await openPass(
-        tester,
-        pictures: pictures,
-        sentences: sentences,
-        runs: [
-          PictureRun(
-            name: _sunset,
-            spans: [(sentences[0].start, sentences[0].end)],
-          ),
-        ],
-      );
+    // **Superseded by spec 021 (D3/D10, 2026-10-15)**: the pass's drag is gone.
+    // The hold now means "show me this picture large" (FR-004) and the move is two
+    // buttons under it (T012), so nothing on this page lifts a picture. What
+    // decides whether a picture may take another place is read in the RULE's own
+    // file — `test/picture_assignment_test.dart`'s `mayMove` cases, where the
+    // reader's own run decides and the render's tail fallback does not count —
+    // and, on the surface, in 021's own controls' gating. The two cases that
+    // stood here are replaced rather than re-pointed: D10 promises nothing about
+    // the gesture, so there is nothing here to assert about it.
 
-      await holdChip(tester, _sunset);
-
-      expect(shownRefusal(tester), l10n.assignmentRefusedHoldsSentences);
-      expect(passChips(tester), [_sunset, _hills],
-          reason: 'the order in force is unchanged (FR-015)');
-    });
-
-    testWidgets('a picture holding nothing drags, and the answer carries the '
-        'new order', (tester) async {
-      await openPass(
-        tester,
-        pictures: pictures,
-        sentences: sentences,
-        runs: [
-          PictureRun(
-            name: _hills,
-            spans: [(sentences[0].start, sentences[0].end)],
-          ),
-        ],
-      );
-
-      // The hold starts on the chip holding nothing and ends on the other one:
-      // the same gesture 012's own picker uses for its pictures.
-      final gesture = await tester.startGesture(
-        tester.getCenter(chipOf(_sunset)),
-      );
-      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
-      await gesture.moveTo(tester.getCenter(chipOf(_hills)));
-      await tester.pump();
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(passChips(tester), [_hills, _sunset],
-          reason: 'the pass shows the new order (FR-015)');
-
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
-      expect(given!.pictures.map((picture) => picture.name), [_hills, _sunset],
-          reason: 'and the order it answers with is the order the render walks');
-      expect(given!.runs.map((run) => run.name), [_hills],
-          reason: 'the runs follow their pictures');
-    });
+    // **Superseded by spec 021 (D3/D10, 2026-10-15)**: the pass's drag is gone.
+    // The hold now means "show me this picture large" (FR-004) and the move is two
+    // buttons under it (T012), so nothing on this page lifts a picture. What
+    // decides whether a picture may take another place is read in the RULE's own
+    // file — `test/picture_assignment_test.dart`'s `mayMove` cases, where the
+    // reader's own run decides and the render's tail fallback does not count —
+    // and, on the surface, in 021's own controls' gating. The two cases that
+    // stood here are replaced rather than re-pointed: D10 promises nothing about
+    // the gesture, so there is nothing here to assert about it.
   });
 
   group('the stale warning, before the render (US5)', () {
@@ -657,7 +633,7 @@ void main() {
     Future<({ShortEngine engine, RecordingEncoder encoder, AppLocalizations l10n})>
         stalelyAssigned(WidgetTester tester) async {
       final (store, entry) = await ownLibrary(tester, _oldText);
-      await assignOnTheOldText(tester, store);
+      await assignOnTheOldText(tester, store, entry);
 
       // The content changes under the assignment — the reader's own edit
       // (016's path) — and they come back to the video screen: a **new page**,
@@ -719,13 +695,142 @@ void main() {
         () => find.byType(PictureAssignmentScreen).evaluate().isNotEmpty,
       );
 
-      expect(tester.widget<ChoiceChip>(chipOf(_hills)).selected, isTrue,
+      expect(tester.widget<PictureCell>(cellOf(_hills)).selected, isTrue,
           reason: 'the pass opens with the offending picture in view');
-      expect(passCount(tester, _hills), 'No sentences assigned',
+      expect(passCount(tester, _hills), '0',
           reason: 'the run that no longer fits is not in force');
-      expect(passCount(tester, _sunset), '1 sentence',
+      expect(passCount(tester, _sunset), '1',
           reason: 'and the one that still fits stands');
-      expect(passCount(tester, _forest), 'No sentences assigned');
+      expect(passCount(tester, _forest), '0');
+    });
+
+    testWidgets('Cancel takes the record with it, and picking the same files again '
+        'does not bring it back (the reader\'s own decision, 2026-10-15)', (tester) async {
+      final (store, entry) = await ownLibrary(tester, _oldText);
+      await openDialogWith(
+        tester,
+        ShortEngine(),
+        RecordingEncoder(work),
+        [_sunset, _hills, _forest],
+        store: store,
+      );
+      final l10n = AppLocalizations.of(tester.element(find.byType(ReadingView)))!;
+
+      // The reader's own steps: pick, open the pass, give one sentence, Done.
+      await tester.tap(find.text(l10n.assignmentOpenButton));
+      await letWorkRun(
+        tester,
+        () => find.byType(PictureAssignmentScreen).evaluate().isNotEmpty,
+      );
+      await tapSentence(tester, 'One two.');
+      await tester.tap(find.text('Done'));
+      await letWorkRun(
+        tester,
+        () => find.byType(PictureAssignmentScreen).evaluate().isEmpty,
+      );
+      expect(find.text(l10n.assignmentSentenceCount(1)), findsOneWidget,
+          reason: 'the visit\'s own record is in force');
+
+      // Then Cancel.
+      await tester.tap(find.text('Cancel'));
+      await letWorkRun(tester, () => find.text('Video format').evaluate().isEmpty);
+
+      // Open the prompt again with nothing pickable: no pictures, nothing claimed.
+      await openDialogWith(
+        tester,
+        ShortEngine(),
+        RecordingEncoder(work),
+        const [],
+        store: store,
+      );
+      expect(find.text(l10n.assignmentNothingAssigned), findsOneWidget,
+          reason: 'the cancelled visit left nothing behind');
+
+      // And the reader's own next step: pick the same three files again.
+      await openDialogWith(
+        tester,
+        ShortEngine(),
+        RecordingEncoder(work),
+        [_sunset, _hills, _forest],
+        store: store,
+      );
+      // The record's own home, read directly — the one place that says whether
+      // "cleared" happened rather than "not counted" (the line's own display is
+      // the other case's job). The reader's further step — picking the same three
+      // files again and finding nothing — is the device row's own
+      // (`specs/021-picture-pass/scripts/klhu_walk_pass.py 19`).
+      final assignments = PictureAssignmentStore();
+      final left = await tester.runAsync(() => assignments.load(entry.id));
+      expect(left, isEmpty,
+          reason: 'the cancelled visit took the record with it');
+    });
+
+    testWidgets('a record whose pictures are not in force is not counted on the '
+        'assignment line (the reader\'s own report, 2026-10-15)', (tester) async {
+      // The reader's own steps: pick the pictures, assign, cancel, and open the
+      // prompt again with nothing picked. The record the earlier visit left is
+      // still **stored** (020 FR-010 re-attaches it by name when the same files
+      // are picked again) — and what the line must not do is claim its sentences
+      // while no picture is in force: "no pictures, but 8 sentences under Assign
+      // sentences".
+      final (store, entry) = await ownLibrary(tester, _oldText);
+      await assignOnTheOldText(tester, store, entry);
+      final engine = ShortEngine();
+      final encoder = RecordingEncoder(work);
+      await openDialogWith(tester, engine, encoder, const [], store: store);
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(ReadingView)),
+      )!;
+
+      expect(
+        find.text(l10n.assignmentNothingAssigned),
+        findsOneWidget,
+        reason: 'nothing is in force, so the line says so',
+      );
+      expect(
+        find.text(l10n.assignmentSentenceCount(4)),
+        findsNothing,
+        reason: 'and it does not count the record the earlier visit left \u2014 '
+            'four sentences, none of them in force',
+      );
+    });
+
+    testWidgets('a picture holding a sentence of the reader\'s cannot be moved '
+        'or deleted from the prompt (021 FR-005, decided 2026-10-15)',
+        (tester) async {
+      // The reader assigns on the text as it is, leaves without rendering, comes
+      // back and picks the same three files: the runs re-attach by name (020
+      // FR-010), so every one of the three pictures holds a sentence of theirs.
+      final (store, entry) = await ownLibrary(tester, _oldText);
+      await assignOnTheOldText(tester, store, entry);
+      final engine = ShortEngine();
+      final encoder = RecordingEncoder(work);
+      await openDialogWith(
+        tester,
+        engine,
+        encoder,
+        [_sunset, _hills, _forest],
+        store: store,
+      );
+      final l10n = AppLocalizations.of(
+        tester.element(find.byType(ReadingView)),
+      )!;
+      // The prompt opens on the same three pictures the reader left, with their
+      // assignment re-attached by name (020 FR-010) — no pick needed: what the
+      // probe showed is a button reading `Choose more`.
+      expect(find.byType(ChosenThumbnail), findsNWidgets(3),
+          reason: 'the prompt holds the three pictures');
+      expect(
+        find.byTooltip(l10n.videoPicturesRemove),
+        findsNothing,
+        reason: 'each of them holds a sentence of the reader\'s: none is '
+            'theirs to take back (021 FR-005)',
+      );
+      expect(
+        find.byType(LongPressDraggable<int>),
+        findsNothing,
+        reason: 'and none is theirs to move either',
+      );
     });
 
     testWidgets('started anyway, the render uses the runs that still fit and '
@@ -872,7 +977,7 @@ void main() {
 
       expect(passRows(tester), ['One two.', 'Three four.', 'Five six.'],
           reason: 'the page resolved the video\'s own sentences, once (D6)');
-      expect(passChips(tester), [_sunset, _hills],
+      expect(passCells(tester), [_sunset, _hills],
           reason: 'and the pictures in the order they were picked');
     });
 
@@ -929,7 +1034,7 @@ void main() {
         () => find.byType(PictureAssignmentScreen).evaluate().isNotEmpty,
       );
       await tapSentence(tester, 'One two.');
-      await tester.tap(find.text(_hills));
+      await tester.tap(cellOf(_hills));
       await tester.pumpAndSettle();
       await tapSentence(tester, 'Three four.');
       await tapSentence(tester, 'Five six.');
