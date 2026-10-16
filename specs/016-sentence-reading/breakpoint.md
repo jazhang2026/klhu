@@ -156,7 +156,95 @@ replacement is this feature's own row 8 (`breakpoint.md` § Row 8). Proves SC-00
    note is so a reader of that file is not misled, and a later pass that walks 014's rows again can fix the
    sentence in place.
 
+## Row 15 — ▶ with the page away from the top (the reader's own report of 2026-10-16)
+
+`3/3` on the fixed build, `2/3` on the one before it — the same row, the same steps, two builds:
+
+```
+fixture: this feature's own paragraph twelve times, X-Large, nothing highlighted,
+         the reading area swiped so the first sentence is off screen
+
+control ⏭ Continue Read   ranges=[(0, 779)]   frames (top, yellow px): [(None, 0), (472, 64400), (472, 64400)]
+══════════════════════════ 2026-10-16, build 09:24 (before the fix) ═══════════════════════════
+▶ Read                    ranges=[(0, 33)]    frames (top, yellow px): [(None, 0), (None, 0), (None, 0)]
+   FAIL 15: and it was painted on screen while it was spoken — the page had brought it into view
+             before speaking it (FR-012) — no frame of the press shows the highlight
+══════════════════════════ 2026-10-16, build 11:01 (after the fix) ════════════════════════════
+▶ Read                    ranges=[(0, 33)]    frames (top, yellow px): [(None, 0), (472, 64400), (472, 64400)]
+   PASS 15: and it was painted on screen while it was spoken
+```
+
+- What the row asserts is the page's own **paint** (`yellow_rows`): the dump can show neither the scroll offset nor
+  the highlight, which is why 011's own reading of a frame is the check here. The first frame of each press is blank
+  on both builds — the reveal is animated (200 ms) and the frame is taken as the utterance starts — so the rule is
+  read as "at least one frame of the press's own read shows the highlight", which is what "visible while it is
+  spoken" means.
+- Both presses read the same range, so the difference is the page's own state and not which unit was read: `0..33` is
+  the content's first step in both.
+- The frames are `/tmp/klhu_out/016_row15_{continue,read}_<n>.png` — `/tmp`, so they are lost to the next reboot
+  (the 021 walk's own note of that morning is the same fact).
+
+## Row 15 re-run — 2026-10-16, on the build that carries 022's rule (T015 of `specs/022-read-scroll-lead`)
+
+The reveal this row proves is the reveal 022 extends (`_revealRange` now hands the reveal a rect that covers the unit
+**and** a sentence after it), so the row was re-run on the first build carrying it (`lastUpdateTime=2026-10-16
+11:42:31`) — **3/3**, the same figures as the day before:
+
+```
+⏭ Continue Read   ranges=[(0, 779)]   frames (top, yellow px): [(None, 0), (472, 64400), (472, 64400)]
+▶ Read            ranges=[(0, 33)]    frames (top, yellow px): [(None, 0), (472, 64400), (472, 64400)]
+RESULT: PASS (3/3)
+```
+
+- **Its first run of the day FAILED, and the reason was another row's own hygiene, not this one's**: 022's row 24 had
+  left the display shrunk to 1080×1000, so this row — which is written for a 1080×2400 screen — tapped coordinates that
+  no longer held the toolbar and failed `15: ▶ Read is on the page`. 022's row 24 now resets the display, and the row
+  above is the re-run after the reset. Recorded here because a later reader of *this* row's history would otherwise see a
+  failure with no cause attached.
+
 ## What this walk still owes
 
-Row 9 (a render from a step's position) — then the receipts of `tasks.md`'s Phase 7 (the structural check, both
-list checkers quoted after the closing edit, and the suite re-taken on the finished tree).
+**2026-10-16: nothing at this moment — the paragraph above is the state of 2026-10-12, left as written.** Row 9 was
+walked and `tasks.md`'s Phase 7 closed (T032-T034) long before this note; the row added since is row 15 above.
+
+## Row 9 re-run, 2026-10-16 — red, and **not** 022's (its own sweep's control run)
+
+022's regression sweep re-ran this file's device rows 5, 6, 7, 8, 9 and 15 on the build carrying its rule:
+**5 (13/13), 6 (6/6), 7 (2/2), 8 (6/6) and 15 (3/3) pass**; row 9 does not — `RESULT: FAIL (8/11)`:
+
+```
+PASS 9: the press read the first step and left the SENTENCE AFTER it in force — the press read [(0, 15)] …, the position in force is (17, 50)
+…
+FAIL 9: the render STARTS at the step's own sentence (the unwalked path) — slot 0's span starts at 0, the step is at 17
+FAIL 9: and that slot's span is the step's own sentence — span 0..15 against (17, 50)
+FAIL 9: the text it paints is the sentence's own characters (no tag, no padding) — text=15 for the sentence's 33
+```
+
+**Control, made on 2026-10-16**: the same tree with 022's lead disabled (`_leadRect` returning `null`), built and
+installed, then row 9 again — the **same three failures**, `RESULT: FAIL (8/11)`. So the red is inside the render's own
+slot spans (012's path — the file's own subject: the render starting at the step's position), not 022's scrolling, and
+not caused by anything 022 changed: 022 touches neither the slots, the render, nor the video. Carried as its own work in
+`specs/022-read-scroll-lead/tasks.md` (`T024`); worth walking again when the render's start-at-the-step path is next
+touched.
+
+### Row 9 re-cut the same evening — the app was right, the row was stale
+
+The row's three failing checks asked the render to **start** at the page's non-zero position — 012's `FR-004`. **020's
+`FR-017` superseded that half** on 2026-10-14 (a video is the whole content, and the page's position "MUST NOT move a
+video's start"), and the app has rendered from the content's first sentence since; the row was simply never re-cut, which
+is why it read `FAIL (8/11)` for as long as it did. **No app change was needed or made.**
+
+What the row pins now is the rule in force **and** the supersession itself — the press still leaves a non-zero position
+in force, and the render's first slot is the content's own first sentence all the same:
+
+```
+PASS 9: the press read the first step and left the SENTENCE AFTER it in force — … the position in force is (17, 50)
+the file's first slot: span=0..15 text=15 frames=48
+PASS 9: the render opens on the content's own first sentence, whatever the page's position is (020 FR-017, which superseded 012 FR-004's other half)
+PASS 9: and that slot's span is that first sentence
+PASS 9: the text it paints is that sentence's own characters (no tag, no padding)
+RESULT: PASS (11/11)
+```
+
+This is the second row this evening that was red for a reason **older than the sweep that found it** (the other is 011's
+row 23): both were left behind by a documented amendment to another feature, and neither was anybody's app defect.

@@ -947,3 +947,16 @@ still inside its own slot — never a placement, so a re-run is what it needed a
 (`specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py:71`), which
 this host's default `python3` does not have: run it as `/usr/bin/python3.12 klhu_walk_dialogue.py 27` (Pillow
 12.3.0 is installed there), with `ffmpeg`/`ffprobe` on `PATH` for the frames the row reads back.
+
+## A note on this file's rows' own `read_position_*` evidence (2026-10-16, found by 022's regression sweep)
+
+This file's driver prints `read_position_<id>` in a number of its evidence lines (`klhu_walk_dialogue.py`, its own
+`position_pref()`), read from the prefs. That record was **withdrawn** with 010's `FR-008` (per 016's decision 5) and the
+app writes no such pref under any name — the device's own prefs hold the **appearance key and nothing else**
+(`grep -rn "read_position" lib/` finds nothing). So those lines print `None` for ever.
+
+**They are prints, not checks** — no `FAIL` hangs off any of them — so no row here reports a false PASS, and the rows
+themselves stand. What it costs is the *evidence*: a line such as `read_position_1234 = None` tells a reader nothing.
+Recorded rather than edited, because editing this file's driver would invalidate the receipts its own rows carry; when
+one of its rows is next walked, its evidence lines are worth re-pointing at what is in force (011's own driver was
+re-cut for exactly this on 2026-10-16, and its row 23 now reads its anchors off the app's live ranges).

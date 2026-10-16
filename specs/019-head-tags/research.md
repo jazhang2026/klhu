@@ -29,8 +29,8 @@ ability to re-run it.
 | The offered size ladder, and the offered faces | `small` 12 · `medium` 14 · `large` 18 · `xlarge` 24; six faces, three of them at `FontWeight.w700` — and the ladder this feature derives adds two rungs **above** them: the largest size at `w700` and at `w900` | `lib/appearance_store.dart:79-91` (the ladder), `:31-39` (the faces and `all`) |
 | What the platform can paint as a weight, per family (read for this amendment, 2026-10-13) | the default family is a **variable** `Roboto` instanced at `wght` 100…900 (real light/medium/bold/black); `sans-serif-condensed` and `roboto-flex` the same; `source-sans-pro` 400/600/700; `serif` 400/700 (Latin only); `cursive` 400/700; `mono`, `serif-monospace`, `casual`, `sans-serif-smallcaps` **400 only**; the device's only CJK faces are `NotoSansCJK-Regular.ttc` and `NotoSerifCJK-Regular.ttc` | `adb -s emulator-5554 shell cat /system/etc/fonts.xml`, parsed for `<family name=…>` and its `<font weight=…>` entries |
 | The marker's own characters, in the shape 015 already elides | the tag **and its separator** are what `displayOf` removes (one span per comment, `[tag.start, tagEnd)`), and the same object answers a tap's `toContent` and a highlight's `toDisplay` | `lib/comment.dart:291-349` (`CommentDisplay`), `:352-366` (`displayOf`), `:328-332` (`commentSpans`) |
-| The page's span tree is cut from the **display**, at every boundary either decoration has | the highlight's two ends and 017's comment spans are the cut set today | `lib/reading_view.dart:2355-2390`; the style seam is `:2396-2410` |
-| The page's reading text has exactly one style seam, and the editor goes through it | *"this method is the ONE place the reading text's style is built, and the rich text and the edit field both go through it"* | `lib/reading_view.dart:2461-2476`; the edit field at `:2576-2589` (its controller holds the content as written, `:179`, `:735`) |
+| The page's span tree is cut from the **display**, at every boundary either decoration has | the highlight's two ends and 017's comment spans are the cut set today | `lib/reading_view.dart:2525-2400`; the style seam is `:2396-2410` |
+| The page's reading text has exactly one style seam, and the editor goes through it | *"this method is the ONE place the reading text's style is built, and the rich text and the edit field both go through it"* | `lib/reading_view.dart:2631-2486`; the edit field at `:2576-2589` (its controller holds the content as written, `:179`, `:735`) |
 | Where the resolution keeps a tag from the engine today | a paragraph's speakable text **stops at its comment's tag** (`speakableEnd`), and the language is detected on what is left | `lib/speech_resolver.dart:97-132` (the truncation at `:108`) |
 | The read's own unit: one speech per paragraph, cut into sentences by the reader service and mirrored by the timeline | the slice is `paragraph.text.substring(range)`, the utterance's offsets are `paragraph.start + local` | `lib/reader_service.dart:408-435`; `lib/video_timeline.dart:76-100` |
 | What the device rows can read back about a read | `klhu speak p<i> s<j> [role=…] [voice=…] "«first 24 characters of the utterance»" [comment=1]` — the text the engine was handed, truncated; a `#` in it would be visible | `lib/reader_service.dart:535-546` |
@@ -124,7 +124,7 @@ read **downwards** is FR-015's comment: the weight first, then the size.
   parameter) — refused: a caller that forgets it would hand the engine a marker silently, on the one path where
   nothing else can notice, while a field the resolver sets cannot be forgotten. **Threading the mapping through
   `SpokenSentence`** instead — refused: the page's highlight is expressed in content offsets today
-  (`lib/reading_view.dart:1110` sets it from `spoken.start`/`spoken.end`) and 011's tracking, 010's resume point
+  (`lib/reading_view.dart:1120` sets it from `spoken.start`/`spoken.end`) and 011's tracking, 010's resume point
   and 012's slot offsets are all in that space; moving them into display offsets would be a change to three
   features' contracts for this one's convenience.
 
@@ -214,7 +214,7 @@ read **downwards** is FR-015's comment: the weight first, then the size.
 
 - **Decision**: no new `shared_preferences` key, no new field in any record, no new ARB key in any of the four
   locales (110 → **110**), no new dependency, no platform code. The editor keeps painting the reader's text as
-  written (`lib/reading_view.dart:2576-2589`) and the stored text is byte-for-byte what the reader typed
+  written (`lib/reading_view.dart:2661-2589`) and the stored text is byte-for-byte what the reader typed
   (FR-010).
 - **Rationale**: the spec's Key Entities is *"None"* (`spec.md:286-287`) and FR-010 says the same; the marker is
   a rule for the text the reader already writes, inside two seams the app already owns (015's display, the

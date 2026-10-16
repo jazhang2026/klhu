@@ -65,7 +65,7 @@ FR-005/FR-012, extended by 019 FR-003).
 | `commentSpans()` | `List<(int, int)>` | no | derived — 017's: where a comment's **own characters** are painted |
 | `headSpans()` | `List<(int, int, int)>` | no | **new** — where a mark's **line** is painted, as `(start, end, level)` in display offsets, each span **cut where a comment's own characters begin** (a comment keeps 017's size inside a marked line, FR-012) |
 
-**Relationships**: built by `displayOf(content)`; the page's span tree (`lib/reading_view.dart:2355-2390`) and
+**Relationships**: built by `displayOf(content)`; the page's span tree (`lib/reading_view.dart:2440-2390`) and
 a slot's block (`lib/video_painter.dart:578-640`) both read it; every offset-bearing value in the app — a tap's
 answer, a highlight's boundaries, a step's range, a speech's span, a slot's `start`/`end` — stays in **content**
 offsets and is translated only at those two paint seams.

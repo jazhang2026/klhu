@@ -276,7 +276,12 @@ warning shows **both pictures**, cancel leaves both runs and the renderer's line
   hidden while it is open and a **`Close`** control that returns to the list with the same picture selected.
 - **FR-005**: The **move** controls and the **delete** control MUST be offered **only in the large picture** and
   **only when the reader has assigned that picture nothing** — the render's own fallback MUST NOT decide it (this
-  re-cuts 020's `FR-015`, whose refinement of 2026-10-13 counted the fallback).
+  re-cuts 020's `FR-015`, whose refinement of 2026-10-13 counted the fallback). **What this narrows is the picture
+  being moved, never the place it lands (2026-10-16)**: the prompt's own reorder keeps 012's rule that a held
+  picture may be dropped on **any other cell**, a cell whose picture holds a sentence included — the record keys a
+  run by the picture's own name (020's `FR-010`), so the sentence stays with its picture wherever the order puts it.
+  Carrying the drop target only on the movable cells was a defect of the implementation, reported by the reader the
+  next day and fixed then (Amendment 3).
 - **FR-006**: A move or a delete MUST be reflected **on the thumbnails at once** — the new order, or the picture's
   absence — and every count MUST stay truthful to the record.
 - **FR-007**: The **selected** picture MUST be scrolled to the **middle of the thumbnail bar** when it becomes
@@ -286,7 +291,9 @@ warning shows **both pictures**, cancel leaves both runs and the renderer's line
 - **FR-009**: Confirming a delete MUST take the picture out of the pictures in force, out of the pass's order, and
   out of the stored assignment for that content.
 - **FR-010**: The dialog's own chosen pictures MUST offer **the same surface and the same functions**: hold →
-  large picture, `Close`, and the same move and delete controls under the same rule (FR-005).
+  large picture, `Close`, and the same move and delete controls under the same rule (FR-005) — and its own cells are
+  destinations for a held picture under 012's own reorder rule, the cells of sentence-holders included (FR-005's
+  note of 2026-10-16).
 - **FR-011**: A tap on a sentence another picture holds MUST NOT be refused silently: where the switch is legal it
   MUST be proposed for confirmation, and the confirmation MUST show **both pictures** — which holds the sentence
   now and which would hold it.
@@ -375,7 +382,7 @@ warning shows **both pictures**, cancel leaves both runs and the renderer's line
 - **The reader's own report came from their phone; the walk runs on `emulator-5554`.** Both observations (the
   hold's refusal, the plain drag scrolling) are explained by the tree, so the rows can be walked here.
 - **The thumbnail's decode stays bounded**: a phone photo is many megapixels and the dialog's own thumbnails
-  already bound theirs (`lib/reading_view.dart:3003-3030`, `cacheWidth: 144`); the large picture is the only place
+  already bound theirs (`lib/reading_view.dart:3088-3030`, `cacheWidth: 144`); the large picture is the only place
   a picture is decoded large.
 - **The count shows the reader's own record**, never the render's fallback (which is an outcome of the render), and
   it is the same number the record's own runs hold.
@@ -403,5 +410,8 @@ warning shows **both pictures**, cancel leaves both runs and the renderer's line
   (Clarifications item 5), carried by this feature's switch so the boundary case has one behaviour rather than two.
 - **012's `Remove this picture`, its immediacy** (FR-008 makes it ask), **and its reorder of a picture that carries
   sentences** (its own reorder rule allows moving any chosen picture; FR-005/FR-010 offer the move only when the
-  reader has assigned it nothing). The pointers go in `specs/012-reading-video/tasks.md`'s `## Superseded by later
-  specs`, and 012's artifacts are left as written.
+  reader has assigned it nothing). **Said precisely on 2026-10-16**: what is superseded is the picture that may be
+  **moved** — where a held picture may **land** stays 012's own rule ("another picture's cell"), and the
+  implementation that carried the drop target only on the movable cells was a defect of that day's work rather than
+  a decision, fixed the next day (Amendment 3, row 20 on the device). The pointers go in
+  `specs/012-reading-video/tasks.md`'s `## Superseded by later specs`, and 012's artifacts are left as written.

@@ -16,6 +16,11 @@ Row 14: the selected cell at the strip's middle (FR-007, SC-007).
 Row 15: the picker dialog's own surface, and the switch (FR-010, FR-011,
         FR-014, SC-008, SC-009).
 Row 17: the answer carries the reader's runs and no fallback sentence (FR-016).
+Row 19: the assignment line with nothing picked — the reader's own report of
+        2026-10-15, and their decision that Cancel clears the record.
+Row 20: a picture the reader gave nothing, dropped **on** one that holds a
+        sentence — the reader's own report of 2026-10-16 (FR-032's own "another
+        picture's cell").
 
 The mechanics are **020's own module**, imported for everything it already has
 and 021 does not: 020's ten-sentence fixture and three pictures
@@ -722,9 +727,84 @@ def row_19():
     unseed_content()
 
 
+def cell_order(rows):
+    """The prompt's own cells in the order they stand in — left to right, read off
+    the device's own bounds.
+
+    FR-032's own rule is that the cells' order **is** the order the video draws
+    the pictures in, so a row about a move has to read the order off the screen
+    rather than off a list this driver holds.
+    """
+    hits = []
+    for name in NAMES:
+        node = cell_node(rows, name)
+        if node is None:
+            return None
+        hits.append((node["x"], node["y"], name))
+    hits.sort()
+    return [name for _, _, name in hits]
+
+
+def row_20():
+    """The reader's own report of 2026-10-16: **after assigning sentences**, a
+    picture the reader gave nothing must still be droppable **on** a picture that
+    holds one.
+
+    "after assign sentence to some pictures, back to pictures chosen dialog, drag
+    no sentence picture to the position of picture with sentences failed. drag no
+    sentence picture to position of other no sentence picture works." 012's own
+    requirement is a drop on **another picture's cell**, and what 021's rule
+    narrows is the picture being **moved** (FR-005, FR-010): a cell holding a
+    sentence is a destination like any other, and the record keys a run by the
+    picture's own name, so the sentence stays with its picture.
+    """
+    print("row 20 — a picture the reader gave nothing, dropped on the one that "
+          "holds a sentence (the reader's own report)")
+    rows = fresh_pass()
+    if rows is None:
+        return
+    if not assign_own(rows, per=(1, 0, 0)):
+        return
+    rows = dump()
+    counts = cell_counts(rows)
+    check("20: the prompt's own cells carry the reader's counts",
+          counts == {NAMES[0]: "1", NAMES[1]: "0", NAMES[2]: "0"},
+          f"cells: {counts}")
+    order = cell_order(rows)
+    check("20: before the move, the cells stand in the order the reader chose",
+          order == NAMES, f"order: {order}")
+    print(f"   the still: "
+          f"{screencap(os.path.join(OUT, '021_row20_before_the_drop.png'))}")
+
+    # The control this row's own fix must not break: a hold on the
+    # sentence-holder moves nothing (FR-005) — it is the destination, never the
+    # thing that travels.
+    hold_only(NAMES[0], label="the sentence-holder's own cell")
+    rows = dump()
+    check("20: a hold on the sentence-holder moves nothing (FR-005)",
+          cell_order(rows) == NAMES, f"order: {cell_order(rows)}")
+
+    # The reader's own failing step: hold the picture that holds nothing and drop
+    # it where the sentence-holder stands.
+    if not base.drag(NAMES[1], NAMES[0]):
+        return
+    rows = dump()
+    order = cell_order(rows)
+    counts = cell_counts(rows)
+    check("20: the drop put the held picture where the sentence-holder stood",
+          order == [NAMES[1], NAMES[0], NAMES[2]],
+          f"order: {order} — the reader's own report was that this drop did nothing")
+    check("20: and the sentence stayed with its own picture, by name (020 FR-010)",
+          counts == {NAMES[0]: "1", NAMES[1]: "0", NAMES[2]: "0"},
+          f"cells: {counts}")
+    print(f"   the still after the drop: "
+          f"{screencap(os.path.join(OUT, '021_row20_after_the_drop.png'))}")
+    unseed_content()
+
+
 ROWS = {"8": row_8, "9": row_9, "10": row_10, "11": row_11,
         "12": row_12, "13": row_13, "14": row_14, "15": row_15, "17": row_17,
-        "19": row_19}
+        "19": row_19, "20": row_20}
 
 OWED = ()
 

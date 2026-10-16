@@ -178,7 +178,7 @@ Proves FR-016, INV-8.
 - **A still at the wrong moment**: `screencap` is the framebuffer, so take it after the state is asked for (the
   dump) rather than in the same breath.
 
-### Row 18 — [device] the assignment line with nothing picked (the reader's own report, 2026-10-15)
+### Row 18 — [device] the assignment line with nothing picked (the reader's own report, 2026-10-15) — driver key `19`
 
 **Steps**: choose three pictures, open the pass, give one sentence to the first picture, `Done`, then `Cancel` the
 prompt. Open it again (`Video`) without picking anything.
@@ -191,3 +191,22 @@ nothing is claimed while no picture is in force — was the first fix; the recor
 **Evidence**: `klhu_walk_pass.py 19` — the app's own labels either side of `Cancel`, and a still.
 
 Proves FR-019, FR-001.
+
+### Row 19 — [device] a picture the reader gave nothing, dropped on a picture that holds one (the reader's own report, 2026-10-16) — driver key `20`
+
+**Steps**: choose three pictures, open the pass, give **one** sentence to the first picture, `Done` (back in the
+prompt: the cells read `1`, `0`, `0`), then hold the second picture — the one holding nothing — and drop it on the
+first picture's own cell.
+
+**Expected**: the order of the cells follows the drop (the held picture takes the cell the sentence-holder stood in,
+and the sentence-holder and everything after it shift by one), **and the sentence stays with its own picture** — the
+first cell still reads `1` at its new place, and no count moves. A hold on the sentence-holder itself moves nothing
+(021's FR-005: it is the destination, never the thing that travels).
+
+**Evidence**: `klhu_walk_pass.py 20` — the cells' own labels before and after (`{'w020_white.png': '1', …}`), the
+order read off the device's own bounds, and two stills. On the build of 2026-10-15 the same row read **8/9**: the drop
+did nothing (`order: ['w020_white.png', 'w020_black.png', 'w020_red.png']`), which is the reader's own report; on the
+fixed build, **9/9**.
+
+Proves FR-005, FR-010. (The drop destination half is 012's own requirement — "another picture's cell" — and this
+row is what re-proves it under the assignment rule.)

@@ -11,8 +11,8 @@ are shared infrastructure or the walk.
 
 ## Status
 
-**IMPLEMENT DONE — 34 of 34 rows** — the 32 the stage closed with, plus the two dated amendments below (T033,
-T034) — all three stories, and the device walk. The pass shows the pictures the reader picked, each carrying its
+**IMPLEMENT DONE — 35 of 35 rows** — the 32 the stage closed with, plus the three dated amendments below (T033,
+T034, T035) — all three stories, and the device walk. The pass shows the pictures the reader picked, each carrying its
 own count; one tap selects and the list below is that picture's; a hold opens it large
 with the app's own count words and `Close`; a picture the reader gave nothing offers the move and the delete, with
 a confirmation before every delete; a sentence another picture holds is proposed as a switch and repaired on
@@ -39,17 +39,25 @@ suite's net `+1`, so they are not separately quotable as a `−2` term. The `806
 totals of their own passes; `808` is the finished tree's.
 
 The **device walk** ran on `emulator-5554` — rows 8-15, 17 and 19 (`5/5`, `6/6`, `8/8`, `8/8`, `11/11`, `12/12`,
-`6/6`, `12/12`, `8/8`, `11/11`) — with the app's own labels quoted verbatim in `breakpoint.md`. **The stills both
-files cite under `/tmp/klhu_out` are gone as of 2026-10-16** (`/tmp` is cleared on reboot, and the images were kept
-out of the repository on purpose): re-cutting them means re-running the walk — recorded, not re-taken. The package
-on the device was last updated `2026-10-16 08:43:56`, i.e. a build newer than every source file in the tree, against
-the 2026-10-15 16:03 build the rows below quote. One limit is recorded rather than faked (row 14: three pictures fit
+`6/6`, `12/12`, `8/8`, `11/11`) — with the app's own labels quoted verbatim in `breakpoint.md`. **The stills that
+note cites were lost with `/tmp` on the reboot (08:50, 2026-10-16), and the whole walk was re-driven the same
+morning to bring them back**: rows 8-15, 17, 19 and 20 on the fixed build (`lastUpdateTime` 09:24:14), every row
+green — `5/5, 6/6, 8/8, 8/8, 11/11, 12/12, 6/6, 12/12, 8/8, 11/11, 9/9` — with the 11 stills re-taken under
+`/tmp/klhu_out` (they are `/tmp`, so the same loss is available to any reboot: what the record can promise is the
+run, not the file). The device's own build moved twice that morning: `08:43:56` (the tree before Amendment 3's fix,
+where row 20 read **8/9** — the reader's own report, reproduced) and `09:24:14` (the fixed tree, row 20 **9/9**),
+against the 2026-10-15 16:03 build the rows below were first taken on. One limit is recorded rather than faked (row 14: three pictures fit
 the screen, so FR-007's "middle" is not observable on this fixture) and one requirement as unreachable in the UI
 (FR-015's `holdsSentences`, whose own note is in `spec.md`).
 
-**Open — nothing in the plan**: every row is ticked and the six checkers are green. Two things sit with the reader
-rather than the plan: row 14's own limit (a wider fixture, or the limit stands as recorded) and the walk's stills
-(re-run the walk to re-take them).
+**Amendment 3, re-taken 2026-10-16 09:20–09:22**: `flutter analyze` → `No issues found!`; `flutter test
+--concurrency=2` → `01:13 +809: All tests passed!` — the `808` above plus Amendment 3's own case (`+1`, in
+`test/reading_view_video_assignment_test.dart`, which now reports `+20`), with the fix in `lib/reading_view.dart`
+and no other file's count moved.
+
+**Open — nothing in the plan**: every row is ticked and the six checkers are green. Row 14's own limit stands as
+recorded (the reader's own answer of 2026-10-16: the centring row passed as it is, so the limit is stated rather
+than re-fixtured), and the walk's stills are back (`/tmp`, re-taken the same morning).
 
 The baseline every row below is read against — re-taken with the same two commands before any edit, because a
 baseline measured after a change is not a baseline:
@@ -149,7 +157,7 @@ no asset and no platform file.
       — Unused after the change, and removed rather than left for later: the page's own `_answer` getter (its only reader was the chip's enabled state) and the `final answer = _answer;` local. `flutter analyze` → `No issues found! (ran in 1.1s)`.
 - [x] T006 [P] `lib/picture_cell.dart`: the picture cell both surfaces use — the picture at thumbnail size with the
       count's own badge at its top right, the decode bounded the way the dialog already bounds its thumbnails
-      (`lib/reading_view.dart:3027-3030`, `cacheWidth: 144`), and the picture's own name as the cell's semantic
+      (`lib/reading_view.dart:3112-3030`, `cacheWidth: 144`), and the picture's own name as the cell's semantic
       label. No reader-visible change yet: its verification is `flutter analyze` clean and every shipped suite green
       **unmodified**
 
@@ -333,7 +341,7 @@ command that does not implement it.
       — **Done 2026-10-15**: row 16 taken on the finished tree and its numbers written into `breakpoint.md`: `flutter analyze` → `No issues found! (ran in 0.9s)`; `flutter test --concurrency=2` → `01:22 +806: All tests passed!`; `test/*.dart` → `57`; the four ARBs at **129** keys each; `flutter gen-l10n` **idempotent** (the aggregate md5 of `lib/l10n/app_localizations*.dart` is `b4d762f1d00650942592c12127532e77` both sides of a run); `test/l10n_keys_test.dart` → `+3`; `git diff --stat lib/video_pictures.dart lib/video_timeline.dart` **empty**.
       — The suite's `782 → 806` is decomposed **by file** in the breakpoint and reconciles: `+10` + `+15` + `+1` + `2` re-cut/extended, `−2` retired.
       — One number moved and is recorded rather than hidden: the aggregate hash differs from the one 020's own structural receipt quotes (`98425bbd…`), because it hashes a different tree — what this row asserts is idempotence, not a constant.
-      — **The structural row's other half (2026-10-15)**: `check_artifact_refs.py` went red on three `file:line` citations in `plan.md`, all written against the **plan**-stage tree and moved by the implementation (the three now resolve at `lib/reading_view.dart:3067`, `lib/picture_assignment.dart:325-326` and `lib/picture_assignment.dart:162-165`). Corrected in place with a dated table saying what moved, because a citation is a claim about a tree: green afterwards (`exit 0 | checked … line references | no unresolved references`).
+      — **The structural row's other half (2026-10-15)**: `check_artifact_refs.py` went red on three `file:line` citations in `plan.md`, all written against the **plan**-stage tree and moved by the implementation (the three now resolve at `lib/reading_view.dart:3152`, `lib/picture_assignment.dart:325-326` and `lib/picture_assignment.dart:162-165`). Corrected in place with a dated table saying what moved, because a citation is a claim about a tree: green afterwards (`exit 0 | checked … line references | no unresolved references`).
 - [x] T030 [P] `specs/020-sentence-pictures/tasks.md`: add this feature's two dated pointers to
       `## Superseded by later specs` — the movability rule (what decides it is the reader's own run, and the drag
       it replaced) and the pass's own walk parser's subject (the file name its cells no longer paint) — with 020's
@@ -414,12 +422,12 @@ every later phase's taps run through the same rule.
 | FR-002 (no file name painted; the name is the cell's semantic label) | T006, T007, T020 |
 | FR-003 (one tap selects; the list below is that picture's) | T007, T008, T021 |
 | FR-004 (a hold opens the picture large below, list hidden, with Close) | T010, T011, T022 |
-| FR-005 (move/delete only in the large picture, only when the reader assigned nothing) | T004, T005, T012, T023 |
+| FR-005 (move/delete only in the large picture, only when the reader assigned nothing; the narrowing is the picture **moved**, never the cell it lands on) | T004, T005, T012, T023, T035 |
 | FR-006 (a move or delete shows on the thumbnails at once) | T012, T013, T021, T024 |
 | FR-007 (the selected picture is scrolled to the middle of the strip) | T014, T026 |
 | FR-008 (every delete asks first, naming the picture; cancel changes nothing) | T013, T025 |
 | FR-009 (confirming takes it out of the pictures, the order and the record) | T013, T025 |
-| FR-010 (the dialog's own surface behaves the same) | T005, T015, T016, T027 |
+| FR-010 (the dialog's own surface behaves the same, its own cells destinations like any other) | T005, T015, T016, T027, T035 |
 | FR-011 (a switch is proposed and confirmed, showing both pictures) | T002, T003, T017, T018, T027 |
 | FR-012 (a switch completes only on confirmation; cancel is identical) | T003, T017, T018, T027 |
 | FR-013 (a sentence belongs to at most one picture; the boundary is refused) | T002, T003, T017 |
@@ -490,3 +498,41 @@ picture is in force (Amendment 1), and a cancelled prompt leaves nothing to clai
       — The quickstart's row 18, FR-019's own note in `spec.md` and 020's pointer were corrected in the same pass:
       what Amendment 1 recorded as "the record still stored" is now "taken away by the cancel", and both halves are
       dated where they stand.
+
+## Amendment 3 — the reader's own report of 2026-10-16 (a new row, dated)
+
+> "issue: after assign sentence to some pictures, back to pictures chosen dialog, drag no sentence picture to the
+> position of picture with sentences failed. drag no sentence picture to position of other no sentence picture
+> works."
+
+- [x] T035 `lib/reading_view.dart`: the prompt's own **drop target on every cell** — what the "nothing assigned"
+  rule narrows is the picture that may be **moved**, never the place it may land (FR-005's note of 2026-10-16,
+  FR-010), so a picture holding a sentence is a destination like any other. Its case is
+  `test/reading_view_video_assignment_test.dart`'s own, taken RED first, and its row is
+  `scripts/klhu_walk_pass.py`'s 20, walked on **both** builds — the one before the fix and the one after.
+  - **The case first, RED quoted**: with one of three pictures holding a sentence and the other two free, holding a
+    free picture and dropping it on the sentence-holder's cell left the order exactly as it was —
+    `Expected: ['hills.png', 'sunset.png', 'forest.png'] / Actual: ['sunset.png', 'hills.png', 'forest.png'] /
+    Which: at location [0] is 'sunset.png' instead of 'hills.png'` — because `MovableThumbnail.build` returned a
+    plain cell for a picture holding a sentence, so the cell carried **no `DragTarget` at all** and the drop was
+    refused by the absence of a target. The two cases above it in the same run were already green (the gating:
+    `mayMove` `[false, true, true]` and two draggables), so the failure's reason is the claim rather than the
+    fixture. `test/reading_view_video_assignment_test.dart` → `+19 -1: Some tests failed.`
+  - **The fix**: `build` now returns the `DragTarget` for **every** cell and hands its builder either
+    `_draggable(context)` or `_cell()` — `mayMove` gates the hold (and the remove stays absent, FR-005) while the
+    cell stays a place things can be dropped on. Green: `test/reading_view_video_assignment_test.dart` →
+    `+20: All tests passed!`; the whole suite → `01:13 +809: All tests passed!`; `flutter analyze` → clean.
+  - **The device, the reader's own steps, on two builds.** On the 2026-10-15 build (the tree before the fix) the new
+    row reads **8/9** with the failing check quoted: `FAIL 20: the drop put the held picture where the sentence-holder
+    stood — order: ['w020_white.png', 'w020_black.png', 'w020_red.png']` — the reader's report, reproduced. On the
+    fixed build it reads **9/9**: `order: ['w020_black.png', 'w020_white.png', 'w020_red.png']` with the cells still
+    `{'w020_white.png': '1', …}` — the sentence stayed with its picture, by name. The row's own control, a hold on
+    the sentence-holder, moves nothing on both builds. Section and stills in `breakpoint.md`.
+  - **What the record owes, written in the same pass, dated**: FR-005's own note (the rule narrows the picture
+    moved, never the destination) and FR-010's (the dialog's cells are destinations too) in `spec.md`; this
+    feature's own supersession list, where the half that is superseded is now said precisely; 012's pointer in its
+    `## Superseded by later specs` (the sibling spec's own reorder requirement ("another picture's cell") still governs where a held picture may
+    land); the quickstart's own row (row 19, driver key `20`) — **which makes the quickstart 19 rows, where
+    `breakpoint.md`'s row 16 block and this file's receipts quote 18**; and the coverage table's FR-005/FR-010 rows
+    below. The quickstart's headings and the driver's keys are one apart from Amendment 1's row on (its heading
+    reads `Row 18` and its key is `19`), which the headings now say rather than leave to be re-derived.

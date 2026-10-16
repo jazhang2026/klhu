@@ -42,7 +42,7 @@ One decision set, `research.md`'s D1-D10 — this plan carries **no second numbe
 
 | # | decision | what this plan does with it, and why not otherwise |
 |---|---|---|
-| D1 | the cell is the picture, the number at its top right | the cell reuses the dialog's own bounded decode (`ChosenThumbnail`, `lib/reading_view.dart:3067`) and keeps the file name as its **semantic label** (the reader's answer, `2` above); a new image widget, or a painted name, would each be a second thing to keep in step |
+| D1 | the cell is the picture, the number at its top right | the cell reuses the dialog's own bounded decode (`ChosenThumbnail`, `lib/reading_view.dart:3152`) and keeps the file name as its **semantic label** (the reader's answer, `2` above); a new image widget, or a painted name, would each be a second thing to keep in step |
 | D2 | one tap selects; a hold opens the picture large **below** the strip | the large picture lives in the page's own body — not a route, not an overlay: the reader's own words are "show large picture below", the list is hidden while it is open, and the strip has to stay visible for the "real change" they asked to see |
 | D3 | the move and delete buttons, and **what decides them** | what decides is the pass's own `_runs`, not the resolver's `effective` answer; the drag is retired (D10). Reading the fallback is the shipped rule and is exactly what the reader's report falsifies (`lib/picture_assignment.dart:325-326`) |
 | D4 | the switch, and the boundary that let a sentence into two runs | the switch applies as a **repair** — the sentence leaves its holder before it is given — and `refusedAdd`'s two comparisons become inclusive (`lib/picture_assignment.dart:162-165`), so no path can duplicate. Applying the switch without confirming is the defect itself; refusing the tap outright is what the reader's report asked to change |
@@ -103,7 +103,7 @@ implementation moved what they name. `check_artifact_refs.py` — the structural
 
 | decision | cited | now | what moved |
 |---|---|---|---|
-| D1 | `lib/reading_view.dart:3003` | `:3067` | this feature's own helpers (`_countOf`, `_confirmRemovePicture`) were inserted above `ChosenThumbnail` |
+| D1 | `lib/reading_view.dart:3088` | `:3067` | this feature's own helpers (`_countOf`, `_confirmRemovePicture`) were inserted above `ChosenThumbnail` |
 | D3 | `lib/picture_assignment.dart:186-189` | `:325-326` | `mayDrag` became `mayMove` and four rules (`holderOf`, `withoutSentence`, `refusedSwitch`, `applySwitch`) were added above it |
 | D4 | `lib/picture_assignment.dart:149-151` | `:162-165` | the reason written beside the two comparisons pushed them down; the comparisons themselves are now inclusive |
 

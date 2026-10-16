@@ -78,8 +78,12 @@ def follow_lines():
     """`klhu follow: p<i> s<j> visible=<0|1> top=<t> bottom=<b> viewport=<h>`."""
     out = []
     for ln in base.log_lines("klhu follow"):
+        # The `below` field is **022's own** (2026-10-16) and the pattern is left
+        # unanchored, so the six-field lines of this feature's own receipts still
+        # read exactly as they did.
         m = re.search(
-            r"p(\d+) s(\d+) visible=(\d) top=(-?\d+) bottom=(-?\d+) viewport=(\d+)",
+            r"p(\d+) s(\d+) visible=(\d) top=(-?\d+) bottom=(-?\d+) viewport=(\d+)"
+            r"(?: below=(\d+))?",
             ln)
         if m:
             out.append({
@@ -89,6 +93,7 @@ def follow_lines():
                 "top": int(m.group(4)),
                 "bottom": int(m.group(5)),
                 "viewport": int(m.group(6)),
+               'below': int(m.group(7) or 0),
             })
     return out
 
@@ -185,11 +190,10 @@ def record_lines(needle):
     return [ln for ln in stored_prefs() if needle in ln]
 
 
-def stored_offset():
-    for ln in base.stored_position():
-        m = re.search(r"(\d+)\|\|(\d+)", ln)
-        if m:
-            return (int(m.group(1)), int(m.group(2)))
+# `stored_offset()` stood here: it read the stored position out of 010's own
+# `stored_position()` (itself a reader of the withdrawn record). With its two
+# callers retired on 2026-10-16 it had none left — the house's rule is no dead
+# code, and 010's driver keeps its own reader.
     return None
 
 
@@ -299,6 +303,30 @@ def set_bounds(rows, needle):
     left, top, right, bottom = node["bounds"]
     x = (left + right) // 2
     y_from, y_to = min(bottom, screen_height()) - 40, top + 40
+    for _ in range(2):
+        adb("shell", "input", "swipe", str(x), str(y_from),
+            str(x), str(y_to), "300")
+        time.sleep(0.8)
+    time.sleep(1.2)
+    return True
+
+
+def back_to_top(rows):
+    """Puts the reading page back at its own top: two downward swipes.
+
+    022 amended scenario 20 (2026-10-16). The row's own subject needs **the same
+    line** tapped once and held once, and it used to get that for free because a
+    read never moved the page. 022's narrowing (011 FR-003, recorded) makes a read
+    move the page in one case, so "the same line" is no longer the same device
+    point a few seconds later: the page is returned to its own top before each
+    gesture, which is what makes the low line the same line again.
+    """
+    node = text_node(rows)
+    if node is None:
+        return False
+    left, top, right, bottom = node["bounds"]
+    x = (left + right) // 2
+    y_from, y_to = top + 40, min(bottom, screen_height()) - 40
     for _ in range(2):
         adb("shell", "input", "swipe", str(x), str(y_from),
             str(x), str(y_to), "300")
@@ -709,7 +737,6 @@ def scenario_17():
     step("17. the list's add action: a named save, an empty one refused")
     reset_viewport()
     rows = base.start_app(clear=True)
-    positions_before = base.stored_position()
     rows = base.open_library(rows)
     if rows is None:
         return False
@@ -762,16 +789,18 @@ def scenario_17():
     if rows is None:
         return False
     list_final = base.labels(rows)
-    positions_after = base.stored_position()
     print(f"   list final : {list_final[:6]}")
     if list_final != list_after:
         print("   FAIL: the empty Save added a row")
         ok = False
-    if positions_after != positions_before:
-        print(f"   FAIL: the draft wrote a position record: "
-              f"{positions_after} vs {positions_before}")
-        ok = False
-    print(f"   positions: {positions_after}")
+    # **2026-10-16 (022's regression sweep): the two reads that stood here are
+    # gone.** They compared the stored position list before and after a draft —
+    # a record 010's FR-008 withdrew (016's decision 5), so both sides were always
+    # empty and the check could not fail. What it meant ("a draft disturbs no
+    # reading position") is what the lines above witness from the app's own state:
+    # the library's rows are identical, and the app keeps no position record at all
+    # any more (the page's position in force is in memory, and 011's own FR-022 is
+    # why a read leaves none behind).
 
     # Third pass: the same draft finished with the CHECK icon. Done saves (the
     # fix this row pins) — the row must appear without touching Save, because a
@@ -842,15 +871,23 @@ def scenario_20():
     set_viewport(1080, 1000)
     text = base.preset_text()
     ok = True
-    point = visible_low_point(base.dump())
-    if point is None:
-        reset_viewport()
-        return False
-
     def set_position(why, hold=False):
         """The same line of the page: TAPPED it sets a sentence position (010
         FR-002), HELD it selects the whole paragraph (003). One point, two
-        gestures — which is exactly the pair the rows below compare."""
+        gestures — which is exactly the pair the rows below compare.
+
+        **022 amended this row (2026-10-16)**: the point is derived here, per
+        gesture, from a page first returned to its own top — the row used to
+        measure it once, before the read above, and a read now moves the page in
+        the one case 022's rule covers, which made the held point land on another
+        paragraph. The subject is unchanged: the same line, one tap, one hold.
+        """
+        if not back_to_top(base.dump()):
+            print("   FAIL: the reading text is not on the page to measure")
+            return None
+        point = visible_low_point(base.dump())
+        if point is None:
+            return None
         if hold:
             hold_at(point, why)
         else:
@@ -953,11 +990,12 @@ def scenario_20():
     if yellow_present("after the read ended"):
         print("   FAIL: the ended read left its highlight painted")
         ok = False
-    left = record_lines("read_position")
-    print(f"   records after the read: {left or 'none'}")
-    if left:
-        print("   FAIL: the ended read left the position in force")
-        ok = False
+    # **2026-10-16 (022's regression sweep): the read of the record that stood here
+    # is gone.** It asked the withdrawn `read_position_*` record to be empty — and
+    # the app writes no such record at all (the device's prefs hold the appearance
+    # key and nothing else), so the check could not fail. What it meant (FR-022: an
+    # ended read leaves nothing in force) is witnessed **live** by the check two
+    # lines above: the ended read's highlight is not painted.
 
     # ▶ Read with nothing highlighted: it speaks NOTHING and asks for a
     # selection (FR-023) — reading the page from the top is ⏭'s fallback.
@@ -1054,11 +1092,17 @@ def scenario_21():
         ok = False
     else:
         print("   still reading after tap + hold + scroll: Pause is up")
-    if stored_offset() is not None:
-        print(f"   FAIL: a touch moved the position ({stored_offset()})")
-        ok = False
-    else:
-        print("   position: still none")
+    # **2026-10-16 (022's regression sweep): the check that stood here is gone, and
+    # its claim is not lost.** It read the stored position — the record 010's
+    # FR-008 withdrew (016's decision 5) — so it could not fail: the app writes no
+    # such pref under any name, and a check that reports PASS for nothing is worse
+    # than no check. What it meant ("a touch during a read does not move the
+    # position") is what the lines above already witness from the app's own state:
+    # `Pause` up means the read was neither ended nor parked by the touch, and the
+    # read's own utterance stream below is its own continuation. If a position
+    # store ever returns, this check comes back with a live witness, the way this
+    # file's row 20 and row 23 were re-cut the same day.
+    print("   position: nothing to read — the app writes no such record any more")
 
     # PAUSED is a read in progress too (FR-025 says so explicitly).
     if not tap_control(base.dump(), "Pause", "Pause (parks the read)"):
@@ -1080,9 +1124,10 @@ def scenario_21():
     if base.find(rows, "Continue Read") is not None:
         print("   FAIL: a parked read went idle on a touch")
         ok = False
-    if stored_offset() is not None:
-        print(f"   FAIL: a touch wrote a position while parked ({stored_offset()})")
-        ok = False
+    # Same as above (2026-10-16): the record this read is withdrawn, so the check
+    # could not fail. "A touch while parked writes no position" is witnessed live
+    # by the buttons above (`Resume` still up = the park was not disturbed).
+    print("   position: nothing to read — a parked read had no record to move")
 
     # Stop is the control that ends a read.
     if not tap_control(base.dump(), "Stop", "Stop (ends the read)"):
@@ -1246,24 +1291,23 @@ def scenario_23():
         time.sleep(1.5)
         return (x, y)
 
-    # The stored record is `(anchor, the text's own length)` — the length is how a
-    # record computed on other text is recognised and ignored (`_restoreAnchor`
-    # hands it to `Positions.load`), so the ANCHOR is the part that answers which
-    # sentence the page picked.
+    # The record this row used to read — `(anchor, the text's own length)` — is
+    # **withdrawn**: 010's FR-008 went with 016's decision 5, and the app writes no
+    # such pref under any name (the device's own prefs hold the appearance key and
+    # nothing else; `grep -rn "read_position" lib/` finds nothing). **Re-cut
+    # 2026-10-16**, the way 016 amended this file's own row 20 on 2026-10-12: the
+    # anchor is witnessed by the app's **live range** — what ▶ (below) and ⏭ (step 4)
+    # read from is the sentence the tap put in force. The row's subject is unchanged
+    # (a sentence ends where its paragraph does: the tap, the read, the position);
+    # only the witness is.
     #
     # 1. A tap on the TITLE's own line: the anchor is the title's start, the
     #    highlight is one line, and ▶ reads the title alone. Under the old rule
     #    the sentence under the finger was `0..51` — the title AND the body's
     #    first sentence — so ▶ would have read into the paragraph.
     tap_band(title_band, "the title's own line")
-    offset = stored_offset()
-    want = (title[0], len(text))
-    print(f"   tapped the title -> record {offset} (the title begins at {title[0]}, "
-          f"the text is {len(text)} chars)")
-    if offset != want:
-        print(f"   FAIL: the record is {offset}, not (the title's start, the text's "
-              f"length) = {want}")
-        ok = False
+    print(f"   tapped the title (the title begins at {title[0]}, the text is "
+          f"{len(text)} chars) — the anchor it set is read off ▶ below")
     shot = screencap(os.path.join(OUT, "011_23_title_tap.png"))
     band_rows = sorted(yellow_rows(shot))
     if not band_rows:
@@ -1284,10 +1328,16 @@ def scenario_23():
     tap_control(base.dump(), "Read", "Read (the tapped title)")
     time.sleep(2.5)
     ranges = base.ranges()
-    print(f"   ▶ ranges={ranges} utterances={spoken()}")
+    print(f"   ▶ ranges={ranges} utterances={spoken()} — the anchor in force is "
+          f"{ranges[0][0] if ranges else None} (the title begins at {title[0]}, the "
+          f"text is {len(text)} chars)")
     if not ranges or ranges[0] != title:
         print(f"   FAIL: ▶ read {ranges[0] if ranges else None}, not the title {title} — "
               f"the tap's sentence is swallowing the paragraph under it")
+        ok = False
+    if ranges and ranges[0][0] != title[0]:
+        print(f"   FAIL: the anchor is {ranges[0][0]}, not the title's own start "
+              f"{title[0]} — the tap put a range in force whose anchor is elsewhere")
         ok = False
     if not base.wait_for_idle():
         print("   FAIL: the read did not end")
@@ -1297,13 +1347,8 @@ def scenario_23():
     # 3. A tap inside the body: the anchor is where the body's own sentence
     #    starts, never back at the title.
     tap_band(first_band, "the body's first sentence")
-    offset = stored_offset()
-    print(f"   tapped the body -> record {offset} (its first sentence begins at "
-          f"{first[0]})")
-    if offset is None or offset[0] != first[0]:
-        print(f"   FAIL: the anchor is {offset[0] if offset else None}, not the "
-              f"body's {first[0]} — the tap went back to the title")
-        ok = False
+    print(f"   tapped the body (its first sentence begins at {first[0]}) — the anchor "
+          f"it set is read off ⏭ below")
 
     # 4. ⏭ from there reads from there: the resume is not pulled back to the
     #    title, which is what the anchor did with the old rule (it would have
@@ -1312,14 +1357,161 @@ def scenario_23():
     tap_control(base.dump(), "Continue Read", "Continue Read (from the body)")
     time.sleep(2.5)
     ranges = base.ranges()
-    print(f"   ⏭ ranges={ranges} utterances={spoken()}")
+    print(f"   ⏭ ranges={ranges} utterances={spoken()} — the anchor in force is "
+          f"{ranges[0][0] if ranges else None} (the body's first sentence begins at "
+          f"{first[0]})")
     if not ranges or ranges[0][0] != first[0]:
-        print(f"   FAIL: ⏭ started at {ranges[0][0] if ranges else None}, "
-              f"not at the body's {first[0]}")
+        print(f"   FAIL: the anchor is {ranges[0][0] if ranges else None}, not the "
+              f"body's {first[0]} — the tap went back to the title")
         ok = False
     base.wait_for_idle()
     print(f"   left in the library afterwards: "
           f"{'taken back out' if unseed(TITLE_ID) else 'STILL THERE'}")
+    return ok
+
+
+def scenario_24():
+    """**022's own row** (quickstart row 10): the read keeps a sentence ahead of the
+    one being read.
+
+    The reader's own rule of 2026-10-16 — "start the auto scroll before highlight/read
+    last sentence on screen" — read off the app's own line: while a read plays, the
+    sentence being read is never the bottom-most box on screen unless it is the
+    content's **last** sentence. `below=` counts the sentences whose boxes are inside
+    the viewport below the reported one, so every report for a non-final sentence must
+    read `below >= 1`, and the last one must read `below=0`.
+    """
+    step("24. the read keeps a sentence ahead of the sentence being read "
+         "(022 FR-001/FR-009)")
+    rows = base.start_app(clear=True)
+    rows = set_xlarge(rows) or rows
+    set_viewport(1080, 1000)
+    rows = base.dump()
+    text = base.preset_text()
+    sentences = base.sentence_starts(text)
+    print(f"   pre-set: {len(text)} chars, {len(sentences)} sentences; "
+          f"display 1080x1000 so the text is taller than the page")
+    base.clear_log()
+    if not base.tap_node(rows, "Continue Read", "Continue Read"):
+        return False
+
+    deadline = time.time() + 200
+    while time.time() < deadline:
+        if base.find(base.dump(), "Continue Read") is not None and follow_lines():
+            break
+        time.sleep(0.5)
+
+    reports, utterances = follow_lines(), spoken()
+    print(f"   klhu speak: {len(utterances)} utterances | "
+          f"klhu follow: {len(reports)} reports | "
+          f"viewport={reports[0]['viewport'] if reports else '?'} logical")
+    ok = True
+    if [f"p{r['p']} s{r['s']}" for r in reports] != \
+            [f"p{p} s{s}" for p, s in utterances]:
+        print("   FAIL: the reports and the utterances do not agree, in order")
+        ok = False
+    non_final = reports[:-1] if reports else []
+    for i, r in enumerate(non_final):
+        if r["below"] < 1:
+            print(f"   FAIL: p{r['p']} s{r['s']} was the bottom-most box on screen "
+                  f"(below={r['below']}, top={r['top']} bottom={r['bottom']} "
+                  f"viewport={r['viewport']})")
+            ok = False
+        if not r["visible"] or not (r["top"] < r["bottom"] <= r["viewport"]):
+            print(f"   FAIL: p{r['p']} s{r['s']} geometry {r}")
+            ok = False
+    if reports:
+        last = reports[-1]
+        if last["below"] != 0:
+            print(f"   FAIL: the content's last sentence claims {last['below']} "
+                  f"below it — nothing follows it")
+            ok = False
+    kept = sum(1 for r in non_final if r["below"] >= 1)
+    print(f"   every non-final report keeps a sentence below it: "
+          f"{kept}/{len(non_final)}")
+    print("   the content's last sentence's own report: "
+          + (f"p{reports[-1]['p']} s{reports[-1]['s']} below={reports[-1]['below']} "
+             f"visible={reports[-1]['visible']}" if reports else "none"))
+    # The display goes back to its physical size — this row shrinks it, and a row
+    # that leaves it shrunk moves every later row's taps (016's row 15, the same
+    # afternoon, tapped the wrong coordinates because this one did not reset).
+    reset_viewport()
+    return ok
+
+
+
+def scenario_25():
+    """**022's own row** (quickstart row 11, second half): a text that fits the reading
+    area moves the page by zero pixels.
+
+    The unit half of that criterion is 011's own case (`short text: no scroll`). The
+    device half needs the premise 011's own `set_viewport` docstring measures: at the
+    display's own size and the app's own appearance, the reading area is ~718 logical px
+    tall against this preset's ~226 — so the text fits, there is nothing to scroll, and a
+    read of it cannot move the page. Both halves of that are checked: every sentence sits
+    inside the area at once, and the highlight walks **down the page** as the read
+    advances while the page's own offset stays put.
+    """
+    step("25. a text that fits the page moves by zero pixels (022 FR-005/SC-003)")
+    # `clear=True` starts from the app's own defaults, so the appearance is the shipped
+    # one; the display goes back to its physical size.
+    base.start_app(clear=True)
+    reset_viewport()
+    rows = base.dump()
+    text = base.preset_text()
+    print(f"   pre-set: {len(text)} chars, {len(base.sentence_starts(text))} sentences; "
+          f"display at its physical size, appearance at the app's own default")
+    base.clear_log()
+    if not base.tap_node(rows, "Continue Read", "Continue Read"):
+        return False
+
+    # Stills are taken **while the read plays** — after it ends the page clears its
+    # highlight (`clear_log` above means the report count is this read's own), so a still
+    # taken at the end has no band in it at all.
+    total = len(base.sentence_starts(text))
+    caps = []
+    deadline = time.time() + 150
+    while time.time() < deadline:
+        seen = follow_lines()
+        if seen and len(seen) < total:
+            caps.append(screencap(f"{OUT}/klhu_walk_022_s25_{len(caps):02d}.png"))
+        if base.find(base.dump(), "Continue Read") is not None and len(seen) >= total:
+            break
+        time.sleep(0.4)
+
+    reports = follow_lines()
+    if not reports:
+        check("25: the read reported its sentences", False, "no `klhu follow` lines")
+        return False
+    print(f"   klhu follow: {len(reports)} reports | viewport={reports[0]['viewport']} logical")
+    print(f"   the sentences' own boxes, as read: {[(r['top'], r['bottom']) for r in reports]}")
+
+    ok = True
+    if not all(r["visible"] for r in reports) or reports[-1]["bottom"] > reports[-1]["viewport"]:
+        print(f"   FAIL: the text does not fit the reading area — "
+              f"last bottom={reports[-1]['bottom']} of viewport={reports[-1]['viewport']}, "
+              f"not visible: {['p%d s%d' % (r['p'], r['s']) for r in reports if not r['visible']]}")
+        ok = False
+    print(f"   every sentence inside the reading area at once: "
+          f"{sum(1 for r in reports if r['visible'])}/{len(reports)} visible, "
+          f"the last's bottom={reports[-1]['bottom']} of viewport={reports[-1]['viewport']} "
+          f"— nothing to scroll")
+    for r in reports:
+        if not (r["visible"] and 0 <= r["top"] < r["bottom"] <= r["viewport"]):
+            print(f"   FAIL: p{r['p']} s{r['s']} sits outside the visible area: {r}")
+            ok = False
+
+    seen_bands = [min(ys) for ys in (yellow_rows(c) for c in caps) if ys]
+    bands = {"first": seen_bands[0] if seen_bands else None,
+             "last": seen_bands[-1] if seen_bands else None,
+             "captures": len(caps), "with a band": len(seen_bands)}
+    walked = len(seen_bands) >= 2 and seen_bands[-1] >= seen_bands[0]
+    if not walked:
+        print(f"   FAIL: the highlight did not walk down the page: bands={bands}")
+        ok = False
+    print(f"   the highlight's own top row, capture by capture: {seen_bands} "
+          f"({bands['captures']} stills, {bands['with a band']} with a band) "
+          f"({'down the page' if walked else 'NOT down the page'})")
     return ok
 
 
@@ -1333,11 +1525,13 @@ PARTS = {
     "20": scenario_20,
     "21": scenario_21,
     "23": scenario_23,
+    "24": scenario_24,
+    "25": scenario_25,
 }
 
 if __name__ == "__main__":
     part = sys.argv[1] if len(sys.argv) > 1 else ""
     if part not in PARTS:
-        print(f"usage: {os.path.basename(__file__)} 7|8|9|10|16|17|20|21|23")
+        print(f"usage: {os.path.basename(__file__)} 7|8|9|10|16|17|20|21|23|24|25")
         sys.exit(2)
     print("RESULT:", "PASS" if PARTS[part]() else "FAIL")

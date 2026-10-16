@@ -45,8 +45,8 @@ built on it (FR-010, SC-006) could not hold as written:
 
 - `storePicks` writes each pick as `<tmp>/picks_<seq>/pick_<i>_<name>` (`lib/video_pictures.dart:55-66`), and
   `_openVideoPrompt`'s `finally` calls `discardPictures(picturesDir)` the moment the prompt ends
-  (`lib/reading_view.dart:1862`) — 012's own rule, and its own words: the picks are **never remembered**.
-- `_pictureDirSeq` is a **page-instance** field (`lib/reading_view.dart:271`), so the directory's **name** is what
+  (`lib/reading_view.dart:2056`) — 012's own rule, and its own words: the picks are **never remembered**.
+- `_pictureDirSeq` is a **page-instance** field (`lib/reading_view.dart:276`), so the directory's **name** is what
   varies: a second prompt in one page instance is `picks_1` (every stored run goes stale — the case FR-010's first
   half names), while a relaunch starts at `picks_0` and re-attached the runs **by accident**. The same reader doing
   the same thing twice gets two different answers; that is the defect, whichever way it lands.

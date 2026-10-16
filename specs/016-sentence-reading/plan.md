@@ -10,7 +10,7 @@ four decisions with their costs, and what follows is the code those decisions la
 
 | What | Where | What it does |
 |---|---|---|
-| ▶ Read | `lib/reading_view.dart:1048-1059` (`_readSelection`) | `_highlight == null` → the hint `selectToReadMessage` and **return**; else `_readRange(seg.start, seg.end)` — no `track` |
+| ▶ Read | `lib/reading_view.dart:1055-1059` (`_readSelection`) | `_highlight == null` → the hint `selectToReadMessage` and **return**; else `_readRange(seg.start, seg.end)` — no `track` |
 | ⏭ Continue Read | `:1064-1066` (`_readContinue`) | `_readRange(_anchor ?? 0, _content.length, track: true)` |
 | The shared read | `:1077-1112` (`_readRange`) | resolves speeches over `[start, end)`; an empty range is answered with `nothingToReadMessage` (`:1093-1097`); prints `klhu read range: start..end` (`:1102`); installs the per-sentence callback **only** when `track` (`:1108-1109`) |
 | The tracking highlight | `:1123-1129` (`_onSpokenSentence`) | paints exactly the spoken sentence, then reveals it (`_followRead`) |
@@ -67,7 +67,7 @@ and 011 FR-002 cannot drift from FR-012.
 the message, and no string is added. `nothingToReadMessage` stays where it is (an empty *range*, `:1095`,
 `:2023`, `:2149`) and is not reused for this.
 
-**2.6 The message key goes.** `selectToReadMessage` is used at exactly one place, `lib/reading_view.dart:1052`,
+**2.6 The message key goes.** `selectToReadMessage` is used at exactly one place, `lib/reading_view.dart:1062`,
 which §2.1 removes. Delete it from `app_en.arb` + the three translations, run `flutter gen-l10n`, commit the
 regenerated Dart. The app's key count is **108 → 107**, which is 015's row 16's number: that receipt is
 corrected with its date in 015's own record (its rule, not this one's exception).
@@ -127,7 +127,7 @@ after reading the tree** (its full enumeration with line numbers is `tasks.md` �
 - **Six shipped test files**, not two: the store's own file (deleted with its subject), `test/video_aspect_test.dart`
   (`:11` and its `:85-96` namespace case call `ReadPositionStore.keyFor` — a **compile error**, so the file
   cannot even load until it is re-cut), `test/reading_view_continue_test.dart` (the restore group `:441-...`
-  and the four record-clearing cases `:494`/`:521`/`:545`/`:565`), `test/reading_view_follow_test.dart:261`
+  and the four record-clearing cases `:494`/`:521`/`:545`/`:565`), `test/reading_view_follow_test.dart:405`
   (which seeds the record), `test/reading_view_dialogue_test.dart:250` (`expect(afterTap, isNotNull)`), and
   `test/reading_view_comment_test.dart:273`/`:290` with `test/reading_view_new_content_test.dart:195`/`:211`.
   `test/appearance_store_test.dart:81` names the prefix as a literal and **stays unmodified**.
@@ -187,7 +187,7 @@ stage, which found §3.7's list short (see that section and `tasks.md` § The st
 `test/video_aspect_test.dart` (`:11`'s import, `:85-96`'s namespace case — a **compile error** once
 `ReadPositionStore` leaves the tree), `test/reading_view_continue_test.dart` (the restore group `:441-...`,
 which asserts the round-trip this feature retires, plus the record helpers at `:180`, `:453`, `:471`, `:484`),
-`test/reading_view_follow_test.dart:261` (a case that **seeds** a `read_position_*` record and asserts the view
+`test/reading_view_follow_test.dart:405` (a case that **seeds** a `read_position_*` record and asserts the view
 restores it), `test/reading_view_dialogue_test.dart:250` (`expect(afterTap, isNotNull)`), and
 `test/reading_view_comment_test.dart` (`:273`, `:290`) with `test/reading_view_new_content_test.dart` (`:195`,
 `:211`). `test/reading_view_continue_test.dart:302` — ⏭'s own case in §3.3 — is **not** touched, and neither is

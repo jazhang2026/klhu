@@ -8,7 +8,10 @@ own node labels, verbatim — plus a still per state under `/tmp/klhu_out` for t
 > `/tmp/klhu_out/...` path quoted below is a record of an image that no longer exists; re-cutting it means re-running
 > the walk. The package on the device was also re-installed today (`lastUpdateTime=2026-10-16 08:43:56`, an APK
 > built 08:43:54 from this same tree) against the 2026-10-15 16:03 build the rows below were driven on. The quotes
-> stand as taken; a re-run drives the newer build.
+> stand as taken; a re-run drives the newer build. **Done the same morning, 09:25–09:40**: the whole walk was
+> driven again on the fixed build (`lastUpdateTime` 09:24:14) — rows 8-15, 17, 19 and 20, every one green
+> (`5/5, 6/6, 8/8, 8/8, 11/11, 12/12, 6/6, 12/12, 8/8, 11/11, 9/9`) — so the stills named below exist as of
+> 09:41, and the two rows this amendment added or re-cut carry both builds' own runs.
 
 The driver imports **020's own module** for everything it already has (the ten-sentence fixture, the three pictures,
 the prompt's flow, the pass, the dump readers) and adds 021's own: the **cell's own label** (the picture's name and
@@ -223,6 +226,11 @@ base 782   →   now 808
   `+19` are that file's total at those moments).
 - Row 16's claims are unchanged: analyze clean, the generator idempotent, the locale keys at parity, the schedule's
   own files untouched.
+- **The quickstart's own row count moved again — 19 rows, not 18 (2026-10-16, Amendment 3)**: this file's row 16
+  block above quotes `18 rows (8 unit, 9 device, 1 structural)`, which was right when it was taken and is one row
+  short now that Amendment 3's device row (the drop on a sentence-holder's cell, driver key `20`) is a row of the
+  quickstart too. `check_quickstart_coverage.py` reads `19 rows (8 unit, 10 device, 1 structural)`; the row that
+  makes it 19 is dated 2026-10-16.
 
 ## Row 19 — the assignment line with nothing picked (the reader's own report, amended in)
 
@@ -249,6 +257,40 @@ after Cancel, and opening it again:
 - This row's own first run scored 7/8 on a **check's** own wording, not the app's: the negative test
   `not on_screen(rows, "pictures chosen")` matched the app's own `No pictures chosen`. The check now asserts that
   label positively.
+
+## Row 20 — a picture the reader gave nothing, dropped on the one that holds a sentence (Amendment 3, 2026-10-16)
+
+The reader's own report: *"after assign sentence to some pictures, back to pictures chosen dialog, drag no sentence
+picture to the position of picture with sentences failed. drag no sentence picture to position of other no sentence
+picture works."* The same row was walked on the two builds either side of the fix — same steps, same fixture.
+
+On the build of 2026-10-15 (`lastUpdateTime` 08:43:56, the tree before the fix) — **8/9**:
+
+```
+the cells once the pass answered Done:   {'w020_white.png': '1', 'w020_black.png': '0', 'w020_red.png': '0'}
+the cells' own order, off the device's bounds:  ['w020_white.png', 'w020_black.png', 'w020_red.png']
+hold the sentence-holder @(330,1173):    order unchanged            ← FR-005's own rule holds
+hold w020_black.png @(540,1173) and drop it on w020_white.png @(330,1173):
+   FAIL 20: the drop put the held picture where the sentence-holder stood — order:
+   ['w020_white.png', 'w020_black.png', 'w020_red.png']             ← the reader's report, reproduced
+```
+
+On the fixed build (`lastUpdateTime` 09:24:14) — **9/9**:
+
+```
+PASS 20: the prompt's own cells carry the reader's counts — cells: {'w020_white.png': '1', 'w020_black.png': '0', 'w020_red.png': '0'}
+PASS 20: before the move, the cells stand in the order the reader chose — ['w020_white.png', 'w020_black.png', 'w020_red.png']
+PASS 20: a hold on the sentence-holder moves nothing (FR-005) — order: ['w020_white.png', 'w020_black.png', 'w020_red.png']
+PASS 20: the drop put the held picture where the sentence-holder stood — order: ['w020_black.png', 'w020_white.png', 'w020_red.png']
+PASS 20: and the sentence stayed with its own picture, by name (020 FR-010) — cells: {'w020_white.png': '1', 'w020_black.png': '0', 'w020_red.png': '0'}
+```
+
+- Stills: `/tmp/klhu_out/021_row20_before_the_drop.png` and `/tmp/klhu_out/021_row20_after_the_drop.png`.
+- What the row asserts is the **order read off the device's own bounds**, never off a list the driver holds: 012's
+  own rule is that the cells' order **is** the order the video draws the pictures in, so a move has to be read off
+  the screen.
+- The control it carries: a hold on the sentence-holder moves nothing, on **both** builds — the fix gives a
+  sentence-holder's cell a **drop target**, never a hold of its own.
 
 ## What this walk cost, and what 020's own helpers still assume
 

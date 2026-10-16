@@ -105,7 +105,7 @@ reviewer should re-check, and each is *fixed* in this same pass rather than repo
    - **six shipped test files**, not two: `test/read_position_store_test.dart` (the contract's own 11 cases,
      gone with the file), `test/video_aspect_test.dart:11`/`:85-96` (a **compile error** — its namespace case
      calls `ReadPositionStore.keyFor`), `test/reading_view_continue_test.dart` (the restore group `:441-...`
-     plus the record helpers at `:180`, `:453`, `:471`, `:484`), `test/reading_view_follow_test.dart:261` (a
+     plus the record helpers at `:180`, `:453`, `:471`, `:484`), `test/reading_view_follow_test.dart:405` (a
      case that **seeds** a record and asserts it is restored), `test/reading_view_dialogue_test.dart:250`
      (`expect(afterTap, isNotNull)`), `test/reading_view_comment_test.dart:273`/`:290` and
      `test/reading_view_new_content_test.dart:195`/`:211` (each asserting the record's value);
@@ -159,7 +159,11 @@ reviewer should re-check, and each is *fixed* in this same pass rather than repo
      documents checked 5 · scenarios in quickstart.md 14 · test/*.dart files in the tree 49
      unresolved 18 — every one of a tolerated class, none a false claim about this stage's own artifacts:
        · another spec's ids quoted in prose (011's FR-018/021/023/024/025, and `A1` in the checklist's shape
-         note) — the script's own docstring says prose legitimately cites a sibling's ids;
+         note) — the script's own docstring says prose legitimately cites a sibling's ids. **2026-10-16, and the
+         class still stands**: this file's entries were left exactly as written when a later feature's stage hit
+         the same rule and wrote *its* citations in words (`specs/022-read-scroll-lead`) — the two readings are
+         not in conflict, and neither is an error; what this amendment's own row cites is this feature's ids and
+         the app's own lines;
        · a file this list creates and has not run yet (`test/reading_view_step_test.dart`,
          `specs/016-sentence-reading/scripts/klhu_walk_step.py`) — 015's plan cited `lib/comment.dart` the same
          way before its own T004 wrote it;
@@ -206,7 +210,7 @@ reviewer should re-check, and each is *fixed* in this same pass rather than repo
    (`test/reading_view_continue_test.dart:302`, "tracking follows the read, and the read takes the position
    with it") **stays unmodified**.
 7. **One key leaves, nothing takes its place** (spec FR-013, plan §2.6): `selectToReadMessage`, used at
-   exactly one place, `lib/reading_view.dart:1052`; the count moves **108 → 107** (counted in the four ARBs
+   exactly one place, `lib/reading_view.dart:1062`; the count moves **108 → 107** (counted in the four ARBs
    on `409ffe1`), and 015's row 16 receipt — walked against 108 — is corrected with its date in 015's own
    record (T022).
 8. **Another feature's records are corrected, never deleted quietly** (plan §3.7, 015's own rule): 010's
@@ -319,7 +323,7 @@ sentences 1, 2 and 3 in order and each ends by itself; the fourth reads nothing,
 
       **DONE 2026-10-12 — landed in part; the remainder re-cut into T010 and T011 in this same pass.** What
       landed: the measurement is generalized to a content range (`_measureSpan(start, end)`,
-      `lib/reading_view.dart:1188`, with `_measure` a one-line delegate) and the reveal is one doorway
+      `lib/reading_view.dart:1263`, with `_measure` a one-line delegate) and the reveal is one doorway
       (`_scrollIntoView(geometry)`, called by `_followRead`) — 011 FR-002's behaviour, unchanged, still green in
       every follow case.
       What could not land here, and why: `_readRange`'s `step` flag and `_revealRange` have **no caller** until
@@ -513,7 +517,7 @@ highlight, no position — for a step **and** for a tap.
       ignored" `:469`, "a stored position whose text length changed is ignored" `:481`) becomes "a fresh view
       restores nothing" (FR-007); the record helpers (`:180`, `:453`, `:471`, `:484`) and the four clearing
       cases (`:494`, `:521`, `:545`, `:565`) assert the **in-session** position instead of the record
-      (FR-009); `test/reading_view_follow_test.dart:261`'s seed (`:266`) — a `read_position_*` record — is
+      (FR-009); `test/reading_view_follow_test.dart:405`'s seed (`:266`) — a `read_position_*` record — is
       replaced by the in-session step that puts the same offset in force, which is also 011 FR-002's own case
       (FR-012). The ⏭ case at `:302` is **not** touched (note 6).
       **DONE 2026-10-12** — 010's and 011's own files re-cut: `test/reading_view_continue_test.dart` loses the
@@ -869,3 +873,48 @@ every one of them is named above with the artifact that carries the change):
 | 011 FR-025 (a touch during a read changes nothing) | unchanged; the `gen == _readGen` guard carries it | T011, T029 |
 | 011 FR-018 (no new dependency) | kept as this feature's FR-014 | T001, T031 |
 | 011 FR-021 (Pause parks and Resume finishes the sentence) | unchanged; the advance applies after it | T013, T017 |
+
+---
+
+## Amendment — the reader's own report of 2026-10-16 (a new row, dated)
+
+> "reading page, when not on the top/not show first sentence and no tap, click Continue Read, it scroll to top,
+> highlight first sentence the read. if click Read, no scroll to top happen before read first sentence. scroll happen
+> after read first sentence and high light second sentence."
+
+- [x] T035 `lib/reading_view.dart`: the press reveals the unit it is about to read — `_readSelection`'s three branches
+  (nothing highlighted → the first step, a paragraph selection, a sentence selection) call `_revealRange` **before**
+  `_readRange`, so FR-012's reveal covers the press's own unit and not only the next one (`_advanceStep` carried that
+  half already). Its case is `test/reading_view_step_test.dart`'s own and its row is `klhu_walk_step.py`'s **15**,
+  walked either side of the fix.
+  - **Where the gap was, in the code's own terms**: a step reads with `step: true` and `track` stays false, so
+    `onSentenceStart` is `null` — no sentence report reaches `_followRead` — and the step path's only reveal was
+    `_advanceStep`'s, after the sentence had been spoken. ⏭ passes `track: true` and therefore revealed first, which
+    is exactly the two-button comparison the reader reports.
+  - **The case first, RED quoted**: a 400×600 viewport, twelve copies of the fixture's paragraph, nothing
+    highlighted, the page jumped to `maxScrollExtent` so the first sentence is off screen —
+    `Expected: a value less than <4361.0> / Actual: <4361.0> / Which: is not a value less than <4361.0>`, with the
+    reason `▶ read the sentence with the page where it was: nothing brought it into view`. Green after the fix:
+    `test/reading_view_step_test.dart` → `+13: All tests passed!`; the whole suite →
+    `01:13 +810: All tests passed!`; `flutter analyze` → `No issues found!` (ran in 1.1s).
+  - **The device, on two builds**: the new row **15** on the build of 09:24 — the tree before this fix — reads
+    **2/3**: the control passes (⏭ starts at the first sentence `ranges=[(0, 779)]` and its frames paint the
+    highlight `[(None, 0), (472, 64400), (472, 64400)]`), and ▶'s own check fails with `ranges=[(0, 33)]` and
+    **every** frame blank (`[(None, 0), (None, 0), (None, 0)]`) — the reader's report, reproduced. On the fixed
+    build (`lastUpdateTime=2026-10-16 11:01:36`) the same row reads **3/3**, that press's frames now
+    `[(None, 0), (472, 64400), (472, 64400)]` beside the control's own. Section, frames and both presses' `klhu
+    read range` lines in `breakpoint.md`.
+  - **Two corrections the row's own first run forced, both in the row rather than in the app**: its first version
+    expected ⏭'s range to be the first sentence where ⏭ reads to the **end** of the content (`(0, 779)`), and it
+    pressed ▶ through `tap_any`, which found the *app bar's* own "Read" at `(263, 209)` — the trap this driver's
+    `press_read` band guard exists for. Both were fixed before any verdict was read off the row: a row that fails
+    for its own reasons proves nothing about the app.
+  - **The line citations this fix owed, re-mapped in the same pass**: the fix adds ten lines at
+    `lib/reading_view.dart:1041`, so every `reading_view.dart:<n>` citation with `n > 1035` was re-mapped through
+    the diff's own hunks to the line that still holds the text it names — **58 citations across 27 files** in
+    `specs/`, each verified before rewriting (the mapped line's text equals the cited line's text at the last
+    commit). The citations the shift did not touch were checked the same way: **83 still hold their text, none had
+    drifted before today.** Nothing was renumbered on a guess.
+  - **What this owes 022**: nothing. This is the reveal that `specs/022-read-scroll-lead`'s third decision (`3A`)
+    builds on, and that spec's own checklist already records this defect as one found while it was written.
+

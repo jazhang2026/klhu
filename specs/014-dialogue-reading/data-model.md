@@ -170,7 +170,7 @@ A name the reader has said is not a role.
 because the two things the screen cannot answer itself are which row is chosen (a role's pick is not in the
 `VoiceStore` it holds) and where a tap goes. Both are absent on the language path.
 
-The language-level picker (today's caller, `lib/reading_view.dart:1939`) passes none of them, so that screen is
+The language-level picker (today's caller, `lib/reading_view.dart:2024`) passes none of them, so that screen is
 byte-identical to what ships (research D7, ripple note 5): the shipped picker tests pass unmodified. This is
 the feature's only change to an existing widget's public shape.
 

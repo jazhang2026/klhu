@@ -73,7 +73,7 @@ its file and symbol named; nothing here is inferred from the spec's prose.
 - **D7 — the run's key is the picture's own file name (2026-10-14; it replaces D2's key and nothing else of D2).**
   D2 keyed a run by the held picture's **path**, and the tree disproves that key: a path is `_pictureDirSeq`-scoped
   (`<tmp>/picks_<n>/pick_<i>_<name>`, `storePicks`, `lib/video_pictures.dart`) and the whole directory is deleted
-  when the prompt ends (`discardPictures`, `lib/reading_view.dart:1862`), so a stored run could not match a later
+  when the prompt ends (`discardPictures`, `lib/reading_view.dart:1947`), so a stored run could not match a later
   prompt's pictures at all — while a **relaunch** re-created `picks_0` and matched them again by the accident of
   that sequence number. The value that does survive is `HeldPicture.name` — the reader's own basename, which
   `storePicks` keeps beside the sanitised copy's name — and the reader chose it at the tasks gate (option A,

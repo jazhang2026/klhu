@@ -156,3 +156,93 @@ the gap this amendment leaves.
    3.0 density) are the same claim read off the tree instead of off the icon. **`spec.md:232-235` still describes
    the compact row as the settled answer** — it is 012's amendment that settled it the other way, and rewriting
    another spec's reviewed requirement is the reader's call, so it is reported here rather than swept.
+
+## The regression sweep of 2026-10-16 (022's), and this file's two rows
+
+022 changes a shared method (`_revealRange` → `_scrollToRect`) and appends a field to this file's own evidence line, so
+its sweep re-ran this file's device rows **8, 9, 10, 17, 20, 21, 23** on the build carrying its rule
+(`lastUpdateTime=2026-10-16 14:02:04`): **8, 9, 10, 17 and 21 pass**; **20 and 23 did not**. Both were then put to a
+control run — the same tree with 022's lead disabled (`_leadRect` returning `null`), built and installed — and that is
+what separated them.
+
+### Row 20 — broken by 022's narrowing, re-cut and green again
+
+With the lead in, the row long-pressed a point it had measured **before** the read it performs, and 022's rule made that
+read move the page, so the held point landed on the next paragraph:
+
+```
+▶ sentence : (112, 159) (the paragraph holding it: 65..199)
+HOLD the page the same line, held (selects the paragraph) @62,758
+▶ paragraph: (201, 333) (the paragraph is 65..199)
+FAIL: ▶ read (201, 333), not the long-pressed paragraph (65, 199)
+RESULT: FAIL
+```
+
+**Control**: with 022's lead disabled, the same row `RESULT: PASS` — the failure is 022's doing, and it is exactly what
+this file's `FR-003` records as narrowed (a read now moves the page in one case it did not before). **The row was re-cut
+on 2026-10-16** rather than left red: `set_position` now derives its point **per gesture** from a page first returned to
+its own top (`back_to_top`, two downward swipes), so the row's own subject — the same line, tapped once and held once —
+holds again. Re-walked on the build carrying the rule:
+
+```
+▶ sentence : (112, 159) (the paragraph holding it: 65..199)
+HOLD the page the same line, held (selects the paragraph) @62,758
+▶ paragraph: (65, 199) (the paragraph is 65..199)
+RESULT: PASS
+```
+
+### Row 23 — red **before** 022, too, and for a reason that is old
+
+**Control**: with 022's lead disabled, row 23 still `RESULT: FAIL` — not this feature's. Its own verdict:
+
+```
+follow bands: [(0, 0, 3, 31), (1, 0, 71, 99), (1, 1, 105, 133)] dpr=2.625 origin=472
+FAIL: the record is None, not (the title's start, the text's length) = (0, 62)
+FAIL: the anchor is None, not the body's 17 — the tap went back to the title
+```
+
+**The mechanism, measured**: the row's checks read the stored position through `stored_offset()` → this file's
+`stored_position()` → a pref the app writes. The device's own prefs hold **one** key:
+
+```
+$ adb shell run-as com.example.klhu cat /data/data/com.example.klhu/shared_prefs/FlutterSharedPreferences.xml
+<map>
+    <string name="flutter.reading_appearance">default||xlarge</string>
+</map>
+```
+
+— nothing else, and `grep -rn "read_position" lib/` finds no such name anywhere in the tree: that record was
+**withdrawn** (010's `FR-008`, per 016's decision 5). **016 amended this file's row 20 for exactly this on 2026-10-12**
+(its own code comment says so, and its checks now use the app's live range as the witness) — **row 23 was missed by that
+amendment.** It is owed the same re-cut: read what the tap puts in force (the live range, or the painted line the row
+already screenshots) instead of the withdrawn record. Recorded here, and as its own work in
+`specs/022-read-scroll-lead/tasks.md` (`T024`), because a row that can never pass is worse than no row.
+
+### The evening of 2026-10-16 — what was re-cut, and what was retired rather than kept green
+
+**Row 23** was re-cut the way 016 amended row 20 on 2026-10-12: its witness is the app's **live range** — what ▶ and
+⏭ read from *is* the sentence the tap put in force. Re-walked: **PASS**, with the anchor read off each press:
+
+```
+tapped the title (the title begins at 0, the text is 62 chars) — the anchor it set is read off ▶ below
+▶ ranges=[(0, 15)] utterances=[(0, 0)] — the anchor in force is 0 (the title begins at 0, the text is 62 chars)
+tapped the body (its first sentence begins at 17) — the anchor it set is read off ⏭ below
+⏭ ranges=[(17, 62)] utterances=[(0, 0), (0, 1)] — the anchor in force is 17 (the body's first sentence begins at 17)
+RESULT: PASS
+```
+
+**Three checks in this file read the withdrawn record and could not fail** — they are gone, each with its own dated
+note saying what it meant and what witnesses that claim now:
+
+- `scenario_20`: "the ended read left the position in force" — asked a record the app writes under no name to be empty.
+  Its claim (FR-022: an ended read leaves nothing in force) is witnessed live by the check **two lines above it**, the
+  ended read's highlight not being painted. Re-walked: **PASS** (`▶ paragraph: (65, 199)`).
+- `scenario_21`, twice: "a touch moved the position" / "a touch wrote a position while parked" — both read the same
+  withdrawn record. Their claim is witnessed live by the buttons the row already reads (`Pause` up, `Resume` still up).
+  Re-walked: **PASS**.
+- `scenario_17`: "the draft wrote a position record" — compared two always-empty lists. Its claim is witnessed by the
+  library's own rows, which the row already checks. Re-walked: **PASS**.
+
+`stored_offset()` (the helper those checks shared) had no caller left and is retired with the same note; 010's own
+driver keeps its own reader of that record. The rule applied here: **a check that reports PASS for nothing is worse than
+no check** — so they were removed with their reasons, not left in place for their green tick.

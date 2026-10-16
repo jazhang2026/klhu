@@ -28,8 +28,8 @@ evidence; nothing here is from memory):
 | The largest content the app accepts | `lib/models/content.dart:21` (`kMaxContentChars = 100000`) |
 | A content is deleted at one place | `lib/content_list_screen.dart:86-108` (`_confirmDelete` → `store.delete(entry)` at `:108`) |
 | The shipped confirmation dialog shape (Cancel + filled confirm, ARB-keyed) | `lib/reading_view.dart:735-753` (`_confirmDiscard()`; the `AlertDialog` opens at `:738`) |
-| The shipped small either/or chooser shape | `lib/reading_view.dart:1400` (the video aspect dialog, `videoAspectTitle`) |
-| The per-language voice picker screen, reached from the page | `lib/voice_picker_screen.dart:18` (`VoicePickerScreen`), opened at `lib/reading_view.dart:1939` |
+| The shipped small either/or chooser shape | `lib/reading_view.dart:1685` (the video aspect dialog, `videoAspectTitle`) |
+| The per-language voice picker screen, reached from the page | `lib/voice_picker_screen.dart:18` (`VoicePickerScreen`), opened at `lib/reading_view.dart:1785` |
 | The picker lists voices and saves a pick; **it has no row that clears one** | `lib/voice_picker_screen.dart:36-145` (`_onTap` saves; no default/clear row) |
 | The l10n mechanism: `arb-dir: lib/l10n`, template `app_en.arb`, `output-localization-file: app_localizations.dart`; four ARBs (en, zh, zh_Hans, es) with generated Dart committed | `l10n.yaml`; `lib/l10n/` |
 | The tests that will move: **none of the shipped files** — corrected 2026-10-03, see plan ripple note 1 | the page tests assert per label (`test/reading_view_video_test.dart:321-339`), never the toolbar's set; `test/language_test.dart:115-140` and the two other direct callers keep calling `resolveParagraphSpeeches` |
@@ -275,7 +275,7 @@ directory; the roles are not content).
 first row meaning *follow the automatic assignment* (this is how a pick is cleared, spec's US2 scenario 5).
 When the page opens it for a role, it passes the title of that role and the language of the role's first
 turn; when it opens it for the reader's per-language pick (today's path,
-`lib/reading_view.dart:1939`), it passes neither and the screen is exactly what ships today.
+`lib/reading_view.dart:2024`), it passes neither and the screen is exactly what ships today.
 
 **Two more parameters, added 2026-10-03 by the implementation** — (c) `initialSelection` and (d)
 `onPick` — because the two things D7 assumed the screen could answer itself it cannot: a role's pick does
@@ -364,7 +364,7 @@ catch).
 ### D12 — The format is the reader's; the editor's Format action is the one press that helps produce it
 
 **Decision**: `lib/dialogue.dart` gains a second pure function, `formatForDialogue(String text)`, and the
-edit mode's toolbar (`lib/reading_view.dart:2064-2083` — today Undo / Save / Done) gains one button that
+edit mode's toolbar (`lib/reading_view.dart:2149-2083` — today Undo / Save / Done) gains one button that
 assigns the result to `_editController.value` in a single assignment (so it is one undo entry) and is
 disabled when `formatForDialogue(text) == text`, the pattern the Undo button already uses (`:2069`). The
 function inserts `\n\n` immediately before every tag occurrence (D3's grammar, found anywhere in the text)

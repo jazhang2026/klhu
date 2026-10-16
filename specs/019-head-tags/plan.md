@@ -205,7 +205,7 @@ this stage plans, and it lives under this feature's `scripts/`.
    driver must recognise a section header by its own known keys rather than by the two characters. Named here
    because a fixture that silently loses its subtitle line is a device row that proves nothing.
 9. **No ARB key is added** (110 → **110** for each of the four), no store is touched, no record is written, and
-   the editor keeps painting the reader's text as written (`lib/reading_view.dart:2576-2589`) — the four ARBs'
+   the editor keeps painting the reader's text as written (`lib/reading_view.dart:2661-2589`) — the four ARBs'
    diff is part of `quickstart.md` 13's structural receipt.
 10. **017's own records carry the amended rule, dated** — the feature is closed (32/32 done), so its
     `spec.md` is **reported, never rewritten**: its `tasks.md` gains a `## Superseded by later specs` note naming

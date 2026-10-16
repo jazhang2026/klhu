@@ -273,11 +273,11 @@ than a silent one.
    rule's shape is frozen where it is; 014's `test/dialogue_test.dart` (the prefix rule's own table) is the
    guard that the file still behaves, and it must stay green, unmodified.
 3. **`turnsOf` gains an optional parameter** (`comments`, default empty) so 014's own calls and tests keep
-   today's behaviour exactly: `lib/reading_view.dart:1387`/`:1401` (the role list) and `lib/speech_resolver.dart:54`
+   today's behaviour exactly: `lib/reading_view.dart:1472`/`:1401` (the role list) and `lib/speech_resolver.dart:54`
    pass it; every shipped caller that does not gets today's turns. Two rules come with it: a paragraph that
    holds nothing but a comment is not a turn (FR-011), and a turn's content stops at a comment's tag (FR-011).
 4. **`RoleSettings` is constructed field by field in five places** — `lib/role_store.dart:59-63` (the ctor),
-   `:87-95` (`withRemoval`), `:100-108` (`withVoice`), `lib/reading_view.dart:1360-1368` (`_setDialogue`) and
+   `:87-95` (`withRemoval`), `:100-108` (`withVoice`), `lib/reading_view.dart:1445-1368` (`_setDialogue`) and
    the new `setComments`' own read-back. A field added without all five is a setting that silently resets when
    the reader changes something else; the store's own test asserts each transition keeps the others.
 5. **The l10n step is one atomic edit.** One new key (the switch's label, and nothing else) goes into all four

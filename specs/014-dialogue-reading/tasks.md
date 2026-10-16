@@ -375,7 +375,7 @@ utterance's log line names its role's own voice — read against the assignment 
       `inChooser(...)` / `inPicker(...)` — which is why the first run of the pick cases found two matches.
 - [x] T014 [US2] Add the two optional parameters to `lib/voice_picker_screen.dart`: a title for a role and a
       first row meaning *follow the automatic assignment* that clears the pick. Both are absent when the page
-      opens the picker for the language path (`lib/reading_view.dart:1939`), so that screen's tests and
+      opens the picker for the language path (`lib/reading_view.dart:2024`), so that screen's tests and
       semantics keep their meaning untouched (ripple note 5). Green against T013's picker rows.
       **DONE 2026-10-03** — `lib/voice_picker_screen.dart`. `title`, `clearable`, plus the two the plan's
       own table did not have: `initialSelection` (what to highlight — a role's pick is not in the

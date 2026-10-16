@@ -1748,4 +1748,9 @@ ticks are the record of what ran then, and its own `T056` (the painter) is still
   takes it back: the narrowing of this file's own reorder (FR-030/FR-032) is 021's decision of that day, stated by
   the reader as "picture has sentences assigned cannot move and delete". `MovableThumbnail` keeps its own name and
   its gesture is unchanged where the rule allows it — this file's drag/reorder cases are green as shipped, because
-  they reorder pictures the reader had assigned nothing to. This file's own rows and receipts stand as written.
+  they reorder pictures the reader had assigned nothing to. This file's own rows and receipts stand as written. **And the narrowing is the *moved* picture's alone (2026-10-16)**: this file's own
+  FR-032 — "dropping it on **another picture's cell** MUST put it where that one was" — still governs where a held
+  picture may **land**, a cell whose picture holds a sentence included: the record keys a run by the picture's own
+  name, so the sentence travels with its picture. 021's own implementation carried the drop target only on the
+  movable cells for a day, which refused exactly that drop; the reader's own report of 2026-10-16 is the record
+  (`specs/021-picture-pass` Amendment 3, its row 20 walked on the device).

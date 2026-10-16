@@ -81,7 +81,7 @@ the assignment's own function is its sibling — so the painter, the frame maths
 
 | what | where | what this feature changes |
 |---|---|---|
-| the video dialog | `_askVideoFormat` (`lib/reading_view.dart:1880`), returning `({VideoAspect aspect, List<HeldPicture> pictures})?` | its answer gains the assignment (`runs`) |
+| the video dialog | `_askVideoFormat` (`lib/reading_view.dart:1965`), returning `({VideoAspect aspect, List<HeldPicture> pictures})?` | its answer gains the assignment (`runs`) |
 | the pick's own state | `var held = const <HeldPicture>[];` (`:1891`) with `_pickPictures(held:, onChosen:)` (`:2037`) | untouched; the **new page** is the picker's sibling, and returns its `List<PictureRun>` the same way the picker returns pictures |
 | the render entry | `_startRender(aspect, pictures: answer.pictures)` (`:1857`, `:2063`) | gains `runs:` |
 | the renderer | `VideoRenderer(... pictures: pictures ...)` (`:2092-2105`) | gains the runs, and hands the schedule builder the choice |

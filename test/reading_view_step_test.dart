@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/l10n/app_localizations.dart';
@@ -249,6 +250,80 @@ void main() {
       expect(find.text('Select a sentence or paragraph to read'), findsNothing);
     });
 
+    testWidgets('the page away from the top: ▶ brings the sentence it reads into '
+        'view before reading it (FR-012; 011 FR-001/FR-002)', (tester) async {
+      // The reader's own report of 2026-10-16, cut to the half this suite owns:
+      // with the page away from the top and nothing selected, ⏭ scrolls to the
+      // first sentence, highlights it and reads it, while ▶ "no scroll to top
+      // happen before read first sentence. scroll happen after read first
+      // sentence and high light second sentence." ▶ sets its own unit with
+      // `_select` and then reads it with `step: true` — which does **not** track,
+      // so no sentence report reaches `_followRead` — while ⏭ tracks and
+      // therefore reveals. FR-012 asks the page to bring the sentence a step
+      // highlights into view, and 011's own rule asks that the sentence being
+      // read be visible.
+      tester.view.physicalSize = const Size(400, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final fake = RecordingReader();
+      final body = List<String>.filled(12, kSampleEnText).join('\n\n');
+      await openPage(tester, fake, body: body);
+
+      const first = 'The sun rose over the quiet town.';
+      final position = stepScrollPosition(tester);
+      expect(position.maxScrollExtent, greaterThan(0.0),
+          reason: 'the fixture must be taller than the page');
+      position.jumpTo(position.maxScrollExtent);
+      await tester.pump();
+      final away = stepScrollPosition(tester).pixels;
+      expect(stepTextIsInsideViewport(tester, first, body), isFalse,
+          reason: 'the first sentence is off screen to begin with');
+
+      // The read stays in flight, so what is asserted is what the page did
+      // **before** speaking: the advance that follows a step belongs to the next
+      // press.
+      fake.hold = true;
+      await pressRead(tester);
+      await tester.pumpAndSettle();
+
+      expect(fake.speeches.single.text, first,
+          reason: '▶ reads the first sentence');
+      expect(stepScrollPosition(tester).pixels, lessThan(away),
+          reason: '▶ read the sentence with the page where it was: nothing '
+              'brought it into view');
+      expect(stepTextIsInsideViewport(tester, first, body), isTrue,
+          reason: 'the sentence being read is not inside the viewport');
+      fake.release();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('022: every step advance leaves a sentence ahead of the new '
+        'highlight (FR-006, SC-007)', (tester) async {
+      // US3's own case (tasks T011). The reader steps through a long text; after
+      // every advance the new highlight has a sentence after it on screen, so the
+      // highlight never rides the bottom edge — the same rule as the continuous
+      // read, on the surface where 016 leaves it behind (016 FR-012's reveal).
+      tester.view.physicalSize = const Size(400, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final fake = RecordingReader();
+      final body = List.generate(40, (i) => 'Sentence number ${i + 1} ends here.')
+          .join('\n\n');
+      await openPage(tester, fake, body: body);
+
+      for (var press = 1; press <= 10; press++) {
+        await pressRead(tester);
+        await tester.pumpAndSettle();
+        final highlight = 'Sentence number ${press + 1} ends here.';
+        final after = 'Sentence number ${press + 2} ends here.';
+        expect(stepTextIsAtLeastPartlyInsideViewport(tester, highlight, body),
+            isTrue,
+            reason: 'after press $press the highlight $highlight is off screen');
+        expect(stepTextIsAtLeastPartlyInsideViewport(tester, after, body), isTrue,
+            reason: 'after press $press nothing follows $highlight on screen');
+      }
+    });
+
     testWidgets('a long press reads its paragraph and leaves it highlighted',
         (tester) async {
       final fake = RecordingReader();
@@ -476,4 +551,65 @@ bool _spanHasAnyYellow(InlineSpan span) {
     }
   }
   return false;
+}
+
+
+/// The reading area's own scroll position (the page's only scrollable in READ).
+ScrollPosition stepScrollPosition(WidgetTester tester) {
+  final scrollable = find.descendant(
+    of: find.byType(SingleChildScrollView),
+    matching: find.byType(Scrollable),
+  );
+  return tester.state<ScrollableState>(scrollable).position;
+}
+
+/// The reading content's own render paragraph, whatever text it holds.
+///
+/// [containing] is the content's own text when a case brings its own body: the
+/// paragraph is addressed **by the text the case wrote**, never by the shipped
+/// fixture's own first words (a helper that looked for the fixture's sentence threw
+/// `reading content RichText not found` on a generated body, which reads like a
+/// missing widget and is not one).
+RenderParagraph stepContentRender(WidgetTester tester, [String? containing]) {
+  for (final element in find.byType(RichText).evaluate()) {
+    final widget = element.widget as RichText;
+    final plain = widget.text.toPlainText();
+    if (containing != null ? plain.contains(containing) : plain.contains('The sun rose')) {
+      return element.renderObject as RenderParagraph;
+    }
+  }
+  throw StateError('reading content RichText not found');
+}
+
+/// Whether any part of [target]'s box is inside the reading area's viewport — the
+/// rule 022 asks about a sentence's successor ("a sentence after it on screen").
+bool stepTextIsAtLeastPartlyInsideViewport(
+    WidgetTester tester, String target, String text) {
+  final render = stepContentRender(tester, text);
+  final start = text.indexOf(target);
+  if (start < 0) throw StateError('"$target" is not in the content');
+  final box = render
+      .getBoxesForSelection(
+          TextSelection(baseOffset: start, extentOffset: start + target.length))
+      .first;
+  final top = render.localToGlobal(Offset(box.left, box.top)).dy;
+  final bottom = render.localToGlobal(Offset(box.right, box.bottom)).dy;
+  final view = tester.getRect(find.byType(SingleChildScrollView).first);
+  return bottom > view.top + 0.5 && top < view.bottom - 0.5;
+}
+
+/// Whether [target]'s own box sits inside the reading area's viewport — the
+/// measurement 011's own follow suite takes, on this suite's fixture.
+bool stepTextIsInsideViewport(WidgetTester tester, String target, String text) {
+  final render = stepContentRender(tester, text);
+  final start = text.indexOf(target);
+  if (start < 0) throw StateError('"$target" is not in the content');
+  final box = render
+      .getBoxesForSelection(
+          TextSelection(baseOffset: start, extentOffset: start + target.length))
+      .first;
+  final top = render.localToGlobal(Offset(box.left, box.top)).dy;
+  final bottom = render.localToGlobal(Offset(box.right, box.bottom)).dy;
+  final view = tester.getRect(find.byType(SingleChildScrollView).first);
+  return top >= view.top - 0.5 && bottom <= view.bottom + 0.5;
 }

@@ -275,7 +275,7 @@ Proves the regression gate every row above is read against (SC-001's baseline), 
 - **A highlight is still painted after a relaunch.** The restore path or the record write survived the
   deletion — `grep -rn "read_position" lib/` names the file (row 8 is the row that catches it).
 - **The page shows a message at the text's end.** FR-008: nobody asked for one. `nothingToReadMessage` is
-  reachable only through an **empty range** (`lib/reading_view.dart:1095`, `:2023`, `:2149`), never through the
+  reachable only through an **empty range** (`lib/reading_view.dart:1105`, `:2023`, `:2149`), never through the
   step's end, and §2.3's stale line (which the plan corrected on 2026-10-12) is the shape to check for.
 - **A shipped test file will not compile after the store is deleted.** `test/video_aspect_test.dart` imports
   `ReadPositionStore` for its namespace case — that one is a compile error, not a failure, and it is named in
@@ -283,3 +283,19 @@ Proves the regression gate every row above is read against (SC-001's baseline), 
 - **Row 9's render disagrees with the step.** A render starts where the position is, so a step that left the
   position behind its highlight (the FR-004/FR-012 pair) is the cause — the page's own `klhu read range` line
   and the render's `span=` should name the same sentence.
+
+### 15. [device] the page away from the top: ▶ brings the sentence it reads into view (the reader's own report, 2026-10-16)
+
+**Steps**: a content taller than the page at Extra large (this feature's own paragraph, twelve times), nothing
+highlighted; swipe the reading area so the first sentence is off screen; press ▶ Read. The same steps on ⏭ Continue
+Read are the row's own control.
+
+**Expected**: each press starts at the first sentence (`klhu read range: 0..`), and the page's own **paint** shows the
+highlight **while that sentence is spoken** — each press's own series of frames (011's `yellow_rows`) carries at least
+one frame with yellow. On the 2026-10-16 build before the fix the control passed and ▶ read **2/3**: every frame of
+the ▶ press was blank, the sentence spoken with the page where it was. On the fixed build, **3/3**.
+
+**Evidence**: `klhu_walk_step.py 15`; frames `/tmp/klhu_out/016_row15_{continue,read}_<n>.png`; both presses' own
+`klhu read range` and `klhu speak` lines.
+
+Proves FR-012 (with 011's own rule that the sentence being read be visible).

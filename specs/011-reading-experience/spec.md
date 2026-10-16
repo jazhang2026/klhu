@@ -202,7 +202,12 @@ entry in the list; repeat and leave without saving instead, and find the library
   visible while a read is in progress
 - **FR-002**: System MUST bring an off-screen sentence into view when a read starts from it — a
   stored Continue Read position, a resumed read, or any read whose first sentence is below the fold
-- **FR-003**: System MUST NOT scroll when the sentence being read is already fully visible
+- **FR-003**: System MUST NOT scroll when the sentence being read is already fully visible **— narrowed
+  2026-10-16 by [022](../022-read-scroll-lead/spec.md)**: the page now moves in exactly one case it did not before —
+  a sentence being read that **is** fully visible **and** whose successor is the last one visible on screen. The move
+  is triggered **one sentence early** (022's own `1B`), so what fires it is a sentence *before* the last-visible one,
+  and the refusal this rule has always carried (a needless move while the sentence being read is visible) covers
+  everything else. The rule's other half — a text that fits the visible area never scrolls — stands untouched.
 - **FR-004**: System MUST leave the page where the read left it when the read ends, is stopped or is
   paused
 - **FR-005**: System MUST NOT undo a manual scroll while the same sentence is being read, and MUST
@@ -311,6 +316,10 @@ entry in the list; repeat and leave without saving instead, and find the library
 ### Measurable Outcomes
 
 - **SC-001**: While a text longer than the visible area is read end to end, no sentence is spoken
+  *(2026-10-16: still true, and **no longer sufficient** — [022](../022-read-scroll-lead/spec.md)'s `SC-001` is the
+  stricter one: every report for a sentence that is not the content's last keeps a sentence after it on screen. This
+  feature's own walk was re-run on the new rule and reads `visible=1` at every sentence, so this criterion's own
+  evidence stands.)*
   while its highlight sits outside the visible area
 - **SC-002**: A read started at a position below the visible area shows that position on screen no
   later than its first spoken sentence

@@ -555,7 +555,14 @@ video that rendered without pictures, no slower and nothing refused.
   speaker, of the screen, or of another app.
 - **FR-004**: The video MUST start where the reading page would start: at the sentence the page's position
   names when a sentence or paragraph is highlighted (010/011), and at the content's first sentence when
-  nothing is highlighted. It MUST run from that start to the content's last sentence and then stop —
+  nothing is highlighted.
+  <br>**Superseded 2026-10-14 by [020](../020-sentence-pictures/spec.md)'s `FR-017`** (the reader's own rule of
+  that date): a video is the **whole content**, it opens on the content's **first** sentence whatever the page is
+  showing, and the page's own position "MUST NOT move a video's start" — it decides only where a **read** starts.
+  The second half of this requirement (the content's first sentence when nothing is highlighted) is what survives;
+  the first half is the reader's withdrawn reading, and the shipped behaviour follows 020. **Written here on
+  2026-10-16** (022's regression sweep) because a reader of *this* file otherwise finds a live requirement the app
+  must not satisfy: 016's own row 9 was left asserting it, and read `FAIL (8/11)` until it was re-cut the same day. It MUST run from that start to the content's last sentence and then stop —
   there is no end position, and no video of a selection on its own.
 - **FR-005**: The text in the video at any moment MUST be the sentence whose voice is being heard at that
   moment, and no sentence's voice may be heard while its text is not what the frame shows.

@@ -9,6 +9,8 @@ Row 6: the comment half — one press reads the sentence AND its comment, and th
 Row 7: ⏭ after a step reads only the sentences the steps have not.
 Row 8: the clean relaunch — nothing comes back, and no `read_position_*` record exists.
 Row 9: a render from a step's position (012's machinery).
+Row 15: the page away from the top — ▶ brings the sentence it reads into view
+       before it is spoken (the reader's own report of 2026-10-16).
 
 The mechanics are 015's (`specs/015-comment-tag/scripts/klhu_walk_comment.py`), which
 are 014's and 012's beneath it: one string per `adb shell` command, `uiautomator dump`
@@ -501,6 +503,16 @@ def row_9():
     # ONE step: the highlight — and with it the position — is on the paragraph's
     # first sentence. That non-zero position is the case 011's 2026-10-09
     # amendment left unwalked (`lib/video_timeline.dart:128`).
+    #
+    # **Re-cut 2026-10-16.** The three checks below used to ask the render to
+    # *start* at that non-zero position — 012's FR-004. **020's FR-017 superseded
+    # that half** (the reader's own rule of 2026-10-14: a video is the whole
+    # content, and the page's position "MUST NOT move a video's start"), and the
+    # app has rendered from the content's first sentence since; the row was left
+    # asserting the superseded expectation, which is why it read `FAIL (8/11)` for
+    # as long as it did. What it pins now is the rule in force **and** the
+    # supersession itself: the press still leaves a non-zero position in force, and
+    # the render's first slot is the content's own first sentence all the same.
     ranges, speaks = fresh_press()
     if ranges is None:
         check("9: the step's own press", False, "")
@@ -535,19 +547,122 @@ def row_9():
     first = groups[0][0]
     print(f"   the file's first slot: span={first['span_start']}..{first['span_end']} "
           f"text={first['text']} frames={first['frames']}")
-    check("9: the render STARTS at the step's own sentence (the unwalked path)",
-          first["span_start"] == second[0],
-          f"slot 0's span starts at {first['span_start']}, the step is at {second[0]}")
-    check("9: and that slot's span is the step's own sentence",
-          first["span_start"] == second[0] and first["span_end"] == second[1],
-          f"span {first['span_start']}..{first['span_end']} against {second}")
-    check("9: the text it paints is the sentence's own characters (no tag, no padding)",
-          first["text"] == len(text[second[0]:second[1]]),
-          f"text={first['text']} for the sentence's {len(text[second[0]:second[1]])}")
+    first_step = step_of(text, 0)
+    check("9: the render opens on the content's own first sentence, whatever the page's "
+          "position is (020 FR-017, which superseded 012 FR-004's other half)",
+          first["span_start"] == first_step[0],
+          f"slot 0's span starts at {first['span_start']}, the content's first sentence "
+          f"is at {first_step[0]} — while the position in force is {second[0]}, which "
+          f"must not move it")
+    check("9: and that slot's span is that first sentence",
+          first["span_start"] == first_step[0] and first["span_end"] == first_step[1],
+          f"span {first['span_start']}..{first['span_end']} against {first_step}")
+    check("9: the text it paints is that sentence's own characters (no tag, no padding)",
+          first["text"] == len(text[first_step[0]:first_step[1]]),
+          f"text={first['text']} for the first sentence's "
+          f"{len(text[first_step[0]:first_step[1]])}")
     return True
 
 
-ROWS = {"5": row_5, "6": row_6, "7": row_7, "8": row_8, "9": row_9}
+def row_15():
+    """The reader's own report of 2026-10-16: with the page away from the top and
+    nothing highlighted, ⏭ Continue Read scrolls to the first sentence and reads
+    it, while ▶ Read reads it **with the page where it was** — the reveal arriving
+    only after that sentence, when the highlight advances to the next one.
+
+    FR-012 asks the page to bring the sentence a step highlights into view, and
+    011's own rule asks that the sentence being read be visible. What is checked
+    here is the page's own paint while the sentence is spoken (011's
+    `yellow_rows`): the dump can show neither the scroll offset nor the highlight.
+    """
+    step("row 10 — away from the top, ▶ brings the sentence it reads into view "
+         "before it is spoken (FR-012)")
+    fresh_prefs()
+    # A content taller than the page at X-Large: 016's own paragraph, twelve times.
+    paragraph = fixture_sections()["main"].split("\n\n")[-1].strip()
+    text = "\n\n".join([paragraph] * 12) + "\n"
+    first_step = step_of(text, 0)
+    if seed("step_lead", "lead", text) is None:
+        check("15: the long fixture reached the device", False,
+              "device_write failed")
+        return False
+    start_app()
+    experience.set_xlarge(dump())
+    time.sleep(1.2)
+
+    def away_from_the_top():
+        """Swipes the reading area up, so its first sentence is off screen."""
+        adb("shell", "input", "swipe", "540", "1500", "540", "400", "500")
+        time.sleep(1.5)
+
+    def away_from_the_read():
+        """Ends the read in flight and clears the highlight (016 FR-009), so the
+        next press starts from the same clean state as the one before it."""
+        if not tap_any(dump(), "stop", label="Stop"):
+            wait_for_read_end()
+        time.sleep(1.0)
+
+    def press_and_watch(key, label, press):
+        """Presses a read button and takes stills **while its read is in flight**.
+
+        Returns the app's own `klhu read range` lines for the press and the
+        highlight's own band in each frame — the page's paint, which is what says
+        whether the sentence being read is on screen.
+        """
+        adb("logcat", "-c")
+        stamp = device_now()
+        if not press():
+            return None, []
+        wait_for(lambda: len(ranges_since(stamp)) >= 1, seconds=15)
+        bands = []
+        for _ in range(3):
+            cap = screencap(os.path.join(
+                experience.OUT, f"016_row15_{key}_{len(bands)}.png"))
+            bands.append(painted_band(cap))
+            time.sleep(0.4)
+        return ranges_since(stamp), bands
+
+    # The control: the same steps on ⏭, which is what ships and what the reader
+    # says works.
+    away_from_the_top()
+    control, control_bands = press_and_watch(
+        "continue", "⏭ Continue Read",
+        lambda: tap_any(dump(), "continue", label="⏭ Continue Read"))
+    if control is None:
+        check("15: ⏭ Continue Read is on the page", False,
+              f"visible: {labels(dump())[:12]}")
+        return False
+    print(f"   ⏭ ranges={control} | frames (top, yellow px): {control_bands}")
+    check("15: the control — ⏭ starts at the first sentence and it is painted "
+          "while it is spoken",
+          control[0][0] == 0 and any(cells > 0 for _top, cells in control_bands),
+          f"ranges={control}, bands={control_bands}")
+    away_from_the_read()
+
+    # The subject: the reader's own press, from the same state. `press_read`
+    # carries the band that keeps the app bar's own title out of the search.
+    away_from_the_top()
+    subject, subject_bands = press_and_watch("read", "▶ Read",
+                                             lambda: press_read("▶ Read"))
+    if subject is None:
+        check("15: ▶ Read is on the page", False,
+              f"visible: {labels(dump())[:12]}")
+        return False
+    print(f"   ▶ ranges={subject} | frames (top, yellow px): {subject_bands}")
+    check("15: ▶ read the first step too (the reader's own steps)",
+          subject[:1] == [first_step],
+          f"the app read {subject}, the first step is {first_step}")
+    check("15: and it was painted on screen while it was spoken — the page had "
+          "brought it into view before speaking it (FR-012)",
+          any(cells > 0 for _top, cells in subject_bands),
+          f"bands={subject_bands} — the reader's own report was that no frame "
+          f"of this press showed the highlight")
+    away_from_the_read()
+    return True
+
+
+ROWS = {"5": row_5, "6": row_6, "7": row_7, "8": row_8, "9": row_9,
+        "15": row_15}
 
 
 def main():

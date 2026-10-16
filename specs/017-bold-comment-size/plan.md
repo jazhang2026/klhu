@@ -119,7 +119,7 @@ feature's `scripts/`.
    three values' weights are `w700` and `familyFor` returns `null` only for `bold` (`serif` for `serif-bold`,
    `monospace` for `mono-bold`). An absent or
    hand-edited record is untouched by this change; `ReadingAppearance.byName` accepts the new name for free.
-3. **`lib/reading_view.dart:2426-2439` is the ONE style seam** (its own comment says so, and 011 FR-009 rests on
+3. **`lib/reading_view.dart:2511-2439` is the ONE style seam** (its own comment says so, and 011 FR-009 rests on
    it): the weight is added there, and with it the bold reaches the rich text **and** the editor field, and
    neither reaches the chrome. `_loadAppearance`'s comparison (`:404-405`) already compares **names**, so a
    change to `bold` is noticed and a stored `bold` is adopted — no change needed, and none is made.

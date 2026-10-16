@@ -833,6 +833,92 @@ void main() {
       );
     });
 
+    testWidgets('a picture the reader gave nothing can be dropped on a cell that '
+        'holds one (012 FR-032: the drop is on another picture\'s cell)',
+        (tester) async {
+      // The reader's own report of 2026-10-16: "after assign sentence to some
+      // pictures, back to pictures chosen dialog, drag no sentence picture to the
+      // position of picture with sentences failed. drag no sentence picture to
+      // position of other no sentence picture works." What the rule narrows is
+      // the picture being **moved** (021 FR-005/FR-010), never the cell it lands
+      // on: 012's own requirement is a drop on **another picture's cell**, and
+      // the record keys a run by the picture's own name (020 FR-010), so the
+      // sentence stays with its picture wherever the order puts it.
+      final (store, entry) = await ownLibrary(tester, _oldText);
+      final before = await tester.runAsync(
+        () => videoSentencesFrom(
+          content: _oldText,
+          position: 0,
+          loadVoice: (language) async => null,
+        ),
+      );
+      expect(before, hasLength(4), reason: 'fixture drift');
+      // One picture of the three holds a sentence; the other two are the
+      // reader's own to move.
+      await tester.runAsync(
+        () => PictureAssignmentStore().save(
+          entry.id,
+          runs: [
+            PictureRun(
+              name: _sunset,
+              spans: [(before![0].start, before[0].end)],
+            ),
+          ],
+        ),
+      );
+      final engine = ShortEngine();
+      final encoder = RecordingEncoder(work);
+      await openDialogWith(
+        tester,
+        engine,
+        encoder,
+        [_sunset, _hills, _forest],
+        text: _oldText,
+        store: store,
+      );
+
+      final cells = find.byType(MovableThumbnail);
+      expect(cells, findsNWidgets(3),
+          reason: 'the prompt holds the three pictures');
+      expect(
+        tester
+            .widgetList<MovableThumbnail>(cells)
+            .map((cell) => cell.mayMove)
+            .toList(),
+        [false, true, true],
+        reason: 'the sentence-holder offers no move; the other two do',
+      );
+      expect(find.byType(LongPressDraggable<int>), findsNWidgets(2));
+
+      // The reader holds the picture that holds nothing and drops it where the
+      // sentence-holder stands.
+      final gesture = await tester.startGesture(tester.getCenter(cells.at(1)));
+      await tester.pump(const Duration(milliseconds: 600)); // the hold itself
+      await gesture.moveTo(tester.getCenter(cells.at(0)));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(
+        tester
+            .widgetList<MovableThumbnail>(cells)
+            .map((cell) => cell.picture.name)
+            .toList(),
+        [_hills, _sunset, _forest],
+        reason: 'the drop put the held picture where the sentence-holder stood '
+            '(012 FR-032)',
+      );
+      expect(
+        tester
+            .widgetList<MovableThumbnail>(cells)
+            .map((cell) => cell.count)
+            .toList(),
+        [0, 1, 0],
+        reason: 'and the sentence stayed with its own picture, by name (020 '
+            'FR-010)',
+      );
+    });
+
     testWidgets('started anyway, the render uses the runs that still fit and '
         'the current text', (tester) async {
       final fixture = await stalelyAssigned(tester);

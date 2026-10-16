@@ -1032,15 +1032,25 @@ class _ReadingViewState extends State<ReadingView> {
       }
       final first = steps.first;
       _select(first);
+      // FR-012: the unit this press reads is brought into view **before** it is
+      // spoken. A step does not track (see `_readRange`'s `step`), so nothing
+      // else reveals it — and the reader's own report of 2026-10-16 is a page
+      // away from the top being read from off screen, with the reveal only
+      // arriving at the *next* press (`_advanceStep`).
+      _revealRange(first);
       await _readRange(
           first.start, stepEnd(_content, _roles.commentsRead, first),
           step: true);
       return;
     }
     if (seg.unit == SegmentUnit.paragraph) {
+      _revealRange(seg);
       await _readRange(seg.start, seg.end, step: true);
       return;
     }
+    // A selection the reader scrolled away from is read from off screen too: the
+    // same rule, for the same reason (FR-012).
+    _revealRange(seg);
     await _readRange(
         seg.start, stepEnd(_content, _roles.commentsRead, seg),
         step: true);
@@ -1145,11 +1155,12 @@ class _ReadingViewState extends State<ReadingView> {
     _followedGen = gen;
     _followedParagraph = spoken.paragraph;
     _followedSentence = spoken.sentence;
-    if (geometry.visible) {
+    final rect = _leadRect(spoken.start, geometry);
+    if (rect == null) {
       _logFollow(spoken, geometry);
       return;
     }
-    _scrollIntoView(geometry);
+    _scrollToRect(geometry.paragraph, rect);
     // The evidence line reports the SETTLED state, one line per sentence: the
     // reveal is animated, so measuring here would report the sentence as off
     // screen — the very sentence the page is moving to. Post-frame callbacks
@@ -1158,18 +1169,82 @@ class _ReadingViewState extends State<ReadingView> {
     _logFollowWhenSettled(gen, spoken);
   }
 
-  /// The move itself — the framework's own `showOnScreen` on the enclosing
-  /// viewport, which leaves a range that already fits where it is (011 FR-002).
-  /// The follow is one doorway today; the step's own reveal (016 FR-012) is the
-  /// other, and it lands with its caller (T011) rather than as an unreferenced
-  /// seam the analyzer rejects.
-  void _scrollIntoView(_SentenceGeometry geometry) {
-    if (geometry.visible) return;
-    geometry.paragraph.showOnScreen(
-      rect: geometry.rect,
+  /// The one move every doorway goes through, per rect — 011's own reveal and the
+  /// lead's wider one both use it, so the page cannot have two ideas of how it
+  /// scrolls (011 FR-001/FR-002; 022's D5, one doorway).
+  void _scrollToRect(RenderParagraph paragraph, Rect rect) {
+    paragraph.showOnScreen(
+      rect: rect,
       duration: _revealDuration,
       curve: Curves.easeOut,
     );
+  }
+
+  /// **022's own question**, asked at every sentence's start: *would the sentence
+  /// after this one be the last one visible?* If so the page moves **now** — one
+  /// sentence before that one is highlighted — so the sentence being read is never
+  /// the bottom-most box on screen, which is the reader's own rule of 2026-10-16
+  /// ("start the auto scroll before highlight/read last sentence on screen",
+  /// answered `1B`). The answer is null when the page moves for nothing: the
+  /// sentence is on screen and a sentence after it is already visible, or nothing
+  /// follows it at all (FR-005 — the content's last sentence).
+  ///
+  /// The rect is deliberately the smallest one that satisfies the rule: this
+  /// sentence's own top through the further of the two below it, so the *next*
+  /// sentence's own read already has a successor on screen (FR-003). A sentence
+  /// taller than the viewport is not chased: the rect it yields is the viewport's
+  /// own business, and the next report is what follows it.
+  Rect? _leadRect(int start, _SentenceGeometry current) {
+    final after = _followingFrom(start, 2);
+    final next = after.isNotEmpty ? after[0] : null;
+    final second = after.length > 1 ? after[1] : null;
+    // Nothing follows this sentence, or a sentence after *that* is on screen
+    // already: then 011's own question is all there is.
+    if (next == null || (second != null && _partlyVisible(second))) {
+      return current.visible ? null : current.rect;
+    }
+    final bottom = (second ?? next).rect.bottom;
+    final top = current.rect.top <= next.rect.top ? current.rect.top : next.rect.top;
+    return Rect.fromLTRB(current.rect.left, top, current.rect.right, bottom);
+  }
+
+  /// Whether any part of [geometry]'s box is inside the visible area.
+  bool _partlyVisible(_SentenceGeometry geometry) =>
+      geometry.bottom >= 0 && geometry.top <= geometry.viewport;
+
+  /// The boxes of the sentences **after** [spoken], in the content's own order —
+  /// what 022's question is about (FR-001). A sentence below the fold is
+  /// measurable here because the page's whole text is one `RenderParagraph`.
+  List<_SentenceGeometry> _followingFrom(int start, int count) {
+    final all = sentenceRanges(_content);
+    final at = all.indexWhere((s) => s.start == start);
+    if (at < 0) return const <_SentenceGeometry>[];
+    final out = <_SentenceGeometry>[];
+    for (final sentence in all.skip(at + 1).take(count)) {
+      final geometry = _measureSpan(sentence.start, sentence.end);
+      if (geometry != null) out.add(geometry);
+    }
+    return out;
+  }
+
+  /// **022's own number for the evidence line** (`FR-009`): how many sentences
+  /// have a box inside the visible area **below** the one reported. A walked row
+  /// reads this instead of inferring the rule from the reported sentence's own
+  /// geometry, which cannot see what follows it. The text runs downward, so the
+  /// count stops at the first sentence wholly below the fold rather than walking a
+  /// long content to its end on every report.
+  int _belowCount(SpokenSentence spoken) {
+    final all = sentenceRanges(_content);
+    final at = all.indexWhere((s) => s.start == spoken.start);
+    if (at < 0) return 0;
+    var below = 0;
+    for (final sentence in all.skip(at + 1)) {
+      final geometry = _measureSpan(sentence.start, sentence.end);
+      if (geometry == null) continue;
+      if (geometry.top > geometry.viewport) break;
+      if (geometry.bottom >= 0) below++;
+    }
+    return below;
   }
 
   void _logFollowWhenSettled(int gen, SpokenSentence spoken, [int frames = 0]) {
@@ -1233,7 +1308,8 @@ class _ReadingViewState extends State<ReadingView> {
     debugPrint(
       'klhu follow: p${spoken.paragraph} s${spoken.sentence} '
       'visible=${geometry.visible ? 1 : 0} top=${geometry.top.round()} '
-      'bottom=${geometry.bottom.round()} viewport=${geometry.viewport.round()}',
+      'bottom=${geometry.bottom.round()} viewport=${geometry.viewport.round()} '
+      'below=${_belowCount(spoken)}',
     );
   }
 
@@ -1268,11 +1344,20 @@ class _ReadingViewState extends State<ReadingView> {
   }
 
   /// Brings a range the page holds as a segment into view (016 FR-012), by the
-  /// same code 011's follow uses — one reveal, so the two cannot disagree.
+  /// same code 011's follow uses — one reveal, so the two cannot disagree — and
+  /// **with 022's own rule on top of it**: the unit a step is about to read (or has
+  /// just left highlighted) is brought into view **and** a sentence after it, so
+  /// stepping through a long text never leaves the highlight riding the bottom edge
+  /// (FR-006, the spec's `3A`).
   void _revealRange(TextSegment segment) {
     final geometry = _measureSpan(segment.start, segment.end);
     if (geometry == null) return;
-    _scrollIntoView(geometry);
+    final rect = _leadRect(segment.start, geometry);
+    if (rect == null) {
+      if (!geometry.visible) _scrollToRect(geometry.paragraph, geometry.rect);
+      return;
+    }
+    _scrollToRect(geometry.paragraph, rect);
   }
 
   Future<void> _runRead(int gen, Future<void> Function() start) async {
@@ -3155,6 +3240,14 @@ class ChosenThumbnail extends StatelessWidget {
 /// A drop on the picture's own cell is not a move at all — [movePicture] hands
 /// the choice back as it was, and a reader who let go where they started sees
 /// nothing happen rather than a reorder they did not ask for.
+///
+/// A cell whose picture holds a sentence of the reader's is **still a place a
+/// held picture can be dropped**: what a rule may narrow is the picture being
+/// moved, never the place it lands, and the record keys a run by the picture's
+/// own name — so a sentence stays with its picture wherever the order puts it.
+/// Carrying the drop target only on the movable cells is what refused a reader
+/// who held a picture without sentences and dropped it on one that has them
+/// (their own report of 2026-10-16).
 class MovableThumbnail extends StatelessWidget {
   const MovableThumbnail({
     super.key,
@@ -3205,62 +3298,74 @@ class MovableThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A picture the reader gave sentences to is the reader's own to un-assign,
-    // not to move or delete (021 FR-005, decided 2026-10-15): the prompt offers
-    // no gesture on it, and its own count on the cell says why.
-    if (!mayMove) {
-      return ChosenThumbnail(
+    // **Every** cell is a place a held picture can be dropped: 012's own
+    // requirement is a drop on "another picture's cell", and what this feature's
+    // rule narrows is the picture being **moved** (FR-005/FR-010), never the
+    // place it lands. The record keys a run by the picture's own name (020
+    // FR-010), so a sentence stays with its picture wherever the order puts it,
+    // and a cell that holds one is a destination like any other. Carrying the
+    // target only on the movable cells is what refused a reader who held a
+    // picture without sentences and dropped it on one that has them (their own
+    // report of 2026-10-16).
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onAcceptWithDetails: (details) => onMoveTo(details.data),
+      // What the hold is offered on is a picture the reader gave nothing to: one
+      // holding a sentence of theirs is theirs to un-assign, not to move or
+      // delete (FR-005, decided 2026-10-15), so its cell draws no control — and
+      // its own count on the cell says why.
+      builder: (context, candidate, rejected) =>
+          mayMove ? _draggable(context) : _cell(),
+    );
+  }
+
+  /// The cell of a picture the reader gave sentences to: the picture and its own
+  /// count, with the remove **absent** rather than refused (FR-005, FR-019).
+  Widget _cell() => ChosenThumbnail(
+    picture: picture,
+    count: count,
+    removeLabel: removeLabel,
+  );
+
+  Widget _draggable(BuildContext context) => LongPressDraggable<int>(
+    data: index,
+    // Where the finger is while it moves, so a hold at either end of the
+    // picture window can scroll it (FR-032, D21) — and so whatever that
+    // started stops when the hold does.
+    onDragUpdate: onDragUpdate == null
+        ? null
+        : (details) => onDragUpdate!(details.globalPosition),
+    onDragEnd: (_) => onDragEnd?.call(),
+    // What follows the finger is the picture alone: a thumbnail's own remove
+    // is not what is being moved, and the drag has nowhere to put it.
+    feedback: Material(
+      color: Colors.transparent,
+      child: ChosenThumbnail(
         picture: picture,
         count: count,
         removeLabel: removeLabel,
-      );
-    }
-    return _draggable(context);
-  }
-
-  Widget _draggable(BuildContext context) => DragTarget<int>(
-    onWillAcceptWithDetails: (details) => details.data != index,
-    onAcceptWithDetails: (details) => onMoveTo(details.data),
-    builder: (context, candidate, rejected) => LongPressDraggable<int>(
-      data: index,
-      // Where the finger is while it moves, so a hold at either end of the
-      // picture window can scroll it (FR-032, D21) — and so whatever that
-      // started stops when the hold does.
-      onDragUpdate: onDragUpdate == null
-          ? null
-          : (details) => onDragUpdate!(details.globalPosition),
-      onDragEnd: (_) => onDragEnd?.call(),
-      // What follows the finger is the picture alone: a thumbnail's own remove
-      // is not what is being moved, and the drag has nowhere to put it.
-      feedback: Material(
-        color: Colors.transparent,
-        child: ChosenThumbnail(
-          picture: picture,
-          count: count,
-          removeLabel: removeLabel,
-          onRemove: () {},
-        ),
+        onRemove: () {},
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.3,
-        child: ChosenThumbnail(
-          picture: picture,
-          count: count,
-          removeLabel: removeLabel,
-          onRemove: onRemove,
-        ),
+    ),
+    childWhenDragging: Opacity(
+      opacity: 0.3,
+      child: ChosenThumbnail(
+        picture: picture,
+        count: count,
+        removeLabel: removeLabel,
+        onRemove: onRemove,
       ),
-      // The cell has to answer the pointer for the hold to start anywhere on it:
-      // an `Image` answers no pointer on its own, so without this only the button
-      // in the corner would start a drag (FR-032).
-      child: ColoredBox(
-        color: Colors.transparent,
-        child: ChosenThumbnail(
-          picture: picture,
-          count: count,
-          removeLabel: removeLabel,
-          onRemove: onRemove,
-        ),
+    ),
+    // The cell has to answer the pointer for the hold to start anywhere on it:
+    // an `Image` answers no pointer on its own, so without this only the button
+    // in the corner would start a drag (FR-032).
+    child: ColoredBox(
+      color: Colors.transparent,
+      child: ChosenThumbnail(
+        picture: picture,
+        count: count,
+        removeLabel: removeLabel,
+        onRemove: onRemove,
       ),
     ),
   );

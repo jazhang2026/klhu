@@ -295,7 +295,7 @@ picker and two log lines. The one structural claim a reviewer should check is th
     lines. A turn therefore carries its own `\n`, which the sentence cutter already treats as whitespace
     (`lib/segmenter.dart:53-59`) — the reason a multi-line turn needs no new speech path and 011's
     highlight needs no new span rule.
-11. **The editor's toolbar is three buttons today** (`lib/reading_view.dart:2064-2083`: Undo / Save / Done)
+11. **The editor's toolbar is three buttons today** (`lib/reading_view.dart:2149-2083`: Undo / Save / Done)
     and the Format button is the fourth. It assigns `_editController.value` once — one undo entry, the way
     `_enterEdit` makes the loaded text the stack's first state (`:614`) — and is disabled when
     `formatForDialogue(text) == text`, the pattern Undo already uses (`:2069`). It saves through 008's own

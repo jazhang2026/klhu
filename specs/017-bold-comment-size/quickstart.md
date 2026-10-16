@@ -59,7 +59,7 @@ and the editor, not the chrome`, extended).
 **Expected**: with each bold value in force — `bold` (no family), `serif-bold` (`serif`), `mono-bold`
 (`monospace`) — the reading text's and the editor's painted style carries that family at `FontWeight.w700`; the
 app's chrome does not.
-**Evidence**: the case's own assertions; the seam at `lib/reading_view.dart:2426-2439`.
+**Evidence**: the case's own assertions; the seam at `lib/reading_view.dart:2511-2439`.
 Proves FR-002.
 
 ### 4. The comment is painted one step down, at every offered size — [unit]

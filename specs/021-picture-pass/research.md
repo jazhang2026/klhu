@@ -43,7 +43,7 @@ report rests on.
 | Toolchain | Flutter **3.47.5** stable, revision `6a19cca564` (2026-09-17) | `flutter --version` |
 | Device | `emulator-5554`, package `com.example.klhu`, **API 36** | `adb -s emulator-5554 shell getprop ro.build.version.sdk` |
 | The build the walk drives | APK built 2026-10-15 08:10:52, installed 08:10:54; no source file newer | `ls -l build/app/outputs/flutter-apk/app-debug.apk`, `dumpsys package` |
-| The thumbnail decode bound this feature reuses | `Image.file(…, cacheWidth: 144)` in `ChosenThumbnail` | `lib/reading_view.dart:3027-3030` |
+| The thumbnail decode bound this feature reuses | `Image.file(…, cacheWidth: 144)` in `ChosenThumbnail` | `lib/reading_view.dart:3112-3030` |
 | The pass's own file today | 317 lines, one class, its chip built in `_chip` | `wc -l lib/picture_assignment_screen.dart`, `:220-256` |
 | The rules' own file today | 347 lines: `refusedAdd` `:134-161`, `refusedRemove` `:168-180`, `mayDrag` `:186-189`, `assignmentsFor` `:259-347` | read on this tree |
 

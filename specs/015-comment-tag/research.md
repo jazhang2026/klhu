@@ -42,7 +42,7 @@ fourth is a count that has drifted. Every one is recorded here rather than edite
    this measurement, not from the checklist.
 4. **A2, A3, A4 and A5's citations all resolve to the rules they name** — `lib/segmenter.dart:71`
    (`paragraphRanges`, the app's own paragraph unit, the ranges 014's turns are cut on), `lib/language.dart:96`
-   (`detectLanguage`, the rule table), `lib/reading_view.dart:2241-2255` (the span tree, one `RichText`, the
+   (`detectLanguage`, the rule table), `lib/reading_view.dart:2326-2255` (the span tree, one `RichText`, the
    highlight as a middle span) with `:192` (`_highlight`) and `:968` (`_onTapText`) as the offsets' homes, and
    `lib/role_store.dart` (the per-content store, key `content_roles` at `:117`). No correction needed; the
    plan's design is built on exactly these.
@@ -57,12 +57,12 @@ evidence; nothing here is from memory):
 | Dart `^3.13.3`, Flutter **3.47.5** stable | `pubspec.yaml:22`; `flutter --version` (2026-10-08) |
 | Baseline of the tree this plan is written against: **559 tests green, 0 failing**, and `flutter analyze` → *No issues found!* | `flutter test --concurrency=2`, `flutter analyze` (2026-10-08, this host) — the figure `quickstart.md`'s Prerequisites carries |
 | Dependencies: `flutter_tts ^4.2.3`, `shared_preferences ^2.5.5`, `intl ^0.20.3`, `path_provider ^2.1.6`, `file_selector ^1.1.0`; dev: `flutter_test`, `flutter_lints ^6.0.0`, `flutter_launcher_icons ^0.14.4` | `pubspec.yaml:39-56`, `:58-73` |
-| The read's units reach the engine as `List<ParagraphSpeech>`; the reader service cuts each into sentences itself | `lib/reading_view.dart:1072-1105` (`_readRange` → `speakParagraphs`) → `lib/reader_service.dart:374-415` (`_sentencesOf`) |
+| The read's units reach the engine as `List<ParagraphSpeech>`; the reader service cuts each into sentences itself | `lib/reading_view.dart:1082-1105` (`_readRange` → `speakParagraphs`) → `lib/reader_service.dart:374-415` (`_sentencesOf`) |
 | `ParagraphSpeech` is `{text, language, voice, start, end, role}` — `role` is the one additive field 014 added, nullable by construction, and it exists for the log line | `lib/reader_service.dart:66-89` (`role` at `:79`), the line at `:522-527` |
 | Offsets everywhere are **content** offsets: the highlight, the tap's answer, the Continue Read anchor and the stored position | `lib/reading_view.dart:192` (`_highlight`), `:998` (`resolve(_content, pos.offset)`), `:1005` (`_anchor = segment.start`), `:1018-1033` (`_persistAnchor` → `ReadingPosition.offset`) |
-| The page paints the reader's text **verbatim** today: one `RichText`, one span tree (before / highlight / after), the highlighted middle span styled yellow | `lib/reading_view.dart:2241-2255`, the `RichText` at `:2399-2409` |
-| The page's tap maps a touch point to a text offset through the `RenderParagraph` and resolves it with the segmenter | `lib/reading_view.dart:991-1010` (`_resolveAt`), the segmenter's own `resolveSentence`/`resolveParagraph` at `lib/segmenter.dart:148-152` |
-| The tracking highlight and the follow-scroll measure the spoken span by a `TextSelection` over that same `RenderParagraph` | `lib/reading_view.dart:1181-1203` (`_measure`, the selection at `:1189`) |
+| The page paints the reader's text **verbatim** today: one `RichText`, one span tree (before / highlight / after), the highlighted middle span styled yellow | `lib/reading_view.dart:2798-2265`, the `RichText` at `:2399-2409` |
+| The page's tap maps a touch point to a text offset through the `RenderParagraph` and resolves it with the segmenter | `lib/reading_view.dart:975-1010` (`_resolveAt`), the segmenter's own `resolveSentence`/`resolveParagraph` at `lib/segmenter.dart:148-152` |
+| The tracking highlight and the follow-scroll measure the spoken span by a `TextSelection` over that same `RenderParagraph` | `lib/reading_view.dart:1352-1213` (`_measure`, the selection at `:1189`) |
 | A sentence is a delimiter-terminated run — `. ! ? ; 。！？；` plus `...`/`……`, with trailing closing quotes/brackets absorbed (`]` is in the closers) and leading whitespace skipped | `lib/segmenter.dart:17-18` (the sets), `:33-69` (`sentenceRanges`), `:53-59` (the whitespace skip) |
 | A paragraph is the app's own unit: blank-line separated (`\n[ \t]*\n+`), a single `\n` inside it does not break it | `lib/segmenter.dart:71-108` |
 | Language detection is a rule table run on a paragraph's full text: CJK → `zh-Hans`, Spanish letters/one Spanish-only word/two function words → `es`, else `en` | `lib/language.dart:96-102` (the entry point), rule table `:29-93`, used per paragraph at `:119` |
@@ -71,8 +71,8 @@ evidence; nothing here is from memory):
 | A turn is a paragraph; a paragraph whose head carries no tag is one narration turn; a turn's content ends at its last non-whitespace character and excludes the prefix | `lib/dialogue.dart:160-195` (`turnsOf`), `:47-73` (`Turn`) |
 | In dialogue mode the resolver builds one `ParagraphSpeech` per turn, each with its own detected language and the role's voice; a narration turn reads in the language's own pick | `lib/speech_resolver.dart:54-81`, the assignment at `lib/dialogue.dart:321-397` |
 | 014's per-content store: one `shared_preferences` key `content_roles`, a JSON object keyed by the content's id, tolerant reads, written only on a change, the entry dropped when it says nothing, removed at the content's delete | `lib/role_store.dart:117` (the key), `:122-127` (load), `:186-202` (`_write`, the empty-entry drop at `:196-200`), `:207-227` (tolerant read), `:180-184` (`clearFor`); the delete site `lib/content_list_screen.dart:115` |
-| `RoleSettings` is constructed **field by field** in four places (the store's own two `with*` helpers and the page's text-type switch), so a new field has four sites to keep in step; `isEmpty` is what decides whether an entry survives | `lib/role_store.dart:59-63` (ctor), `:68` (`isEmpty`), `:87-95` (`withRemoval`), `:100-108` (`withVoice`), `lib/reading_view.dart:1360-1368` (`_setDialogue`) |
-| The page's settings sheet is 014's dialog, reached from the app bar (`textTypeButton`) and titled `textTypeTitle`; it holds the type chips and the role list; the app's shipped switch shape is a `SwitchListTile` | `lib/reading_view.dart:614-618` (the action), `:1383-1482` (`_openTextType`), `:1412-1414` (the dialog), `:1419-1434` (the chips), `:1449-1468` (the role list), `:1694-1700` (`SwitchListTile`, the video review's own) |
+| `RoleSettings` is constructed **field by field** in four places (the store's own two `with*` helpers and the page's text-type switch), so a new field has four sites to keep in step; `isEmpty` is what decides whether an entry survives | `lib/role_store.dart:59-63` (ctor), `:68` (`isEmpty`), `:87-95` (`withRemoval`), `:100-108` (`withVoice`), `lib/reading_view.dart:1798-1378` (`_setDialogue`) |
+| The page's settings sheet is 014's dialog, reached from the app bar (`textTypeButton`) and titled `textTypeTitle`; it holds the type chips and the role list; the app's shipped switch shape is a `SwitchListTile` | `lib/reading_view.dart:1712-618` (the action), `:1383-1482` (`_openTextType`), `:1412-1414` (the dialog), `:1419-1434` (the chips), `:1449-1468` (the role list), `:1694-1700` (`SwitchListTile`, the video review's own) |
 | The video's own unit: one `VideoSentence` per sentence of the resolved speeches, one slot per sentence whose duration is that sentence's own audio, a 400 ms gap between slots and a 2 s hold after the last | `lib/video_timeline.dart:70-93` (`videoSentencesOf`), `:131-178` (`VideoSlot`, the text at `:159`), `:226-297` (`buildVideoPlan`), `:202-203` (gap/hold) |
 | The painter draws **`slot.text`** — one wrapped `TextPainter` per slot, reported as `paintedText` | `lib/video_painter.dart:576-603` (`_blockFor`, `paintedText: slot.text` at `:603`), the paint at `:452`, `VideoFrame.paintedText` at `:169` |
 | The renderer synthesizes **one WAV per sentence** (`sentence_$i.wav`), reads its length from the header, and hands the muxer **one audio segment per slot** laid end to end | `lib/video_renderer.dart:226-259` (pass 1), `:245` (`wavDurationMsOf`), `:312-323` (the segments); `lib/platform/video_encoder.dart:20-21` (`VideoAudioSegment{path,durationUs}`) |
@@ -260,7 +260,7 @@ is also what keeps 014's receipts exact: the entry's shape for a dialogue conten
 setting is byte-identical to today's. The store's other four sites follow: `RoleSettings.withRemoval` and
 `.withVoice` (`:87`, `:100`) carry the field, `isEmpty` (`:68`) counts `commentsRead == false` as a decision
 so an entry carrying only the switch is not dropped, and the page's `_setDialogue`
-(`lib/reading_view.dart:1360-1368`) — which builds a `RoleSettings` by hand — carries it too, or switching
+(`lib/reading_view.dart:1445-1368`) — which builds a `RoleSettings` by hand — carries it too, or switching
 the text type would silently re-enable the comments.
 
 **Rationale**: FR-015 asks for exactly this home (*"one store keyed by the content's own id, read tolerantly,
@@ -281,7 +281,7 @@ its settings and the reason has not changed).
 ### D6 — The switch joins 014's sheet, and the sheet keeps its name
 
 **Decision**: the switch is a `SwitchListTile` — the app's shipped switch shape
-(`lib/reading_view.dart:1694-1700`) — placed in 014's dialog (`_openTextType`, `lib/reading_view.dart:1383-1482`)
+(`lib/reading_view.dart:1779-1700`) — placed in 014's dialog (`_openTextType`, `lib/reading_view.dart:1468-1482`)
 under the type chips and **above** the role list, offered in **both** text types (the tag works in 标准 too,
 FR-010). Its label is a new key, and the dialog's title stays `textTypeTitle` (`:1414`). The page holds the
 answer in `_roles` like every other setting of this content, applies it on the tap
@@ -307,7 +307,7 @@ setting is not the text and must not be saved into it).
 
 **Decision**: the page derives, from `_content` alone, the **display string** — the reader's text with every
 comment tag's own characters and its separator removed (`[tagStart, tagEnd)`, D3) and nothing else — and a
-mapping between the two index spaces. `_buildSpans` (`lib/reading_view.dart:2244-2255`) builds its three
+mapping between the two index spaces. `_buildSpans` (`lib/reading_view.dart:2329-2255`) builds its three
 spans from that string, so the marker's characters are painted nowhere while the comment's content, its line
 breaks and the rest of the text appear exactly where the reader wrote them (TWO spans' boundaries, the
 highlight's, are the display offsets of the highlight's content offsets). The two paths that speak content

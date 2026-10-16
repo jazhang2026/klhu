@@ -464,3 +464,37 @@ and 21 of `breakpoint.md`.
 | SC-009 after Stop or a natural end, ▶ speaks nothing and ⏭ starts at the top | T024, T025 |
 | SC-010 a tapped sentence and a long-pressed paragraph are each read whole by ▶ | T026 |
 | SC-011 a touch during a read leaves the read and the page as they were | T027 |
+
+- **2026-10-16 — the follow moves one sentence early (022).** `specs/022-read-scroll-lead` narrows this file's `FR-003`
+  (the page may now move while the sentence being read is fully visible, when that sentence's **successor** is the last
+  one visible on screen) and **re-walks** this feature's own device row 7 rather than re-cutting it. The rule the reader
+  asked for is positional — *"the reading sentence is not the last sentence on screen unless its the last sentence of
+  the content"* (2026-10-16) — and this file's rule never asked it: its own rows are green either way. **This file's
+  artifacts are left as written**: its rows, its receipts and its driver (which gained one **appended** field on the
+  evidence line, its own pattern left unanchored so this feature's six-field receipts still read as they did, **and two
+  rows of its own**: `24` for the reader's rule and `25` for a text that fits the area; no existing row of this file was
+  re-cut). What it
+  owes the record is said rather than edited: its `SC-001` stays true and is no longer sufficient, its unit case *long
+  text: the spoken sentence comes into view* passes **unchanged** (the sentence it fires is the read's last, and nothing
+  follows it), and its follow suite's own reader was re-cut for the appended field. `2026-10-16, later
+  the same day:` the driver's own `25` walked the second half of that feature's `SC-003` on this device — the shipped
+  preset at the display's own size and this app's own appearance (`viewport=657`, the text's tallest sentence at
+  `bottom=198`) reads end to end with **every** sentence inside the area at once and the highlight walking down the page
+  (`472 → 628 → 680 → 840` device px) while the page's offset does not move.
+
+- **2026-10-16, the same evening — the regression sweep, and two of this file's own rows.** 022 re-ran this file's
+  device rows 8, 9, 10, 17, 20, 21 and 23 on the build carrying its rule: **8, 9, 10, 17 and 21 pass**; **20 and 23 do
+  not**. Row 20 fails **because of** 022 (it passes with 022's lead disabled — the control is quoted in
+  `specs/022-read-scroll-lead/breakpoint.md`): it long-presses a point measured *before* the read it makes, and a read
+  now moves the page in one case it did not before, which is what this file's `FR-003` records as narrowed. Its own
+  subject (the gesture still picks what ▶ reads) is untouched; what it needs is a re-cut that measures the point after
+  the read — **owed, and named as owed** there and here rather than fixed in a hurry. Row 23 fails **without** 022's
+  rule as well (the same control run): it expects a stored position after a tap and reads a `read_position` pref that
+  `grep -rn "read_position" lib/` does not find anywhere in the tree — untriaged, and carried as its own work.
+
+  **`2026-10-16, later the same evening:`** row 20 was **re-cut** (its point derived per gesture, from a page returned to
+  its own top) and **re-walked green** on the build carrying 022's rule (`▶ paragraph: (65, 199) (the paragraph is
+  65..199)` — the held point's own paragraph); row 23's refusal was control-proved to predate 022 (it fails with 022's
+  lead disabled as well) and its own cause is measured in `breakpoint.md`: it reads a stored position the app no longer
+  writes under any name (the device's prefs hold only the appearance key). Both rows' verdicts and runs are in this
+  file's `breakpoint.md`.

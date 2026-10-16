@@ -258,6 +258,150 @@ void main() {
       });
     });
 
+    testWidgets('022: the word the new line carries — how many sentences are '
+        'visible below the one reported (FR-009)', (tester) async {
+      // 022's own case (tasks T002). The rule it serves is positional: the page
+      // moves when the sentence after the one in force is the last visible one,
+      // so the line must say what follows the reported sentence, in the app's own
+      // numbers, for a walked row to read (data-model INV-6).
+      useViewport(tester);
+      final fake = FollowingReader();
+      final logs = <String>[];
+      await withCapturedLogs(logs, () async {
+        await openPage(tester, fake);
+        await continueRead(tester);
+        fake.fire(fake.plan.first);
+        await tester.pumpAndSettle();
+      });
+
+      final line = logs.last;
+      expect(
+        RegExp(r'^klhu follow: p\d+ s\d+ visible=\d top=-?\d+ bottom=-?\d+ '
+                r'viewport=\d+ below=\d+$')
+            .hasMatch(line),
+        isTrue,
+        reason: 'the report carries no count of what follows it: $line',
+      );
+    });
+
+    testWidgets('022: the reader of this suite reads the appended field, and still '
+        'reads a line without it (FR-009)', (tester) async {
+      // 022's own case (tasks T004). `FollowLine`'s pattern is **anchored**, so
+      // the appended field is a re-cut of this suite's own reader — 011's driver
+      // regex in `klhu_walk_experience.py` is unanchored and keeps matching.
+      final parsed = FollowLine.parse(
+        'klhu follow: p1 s2 visible=1 top=7 bottom=19 viewport=196 below=3',
+      );
+      expect(parsed.below, 3);
+      expect(parsed.viewport, 196, reason: 'the six fields it always had are first');
+      final old = FollowLine.parse(
+        'klhu follow: p1 s2 visible=1 top=7 bottom=19 viewport=196',
+      );
+      expect(old.below, isNull, reason: 'a line without the field is still readable');
+    });
+
+    testWidgets('022: the page moves one sentence early — for the sentence whose '
+        'successor is the last one visible, before that successor is highlighted '
+        '(1B, FR-001/FR-002)', (tester) async {
+      // The reader's own rule, read literally (2026-10-16): the auto-scroll starts
+      // **before** the highlight of the sentence that would be the last one on
+      // screen — so the sentence being read is never the bottom-most box.
+      useViewport(tester);
+      final fake = FollowingReader();
+      await openPage(tester, fake);
+      await continueRead(tester);
+      expect(fake.plan.length, greaterThan(20), reason: 'fixture drift');
+
+      final view = viewportRect(tester);
+      var moved = -1;
+      for (var i = 0; i + 2 < fake.plan.length; i++) {
+        // The sentence has to be **on screen** for the move to be the lead's:
+        // 011's own rule moves the page when the sentence being read is below the
+        // fold, and that is a different doorway (it is the one that ships).
+        final onScreen = boxIsInsideViewport(tester, fake.plan[i]);
+        // The state the rule is about, read **before** the report: is the second
+        // sentence after this one below the fold while this one is on screen?
+        final secondBefore = sentenceBox(tester, fake.plan[i + 2]).top;
+        final before = scrollPosition(tester).pixels;
+        fake.fire(fake.plan[i]);
+        await tester.pumpAndSettle();
+        if (onScreen &&
+            secondBefore > view.bottom &&
+            scrollPosition(tester).pixels > before) {
+          moved = i;
+          break;
+        }
+      }
+      expect(moved, greaterThan(-1),
+          reason: 'no sentence that was on screen, with its second-next below the '
+              'fold, moved the page');
+      expect(boxIsInsideViewport(tester, fake.plan[moved + 1]), isTrue,
+          reason: 'the sentence after the one in force is not on screen');
+      final after = sentenceBox(tester, fake.plan[moved + 2]);
+      expect(after.top, lessThan(view.bottom),
+          reason: 'nothing follows the sentence that is next to be read');
+    });
+
+    testWidgets('022: the move is a nudge — the sentence in force stays on screen, '
+        'never above the top, and the page is not turned (FR-003, SC-005)',
+        (tester) async {
+      // US2's own case (tasks T008). "Just enough" is a claim about the rect the
+      // reveal is handed: this sentence's own top through the further of the two
+      // below it — so the sentence being read is still visible, its own top never
+      // goes above the viewport's, and the page moves by less than its height.
+      useViewport(tester);
+      final fake = FollowingReader();
+      await openPage(tester, fake);
+      await continueRead(tester);
+      final view = viewportRect(tester);
+
+      var checked = 0;
+      for (var i = 0; i + 2 < fake.plan.length && checked < 3; i++) {
+        final onScreen = boxIsInsideViewport(tester, fake.plan[i]);
+        final secondBefore = sentenceBox(tester, fake.plan[i + 2]).top;
+        final before = scrollPosition(tester).pixels;
+        fake.fire(fake.plan[i]);
+        await tester.pumpAndSettle();
+        final moved = scrollPosition(tester).pixels - before;
+        if (!onScreen || secondBefore <= view.bottom || moved <= 0) continue;
+        expect(boxIsInsideViewport(tester, fake.plan[i]), isTrue,
+            reason: 'the move carried the sentence in force off screen');
+        expect(sentenceBox(tester, fake.plan[i]).top,
+            greaterThanOrEqualTo(view.top - 0.5),
+            reason: 'the sentence in force went above the viewport');
+        expect(moved, lessThan(view.height),
+            reason: 'the page was turned rather than nudged ($moved px)');
+        checked++;
+      }
+      expect(checked, greaterThan(0),
+          reason: 'the fixture produced no lead move to measure');
+    });
+
+    testWidgets('022: nothing moves when a sentence after the next one is already '
+        'on screen (FR-001, SC-005)', (tester) async {
+      // US2's own control (tasks T008): the rule is a relation, not a habit of
+      // moving. It is green before this feature's rule exists as well — a control
+      // is recorded as one, never as a RED.
+      useViewport(tester);
+      final fake = FollowingReader();
+      await openPage(tester, fake);
+      await continueRead(tester);
+
+      final view = viewportRect(tester);
+      var checked = 0;
+      for (var i = 0; i + 2 < fake.plan.length && checked < 3; i++) {
+        final secondBefore = sentenceBox(tester, fake.plan[i + 2]).top;
+        if (secondBefore > view.bottom) continue;   // the rule may move for this one
+        final before = scrollPosition(tester).pixels;
+        fake.fire(fake.plan[i]);
+        await tester.pumpAndSettle();
+        expect(scrollPosition(tester).pixels, before,
+            reason: 'a sentence with two after it on screen still moved the page');
+        checked++;
+      }
+      expect(checked, greaterThan(0), reason: 'no report had two sentences after it');
+    });
+
     // A case lived here — "Continue Read from a stored position shows it
     // first" — which seeded a `read_position_*` record and asserted the view
     // restored it before any read (010 D8). 016 decision 5 retires the record
@@ -298,6 +442,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(hasYellow(tester, sentText(longText, fake.plan[1])), isTrue);
       expect(boxIsInsideViewport(tester, fake.plan[1]), isTrue);
+
+      // **022's own extension of this case (2026-10-16, tasks T010)**: the new rule
+      // fires at this sentence's own start and not again while it is read, so the
+      // hand scroll above is still standing; and the move the rule makes is the
+      // lead's — a sentence ahead of this one, not this one dragged back.
+      final held = scrollPosition(tester).pixels;
+      fake.fire(fake.plan[1]);
+      await tester.pumpAndSettle();
+      expect(scrollPosition(tester).pixels, held,
+          reason: 'a re-reported sentence moved the page (011 FR-005, 022 FR-004)');
+      final view = viewportRect(tester);
+      if (sentenceBox(tester, fake.plan[3]).top > view.bottom) {
+        expect(sentenceBox(tester, fake.plan[2]).top, lessThan(view.bottom),
+            reason: 'the sentence after this one has nothing after it on screen');
+      }
     });
 
     testWidgets('offsets are in range and never go backwards in one read',
@@ -497,6 +656,14 @@ class FollowLine {
   final int bottom;
   final int viewport;
 
+  /// **022's own field (2026-10-16)**: how many sentences have a box inside the
+  /// viewport **below** the reported one — null for a line that does not carry it,
+  /// which is what keeps this reader able to read the six-field line the older
+  /// receipts quote. The pattern is anchored, so the appended field is a re-cut of
+  /// this reader rather than a silent match (011's driver regex is unanchored and
+  /// reads both shapes).
+  final int? below;
+
   const FollowLine({
     required this.paragraph,
     required this.sentence,
@@ -504,12 +671,13 @@ class FollowLine {
     required this.top,
     required this.bottom,
     required this.viewport,
+    this.below,
   });
 
   static FollowLine parse(String line) {
     final match = RegExp(
       r'^klhu follow: p(\d+) s(\d+) visible=(\d+) top=(-?\d+) '
-      r'bottom=(-?\d+) viewport=(\d+)$',
+      r'bottom=(-?\d+) viewport=(\d+)(?: below=(\d+))?$',
     ).firstMatch(line);
     if (match == null) {
       throw FormatException('unexpected follow line: $line');
@@ -521,6 +689,7 @@ class FollowLine {
       top: int.parse(match.group(4)!),
       bottom: int.parse(match.group(5)!),
       viewport: int.parse(match.group(6)!),
+      below: match.group(7) == null ? null : int.parse(match.group(7)!),
     );
   }
 }

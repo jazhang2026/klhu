@@ -18,8 +18,8 @@ time, at their own pace, without the app running on.
 ## Why this is a rule change and not a new button
 
 The app already reads one unit at a time when the reader picks one: ▶ Read speaks the highlighted sentence and
-stops (`lib/reading_view.dart:1048-1059`). What it does **not** do is stay put. When that read ends, the page
-clears the highlight and the stored position with it (`lib/reading_view.dart:1243-1252`, the [`finally`] of
+stops (`lib/reading_view.dart:1068-1069`). What it does **not** do is stay put. When that read ends, the page
+clears the highlight and the stored position with it (`lib/reading_view.dart:1394-1262`, the [`finally`] of
 `_runRead`), because 011 FR-022 says the position lives only as long as the highlight that shows it:
 
 > **FR-022**: 010's Continue Read position MUST be in force exactly while the highlight that shows it is
@@ -149,7 +149,11 @@ bring **nothing** back — no highlight, no previous position.
 - **FR-011**: In 多人对话 the step MUST be one sentence of a turn, read in the turn's role's voice, and the next
   step MUST be the following sentence of the text. 014's resolution is unchanged.
 - **FR-012**: The sentence a step highlights MUST be brought into view (011 FR-001/FR-002) before the reader can
-  press again.
+  press again — **and that includes the unit the press itself reads (2026-10-16)**: a step's read does not track, so
+  nothing else reveals it, and the implementation carried this rule only for the *next* press (`_advanceStep`). The
+  reader's own report of that day is the record: with the page away from the top and nothing highlighted, ⏭ Continue
+  Read scrolled to the first sentence and read it, while ▶ Read read it with the page where it was. The press now
+  reveals its own unit first; the reading's own lead (022) builds on that reveal.
 - **FR-013**: The message that asks the reader to select something before reading MUST go, and its message key
   with it — `selectToReadMessage`, used at exactly one place, `reading_view.dart:1052`; a key the template drops
   may not be kept by a translation (`test/l10n_keys_test.dart`). **Nothing takes its place**: the text's end is
