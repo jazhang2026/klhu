@@ -148,3 +148,8 @@ Requirement:
         (2026-10-15 定：这是 020 自己的实现缺陷，不是新需求 —— lib/picture_assignment.dart:149-151
          两处次序边界用了严格比较，邻居的最后一句因此被静默接受、落进两条 run，违反 020 自己的 FR-005。
          修法归 020，与 021 的 switch 同一段代码路径。)
+
+022. Add one change: On reading, auto scroll after read last sentence on screen. I like to start the auto scroll before highlight/read last sentence on screen. so the reading sentence is not the last sentence on screen unless its the last sentence of the content.
+     find a small issue: reading page, when not on the top/not show first sentence and no tap, click Continue Read, it scroll to top, 
+highlight first sentence the read. if click Read, no scroll to top happen before read first sentence. scroll happen after read first
+sentence and high light second sentence.
