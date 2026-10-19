@@ -150,6 +150,7 @@
   "textTypeDialogueHint": "Each paragraph is a turn; a role tag at the head of a paragraph names its speaker.",
   "roleListTitle": "Roles",
   "roleListEmptyMessage": "No roles yet. A paragraph that starts with a role tag belongs to that role.",
+  "roleListUnsplitMessage": "No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.",
   "roleTurnCount": "{count, plural, =1 {1 turn} other {{count} turns}}",
   "@roleTurnCount": {"placeholders": {"count": {"type": "int"}}},
   "roleVoiceLabel": "Voice",

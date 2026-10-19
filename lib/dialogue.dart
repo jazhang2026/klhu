@@ -301,6 +301,37 @@ List<int> tagOffsets(String text) {
   return offsets;
 }
 
+/// FR-026: is the reader's text tagged at its **line** heads while no
+/// **paragraph** head carries a tag?
+///
+/// This is the one fact that decides which message the dialogue surface's empty
+/// role list shows (SC-013): a text whose tags stand at line heads is a text one
+/// `Format` press (FR-024) turns into the turns the list is made of, and the
+/// message says so. Both halves are asked of the TEXT — never of the role list,
+/// because the list is filtered by the reader's own **removals** (FR-007): a
+/// reader who removed the last name leaves a tagged paragraph head with an empty
+/// list, and a condition built on "the list is empty" would tell them their text
+/// is unsplit when what happened is their own removal.
+///
+/// The grammar is [roleTagAt]'s own, asked twice (research D13) — a second
+/// pattern here would be a second grammar to keep in step with the first. The
+/// scan is one pass over the text's line heads, `O(lines)`, the same order as
+/// [turnsOf], and it is recomputed on every open like every other dialogue rule.
+bool taggedButUnsplit(String text) {
+  for (final para in paragraphRanges(text)) {
+    if (roleTagAt(text, para.start, para.end) != null) return false;
+  }
+  var lineStart = 0;
+  while (lineStart <= text.length) {
+    final newline = text.indexOf('\n', lineStart);
+    final lineEnd = newline < 0 ? text.length : newline;
+    if (roleTagAt(text, lineStart, lineEnd) != null) return true;
+    if (newline < 0) break;
+    lineStart = newline + 1;
+  }
+  return false;
+}
+
 /// The voices a read of [turns] uses, one entry per turn (FR-012–FR-015).
 ///
 /// The reader's pick for a role wins outright, whatever the turn's language

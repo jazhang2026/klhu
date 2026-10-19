@@ -209,3 +209,24 @@ are separate wish-list items (15 and 16) and are not this feature.
 number had to be given explicitly because the script counts directories on this checkout and `013-web-storage`
 lives on a branch, so it would otherwise have re-used 013. The slug is a name, not a decision: say a word and it
 is renamed in the four places a rename touches.
+
+## Notes added by the 2026-10-16 amendment (FR-026, SC-013)
+
+- **Two cases, and the message has to tell them apart.** With a braced tag at a *line* head that is not a *paragraph*
+  head, the empty list names the missing split and the `Format` action; with no braced tag at any line head, it says
+  what it says today. The reader's own text (a title line and four `{name}: …` turns, single newlines) is
+  the first case; a plain prose content is the second; a brace inside a line is **not** evidence for the first
+  (2026-10-03: a tag that is not at a paragraph head is ordinary text) — so a text whose only braces sit mid-line
+  keeps the general message, and that is a case this amendment must not blur.
+- **Where the condition lives, and where the message does.** The condition is a question about the reader's text
+  (`lib/dialogue.dart` is where `roleTagAt` and `turnsOf` already answer such questions — a sibling of `roleTagAt`
+  that scans **line** heads rather than paragraph heads is the natural home; the plan stage names it). The message is
+  a new ARB key beside `roleListEmptyMessage` in the four locales (`lib/l10n/app_{en,zh,zh_Hans,es}.arb`), and the
+  empty-state branch in the dialogue surface (`lib/reading_view.dart`, the `roles.isEmpty` branch) chooses between the
+  two. **A coupling to keep in step**: the message spells the `Format` label itself (`formatButton`), so a locale that
+  renames that button owns the message's wording too.
+- **Not implied**: no button in the dialogue surface, no change to the tag grammar, no change to the generic message,
+  and no change to what `Format` does (FR-024's own clause — it inserts the blank lines and changes nothing else).
+- **Owed before this amendment can be called done** (named here, not implied): the four locales' strings, a unit case
+  per case above, the dialogue suite's own count, and a device walk on the emulator with the reader's own text —
+  the same path every row of this feature took.

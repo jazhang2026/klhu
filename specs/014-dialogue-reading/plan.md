@@ -304,6 +304,47 @@ picker and two log lines. The one structural claim a reviewer should check is th
     only write to the reader's text, so its test is the widget test that reads the controller back
     (quickstart rows 32-33).
 
+## The 2026-10-16 amendment — the empty list names its own reason (FR-026, SC-013)
+
+**What it is**: one message becomes two. The dialogue surface's empty role list says what it says today unless the
+reason it is empty is the paragraph split, in which case it names the split and the editor's **Format** action by their
+own label. The rule and the criterion are in `spec.md` (its amendment, FR-026, SC-013, and the 2026-10-16 Clarifications
+entry); what follows is where the code goes and what it costs.
+
+**The touch list** (three places, and no fourth):
+
+| Where | What it does | Why there |
+|---|---|---|
+| `lib/dialogue.dart` (beside `roleTagAt`, `:116`) | answers the one question the message turns on: **does some line's head carry a braced tag while no paragraph's head does?** | every dialogue rule is derived from the text in this file (`:5-14`), and the tag grammar lives in `roleTagAt` — the new question is the same grammar asked one level down (a *line* head instead of a *paragraph* head). **One grammar, two questions**: the condition is built out of `roleTagAt` and the text's own line heads, never a second regex (research D13) |
+| `lib/l10n/app_{en,zh,zh_Hans,es}.arb` | one new key, `roleListUnsplitMessage` — `129 → 130` keys in each of the four | the empty list's own text is already a keyed message (`roleListEmptyMessage`); a second fact needs a second key, and all four locales move in the same commit (FR-018's own rule for this feature) |
+| `lib/reading_view.dart` (the `roles.isEmpty` branch, `:1645-1649`) | chooses between the two messages | it is the one place that knows the list is empty *and* is about to paint it |
+
+**What it must not touch**: the tag grammar (`roleTagAt`), the paragraph rule (`paragraphRanges`), `Format`
+(`lib/reading_view.dart:721`, FR-024), the shipped message's own key and wording (`roleListEmptyMessage`), and anything
+stored — the condition is **derived on every open**, like every other dialogue rule (`lib/dialogue.dart:5-9`), so no new
+key enters `lib/role_store.dart`.
+
+**Why the message is never a lie**: `Format` puts **every** role tag in the text at the head of its own paragraph
+(FR-024, SC-011), so any text whose tags stand at line heads takes a role list from one press. The reader's own case is
+the plain instance of it.
+
+**The three rows it walks** (`quickstart.md` 36/37/38): the condition's own cases in `test/dialogue_test.dart`; the two
+messages in `test/reading_view_dialogue_test.dart`; and on the device, `specs/014-dialogue-reading/scripts/
+klhu_walk_dialogue.py` gains key **`"37"`** — the driver's own `seed()` (`:198`) and `open_role_list()` (`:770`) are the
+two helpers it needs, and the row's own evidence is the reader's text, the message's own words, one `Format` press from
+the editor (`:3029-3038`) and the role list afterwards.
+
+**The condition is asked of the *text*, never of the filtered role list** — the one trap this design has, found while
+writing it down: a reader who **removed** a name (FR-007) leaves that paragraph head tagged with an empty list, and a
+condition built on "the list is empty" would tell them their text is not split when what happened is their own removal.
+The question is therefore *"does some line head carry a tag while no paragraph head does"*, both halves asked of the
+text — and the empty list is what the message is **for**, not what decides which message it is.
+
+**Costs, named**: the condition scans the content's line heads each time the surface opens (`O(lines)`, the same order
+as `turnsOf`); the message **spells the `Format` label itself**, so a locale that renames that button owns this
+sentence too (the coupling is in the checklist); and a text that mixes split and unsplit turns fires the hint
+deliberately — `Format` fixes those as well, which is what makes the hint safe to give.
+
 ## Complexity Tracking
 
 > No Constitution Check violations: the table is empty on purpose.

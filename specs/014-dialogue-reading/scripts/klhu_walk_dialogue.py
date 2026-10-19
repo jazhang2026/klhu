@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""klhu device walk — 014 quickstart rows 23-28 and 33.
+"""klhu device walk — 014 quickstart rows 23-29, 33 and 37.
 
 Row 23: a four-role dialogue on the device — the fixture read from the top, with
         logcat's `klhu speak` lines as the witness: the turns' contents in order,
@@ -24,6 +24,15 @@ Row 26: the type switch and the reader's place — the reader taps a sentence
         side of the switch, 008's version is unmoved, and the read starts at the
         same offset in both modes (in 标准 the tag is spoken, in 多人对话 the
         turn's speaker is).
+Row 37: the empty list's own reason (FR-026) — the reader's text of 2026-10-16
+        (a title line, four tagged turns, single newlines) on the device: the
+        dialogue surface's list is empty and its message names the paragraph
+        split and the editor's Format action (and is NOT the general message),
+        the surface offers no Format action of its own, one press of the editor's
+        Format puts every tag at its own paragraph's head with blank lines as the
+        only difference, and the surface then lists 旁白 and 陈静远 in the order
+        of their first turns. The two sentences are read out of the four ARBs,
+        never re-typed here.
 
 The mechanics are 012's (`specs/012-reading-video/scripts/klhu_walk_video.py`):
 one string per `adb shell` command, `uiautomator dump` reads, `tap(rows, label)`,
@@ -155,7 +164,6 @@ L = {
     "delete": ("删除", "Delete"),
     "delete_confirm": ("删除此内容？", "Delete this content?"),
     "automatic": ("自动", "Automatic"),
-    "format": ("排版", "Format"),
 }
 
 SPEAK_RE = re.compile(
@@ -1675,17 +1683,41 @@ ROW33_TEXT = ("{旁白} 今天天气很好，适合出去走走。{阿明} 今�
               "行下公园好舒服。\n{May} 系啊，太阳晒住，风又凉爽。")
 
 
-def editor_text():
+def editor_text(rows=None):
     """The editor's own text, off the page.
 
     A `uiautomator dump` is the ground truth for Flutter text on this host (the
     reader's own note), and in edit mode the field's whole contents are one
     node's label — the row reads that rather than a still.
+
+    [rows] lets a caller that already holds a dump reuse it: the readiness wait
+    below reads the field and the toolbar from ONE dump, so it can never call the
+    editor "ready" from a frame the toolbar was not in.
     """
-    rows = dump()
+    rows = dump() if rows is None else rows
     hits = [unxml(r["desc"] or r["text"]) for r in rows
             if "{旁白}" in (r["desc"] or r["text"])]
     return max(hits, key=len) if hits else None
+
+
+def wait_editor_ready(text, tries=10, pause=0.5):
+    """The editor, once its field holds [text] and its Format button is enabled.
+
+    Not a retry: the press itself happens once, after this returns. What it waits
+    for is the state the press is made in — a freshly installed **debug** build
+    compiles the editor's first frame on the UI thread, and row 37's first run on
+    such a build pressed Format while that frame was still landing: the click was
+    dropped, the field stayed byte-identical (0 characters added) and the row
+    failed honestly. The row 33 shape had the same exposure.
+    """
+    for _ in range(tries):
+        rows = dump()
+        node = next((r for r in rows
+                     if (r["desc"] or r["text"]) in L["format"]), None)
+        if node is not None and node["enabled"] and editor_text(rows) == text:
+            return rows
+        time.sleep(pause)
+    return None
 
 
 def unxml(label):
@@ -1736,6 +1768,11 @@ def row_33():
 
     if not press("edit", "the editor entry"):
         check("33: the editor opened", False, f"visible: {labels(dump())[:12]}")
+        unseed_fixture(ROW33_ID)
+        return
+    if wait_editor_ready(ROW33_TEXT) is None:
+        check("33: the editor's field was ready before the Format press", False,
+              f"visible: {labels(dump())[:14]}")
         unseed_fixture(ROW33_ID)
         return
     before = editor_text()
@@ -1806,6 +1843,161 @@ def row_33():
           f"{'the same as' if page == formatted else 'different from'} the editor's")
 
     unseed_fixture(ROW33_ID)
+
+
+# --------------------------------------------------------------------------
+# row 37 — the empty list names the split, and one press makes the roles
+# --------------------------------------------------------------------------
+ROW37_ID = "dialogue_split_fixture"
+ROW37_NAME = "对话练习"
+# The reader's own text of 2026-10-16: a title line, then four turns on single
+# newlines. The title is the one paragraph's head and carries no tag, so no role
+# is proposed at all — the state the reader reported ("Why?") and then answered
+# themselves ("给出更具体的提示").
+ROW37_TEXT = ("对话练习\n"
+              "{旁白} 今天天气很好，适合出去走走。\n"
+              "{陈静远} 系啊，太阳晒住，风又凉爽。\n"
+              "{旁白} 行下公园好舒服。\n"
+              "{陈静远} 我好少黎呢个公园。")
+ROW37_ROLES = ["旁白", "陈静远"]
+
+
+def arb_message(key):
+    """One key's value in each of the four ARBs, keyed by locale.
+
+    Read out of the files rather than re-typed: the sentence the app draws IS the
+    ARB's value, and a row that typed it again could only agree with itself. The
+    pair also carries the device's locale question — the reference AVD draws
+    `zh_Hans`, an English device draws `en`, and the row accepts either.
+    """
+    out = {}
+    for locale in ("en", "zh", "zh_Hans", "es"):
+        path = os.path.join(REPO, "lib", "l10n", f"app_{locale}.arb")
+        with open(path, encoding="utf-8") as handle:
+            out[locale] = json.load(handle)[key]
+    return out
+
+
+SPLIT_HINT = arb_message("roleListUnsplitMessage")
+GENERAL_HINT = arb_message("roleListEmptyMessage")
+
+
+def drawn_message(rows, table):
+    """(locale, value) for the first of [table]'s values the dump carries."""
+    for locale, value in table.items():
+        if any(value in (r["desc"] or r["text"]) for r in rows):
+            return locale, value
+    return None
+
+
+def row_37():
+    step("row 37 — the empty list names the split, and one press makes the roles")
+    fresh_prefs()
+    text = seed(ROW37_ID, ROW37_NAME, ROW37_TEXT)
+    if text is None:
+        check("37: the row's own content reached the device", False,
+              "device_write failed")
+        return
+    if not set_dialogue():
+        check("37: the type was set through the app's own chooser", False,
+              f"visible: {labels(dump())[:12]}")
+        unseed_fixture(ROW37_ID)
+        return
+
+    # (1) the empty list says WHICH emptiness this is (FR-026, SC-013).
+    rows = open_role_list()
+    if not rows:
+        check("37: the dialogue surface opened", False, "the dump failed")
+        unseed_fixture(ROW37_ID)
+        return
+    names = list(role_rows(rows))
+    check("37: the reader's own text proposes no role at all — the report's own "
+          "state (FR-003)", names == [],
+          f"the list's rows: {names}")
+    split = drawn_message(rows, SPLIT_HINT)
+    check("37: the empty list names the paragraph split and the Format action "
+          "(FR-026, SC-013)", split is not None,
+          f"drawn from {split[0]}: {split[1]!r}" if split
+          else f"none of the four ARBs' strings is on screen; visible: "
+               f"{labels(rows)[:10]}")
+    general = drawn_message(rows, GENERAL_HINT)
+    check("37: and it is not the general message — the one that told this reader "
+          "nothing they could press", general is None,
+          f"the general message is drawn ({general[0]})" if general
+          else "the general message is absent")
+    check("37: the surface offers no Format action of its own — the app points, "
+          "the reader presses (FR-024)",
+          not any(find(rows, label, exact=True) for label in L["format"]),
+          f"an exact {L['format'][0]!r} node is on the dialog"
+          if any(find(rows, label, exact=True) for label in L["format"])
+          else "no node IS the Format label; it is only spoken of in the message")
+
+    # (2) one press of the editor's own Format button (FR-024).
+    close_role_list()
+    time.sleep(1)
+    if not press("edit", "the editor entry"):
+        check("37: the editor opened", False, f"visible: {labels(dump())[:12]}")
+        unseed_fixture(ROW37_ID)
+        return
+    if wait_editor_ready(ROW37_TEXT) is None:
+        check("37: the editor's field was ready before the Format press", False,
+              f"visible: {labels(dump())[:14]}")
+        unseed_fixture(ROW37_ID)
+        return
+    before = editor_text()
+    check("37: the editor shows the reader's text, tag for tag", before == ROW37_TEXT,
+          f"the field reads {len(before) if before else 0} chars")
+    heads_before = paragraph_heads(before or "")
+    check("37: four tags at line heads, none of them a paragraph head yet",
+          len(heads_before) == 4 and not any(head for _, head in heads_before),
+          f"the tags' paragraph-head flags: {[h for _, h in heads_before]}")
+
+    if not press("format", "the Format button"):
+        check("37: the Format button is on the editor's toolbar", False,
+              f"visible: {labels(dump())[:14]}")
+        unseed_fixture(ROW37_ID)
+        return
+    after = editor_text()
+    heads_after = paragraph_heads(after or "")
+    check("37: every tag is now its own paragraph's head (FR-024, SC-011)",
+          len(heads_after) == 4 and all(h for _, h in heads_after),
+          f"the tags' paragraph-head flags: {[h for _, h in heads_after]}")
+    check("37: the difference is blank lines and nothing else (FR-024, SC-011)",
+          (after or "").replace("\n", "") == (before or "").replace("\n", "")
+          and len(after or "") > len(before or "")
+          and head_of_tags(after or "") == head_of_tags(before or ""),
+          f"{len(after or '') - len(before or '')} character(s) added, all line "
+          f"breaks; the same characters otherwise")
+
+    press("done", "Done")
+    time.sleep(1)
+    stored = cat(f"{LIBRARY}/content/contents/{ROW37_ID}.txt").decode(
+        "utf-8", "replace")
+    check("37: Done saves the formatted text through 008's own path (FR-024)",
+          stored == after,
+          f"the library holds {len(stored)} chars, the editor had "
+          f"{len(after) if after else 0}")
+
+    # (3) the roles the same text now proposes, in the text's own order (FR-006).
+    rows = open_role_list()
+    if not rows:
+        check("37: the surface reopened on the formatted text", False,
+              "the dump failed")
+        unseed_fixture(ROW37_ID)
+        return
+    listed = role_rows(rows)
+    order = [name for name, _ in sorted(listed.items(),
+                                        key=lambda item: item[1]["y"])]
+    check("37: the role list now holds 旁白 and 陈静远, in the order of their "
+          "first turns (FR-006, SC-013)", order == ROW37_ROLES,
+          f"the list's rows: {order}")
+    split_again = drawn_message(rows, SPLIT_HINT)
+    check("37: and the split hint is gone with the split's own reason",
+          split_again is None,
+          f"still drawn ({split_again[0]})" if split_again
+          else "no hint: the list is not empty")
+    close_role_list()
+    unseed_fixture(ROW37_ID)
 
 
 def head_of_tags(text):
@@ -1937,7 +2129,7 @@ def row_29():
 
 
 ROWS = {"23": row_23, "24": row_24, "25": row_25, "26": row_26, "27": row_27,
-        "28": row_28, "29": row_29, "33": row_33}
+        "28": row_28, "29": row_29, "33": row_33, "37": row_37}
 
 
 def main():

@@ -398,6 +398,32 @@ does nothing but apply the result.
   behind-the-back rewrite A9 forbids, and it would make the file the reader sees differ from the file the app
   reads.
 
+### D13 — The split question is one grammar asked twice, not a second regex (FR-026)
+
+**The question the new message turns on** is the reader's own: *does a tag stand at a line head where no paragraph
+head is?* Three ways to answer it were considered and one is taken.
+
+- **(A) A second regex over the text** — a pattern for `^\s*\{…\}` per line. Refused: this file's own rule is that
+  the tag grammar lives in **one** place (`roleTagAt`), and a second pattern would be a second grammar to keep in step
+  with the first — the exact drift this feature's 2026-10-02 amendment already paid for once.
+- **(B) The question lives in the surface** (`lib/reading_view.dart`, beside the `roles.isEmpty` branch). Refused:
+  it is a fact about the **text**, not about the widget, and in the surface it could only be tested through a widget —
+  while `test/dialogue_test.dart` can ask it directly, the way every other dialogue rule is tested.
+- **(C) `roleTagAt` at every line's head, minus the paragraph heads** — **taken**. The condition is: some line's first
+  non-space character opens a braced tag that closes on the same line, **and no paragraph's head does**. It is built
+  from `roleTagAt`'s own acceptance (so the grammar stays in one place) and from the text's line structure.
+- **Why both halves are asked of the text rather than of `rolesOf`'s answer** — the trap this decision was corrected
+  for, found while writing the plan: the role list is filtered by the reader's own **removals** (FR-007), so a reader
+  who removed a name leaves a tagged paragraph head with an empty list. "The list is empty and a line head carries a
+  tag" would then fire the split message at a text that *is* split — a lie about the reader's own text. Asking the text
+  twice keeps the message's own reason honest, and costs one comparison.
+- **What it costs**: one scan of the content's line heads per dialog open, `O(lines)` and the same order as `turnsOf`
+  — and one dependency worth writing down: the whitespace the scan skips is the grammar's own (`' '` and `'\t'`), so a
+  text whose lines end in `\r` still has its `{…}` seen at the line's head (the `\r` sits before the line break, not
+  before the brace). That case is pinned by its own test, because it is the reader's *other* real text: their own
+  content arrives from a phone editor and a model's output, and the segmenter's own paragraph regex does not tolerate
+  `\r` — such a text stays one paragraph while its tags sit at line heads, which is this amendment's own case.
+
 ## Spikes
 
 ### S1 — how many distinct voices does the device actually list, per language and per gender? — [device]

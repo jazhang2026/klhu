@@ -960,3 +960,68 @@ themselves stand. What it costs is the *evidence*: a line such as `read_position
 Recorded rather than edited, because editing this file's driver would invalidate the receipts its own rows carry; when
 one of its rows is next walked, its evidence lines are worth re-pointing at what is in force (011's own driver was
 re-cut for exactly this on 2026-10-16, and its row 23 now reads its anchors off the app's live ranges).
+
+## The 2026-10-16 amendment — row 37, the empty list's own reason
+
+**What the row is for.** The reader, on the emulator, opened their own text — a title line and four `{name}: …`
+turns on **single** newlines — and the dialogue surface's empty role list said *"No roles yet. A paragraph that
+starts with a role tag belongs to that role."*: true, and nothing they could press. They asked *"Why?"* and then
+answered it themselves: *"给出更具体的提示"*. FR-026 and SC-013 carry the rule; this row is the device's half of it
+(quickstart row 37).
+
+**How it was run.** `flutter build apk --debug` → *Built build/app/outputs/flutter-apk/app-debug.apk*;
+`adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk` → *Success*; then
+`ADB_SERIAL=emulator-5554 /usr/bin/python3 -u specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py 37`
+(`/usr/bin/python3` because the chain imports PIL). The device draws **English** on this AVD, so the row matched the
+`en` ARB value; the row reads all four ARBs at import rather than re-typing either sentence.
+
+**The run, quoted, 11/11:**
+
+```
+  PASS  37: the reader's own text proposes no role at all — the report's own state (FR-003) — the list's rows: []
+  PASS  37: the empty list names the paragraph split and the Format action (FR-026, SC-013) — drawn from en: 'No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.'
+  PASS  37: and it is not the general message — the one that told this reader nothing they could press — the general message is absent
+  PASS  37: the surface offers no Format action of its own — the app points, the reader presses (FR-024) — no node IS the Format label; it is only spoken of in the message
+  PASS  37: the editor shows the reader's text, tag for tag — the field reads 74 chars
+  PASS  37: four tags at line heads, none of them a paragraph head yet — the tags' paragraph-head flags: [False, False, False, False]
+  PASS  37: every tag is now its own paragraph's head (FR-024, SC-011) — the tags' paragraph-head flags: [True, True, True, True]
+  PASS  37: the difference is blank lines and nothing else (FR-024, SC-011) — 4 character(s) added, all line breaks; the same characters otherwise
+  PASS  37: Done saves the formatted text through 008's own path (FR-024) — the library holds 78 chars, the editor had 78
+  PASS  37: the role list now holds 旁白 and 陈静远, in the order of their first turns (FR-006, SC-013) — the list's rows: ['旁白', '陈静远']
+  PASS  37: and the split hint is gone with the split's own reason — no hint: the list is not empty
+```
+
+That is SC-013 end to end on the reader's own text: the message names the split and the **Format** label, one press of
+that button leaves the text with every tag at its own paragraph's head and nothing but blank lines added (4 characters,
+all line breaks), and the surface then lists `旁白` then `陈静远` in the order of their first turns.
+
+**The failure that came first, recorded rather than smoothed over.** The very first run — on the build that had just
+been installed, with the editor opened for the first time on it — reported **7/11**. The four that failed were the ones
+after the Format press:
+
+```
+  FAIL  37: every tag is now its own paragraph's head (FR-024, SC-011) — the tags' paragraph-head flags: [False, False, False, False]
+  FAIL  37: the difference is blank lines and nothing else (FR-024, SC-011) — 0 character(s) added, all line breaks; the same characters otherwise
+  FAIL  37: the role list now holds 旁白 and 陈静远, in the order of their first turns (FR-006, SC-013) — the list's rows: []
+  FAIL  37: and the split hint is gone with the split's own reason — still drawn (en)
+```
+
+The row had tapped the toolbar's Format node at `@105,1441` — a node the dump reported **enabled** — and the field came
+back byte-identical (74 chars before, 74 after). A probe afterwards ruled out the aim: the node was at the same
+coordinate, and a plain `adb shell input tap 105 1441` took the field from **74 to 78 characters** with the four blank
+lines in the right places. So the press had been **dropped**, not mis-aimed.
+
+**What was changed, and what that does and does not claim.** `wait_editor_ready()` was added to the driver (beside
+`editor_text`, its own helper): after the editor opens it waits until one dump carries both a field whose text is the
+content and a Format node that is `enabled`, and the press is then made **once**, in that state — no retry, no second
+press. Row 33 got the same wait, because it presses the same button through the same sequence and had the same
+exposure. Then the cold condition was put back deliberately: `adb uninstall com.example.klhu` → `adb install` → one
+launch (which is what writes the library index) → force-stop → **row 37 → 11/11**, the run quoted above. Row 33 was
+re-run on the same build: **9/9**. The failure itself never reproduced, so the wait is a **precaution taken on the
+evidence of a dropped click, not a proven diagnosis** — the row would still fail honestly if a press were dropped
+again, which is the property that matters here.
+
+**Standing receipts this does not disturb.** Rows 23-29 and 35 (the walk's other device rows) are untouched by this
+amendment: it adds no rule to the read, the assignment, the store or the renderer. Row 33's receipt is re-taken above
+because its driver gained the wait, not because its expectations moved — its own assertions are byte-identical to the
+2026-10-05 run.

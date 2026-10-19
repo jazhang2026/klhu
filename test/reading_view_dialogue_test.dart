@@ -418,6 +418,83 @@ void main() {
     });
   });
 
+  /// FR-026, SC-013 (the reader's report of 2026-10-16): the list is empty for
+  /// two different reasons, and the message says which one it is. The reader's
+  /// own text — a title line and four tagged turns on single newlines — is one
+  /// paragraph, so no role is proposed, while its tags stand at line heads, one
+  /// Format press away from being turns.
+  group('the empty list says why it is empty (FR-026, SC-013)', () {
+    Future<void> pumpText(
+      WidgetTester tester,
+      String text, {
+      Map<String, Object?> stored = const {'type': 'dialogue'},
+    }) async {
+      SharedPreferences.setMockInitialValues({
+        RoleStore.key: jsonEncode({'p': stored}),
+      });
+      await pumpPage(
+        tester,
+        store: sampleStore(root, catalog: [
+          PresetContent(id: 'p', language: 'zh-Hans', text: text),
+        ]),
+      );
+      await openChooser(tester);
+    }
+
+    const readerText = '對話練習\n'
+        '{旁白} 今天天气很好，适合出去走走。\n'
+        '{陈静远} 系啊，太阳晒住，风又凉爽。\n'
+        '{旁白} 行下公园好舒服。\n'
+        '{陈静远} 我好少黎呢个公园。';
+
+    testWidgets('the reader\'s own text names the split, and the Format button',
+        (tester) async {
+      await pumpText(tester, readerText);
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      expect(inChooser(find.text('旁白')), findsNothing,
+          reason: 'one paragraph: the tags are not paragraph heads, so no role '
+              'is proposed (FR-003)');
+      expect(inChooser(find.text(l10n.roleListEmptyMessage)), findsNothing,
+          reason: 'the general message would tell this reader nothing they can '
+              'press');
+      expect(inChooser(find.text(l10n.roleListUnsplitMessage)), findsOneWidget);
+      expect(l10n.roleListUnsplitMessage, contains(l10n.formatButton),
+          reason: 'the message spells the label it points at');
+    });
+
+    testWidgets('plain prose keeps today\'s message', (tester) async {
+      await pumpText(tester, '今天天气很好。\n适合出去走走。');
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      expect(inChooser(find.text(l10n.roleListEmptyMessage)), findsOneWidget);
+      expect(inChooser(find.text(l10n.roleListUnsplitMessage)), findsNothing);
+    });
+
+    testWidgets('a list emptied by the reader\'s own removal keeps today\'s '
+        'message', (tester) async {
+      // One tagged paragraph whose only name was removed: the text IS split, and
+      // "your text is not split yet" would be a lie about the reader's own text
+      // (FR-007 asks the question of the text, not of the filtered list).
+      await pumpText(tester, '{阿明} 你好。', stored: {
+        'type': 'dialogue',
+        'removed': [
+          {
+            'name': '阿明',
+            'at': DateTime.fromMillisecondsSinceEpoch(0).toIso8601String(),
+          },
+        ],
+      });
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      expect(inChooser(find.text('阿明')), findsNothing,
+          reason: 'the removal empties the list (FR-007)');
+      expect(inChooser(find.text(l10n.roleListEmptyMessage)), findsOneWidget);
+      expect(inChooser(find.text(l10n.roleListUnsplitMessage)), findsNothing,
+          reason: 'the text is split; the empty list is the reader\'s removal');
+    });
+  });
+
   group('17. a role\'s voice is the reader\'s pick (FR-012, FR-013)', () {
     Future<FakeReader> pumpWithPick(WidgetTester tester,
         {Map<String, Object?> stored = const {'type': 'dialogue'}}) async {

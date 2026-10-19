@@ -338,6 +338,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get roleListEmptyMessage => '还没有角色。以角色标签开头的段落属于该角色。';
 
   @override
+  String get roleListUnsplitMessage => '還沒有角色：角色標籤之間還沒有空行分開。點編輯欄的「排版」補上空行即可。';
+
+  @override
   String roleTurnCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -782,6 +785,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get roleListEmptyMessage => '还没有角色。以角色标签开头的段落属于该角色。';
+
+  @override
+  String get roleListUnsplitMessage => '还没有角色：角色标签之间还没有空行分开。点编辑栏的「排版」补上空行即可。';
 
   @override
   String roleTurnCount(int count) {

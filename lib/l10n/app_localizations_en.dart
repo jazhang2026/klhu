@@ -348,6 +348,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'No roles yet. A paragraph that starts with a role tag belongs to that role.';
 
   @override
+  String get roleListUnsplitMessage =>
+      'No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.';
+
+  @override
   String roleTurnCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

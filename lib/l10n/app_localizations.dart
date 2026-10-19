@@ -707,6 +707,12 @@ abstract class AppLocalizations {
   /// **'No roles yet. A paragraph that starts with a role tag belongs to that role.'**
   String get roleListEmptyMessage;
 
+  /// No description provided for @roleListUnsplitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.'**
+  String get roleListUnsplitMessage;
+
   /// No description provided for @roleTurnCount.
   ///
   /// In en, this message translates to:

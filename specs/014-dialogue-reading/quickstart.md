@@ -470,3 +470,40 @@ same row reads **−21.1 dB**, 28 dB louder and 25 dB above the sentences around
 sentence where an ear is the only other witness. Keep the probe's ceiling: a single narration sentence's own
 level must not decide the row.
 
+### 36. The split question's own cases, unit by unit — `FR-026` (`SC-013`)
+
+`test/dialogue_test.dart`: the reader's own text (a title line and four `{name}: …` turns, single newlines) answers
+**yes**; the same text with a blank line between every turn answers **no** (its tags are paragraph heads, and the list
+is no longer empty); a text whose only braces sit **inside** a line answers **no** (a tag that is not at a line head is
+ordinary text, the 2026-10-03 rule); a text with no braces at all answers **no**; a text whose lines end in `\r`
+answers **yes** (its tags are still at line heads, while its paragraphs are not split — the reader's own real case);
+and a text whose one tagged paragraph's name the reader has **removed** answers **no** (its tags are paragraph heads,
+and the empty list is the reader's own removal, not a split — the case that would make the new message a lie).
+
+**Expected**: one question answered by the grammar's own acceptance, with the two real texts on opposite sides.
+**Evidence**: the cases' own assertions, each naming the text it feeds.
+**Proves FR-026.**
+
+### 37. **[device]** the empty list names the split, and one press makes the roles — `FR-026`, `FR-024` (`SC-013`)
+
+`scripts/klhu_walk_dialogue.py 37` on the emulator, with the reader's own content seeded through the driver's own
+`seed()`: the dialogue surface's role list is empty and its message **names the paragraph split and Format**; one
+`Format` press in the editor (the page's own button) puts every tag at its own paragraph's head; the surface then lists
+**旁白** and **陈静远** in the order of their first turns, and the reader's own text is unchanged character for
+character apart from the blank lines.
+
+**Expected**: the reader's own report of 2026-10-16 turns into a role list from the surface's own words.
+**Evidence**: the message's own text, the roles' own names and order, and a byte comparison of the text before and
+after the press (blank lines excepted).
+**Proves FR-026, SC-013.**
+
+### 38. **[structural]** the four locales in step, and nothing else moved — `FR-026`
+
+`flutter gen-l10n` reproduces the tree's Dart with the new key in all four ARBs; the four key counts are equal to each
+other; `grep` finds no second place that decides between the two messages; the tag grammar's own tests
+(`test/dialogue_test.dart`) and `Format`'s own row (33) are unchanged and green.
+
+**Expected**: one key per locale, one branch, one derivation — and no second grammar.
+**Evidence**: the counts and the greps, quoted.
+**Proves FR-026.**
+

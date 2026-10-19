@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-01
 
-**Status**: Draft
+**Status**: Approved (2026-10-08); amended 2026-10-16 (FR-026, SC-013)
 
 **Input**: the reader's own text, item **014** of `text.txt`, quoted verbatim:
 
@@ -84,6 +84,25 @@
 > rewritten** — the two places a later reader needs are 012's `tasks.md` (`## Superseded by later specs`) and
 > 012's `breakpoint.md` row 32.
 
+> **Amendment, 2026-10-16 — the empty list says *why* it is empty, when the reader can fix it.** The reader, on
+> the emulator, with their own content open:
+>
+> > *「# 山坡观蚁 / {旁白}: 山坡上的草已经绿了。 / {陈静远}: 陈静远趴在一块青石上，…… / {旁白}: 那里有一窝蚂蚁正在
+> > 搬家。…… / {旁白}: 那年是一九六八年，他刚六岁。」* — *"Dialogue said: No roles yet. ... Why?"*, and then, on
+> > being told the paragraphs were not separated: *"给出更具体的提示"*.
+>
+> The behaviour is right and the message was not: the five lines above are **one paragraph** (this feature's own
+> 2026-10-03 rule: a turn is a paragraph, and paragraphs are what the blank lines make), the tags therefore stand at
+> **line** heads and at no **paragraph** head, and the list is empty for a reason the reader can fix in one press.
+> The shipped message — *"A paragraph that starts with a role tag belongs to that role"* — states the rule that is
+> being applied and leaves the reader to find the missing step. From this amendment the empty surface **names the
+> reason and the action** when that is the reason, and says what it says today in every other case. The app still
+> **points, it does not act**: the repair stays the editor's `Format` (FR-024), because this feature's own 2026-10-03
+> rule is that the format is the reader's contract, never something the app rewrites on their behalf.
+> FR-026 and SC-013 carry the rule and the criterion; the 2026-10-16 Clarifications entry records the reproduction
+> (the reader's own text through `turnsOf`/`rolesOf`: one paragraph, one turn, no roles — and the same text with a
+> blank line between every turn: five paragraphs, roles `[旁白, 陈静远]`) and the four locales it touches.
+
 **Input (the reader's own example, 2026-10-01)**: the same four turns, with the voice each role
 should get — 旁白：成熟男声, 阿明：年轻男声, May：年轻女声, 阿芳：年轻女声 — and the sentence
 "如无设定，系统自动分配". *The age words are the one part of this example the specification does not
@@ -91,6 +110,30 @@ take literally, and the reader's own answer of 2026-10-01 chose that outcome; se
 Clarifications entry that records it.*
 
 ## Clarifications
+
+### Session 2026-10-16
+
+One report, no question put to the reader — they asked *"Why?"* and then answered it themselves in the same
+exchange (*"给出更具体的提示"*). It is recorded here because the behaviour it settles had none.
+
+- **The empty role list, and its own two cases.** The reader, on the emulator, opened their own text — a title line
+  and four `{name}: …` turns separated by **single** newlines — and the dialogue surface said *"No roles yet. A
+  paragraph that starts with a role tag belongs to that role."* **Reproduced on the app's own derivation** (the
+  reader's exact text through `turnsOf`/`rolesOf`, 2026-10-16): `paragraphRanges` finds **one** paragraph, whose head
+  is the title, so `roleTagAt` reads no tag, `turnsOf` makes one turn and `rolesOf` returns `[]` — the list is empty
+  because the tags stand at **line** heads and the text has no **paragraph** head to carry them (the 2026-10-03 rule:
+  a turn is a paragraph, and the blank lines are what make paragraphs). The same text with a blank line between every
+  turn gives five paragraphs and roles `[旁白, 陈静远]`. **What the message does from this session**: when the reason
+  is that split, it names the reason and the **Format** action by their own label; when it is any other reason (no
+  braced tag at any line head at all) it stays exactly what it is today. `Format` remains the reader's own action
+  (FR-024): the app points at the repair, it does not make it. Settles FR-026 and SC-013, and the message strings this
+  adds to all **four** locales (`en`, `zh`, `zh_Hans`, `es`).
+- **What this does *not* change, said here so a later reader does not have to infer it**: the tag's own form (braces,
+  the optional colon — the reader's text is accepted as typed and no character of it is rewritten), the paragraph
+  rule, and the shipped message's own wording for the case that is not the split. A third possibility was considered
+  and refused without being put to the reader: offering the repair **as a button in the dialogue surface itself** —
+  refused because this feature's 2026-10-03 decision is that the format is the reader's contract, and because the
+  editor is where the text is.
 
 ### Session 2026-10-01
 
@@ -583,7 +626,14 @@ own; then one Undo restores the earlier text byte for byte.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Text type** — per content: 标准 or 多人对话; absent means 标准.
+- **FR-026**: When the role list is empty **because the reader's text is not split into paragraphs yet**, the
+  surface MUST say so and name the action that fixes it: it MUST tell the reader that a role tag is read at the head
+  of a **paragraph** and that their text's paragraphs are not separated, and it MUST name the editor's **Format**
+  action by its own label in the reader's language. It MUST say what it says today in every other case — a text with
+  no braced tag at any **line** head, where `Format` is nothing to the reader's problem. A tag that stands inside a
+  line is ordinary text (the 2026-10-03 amendment) and MUST NOT be read as evidence for the split message.
+  *(Added 2026-10-16 on the reader's own report; its Clarifications entry holds the reproduction and the two cases
+  the message has to tell apart.)*- **Text type** — per content: 标准 or 多人对话; absent means 标准.
 - **Turn** — one role's paragraph in 多人对话: the role, the paragraph's content span (everything after
   the prefix) and the sentences that span holds. Turns are derived from the text, never stored as text of
   their own.
@@ -633,6 +683,11 @@ own; then one Undo restores the earlier text byte for byte.
   edge at the frame's own top inset (15 % of the height) and its last line above the bottom band (35 % of the
   height) — while the same content rendered 16:9 keeps the layout it had: the words' box still ends at the text
   area's bottom (measured from the file's own pixels, the same way 012's rows 32/49 read a frame).
+
+- **SC-013**: With the reader's own text of 2026-10-16 open — a title line and four `{name}: …` turns separated by
+  single newlines — the dialogue surface's empty list names the missing paragraph split and the
+  **Format** action, and one press of `Format` in the editor (FR-024) leaves that same text with `旁白` and `陈静远`
+  in the role list, in the order of their first turns, with no character of the reader's own text changed.
 
 ## Assumptions
 

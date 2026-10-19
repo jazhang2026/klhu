@@ -222,4 +222,61 @@ void main() {
       expect(formatForDialogue(once), once);
     });
   });
+
+  /// FR-026, SC-013 (the reader's report of 2026-10-16): the empty role list has
+  /// two reasons, and only one of them is a missing paragraph split. The
+  /// question is asked of the TEXT twice — a tag at some line head, and no tag
+  /// at any paragraph head — never of the role list, because the list is
+  /// filtered by the reader's own removals (FR-007).
+  group('the split question (FR-026)', () {
+    /// The reader's own text: a title line, then four tagged turns, the turns
+    /// separated by single newlines — the paste that produced the report. The
+    /// title is the single paragraph's head and carries no tag, which is why
+    /// `turnsOf` sees one narration turn and the list is empty.
+    const readerText = '對話練習\n'
+        '{旁白} 今天天气很好，适合出去走走。\n'
+        '{陈静远} 系啊，太阳晒住，风又凉爽。\n'
+        '{旁白} 行下公园好舒服。\n'
+        '{陈静远} 我好少黎呢个公园。';
+
+    test('the reader\'s own text is a split waiting to happen', () {
+      expect(turnsOf(readerText), hasLength(1));
+      expect(rolesOf(turnsOf(readerText)), isEmpty);
+      expect(taggedButUnsplit(readerText), isTrue);
+    });
+
+    test('the same text with a blank line between every turn is split', () {
+      final split = readerText.replaceAll('\n', '\n\n');
+      expect(taggedButUnsplit(split), isFalse);
+      expect(rolesOf(turnsOf(split)).map((r) => r.name), ['旁白', '陈静远']);
+    });
+
+    test('a brace inside a line is ordinary text, not evidence', () {
+      const text = '他说 {阿明} 你好。';
+      expect(taggedButUnsplit(text), isFalse);
+      expect(rolesOf(turnsOf(text)), isEmpty);
+    });
+
+    test('a text with no braces at all says no', () {
+      expect(taggedButUnsplit('no tags here at all。'), isFalse);
+      expect(taggedButUnsplit(''), isFalse);
+    });
+
+    test('CRLF lines keep their tags at line heads — the reader\'s real case', () {
+      // The segmenter's paragraph rule does not tolerate '\r', so this text is
+      // one paragraph; its braces still stand at the head of its lines.
+      const text = '對話練習\r\n{旁白} 今天天气很好。\r\n{陈静远} 系啊。\r\n{旁白} 咁就出发。';
+      expect(turnsOf(text), hasLength(1));
+      expect(taggedButUnsplit(text), isTrue);
+    });
+
+    test('a list emptied by the reader\'s own removal says no', () {
+      // The tag IS a paragraph head, so the text is split; the empty list is the
+      // removal (FR-007), and telling this reader their text is unsplit would be
+      // a lie about their own text.
+      const text = '{阿明} 你好。';
+      expect(rolesOf(turnsOf(text, removed: {'阿明'})), isEmpty);
+      expect(taggedButUnsplit(text), isFalse);
+    });
+  });
 }

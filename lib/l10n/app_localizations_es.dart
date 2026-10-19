@@ -350,6 +350,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Aún no hay roles. Un párrafo que empieza con una etiqueta de rol pertenece a ese rol.';
 
   @override
+  String get roleListUnsplitMessage =>
+      'Aún no hay roles: las etiquetas de rol todavía no están separadas por párrafos en blanco. Pulsa «Formato» en el editor para añadirlas.';
+
+  @override
   String roleTurnCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

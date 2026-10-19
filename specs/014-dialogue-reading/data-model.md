@@ -280,3 +280,16 @@ Nothing else transitions: a read never writes, a pick never moves the position, 
 text — the reader's own Format press (entity 2.a) is the one transition that writes it, and it is an ordinary
 008 edit — and the engine's own state (which voice is applied) is not part of this model: it is applied per
 utterance by `_applyVoice` (`lib/reader_service.dart:458-469`) exactly as it is today.
+
+## The split question (added 2026-10-16, FR-026)
+
+| | |
+|---|---|
+| **What it is** | one derived answer: does the reader's text carry a braced tag at some **line** head while the role list is empty? |
+| **Input** | the content's **text alone** — some line head carries a braced tag, and no paragraph head does. **Not** `rolesOf`'s answer: the list is filtered by the reader's own removals (FR-007), so an empty list can mean a removal rather than a split |
+| **Output** | a boolean; nothing else, and nothing of it is kept |
+| **Stored?** | **no** — like every other dialogue rule it is recomputed on every dialog open (`lib/dialogue.dart:5-9`), so `lib/role_store.dart` gains no key and no migration is owed |
+| **Where it is asked** | the dialogue surface's empty-state branch (`lib/reading_view.dart:1645-1649`), to choose between the two messages |
+| **Invariant it rests on** | `Format` puts **every** tag in the text at its own paragraph's head (FR-024, SC-011) — so a text whose tags stand at line heads takes a role list from one press, and the hint is never a promise the app cannot keep |
+| **What it is not** | not a repair and not a rewrite: it changes no character of the reader's text, and it starts no action — the app points, the reader presses (the feature's own 2026-10-03 rule) |
+

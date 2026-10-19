@@ -101,6 +101,7 @@
   "textTypeDialogueHint": "Cada párrafo es un turno; una etiqueta de rol al principio del párrafo indica quién habla.",
   "roleListTitle": "Roles",
   "roleListEmptyMessage": "Aún no hay roles. Un párrafo que empieza con una etiqueta de rol pertenece a ese rol.",
+  "roleListUnsplitMessage": "Aún no hay roles: las etiquetas de rol todavía no están separadas por párrafos en blanco. Pulsa «Formato» en el editor para añadirlas.",
   "roleTurnCount": "{count, plural, =1 {1 turno} other {{count} turnos}}",
   "roleVoiceLabel": "Voz",
   "roleVoiceAutomatic": "Automática",

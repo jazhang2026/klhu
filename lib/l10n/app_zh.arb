@@ -101,6 +101,7 @@
   "textTypeDialogueHint": "每个段落是一个回合；段首的角色标签决定由谁朗读。",
   "roleListTitle": "角色",
   "roleListEmptyMessage": "还没有角色。以角色标签开头的段落属于该角色。",
+  "roleListUnsplitMessage": "還沒有角色：角色標籤之間還沒有空行分開。點編輯欄的「排版」補上空行即可。",
   "roleTurnCount": "{count, plural, other {{count} 个回合}}",
   "roleVoiceLabel": "语音",
   "roleVoiceAutomatic": "自动",

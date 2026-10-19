@@ -26,6 +26,14 @@ title and some icon"*. The landscape frame is untouched. The work is `lib/video_
 its anchor (T037), the shipped painter tests re-cut in the same sweep, and 012's own walk driver's column rule
 and "where the words sit" check re-cut for the portrait half.
 
+**Re-opened 2026-10-16, for the reader's own report** (FR-026, SC-013; Phase 11, **T038-T045**): the dialogue surface's
+empty role list told a reader whose text had no paragraph heads that "a paragraph that starts with a role tag belongs
+to that role" — true, and nothing they could press. They asked *"Why?"*, then answered it in the same exchange with
+*"给出更具体的提示"*. The list below now carries the eight rows that add the second message (the condition in
+`lib/dialogue.dart`, one key in four locales, one branch in the surface, row 37 of the driver and its walk, the
+structural row, and the close). **Every T001-T037 receipt stands as it was**; nothing was renumbered, and the eight new
+ids are appended at the end of the file.
+
 The baseline this list is read against: **445 tests green** and `flutter analyze` clean, measured 2026-10-03
 on `306e288` (the figure `quickstart.md`'s Prerequisites carries is 439, from 2026-10-01; the six extra tests
 are the uncommitted 2026-10-02 edits that were already in the tree — the Spanish accent-less cases and the
@@ -55,6 +63,27 @@ re-run 2026-10-05; `task_id_audit.py` reports the same with no duplicate, gap or
 **OK (36 tasks, 0 done, 5 `[P]`)** when this file was written and is re-run after every structural edit; a
 later edit that breaks the id sequence, pushes a path off a task's first line, or drops an id from the table
 is what the receipt stops being true about.
+
+The block above is the **2026-10-05** run, kept as the receipt it is. T037's append on 2026-10-08 took the file
+to 37 tasks without that paragraph being re-quoted, so its "36 done" was one behind for eight days — named here
+rather than edited out of a quote that was true when it was taken. This pass's own run, on the re-opened list
+(2026-10-16, verbatim):
+
+```
+tasks.md: 45 tasks (37 done), 7 marked [P]
+  (setup/foundational/polish): 27
+  [US1]: 5
+  [US2]: 3
+  [US3]: 3
+  [US4]: 3
+  [US5]: 4
+
+OK: format, sequencing and spec-id coverage check out
+```
+
+`task_id_audit.py` on the same file: `014-dialogue-reading: 45 tasks, 37 done, 7 [P]` (exit 0, no duplicate,
+gap, reorder or blank-line finding). The eight open rows are T038-T045; T045 is what re-quotes this block once
+they are ticked.
 
 **Device rows**: rows **23 WALKED — PASS (10/10)**, **24 WALKED — PASS (13/13)**, **25 WALKED — PASS
 (19/19)**, **26 WALKED — PASS (25/25)**, **27 WALKED — PASS (24/24)**, **28 WALKED — PASS (7/7)** and
@@ -939,6 +968,209 @@ the working tree holding only intended edits.
 
 ---
 
+## Phase 11: The reader's report of 2026-10-16 (appended; the numbering is append-only)
+
+The reader, on the emulator, opened their own text — a title line and four `{name}: …` turns separated by **single**
+newlines — and the dialogue surface's role list was empty with a message about paragraphs that told them nothing they
+could press. Their two lines, in one exchange: *"Why?"* and *"给出更具体的提示"*. The amendment's artifacts are written
+(spec's Clarifications, FR-026, SC-013; plan's `## The 2026-10-16 amendment`; research D13; data-model's "The split
+question"; quickstart rows 36-38; the checklist's notes); this phase is the eight rows that make them true.
+
+**The three answers of 2026-10-16 that shape the list** (they were left open at the 2026-10-15 stop):
+
+1. **014's own `Status` line is folded into this revision.** It read `Draft` on a feature closed 2026-10-08 — the stale
+   label the earlier pass left behind. `spec.md:7` now reads `Approved (2026-10-08); amended 2026-10-16 (FR-026,
+   SC-013)`; the change was made in this pass, and T045 is what re-checks it against the tree.
+2. **A list emptied by the reader's own removal keeps today's message, not the hint.** The condition is asked of the
+   **text twice** — a tag at some *line* head **and** no tag at any *paragraph* head — never of the filtered role list.
+   T038's sixth case pins it and T041's third widget case is the surface's half of the same fact.
+3. **The driver's new row is keyed `"37"`** — the quickstart's own row number, the way rows 23-29 and 33 are keyed.
+   T042 implements it, T043 walks it.
+
+**Folded in, not a task**: SC-013's bullet had lost its paragraph break, so `## Assumptions` sat on the same line as
+its last sentence and no parser read it as a heading (`spec.md:690`). Fixed in this pass — a heading nobody parses is
+worse than a typo, and it is the section a reviewer of this amendment reads next.
+- [ ] T038 [P] **The split question's six cases, written before the condition exists (FR-026; `test/dialogue_test.dart`)**
+  A new group `the split question (FR-026)` beside the Format group (`:166`), one case per text quickstart row 36 names,
+  each case naming the text it feeds:
+  - the reader's own text (a title line, then four `{name}: …` turns, single newlines) answers **yes**;
+  - the same text with a blank line between every turn answers **no** — its tags are paragraph heads, and the list is
+    not empty for this reason;
+  - braces only **inside** a line (`他说{阿明}好`) answer **no** (2026-10-03: a tag that is not at a line head is
+    ordinary text);
+  - a text with no braces at all answers **no**;
+  - lines ending in `\r` (the reader's own paste out of a phone editor) answer **yes** — the brace is still at the
+    line's head while `paragraphRanges` sees one paragraph, which is exactly the reader's real case;
+  - one tagged paragraph whose name the reader has **removed** answers **no** — its tag IS a paragraph head, and the
+    empty list is the removal, not a missing split (the case that would make the new message a lie).
+  RED: the group calls `taggedButUnsplit`, which does not exist yet, so the file fails to load — a compile error, the
+  RED T003 recorded for a new symbol. Keep that output rather than manufacturing an assertion failure, and run
+  `flutter test test/dialogue_test.dart`.
+  **DONE 2026-10-16** — `test/dialogue_test.dart`, group `the split question (FR-026)`, six cases; the file runs
+  **33 tests, 0 failing** (`flutter test test/dialogue_test.dart` → `00:00 +33: All tests passed!`). **RED kept**:
+  with the function not yet written the file failed to load —
+  `test/dialogue_test.dart:269:14: Error: Method not found: 'taggedButUnsplit'.` … `00:00 +0 -1: Some tests failed.`
+  with `loading …/test/dialogue_test.dart` as the failing test — a compile error, as T003's RED was.
+  **One deviation, and what it found**: the first draft of the two real-text cases tagged the FIRST line as well,
+  and two of the six failed on it (the condition answered `false` where the case expected `true`) — correctly,
+  because a tagged first line IS the single paragraph's head, and `turnsOf` then proposes that one role. That
+  exposed a contradiction inside the amendment's own artifacts: the Clarifications' reproduction (a title line, one
+  paragraph whose head carries no tag, no role proposed) against SC-013's *"five `{name}: …` lines, the first of
+  them the content's title"*, which `quickstart.md` row 36 and the checklist's note repeated. The reproduction is
+  the app's own derivation, so the tests follow it and those three wordings were corrected in this pass to "a title
+  line and four `{name}: …` turns" (`spec.md` SC-013, `quickstart.md` 36, `checklists/requirements.md`). Named here
+  because it is an artifact edit made during implementation, not a test bent to fit the code.
+- [ ] T039 **The condition itself: one grammar, asked of the text twice (FR-026; `lib/dialogue.dart`)**
+  `bool taggedButUnsplit(String text)` beside `roleTagAt` (`:116`), after `tagOffsets`; the name states the fact the
+  message reports, so the call site reads as the sentence it paints. The algorithm, in this order:
+  (1) collect the **paragraph** heads' tags through `paragraphRanges` + `roleTagAt` — one tag there and the answer is
+  `false` (this message is not this one); (2) walk the **line** heads index by index and ask `roleTagAt` over each
+  line's own range, the line break excluded; (3) `true` iff (2) found one.
+  No second regex (the grammar stays in `roleTagAt`), no `split('\n')` copy (008's ceiling is 100,000 characters, and a
+  message must not pay a copy for itself), and the whitespace skipped is the grammar's own space/tab — which is why
+  CRLF falls out right: the `\r` sits before the line break, not before the brace. One early exit per branch;
+  `O(lines)`, the same order as `turnsOf`.
+  The doc comment names FR-026, both halves, and the removal trap in one paragraph — a comment that only says "does
+  the text need formatting" is what lets a later reader rebuild this from `roles.isEmpty` and reintroduce the lie.
+  `flutter analyze` clean; T038's six cases green.
+  **DONE 2026-10-16** — `lib/dialogue.dart`, `+31` lines: `taggedButUnsplit` beside `roleTagAt`, after `tagOffsets`,
+  its doc comment naming FR-026, both halves and the removal trap. The early `false` on a tagged paragraph head is
+  what keeps a *mixed* text (some turns split, some not) out of this message: such a text proposes roles, so its
+  list is not empty and the branch never runs — and if the reader removed them all, the honest answer is still
+  "not a split". `flutter analyze` → **No issues found!** (exit 0); the file's **33 tests** green, the CRLF case and
+  the removed-name case included — those are the two that a "the list is empty" reading of the condition fails.
+- [ ] T040 [P] **One key, four locales, and the label it spells (FR-026; `lib/l10n/app_{en,zh,zh_Hans,es}.arb`)**
+  `roleListUnsplitMessage`, beside `roleListEmptyMessage` in each of the four, `129 → 130` keys per file. The four
+  wordings (Traditional `zh`, Simplified `zh_Hans`, and the two others — each spelling the Format button's own label):
+  - `en`: `No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.`
+  - `zh`: `還沒有角色：角色標籤之間還沒有空行分開。點編輯欄的「排版」補上空行即可。`
+  - `zh_Hans`: `还没有角色：角色标签之间还没有空行分开。点编辑栏的「排版」补上空行即可。`
+  - `es`: `Aún no hay roles: las etiquetas de rol todavía no están separadas por párrafos en blanco. Pulsa «Formato» en el editor para añadirlas.`
+  `flutter gen-l10n` regenerates the committed `lib/l10n/app_localizations*.dart` (the tree commits them, `l10n.yaml`
+  names `app_en.arb` the template), and `test/l10n_keys_test.dart` is bidirectional — a key in three ARBs fails as
+  loudly as one in five.
+  **The coupling, kept in step**: each string spells `formatButton`'s own value, so a locale that renames the button
+  owns this sentence too (the checklist carries the note).
+  **Named, not fixed**: the shipped `roleListEmptyMessage` in `app_zh.arb` is written in Simplified characters while
+  its neighbours in that file are Traditional — that key arrived by copying the Simplified string across all four
+  files. FR-026's own clause forbids touching the shipped wording, so the new Traditional string is written as
+  Traditional and the two sit side by side where a reader of the file can see the difference, rather than the new one
+  matching the defect.
+  **DONE 2026-10-16** — `roleListUnsplitMessage` in all four ARBs, keys `129 → 130` in each (parsed with `@`
+  metadata excluded; the raw line count is 143 in `app_en.arb` and would answer the wrong question). `flutter
+  gen-l10n` run; the generated files changed in the same pass (`app_localizations.dart` +6, `_en` +4, `_es` +4,
+  `_zh` +6 lines, the last covering both zh classes). `test/l10n_keys_test.dart` is green in the suite's 825. The
+  Traditional string was written in Traditional; its Simplified neighbour is untouched, as FR-026's own clause
+  requires — named in the task's text above, changed by nobody.
+- [ ] T041 **The empty list chooses between the two messages (FR-026; `lib/reading_view.dart`, `test/reading_view_dialogue_test.dart`)**
+  The `roles.isEmpty` branch (`:1645`) picks `roleListUnsplitMessage` when `taggedButUnsplit(_content)` and today's
+  `roleListEmptyMessage` otherwise. `_content` is the surface's own text — the same string the branch's `turnsOf` call
+  was already given (`:1571`) — so no field, no second read of the store and no new state.
+  Three widget cases in the group that already owns the role list (`:299`; the harness runs `supportedLocales:
+  [Locale('en')]`, so the English strings are the ones on screen):
+  - the reader's own text (title line, four `{name}: …` turns, single newlines) shows the new message, and it names
+    `formatButton`'s own value — asserted as a relationship (`expect(message, contains(l10n.formatButton))`), not as a
+    frozen copy of the sentence;
+  - plain prose (no braces) keeps today's message, and it is the same widget text as before this phase;
+  - one tagged paragraph whose name is removed in the store keeps today's message — the surface cannot say "your text
+    is not split" about a text that is split.
+  The third case is one more than quickstart 37 asks for, on purpose: it is the case where the message would be a lie,
+  and the unit test and the surface are two different witnesses of the same fact. `flutter analyze` clean.
+  **DONE 2026-10-16** — the `roles.isEmpty` branch (`lib/reading_view.dart:1645`, and the ternary below it) picks
+  between the two keys on `taggedButUnsplit(_content)`, with the reason in a comment above it.
+  `test/reading_view_dialogue_test.dart`
+  gains the group `the empty list says why it is empty (FR-026, SC-013)`, **15 → 18 tests**, all green. The first
+  case asserts the drawn line is `l10n.roleListUnsplitMessage` AND that the sentence `contains(l10n.formatButton)`
+  — a relationship to the shipped label, not a frozen copy of the wording; the second and third assert the general
+  message where it belongs. `flutter analyze` → **No issues found!** (exit 0).
+- [ ] T042 **The driver's row `"37"`: the message, one press, and the roles (FR-026, FR-024; `specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py`)**
+  Constants for the reader's own content — a title line and four tagged turns, single newlines — under the driver's own
+  id, and `row_37()` in the shape rows 25/33 already use: `fresh_prefs()` → `seed(...)` → `open_role_list()`.
+  1. **The message.** The dump carries the split message's own words and does **not** carry the general message's; both
+     strings are read out of the four ARBs at import (`json.load`, the driver already sits in the repo), not re-typed,
+     and the row accepts the pair the device's locale actually draws (`zh_Hans` on the reference AVD, `en` on an
+     English device). What this proves beyond the string: the app draws the ARB's own value, not a paraphrase.
+  2. **Nothing new to press in the surface.** `labels(dump())` offers no action the role list did not offer before —
+     the app points at the editor, it does not format for the reader (FR-024's own clause).
+  3. **One press.** `close_role_list()` → `press("edit")` → `editor_text()` equals the row's text → `press("format")` →
+     `paragraph_heads` shows five tags, every one of them a paragraph head, `head_of_tags` unchanged and the
+     non-newline characters identical (row 33's own comparison, reused, not re-written) → save through the editor's own
+     path → the stored file equals the formatted text.
+  4. **The roles.** `open_role_list()` again: `旁白` then `陈静远`, in the order of their first turns — the surface's own
+     rows are the witness here, not the read's log line (row 23 already covers what a read prints).
+  Then `unseed(...)`, and `"37"` joins `ROWS`. Reuse row 33's helpers (`press`, `editor_text`, `paragraph_heads`,
+  `head_of_tags`) rather than growing a second editor path, and add the row to the module docstring's list. One cleanup
+  the row's own reading forces: `L` carries `"format"` twice (`:142`, `:158`); the duplicate is collapsed, because a
+  label dict that lists a key twice is a copy-paste a row reading it should not inherit.
+  **DONE 2026-10-16** — `ROW37_ID`/`ROW37_NAME`/`ROW37_TEXT`/`ROW37_ROLES`, `arb_message`, `drawn_message` and
+  `row_37()` in the driver; `"37"` in `ROWS`; row 37 in the module docstring's list; and `L`'s duplicated
+  `"format"` collapsed to its one entry. The two sentences are read from the four ARBs at import, so the row
+  cannot agree with a copy of itself. `ast.parse` and `py_compile` both clean. One helper beyond this task's text
+  was added during the walk — `wait_editor_ready`, shared with row 33 — for the reason and the evidence in T043.
+- [ ] T043 **Row 37 walked on the emulator, its evidence in `breakpoint.md` (FR-026, SC-013; `specs/014-dialogue-reading/breakpoint.md`)**
+  `flutter build apk --debug` → `adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk` (this
+  host answers more than one device, so a bare `adb` refuses; the row names the serial), then
+  `/usr/bin/python3 specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py 37` — the driver chain needs 3.12 and PIL,
+  and the default `python3` on this host has no PIL.
+  `breakpoint.md` gains row 37's own section with the run's output quoted: the message's text as the dump read it, the
+  two roles and their order, the byte comparison before and after the press, and `n/n` checks. The row's numbers are
+  the receipt — no rounding, and a failing check stays in the file with its detail rather than being re-run until it
+  looks green.
+  **DONE 2026-10-16** — four runs on `emulator-5554` against `app-debug.apk` built from this tree, all quoted in
+  `breakpoint.md` → *The 2026-10-16 amendment — row 37, the empty list's own reason*:
+  - the build that had just been installed, the editor opened for the first time on it → **7/11**, every failure
+    downstream of a Format press that changed nothing (`0 character(s) added`). A probe then showed the node
+    `enabled` at `@105,1441` and a plain `adb shell input tap 105 1441` took the field **74 → 78 chars** with the
+    four blank lines in the right places — the click had been **dropped**, not mis-aimed;
+  - the same build, warm → **11/11**;
+  - after `wait_editor_ready` was added (the row waits for a field holding the content and an `enabled` Format
+    node, then presses **once** — no retry), a deliberate cold condition was put back: `adb uninstall` →
+    `install` → one launch (which writes the library index) → force-stop → **11/11**;
+  - row 33, whose driver gained the same wait → **9/9**.
+  The failure never reproduced, so the wait is recorded as **a precaution taken on a dropped click, not a proven
+  diagnosis**; the row still fails honestly if a press is dropped again, which is the property that matters.
+- [ ] T044 **Row 38's structural checks, each command quoted (FR-026; `specs/014-dialogue-reading/quickstart.md`)**
+  Four checks, each with its own output pasted beside it:
+  (1) `flutter gen-l10n` then `git status --short lib/l10n` **empty** — the committed Dart is what the ARBs produce;
+  (2) the four ARBs' key counts, all **130** (parsed, `@`-prefixed metadata excluded — the raw line count in `app_en.arb`
+      is 143 and would answer the wrong question);
+  (3) `grep -rn "roleListUnsplitMessage" lib/` → the four ARBs, the generated accessor and **exactly one** branch
+      (`lib/reading_view.dart`) — no second place decides between the two messages;
+  (4) `grep -n "RegExp" lib/dialogue.dart` → the file's **one** line, unchanged (`:480`, the locale split in
+      `_dialectFamily`); the condition calls `roleTagAt`, so there is still one tag grammar and no second pattern.
+      Plus `flutter test test/dialogue_test.dart test/reading_view_dialogue_test.dart` green and
+      `git diff --stat test/` naming only the two files this phase writes — Format's own tests and the tag grammar's
+      existing cases are untouched, which is SC-011's and SC-005's half of the row.
+  **DONE 2026-10-16** — all four run, each output quoted here:
+  1. Read as **idempotence** rather than as an empty `git status` (the ARBs are uncommitted in this pass, so
+     "empty" would have been the wrong question): `sha256sum lib/l10n/*.arb lib/l10n/app_localizations*.dart`
+     before and after `flutter gen-l10n`, the two lists `diff` clean → **byte-identical, 0 files changed** — the
+     committed Dart is exactly what the ARBs produce.
+  2. The four ARBs parsed with `@`-metadata excluded → **130, 130, 130, 130** (`app_en.arb`'s raw line count is
+     143 and would have answered the wrong question).
+  3. `grep -rn "roleListUnsplitMessage" lib/` → one ARB line in each of the four; two accessor lines in
+     `app_localizations.dart`; one each in `app_localizations_en.dart` and `_es.dart`; two in
+     `app_localizations_zh.dart` (its two classes); and **exactly one branch**, `lib/reading_view.dart:1652` — no
+     second place decides between the two messages.
+  4. `grep -n "RegExp" lib/dialogue.dart` → **one** line, the locale split (`:511` after this phase's insertion,
+     `:480` before it) — no brace pattern was added, so the tag grammar is still `roleTagAt`'s alone.
+     `flutter test test/dialogue_test.dart test/reading_view_dialogue_test.dart` → **33 + 18 green**, and
+     `git diff --stat test/` names those two files only (+57 and +77 lines), so Format's own cases and the tag
+     grammar's existing cases are untouched.
+- [ ] T045 **The close: receipts, the two counts, and the table (FR-026, SC-013; `specs/014-dialogue-reading/tasks.md`)**
+  Tick T038-T044 in one pass, each with its own receipt beside it (a tick without one is a claim, not evidence);
+  re-take `flutter analyze` and `flutter test --concurrency=2` on the finished tree and write both numbers into the
+  Status block beside the ones it already carries (445 at T002, 529 at T025, 559 at T037) — the number is recorded, not
+  predicted; add `FR-026` and `SC-013` to the coverage table; the Status block's own paragraph says the list was
+  re-opened on 2026-10-16 and re-closed here, and its quoted checker output is replaced with this run's own; re-run
+  `check_tasks_format.py specs/014-dialogue-reading` and `task_id_audit.py` and quote both; and check `git status
+  --short` against the files this phase intends — the six amendment files, `spec.md`, the driver, the four ARBs with
+  their generated Dart, `lib/dialogue.dart`, `lib/reading_view.dart` and the two test files; nothing under `android/`,
+  no walk artifact inside the repository.
+
+**Checkpoint**: analyzer clean, the suite's count recorded against the three it follows, the checker quoted green, row
+37's walk in `breakpoint.md`, and `spec.md`'s `Status` line true of the tree.
+
 ## Dependencies & ordering
 
 - **Phase 1 (T001)** blocks everything that compiles against a new key — i.e. T011/T015/T017/T025.
@@ -950,6 +1182,9 @@ the working tree holding only intended edits.
 - **The walk (Phase 8)** depends on its story's code: rows 23-24 on US1+US2, 25 on US3, 26 on US1, 27 on US4,
   33 on US5, 28 on nothing (it measures the device).
 - **Phase 9** last: T034's structural rows need the finished tree, T035 needs the walk, T036 needs everything.
+- **Phase 11 (T038-T045)** is appended after everything and depends on nothing outside itself: T038 (the six cases)
+  blocks T039 (the condition); T039 and T040 (the key) block T041 (the branch); T041 blocks T042, and T042 blocks
+  T043 (a row is walked in the pass that implements it); T044's greps need the finished tree and T045 needs all of it.
 
 ## Parallel opportunities
 
@@ -959,6 +1194,8 @@ the working tree holding only intended edits.
   `[P]` against each other's *green*, which needs T024 and T025 respectively.
 - **Nothing in Phase 8 is parallel**: every row installs, drives and reads the same device, and they all append
   to one `breakpoint.md`. Two rows run one after the other even when their stories are independent.
+- **Phase 11's one [P] pair is T038 and T040** (a test file and four ARB files, no shared state); T039 follows its
+  own RED, and T042/T043 are device work and therefore serial by Phase 8's own reason.
 
 ## Implementation strategy
 
@@ -1019,4 +1256,6 @@ demonstrable: rows 15/18 (US1), 16/17 (US2), 16's second half (US3), 20-22 (US4)
 | SC-010 (no dependency, no network call) | T034 |
 | SC-011 (Format: heads, blank lines only, one Undo) | T022, T023, T024, T025, T033 |
 | FR-025 (a portrait frame's words inside the platform's safe box, at the top of it) | T037 |
+| FR-026 (the empty list names the split — and Format — when the split is why it is empty) | T038, T039, T040, T041, T042, T043, T044 |
 | SC-012 (a 9:16 render's words inside the safe box; 16:9 unchanged) | T037 |
+| SC-013 (the reader's own text: the message names the split, one press makes the roles) | T041, T042, T043 |

@@ -1643,9 +1643,19 @@ class _ReadingViewState extends State<ReadingView> {
                   ),
                   const SizedBox(height: 8),
                   if (roles.isEmpty)
-                    Text(l10n?.roleListEmptyMessage ??
-                        'No roles yet. A paragraph that starts with a role tag '
-                            'belongs to that role.')
+                    // FR-026: the list is empty for two different reasons, and
+                    // the message says which one it is. A text whose tags stand
+                    // at line heads is one Format press from being turns; a list
+                    // emptied by the reader's own removal is not a split, and
+                    // the question is asked of the text, never of the list.
+                    Text(taggedButUnsplit(_content)
+                        ? (l10n?.roleListUnsplitMessage ??
+                            'No roles yet: the role tags are not yet separated '
+                                'by blank lines. Press Format in the editor to '
+                                'add them.')
+                        : (l10n?.roleListEmptyMessage ??
+                            'No roles yet. A paragraph that starts with a role '
+                                'tag belongs to that role.'))
                   else
                     for (final role in roles)
                       ListTile(
