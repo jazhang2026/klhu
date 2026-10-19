@@ -32,7 +32,9 @@ to that role" — true, and nothing they could press. They asked *"Why?"*, then 
 *"给出更具体的提示"*. The list below now carries the eight rows that add the second message (the condition in
 `lib/dialogue.dart`, one key in four locales, one branch in the surface, row 37 of the driver and its walk, the
 structural row, and the close). **Every T001-T037 receipt stands as it was**; nothing was renumbered, and the eight new
-ids are appended at the end of the file.
+ids are appended at the end of the file. **Re-closed 2026-10-16**: all eight are ticked, each with its own
+receipt beside it, and the phase's work is committed as **`471727d` "014 format notice"** — this close adds the
+ticks, T045's receipt and the quoted checker run, nothing else.
 
 The baseline this list is read against: **445 tests green** and `flutter analyze` clean, measured 2026-10-03
 on `306e288` (the figure `quickstart.md`'s Prerequisites carries is 439, from 2026-10-01; the six extra tests
@@ -66,11 +68,11 @@ is what the receipt stops being true about.
 
 The block above is the **2026-10-05** run, kept as the receipt it is. T037's append on 2026-10-08 took the file
 to 37 tasks without that paragraph being re-quoted, so its "36 done" was one behind for eight days — named here
-rather than edited out of a quote that was true when it was taken. This pass's own run, on the re-opened list
+rather than edited out of a quote that was true when it was taken. This pass's own run, on the closed list
 (2026-10-16, verbatim):
 
 ```
-tasks.md: 45 tasks (37 done), 7 marked [P]
+tasks.md: 45 tasks (45 done), 7 marked [P]
   (setup/foundational/polish): 27
   [US1]: 5
   [US2]: 3
@@ -81,14 +83,17 @@ tasks.md: 45 tasks (37 done), 7 marked [P]
 OK: format, sequencing and spec-id coverage check out
 ```
 
-`task_id_audit.py` on the same file: `014-dialogue-reading: 45 tasks, 37 done, 7 [P]` (exit 0, no duplicate,
-gap, reorder or blank-line finding). The eight open rows are T038-T045; T045 is what re-quotes this block once
-they are ticked.
+`task_id_audit.py` on the same file: `014-dialogue-reading: 45 tasks, 45 done, 7 [P]` (exit 0, no duplicate,
+gap, reorder or blank-line finding). Every row T001-T045 is closed with a receipt beside it.
 
 **Device rows**: rows **23 WALKED — PASS (10/10)**, **24 WALKED — PASS (13/13)**, **25 WALKED — PASS
 (19/19)**, **26 WALKED — PASS (25/25)**, **27 WALKED — PASS (24/24)**, **28 WALKED — PASS (7/7)** and
-**33 WALKED — PASS (9/9)** on `emulator-5554` against a debug build of the current code; the driver and the
-raw logcat lines are in `breakpoint.md`. Every device row of this feature is walked. **Row 27 was re-walked on
+**33 WALKED — PASS (9/9)** and **37 WALKED — PASS (11/11)** on `emulator-5554` against a debug build of the
+current code; the driver and the raw logcat lines are in `breakpoint.md`. Every device row of this feature is
+walked. **Row 37's first run read 7/11** — a Format press the platform dropped on the freshly installed build —
+and `breakpoint.md`'s own row-37 section keeps that run beside the three that followed (11/11 warm, 11/11 after a
+deliberate cold re-install, and row 33 re-walked 9/9 for the shared readiness wait), so the failure is in the
+record rather than behind a re-run. **Row 27 was re-walked on
 2026-10-08** (24/24, after the portrait-frame amendment changed `lib/video_painter.dart`), and the two 012 rows
 that measure a frame's own pixels were re-run with it — 012's **row 32 42/42** (both aspects, the portrait half
 on its re-cut expectation) and 012's **row 49 40/40** — so no row this amendment reaches still cites a walk that
@@ -990,7 +995,7 @@ question"; quickstart rows 36-38; the checklist's notes); this phase is the eigh
 **Folded in, not a task**: SC-013's bullet had lost its paragraph break, so `## Assumptions` sat on the same line as
 its last sentence and no parser read it as a heading (`spec.md:690`). Fixed in this pass — a heading nobody parses is
 worse than a typo, and it is the section a reviewer of this amendment reads next.
-- [ ] T038 [P] **The split question's six cases, written before the condition exists (FR-026; `test/dialogue_test.dart`)**
+- [x] T038 [P] **The split question's six cases, written before the condition exists (FR-026; `test/dialogue_test.dart`)**
   A new group `the split question (FR-026)` beside the Format group (`:166`), one case per text quickstart row 36 names,
   each case naming the text it feeds:
   - the reader's own text (a title line, then four `{name}: …` turns, single newlines) answers **yes**;
@@ -1020,7 +1025,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   the app's own derivation, so the tests follow it and those three wordings were corrected in this pass to "a title
   line and four `{name}: …` turns" (`spec.md` SC-013, `quickstart.md` 36, `checklists/requirements.md`). Named here
   because it is an artifact edit made during implementation, not a test bent to fit the code.
-- [ ] T039 **The condition itself: one grammar, asked of the text twice (FR-026; `lib/dialogue.dart`)**
+- [x] T039 **The condition itself: one grammar, asked of the text twice (FR-026; `lib/dialogue.dart`)**
   `bool taggedButUnsplit(String text)` beside `roleTagAt` (`:116`), after `tagOffsets`; the name states the fact the
   message reports, so the call site reads as the sentence it paints. The algorithm, in this order:
   (1) collect the **paragraph** heads' tags through `paragraphRanges` + `roleTagAt` — one tag there and the answer is
@@ -1039,7 +1044,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   list is not empty and the branch never runs — and if the reader removed them all, the honest answer is still
   "not a split". `flutter analyze` → **No issues found!** (exit 0); the file's **33 tests** green, the CRLF case and
   the removed-name case included — those are the two that a "the list is empty" reading of the condition fails.
-- [ ] T040 [P] **One key, four locales, and the label it spells (FR-026; `lib/l10n/app_{en,zh,zh_Hans,es}.arb`)**
+- [x] T040 [P] **One key, four locales, and the label it spells (FR-026; `lib/l10n/app_{en,zh,zh_Hans,es}.arb`)**
   `roleListUnsplitMessage`, beside `roleListEmptyMessage` in each of the four, `129 → 130` keys per file. The four
   wordings (Traditional `zh`, Simplified `zh_Hans`, and the two others — each spelling the Format button's own label):
   - `en`: `No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.`
@@ -1062,7 +1067,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   `_zh` +6 lines, the last covering both zh classes). `test/l10n_keys_test.dart` is green in the suite's 825. The
   Traditional string was written in Traditional; its Simplified neighbour is untouched, as FR-026's own clause
   requires — named in the task's text above, changed by nobody.
-- [ ] T041 **The empty list chooses between the two messages (FR-026; `lib/reading_view.dart`, `test/reading_view_dialogue_test.dart`)**
+- [x] T041 **The empty list chooses between the two messages (FR-026; `lib/reading_view.dart`, `test/reading_view_dialogue_test.dart`)**
   The `roles.isEmpty` branch (`:1645`) picks `roleListUnsplitMessage` when `taggedButUnsplit(_content)` and today's
   `roleListEmptyMessage` otherwise. `_content` is the surface's own text — the same string the branch's `turnsOf` call
   was already given (`:1571`) — so no field, no second read of the store and no new state.
@@ -1083,7 +1088,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   case asserts the drawn line is `l10n.roleListUnsplitMessage` AND that the sentence `contains(l10n.formatButton)`
   — a relationship to the shipped label, not a frozen copy of the wording; the second and third assert the general
   message where it belongs. `flutter analyze` → **No issues found!** (exit 0).
-- [ ] T042 **The driver's row `"37"`: the message, one press, and the roles (FR-026, FR-024; `specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py`)**
+- [x] T042 **The driver's row `"37"`: the message, one press, and the roles (FR-026, FR-024; `specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py`)**
   Constants for the reader's own content — a title line and four tagged turns, single newlines — under the driver's own
   id, and `row_37()` in the shape rows 25/33 already use: `fresh_prefs()` → `seed(...)` → `open_role_list()`.
   1. **The message.** The dump carries the split message's own words and does **not** carry the general message's; both
@@ -1107,7 +1112,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   `"format"` collapsed to its one entry. The two sentences are read from the four ARBs at import, so the row
   cannot agree with a copy of itself. `ast.parse` and `py_compile` both clean. One helper beyond this task's text
   was added during the walk — `wait_editor_ready`, shared with row 33 — for the reason and the evidence in T043.
-- [ ] T043 **Row 37 walked on the emulator, its evidence in `breakpoint.md` (FR-026, SC-013; `specs/014-dialogue-reading/breakpoint.md`)**
+- [x] T043 **Row 37 walked on the emulator, its evidence in `breakpoint.md` (FR-026, SC-013; `specs/014-dialogue-reading/breakpoint.md`)**
   `flutter build apk --debug` → `adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk` (this
   host answers more than one device, so a bare `adb` refuses; the row names the serial), then
   `/usr/bin/python3 specs/014-dialogue-reading/scripts/klhu_walk_dialogue.py 37` — the driver chain needs 3.12 and PIL,
@@ -1129,7 +1134,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   - row 33, whose driver gained the same wait → **9/9**.
   The failure never reproduced, so the wait is recorded as **a precaution taken on a dropped click, not a proven
   diagnosis**; the row still fails honestly if a press is dropped again, which is the property that matters.
-- [ ] T044 **Row 38's structural checks, each command quoted (FR-026; `specs/014-dialogue-reading/quickstart.md`)**
+- [x] T044 **Row 38's structural checks, each command quoted (FR-026; `specs/014-dialogue-reading/quickstart.md`)**
   Four checks, each with its own output pasted beside it:
   (1) `flutter gen-l10n` then `git status --short lib/l10n` **empty** — the committed Dart is what the ARBs produce;
   (2) the four ARBs' key counts, all **130** (parsed, `@`-prefixed metadata excluded — the raw line count in `app_en.arb`
@@ -1157,7 +1162,7 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
      `flutter test test/dialogue_test.dart test/reading_view_dialogue_test.dart` → **33 + 18 green**, and
      `git diff --stat test/` names those two files only (+57 and +77 lines), so Format's own cases and the tag
      grammar's existing cases are untouched.
-- [ ] T045 **The close: receipts, the two counts, and the table (FR-026, SC-013; `specs/014-dialogue-reading/tasks.md`)**
+- [x] T045 **The close: receipts, the two counts, and the table (FR-026, SC-013; `specs/014-dialogue-reading/tasks.md`)**
   Tick T038-T044 in one pass, each with its own receipt beside it (a tick without one is a claim, not evidence);
   re-take `flutter analyze` and `flutter test --concurrency=2` on the finished tree and write both numbers into the
   Status block beside the ones it already carries (445 at T002, 529 at T025, 559 at T037) — the number is recorded, not
@@ -1167,6 +1172,29 @@ worse than a typo, and it is the section a reviewer of this amendment reads next
   --short` against the files this phase intends — the six amendment files, `spec.md`, the driver, the four ARBs with
   their generated Dart, `lib/dialogue.dart`, `lib/reading_view.dart` and the two test files; nothing under `android/`,
   no walk artifact inside the repository.
+
+  **DONE 2026-10-16** — T038-T044 ticked in one pass, each over its own receipt (seven `DONE 2026-10-16` blocks,
+  one per task; none ticked without one). Re-taken on the finished tree: `flutter analyze` → **No issues found!**
+  (exit 0) and `flutter test --concurrency=2` → **825 passing, 0 failing** (exit 0, 79 s) against **816** before
+  this phase — the nine new tests are `test/dialogue_test.dart` 27 → 33 and
+  `test/reading_view_dialogue_test.dart` 15 → 18, and the committed diff over `test/` names those two files and no
+  third. FR-026 and SC-013 were added to the coverage table in the tasks pass and are the only rows citing
+  T038-T044. Re-run now, verbatim: `check_tasks_format.py` → `tasks.md: 45 tasks (45 done), 7 marked [P]` …
+  `OK: format, sequencing and spec-id coverage check out`; `task_id_audit.py` → `014-dialogue-reading: 45 tasks,
+  45 done, 7 [P]` (exit 0).
+
+  **What this close is, exactly.** The phase's work was committed as **`471727d` "014 format notice"** while the
+  eight boxes were still unticked, so this pass adds the ticks, this receipt and the Status sentence above —
+  `git status --short` after it holds **one** file, this one. The commit carries **22** files: the 21 the task text
+  above names (ten under `lib/`, two under `test/`, eight under `specs/014-dialogue-reading/` — the six amendment
+  files, this file and `breakpoint.md` — and the walk driver) plus `text.txt`, the reader's own note, which rode
+  the same commit.
+
+  **One thing this close does not repair, named rather than implied.** `check_artifact_refs.py` still reports
+  **three unresolved references**: `data-model.md`, `plan.md` and `research.md` each cite the read-position store
+  that 016's decision 5 retired on 2026-10-12, and the path left the tree with it. That debt predates this phase,
+  is not FR-026's, and is left where a later pass can see it — said here rather than letting a green suite imply
+  a clean checker.
 
 **Checkpoint**: analyzer clean, the suite's count recorded against the three it follows, the checker quoted green, row
 37's walk in `breakpoint.md`, and `spec.md`'s `Status` line true of the tree.
