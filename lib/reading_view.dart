@@ -32,6 +32,7 @@ import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_record.dart';
 import 'package:klhu/video_renderer.dart';
 import 'package:klhu/video_review.dart';
+import 'package:klhu/video_motion_store.dart';
 import 'package:klhu/video_timeline.dart';
 import 'package:klhu/voice_picker_screen.dart';
 import 'package:klhu/voice_store.dart';
@@ -380,6 +381,10 @@ class _ReadingViewState extends State<ReadingView> {
   /// The remembered video format (012 A8), beside the voice, position and
   /// appearance records in the same per-device store.
   final _aspects = VideoAspectStore();
+
+  /// Whether the reader's pictures move (023 FR-009): the same store family, its
+  /// own key, read when the prompt opens and written when they confirm it.
+  final _motions = VideoMotionStore();
 
   /// The reader's assignment for the content in force (020 FR-010): a stored
   /// setting of the content, read when the video prompt opens and written when
@@ -1941,6 +1946,7 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _openVideoPrompt() async {
     final l10n = AppLocalizations.of(context);
     final remembered = await _aspects.load();
+    final motionOn = await _motions.load();
     if (!mounted) return;
     // Where this prompt's pictures are stored (FR-025, D18): a directory of the
     // app's own, holding a file per picture, so the page shows files and the
@@ -1956,6 +1962,7 @@ class _ReadingViewState extends State<ReadingView> {
       final answer = await _askVideoFormat(
         l10n: l10n,
         remembered: remembered,
+        motionOn: motionOn,
         picturesDir: picturesDir,
         // What the reader has stored for this content, read on open (020
         // FR-010): the pass starts from it rather than from nothing.
@@ -1973,10 +1980,12 @@ class _ReadingViewState extends State<ReadingView> {
         return;
       }
       await _aspects.save(answer.aspect);
+      await _motions.save(answer.motion);
       await _startRender(
         answer.aspect,
         pictures: answer.pictures,
         runs: answer.runs,
+        motion: answer.motion,
       );
     } finally {
       // The render copies the stored pictures into its own directory as it works
@@ -2000,14 +2009,23 @@ class _ReadingViewState extends State<ReadingView> {
   /// way: each picture draws a sentence's own run of frames (FR-026), so the
   /// pictures past the last sentence are simply not drawn — the same answer the
   /// schedule has always given a picture that found no sentence.
-  Future<({VideoAspect aspect, List<HeldPicture> pictures, List<PictureRun> runs})?>
-      _askVideoFormat({
+  Future<({
+    VideoAspect aspect,
+    List<HeldPicture> pictures,
+    List<PictureRun> runs,
+    bool motion
+  })?> _askVideoFormat({
     required AppLocalizations? l10n,
     required VideoAspect remembered,
+    required bool motionOn,
     required Directory picturesDir,
     required List<PictureRun> runs,
   }) async {
     var chosen = remembered;
+    // 023: the reader's choice about the pictures (FR-009), off unless the record
+    // says on — the whole option is per device, and the prompt is where it is
+    // made (D8).
+    var motion = motionOn;
     // The reader's assignment in force for this prompt (020 FR-010): what the
     // pass opens on, and what Done leaves behind.
     var assigned = runs;
@@ -2040,6 +2058,16 @@ class _ReadingViewState extends State<ReadingView> {
                   selected: chosen.name == aspect.name,
                   onSelected: (_) => setDialog(() => chosen = aspect),
                 ),
+              // 023 FR-009/D8: one row under the chips, off unless the reader
+              // asks for it — a video is a kept artefact, and the app does not
+              // change its look unasked.
+              SwitchListTile(
+                key: const ValueKey('video motion switch'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n?.videoMotionLabel ?? 'Picture moves gently'),
+                value: motion,
+                onChanged: (value) => setDialog(() => motion = value),
+              ),
               const Divider(height: 24),
               // What is chosen, said here before the render starts (FR-025) —
               // the sum of every pick, since choosing again adds (FR-025).
@@ -2262,7 +2290,7 @@ class _ReadingViewState extends State<ReadingView> {
       ),
     );
     return start == true
-        ? (aspect: chosen, pictures: held, runs: assigned)
+        ? (aspect: chosen, pictures: held, runs: assigned, motion: motion)
         : null;
   }
 
@@ -2423,6 +2451,7 @@ class _ReadingViewState extends State<ReadingView> {
     VideoAspect aspect, {
     List<HeldPicture> pictures = const [],
     List<PictureRun> runs = const [],
+    bool motion = false,
   }) async {
     final l10n = AppLocalizations.of(context);
     if (_content.trim().isEmpty) {
@@ -2474,6 +2503,9 @@ class _ReadingViewState extends State<ReadingView> {
       // against the sentences this render will speak, and read once here, with
       // the pictures, so a change made during the render cannot move it.
       runs: runs,
+      // 023 FR-009: the reader's own answer about the pictures' motion, read
+      // once with the rest of this render's answers.
+      motion: motion,
     );
     setState(() {
       _mode = _Mode.rendering;

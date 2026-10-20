@@ -2095,8 +2095,18 @@ def row_49():
     rows = dump()
     check("49: Choose more adds to the choice rather than replacing it",
           on_screen(rows, "9 pictures chosen"), f"visible: {labels(rows)[:8]}")
+    # Re-cut 2026-10-20: since 020 (a7a650f) the prompt carries a standing
+    # `Assign sentences` row, so a bare "no label says 'sentence'" cannot hold on
+    # any build. The question this check asks is still the same one — the prompt
+    # says nothing about a choice one over the count — so the standing row's own
+    # label is set aside and every other label is asked.
+    def mentions_sentences(node):
+        label = (node["desc"] or node["text"] or "").lower()
+        if label.startswith("assign sentences"):
+            return False
+        return "sentence" in label
     check("49: a choice one over the count is said nothing about",
-          not any("sentence" in (r["desc"] or r["text"]).lower() for r in rows),
+          not any(mentions_sentences(r) for r in rows),
           "no label mentions the video's sentences")
     start = find(rows, "Start")
     check("49: and the render is offered as it stands",

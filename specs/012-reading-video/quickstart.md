@@ -665,6 +665,10 @@ least 4.5:1 against that plate; the picture's own colours unchanged outside the 
 carries a picture outside its own range, or two pictures at once; and a render with nothing chosen, run the
 same way, produces the plain-background video unchanged (row 32's picture). Proves FR-026, FR-027, FR-028,
 SC-004, SC-019, SC-021.
+*(Re-cut 2026-10-20: the check "a choice one over the count is said nothing about" now sets aside the standing "Assign
+sentences" row that 020 added (`a7a650f`), which had made the check impossible to pass on any build — it read 40/41 on
+023's build and 40/41 on the base `0ef44e7` alike. Re-run after the re-cut: **41/41, exit 0**; the measurements are
+`breakpoint.md`'s "Row 49's label check, re-cut".)*
 
 ### 54. The review's picture draws on the device — [device, measured]
 

@@ -18,6 +18,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -28,6 +29,7 @@ import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/video_aspect.dart';
+import 'package:klhu/video_motion.dart';
 import 'package:klhu/video_painter.dart';
 import 'package:klhu/video_pictures.dart';
 import 'package:klhu/video_timeline.dart';
@@ -151,6 +153,7 @@ class VideoRenderer {
     required this.background,
     this.pictures = const [],
     this.runs = const [],
+    this.motion = false,
   });
 
   final SentenceSynthesizer synthesizer;
@@ -181,6 +184,24 @@ class VideoRenderer {
   /// Empty is the no-assignment state: the split is then 012's own, frame for
   /// frame (020 FR-009).
   final List<PictureRun> runs;
+
+  /// How many frames one painted image stands for while the motion is on.
+  ///
+  /// **Six.** This is what makes the drift affordable, and it is only honest
+  /// because the drift is now tiny and slow (`PictureMotion`'s own two constants,
+  /// from the reader's instruction of 2026-10-19): at 1–2 % of the frame over an
+  /// 8 s cycle, one update per six frames moves the picture by well under two
+  /// pixels, so nothing can be seen to step — which is what failed when the same
+  /// quantum carried a tenth-of-the-frame travel over 2.4 s and the phone showed
+  /// 「在跳，不是移」.
+  static const int motionQuantum = 6;
+
+  /// Whether the reader turned the pictures' motion on (023 FR-009).
+  ///
+  /// False is the shipped render, code for code: one painted image per visual
+  /// state, replayed across its frames (023 FR-011). True paints one frame at a
+  /// time, each through the window its own clock names (D3).
+  final bool motion;
 
   bool _cancelled = false;
 
@@ -321,19 +342,87 @@ class VideoRenderer {
       // it, so the picture behind it stays put until the next sentence starts;
       // and since the schedule shares the *sentences* (FR-026), that is exactly
       // where the picture changes — no picture boundary lands mid-run.
-      final runs = <({VideoSlot slot, int frames, double progress})>[];
+      // 023: one painted frame per frame when the motion is on, each through
+      // the window its picture's own clock names. The off path is the loop it
+      // has always been, with `frame` unused and no framing handed to the
+      // painter (FR-011).
+      final motions = <String, PictureMotion>{};
+      final motionRandom = math.Random();
+      PictureMotion buildMotion(ScheduledPicture scheduled, ui.Image picture) {
+        final built = PictureMotion.forPicture(
+          cover: coverSourceOf(
+            pictureWidth: picture.width,
+            pictureHeight: picture.height,
+            frameWidth: plan.width,
+            frameHeight: plan.height,
+          ),
+          firstFrame: scheduled.startFrame,
+          screenFrames: scheduled.endFrame - scheduled.startFrame + 1,
+          random: motionRandom,
+        );
+        motions[scheduled.path] = built;
+        // FR-012's evidence, additively: one line per picture, naming every
+        // cycle's direction and the amplitude it was drawn with, in the
+        // picture's own pixels. 012's own lines keep their fields.
+        debugPrint('klhu render motion'
+            ' picture=${schedule.pictures.indexOf(scheduled) + 1}'
+            ' frames=${scheduled.startFrame}..${scheduled.endFrame}'
+            ' cycles=${built.cycles.length}'
+            ' dirs=${built.cycles.map((c) => '${c.direction.name}:${c.amplitude.round()}').join(',')}');
+        return built;
+      }
+
+      MotionFraming framingOf(
+          ScheduledPicture scheduled, ui.Image picture, int frame) {
+        final current =
+            motions[scheduled.path] ?? buildMotion(scheduled, picture);
+        return MotionFraming(
+            source: current.windowAt(frame), rest: current.base);
+      }
+
+      final runs = <({
+        VideoSlot slot,
+        int frames,
+        double progress,
+        int frame,
+      })>[];
       for (var i = 0; i < plan.slots.length; i++) {
         final slot = plan.slots[i];
         final span = _spanFrames(plan, i);
         if (slot.kind == VideoSlotKind.hold && runs.isNotEmpty) {
-          final last = runs.removeLast();
-          runs.add((
-            slot: last.slot,
-            frames: last.frames + span,
-            progress: last.progress,
-          ));
-        } else {
+          if (!motion) {
+            final last = runs.removeLast();
+            runs.add((
+              slot: last.slot,
+              frames: last.frames + span,
+              progress: last.progress,
+              frame: -1,
+            ));
+          } else {
+            // The end hold continues the last picture's own clock, so its
+            // frames are that picture's motion running on (the spec's edge case
+            // for a slot that ends mid-cycle).
+            final last = runs.last;
+            for (var k = 0; k < span; k += motionQuantum) {
+              runs.add((
+                slot: last.slot,
+                frames: math.min(motionQuantum, span - k),
+                progress: last.progress,
+                frame: slot.startFrame + k,
+              ));
+            }
+          }
+        } else if (!motion) {
           runs.addAll(_stepsOf(painter, slot, span));
+        } else {
+          for (var k = 0; k < span; k += motionQuantum) {
+            runs.add((
+              slot: slot,
+              frames: math.min(motionQuantum, span - k),
+              progress: span <= 1 ? 0.0 : k / span,
+              frame: slot.startFrame + k,
+            ));
+          }
         }
       }
 
@@ -385,17 +474,24 @@ class VideoRenderer {
         if (_cancelled) return await _abandon(written);
         final run = runs[i];
         final paintStep = Stopwatch()..start();
+        final scheduled = schedule.at(run.slot.startFrame);
+        final picture =
+            scheduled == null ? null : await _imageFor(scheduled.path, decoded);
         final frame = await painter.paint(
           slot: run.slot,
           progress: run.progress,
-          picture: await _pictureFor(run.slot, schedule, decoded),
+          picture: picture,
+          framing: motion && scheduled != null && picture != null
+              ? framingOf(scheduled, picture, run.frame)
+              : null,
         );
         paintStep.stop();
         paintMs += paintStep.elapsedMilliseconds;
         // Which slot this picture is for, in the frames' own terms: the device
         // row (quickstart 32) samples the file at these starts and pairs them
         // with the page, and it has nothing else to go on.
-        debugPrint('klhu render slot=${plan.slots.indexOf(run.slot)}'
+        if (!motion || run.frame == run.slot.startFrame) {
+          debugPrint('klhu render slot=${plan.slots.indexOf(run.slot)}'
             '/${plan.slots.length} frame=${run.slot.startFrame}'
             '/${plan.totalFrames} kind=${run.slot.kind.name} frames=${run.frames}'
             ' scroll=${frame.scrollLines}'
@@ -406,6 +502,7 @@ class VideoRenderer {
             // to go on to say which voice read a turn.
             ' role=${run.slot.role ?? "narration"}'
             ' span=${run.slot.start}..${run.slot.end} text=${frame.paintedText.length}');
+        }
         // Shown and written from the same picture, in that order (FR-020).
         onFrame?.call(frame);
         final sendStep = Stopwatch()..start();
@@ -500,7 +597,7 @@ class VideoRenderer {
   /// A step that gets no frame at all is not written — it is a picture nobody
   /// could see — and the shares always add up to [frames], so the video is the
   /// timeline's length whether the block had room for every step or not.
-  List<({VideoSlot slot, int frames, double progress})> _stepsOf(
+  List<({VideoSlot slot, int frames, double progress, int frame})> _stepsOf(
     VideoPainter painter,
     VideoSlot slot,
     int frames,
@@ -515,6 +612,7 @@ class VideoRenderer {
             slot: slot,
             frames: each + (position < extra ? 1 : 0),
             progress: position / positions,
+            frame: -1,
           ),
     ];
   }
@@ -522,21 +620,18 @@ class VideoRenderer {
   /// The picture covering [slot]'s frames, decoded once and reused: the schedule
   /// changes a picture only where a sentence changes (FR-026), so a slot's whole
   /// run reads the same file — and one decode per picture, not per frame.
-  Future<ui.Image?> _pictureFor(
-    VideoSlot slot,
-    PictureSchedule schedule,
+  Future<ui.Image?> _imageFor(
+    String path,
     Map<String, ui.Image> decoded,
   ) async {
-    final scheduled = schedule.at(slot.startFrame);
-    if (scheduled == null) return null;
-    final already = decoded[scheduled.path];
+    final already = decoded[path];
     if (already != null) return already;
     final codec = await ui.instantiateImageCodec(
-      await File(scheduled.path).readAsBytes(),
+      await File(path).readAsBytes(),
     );
     final frame = await codec.getNextFrame();
     codec.dispose();
-    decoded[scheduled.path] = frame.image;
+    decoded[path] = frame.image;
     return frame.image;
   }
 

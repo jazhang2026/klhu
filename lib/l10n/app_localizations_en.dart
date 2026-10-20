@@ -219,6 +219,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoAspectVertical => '9:16 vertical (Shorts)';
 
   @override
+  String get videoMotionLabel => 'Picture moves gently';
+
+  @override
   String get videoStartButton => 'Start';
 
   @override

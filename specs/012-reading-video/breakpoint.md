@@ -970,6 +970,24 @@ there. It now walks what the reader walks — **Show roots → the storage root 
 and with that, eight pictures for eight sentences, one range each, the plate's tone read over the band the words
 cover, every glyph box at the bottom of the area.
 
+### Row 49's label check, re-cut 2026-10-20 — 020 had defeated it, not 023
+
+**What it said.** `49: a choice one over the count is said nothing about` asked that no label anywhere in the prompt
+contain the word *sentence*. Since `a7a650f` (020's implement stage) the prompt carries a standing **"Assign
+sentences"** row — the doorway to the picture-assignment screen — so the check could not pass on any build. Measured
+twice on 2026-10-20, same driver, same fixture, same device: **40/41** on 023's build (installed 13:50:33) and
+**40/41, the same check**, on the base build `0ef44e7` (13:57:00, `/tmp/klhu_012_row49_base.log`). That is how it
+surfaced: 023's row 14 wanted this row green on its own build, and the red was already standing there.
+
+**The re-cut** (`klhu_walk_video.py`, `row_49`): the standing row's own label is set aside and every other label is
+asked the same question. Nothing else in the row moved, and the two neighbouring checks still pin the shipped
+behaviour — the page reads `9 pictures chosen`, and `Start` is there and enabled.
+
+**Re-run after the re-cut, on 023's build (installed 13:59:39): 41/41 checks, exit 0.** What it can and cannot fail
+on is worth stating plainly: it now fails if any label **other than** the standing assignment row mentions the
+sentences — a new complaint about a choice one over the count would trip it — and it no longer fails on that row
+itself. The row's own count is unchanged at 41.
+
 ### Row 36 — spike S2, in full (T032)
 
 The spike was run at its own `[device]` row for the first time: a **17-sentence** content rendered to a 1080p30

@@ -39,6 +39,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'appearance_store.dart';
+import 'package:klhu/video_motion.dart';
 import 'package:klhu/video_timeline.dart';
 
 /// Whether a picture reads as light or dark — what decides the plate the words
@@ -354,10 +355,17 @@ class VideoPainter {
   /// at its last: it decides which line step a too-tall sentence is drawn at
   /// (D14). It defaults to 0 — the frame at the slot's start — so a caller that
   /// wants one still frame does not have to know about the scroll.
+  ///
+  /// [framing] is what a picture that moves is drawn through (023 FR-001): the
+  /// rect the frame shows now, and the rect it rests at — the second one is what
+  /// the plate's tone is read over, so the plate does not change colour as the
+  /// picture drifts under the words (FR-007). Absent, the picture is the cover
+  /// crop, exactly as before this feature.
   Future<VideoFrame> paint({
     required VideoSlot slot,
     double progress = 0,
     ui.Image? picture,
+    MotionFraming? framing,
   }) async {
     final frameRect =
         Rect.fromLTWH(0, 0, plan.width.toDouble(), plan.height.toDouble());
@@ -413,7 +421,8 @@ class VideoPainter {
     // because the picture's average is not what is behind the words.
     final tone = picture == null
         ? null
-        : await _toneOf(picture, _bandsOf(picture, column, blockTop, geometry));
+        : await _toneOf(picture,
+            _bandsOf(picture, column, blockTop, geometry, rest: framing?.rest));
     final inkColour = tone == null
         ? (readingStyle.color ?? inkOnLightPicture)
         : (tone == PictureTone.light ? inkOnLightPicture : inkOnDarkPicture);
@@ -429,7 +438,9 @@ class VideoPainter {
     if (picture != null) {
       // The picture fills the frame — cropped, never letterboxed — and keeps its
       // own colours: nothing is drawn over the frame as a whole (FR-027).
-      canvas.drawImageRect(picture, _coverSource(picture), frameRect, Paint());
+      canvas.drawImageRect(
+          picture, framing?.source ?? _coverSource(picture), frameRect,
+          Paint());
     }
 
     // Nothing but the text area's own contents may reach the frame: the margins
@@ -541,9 +552,10 @@ class VideoPainter {
     ui.Image picture,
     Rect column,
     double blockTop,
-    _TextBlock block,
-  ) {
-    final source = _coverSource(picture);
+    _TextBlock block, {
+    Rect? rest,
+  }) {
+    final source = rest ?? _coverSource(picture);
     final scaleX = source.width / plan.width;
     final scaleY = source.height / plan.height;
     final bands = <Rect>[];
@@ -678,19 +690,12 @@ class VideoPainter {
   /// The part of [picture] to draw so that it covers the frame: the whole of the
   /// shorter side and the centred part of the longer one, so the picture is
   /// cropped rather than letterboxed (FR-027).
-  Rect _coverSource(ui.Image picture) {
-    final frameAspect = plan.width / plan.height;
-    final pictureAspect = picture.width / picture.height;
-    if (pictureAspect > frameAspect) {
-      // Wider than the frame: keep the full height, crop the sides.
-      final width = picture.height * frameAspect;
-      return Rect.fromLTWH(
-          (picture.width - width) / 2, 0, width, picture.height.toDouble());
-    }
-    final height = picture.width / frameAspect;
-    return Rect.fromLTWH(
-        0, (picture.height - height) / 2, picture.width.toDouble(), height);
-  }
+  Rect _coverSource(ui.Image picture) => coverSourceOf(
+        pictureWidth: picture.width,
+        pictureHeight: picture.height,
+        frameWidth: plan.width,
+        frameHeight: plan.height,
+      );
 
   /// The same frame's bytes, for the encoder (FR-020: the picture shown is the
   /// picture written).
@@ -726,6 +731,31 @@ class _TextBlock {
   /// How many whole lines the block must move for its last line to reach the
   /// bottom of the text area; 0 when the text fits and is drawn still.
   final int steps;
+}
+
+/// The part of a picture that covers the frame: the whole of the shorter side
+/// and the centred part of the longer one, so the picture is cropped rather than
+/// letterboxed (012's own rule; 023's motion moves inside it).
+///
+/// Top-level because the renderer needs the same rect to build a picture's
+/// motion (023 FR-013) without holding a painter: one rule, two callers.
+Rect coverSourceOf({
+  required int pictureWidth,
+  required int pictureHeight,
+  required int frameWidth,
+  required int frameHeight,
+}) {
+  final frameAspect = frameWidth / frameHeight;
+  final pictureAspect = pictureWidth / pictureHeight;
+  if (pictureAspect > frameAspect) {
+    // Wider than the frame: keep the full height, crop the sides.
+    final width = pictureHeight * frameAspect;
+    return Rect.fromLTWH(
+        (pictureWidth - width) / 2, 0, width, pictureHeight.toDouble());
+  }
+  final height = pictureWidth / frameAspect;
+  return Rect.fromLTWH(
+      0, (pictureHeight - height) / 2, pictureWidth.toDouble(), height);
 }
 
 /// The frame's bytes, as the encoder is handed them.

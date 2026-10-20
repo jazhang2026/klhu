@@ -214,6 +214,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get videoAspectVertical => '9:16 竖屏（短视频）';
 
   @override
+  String get videoMotionLabel => '画面轻微移动';
+
+  @override
   String get videoStartButton => '开始';
 
   @override
@@ -661,6 +664,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get videoAspectVertical => '9:16 竖屏（短视频）';
+
+  @override
+  String get videoMotionLabel => '画面轻微移动';
 
   @override
   String get videoStartButton => '开始';

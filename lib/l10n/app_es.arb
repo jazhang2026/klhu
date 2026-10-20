@@ -65,6 +65,7 @@
   "videoAspectTitle": "Formato del vídeo",
   "videoAspectLandscape": "16:9 horizontal 1080p",
   "videoAspectVertical": "9:16 vertical (Shorts)",
+  "videoMotionLabel": "La imagen se mueve suavemente",
   "videoStartButton": "Empezar",
   "videoRenderingLabel": "Generando el vídeo…",
   "videoProgressLabel": "Generando el vídeo, frase {index} de {total}",

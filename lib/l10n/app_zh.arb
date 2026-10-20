@@ -65,6 +65,7 @@
   "videoAspectTitle": "视频格式",
   "videoAspectLandscape": "16:9 横屏 1080p",
   "videoAspectVertical": "9:16 竖屏（短视频）",
+  "videoMotionLabel": "画面轻微移动",
   "videoStartButton": "开始",
   "videoRenderingLabel": "正在生成视频…",
   "videoProgressLabel": "正在生成视频，第 {index} 段，共 {total} 段",

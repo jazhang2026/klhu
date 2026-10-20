@@ -491,6 +491,12 @@ abstract class AppLocalizations {
   /// **'9:16 vertical (Shorts)'**
   String get videoAspectVertical;
 
+  /// No description provided for @videoMotionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture moves gently'**
+  String get videoMotionLabel;
+
   /// No description provided for @videoStartButton.
   ///
   /// In en, this message translates to:
