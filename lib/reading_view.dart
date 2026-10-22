@@ -21,6 +21,7 @@ import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/role_store.dart';
+import 'package:klhu/scene_tag.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/services/content_store.dart';
 import 'package:klhu/services/voice_mapping_service.dart';
@@ -728,15 +729,18 @@ class _ReadingViewState extends State<ReadingView> {
   /// ONE assignment — which is what makes the whole press a single undo entry,
   /// the way [_enterEdit] seeds the stack.
   ///
-  /// The transform is `lib/dialogue.dart`'s, so the button does nothing but
-  /// apply a pure function's answer; the text is saved by 008's existing path
-  /// (Save or Done) and its refusals stay 008's own. Nothing is formatted behind
-  /// the reader's back: this runs when the button is pressed and at no other
-  /// time (A9, FR-020).
+  /// The transform is `lib/dialogue.dart`'s composed with 024's — a scene tag
+  /// first, then the role tags' own pass — so the button does nothing but apply
+  /// two pure functions' answer; the text is saved by 008's existing path (Save
+  /// or Done) and its refusals stay 008's own. Nothing is formatted behind the
+  /// reader's back: this runs when the button is pressed and at no other time
+  /// (A9, FR-020).
+  String _formatOf(String text) => formatForDialogue(formatForSceneTags(text));
+
   void _formatDialogue() {
     final controller = _editController;
     if (controller == null) return;
-    final formatted = formatForDialogue(controller.text);
+    final formatted = _formatOf(controller.text);
     if (formatted == controller.text) return;
     controller.value = TextEditingValue(
       text: formatted,
@@ -1026,7 +1030,7 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _readSelection() async {
     final seg = _highlight;
     if (seg == null) {
-      final steps = stepRanges(_content);
+      final steps = stepRanges(_spoken);
       if (steps.isEmpty) {
         // An empty text: today's message (010's own row 7), not FR-008's
         // silence — that one is the END of a text that had something to read.
@@ -1221,7 +1225,7 @@ class _ReadingViewState extends State<ReadingView> {
   /// what 022's question is about (FR-001). A sentence below the fold is
   /// measurable here because the page's whole text is one `RenderParagraph`.
   List<_SentenceGeometry> _followingFrom(int start, int count) {
-    final all = sentenceRanges(_content);
+    final all = sentenceRanges(_spoken);
     final at = all.indexWhere((s) => s.start == start);
     if (at < 0) return const <_SentenceGeometry>[];
     final out = <_SentenceGeometry>[];
@@ -1239,7 +1243,7 @@ class _ReadingViewState extends State<ReadingView> {
   /// count stops at the first sentence wholly below the fold rather than walking a
   /// long content to its end on every report.
   int _belowCount(SpokenSentence spoken) {
-    final all = sentenceRanges(_content);
+    final all = sentenceRanges(_spoken);
     final at = all.indexWhere((s) => s.start == spoken.start);
     if (at < 0) return 0;
     var below = 0;
@@ -1334,7 +1338,7 @@ class _ReadingViewState extends State<ReadingView> {
   /// both the highlight and the position go and **nothing is said** (FR-008).
   void _advanceStep(int from) {
     TextSegment? next;
-    for (final range in stepRanges(_content)) {
+    for (final range in stepRanges(_spoken)) {
       if (range.start >= from) {
         next = range;
         break;
@@ -1573,7 +1577,7 @@ class _ReadingViewState extends State<ReadingView> {
     // would use, and that answer comes from the device's own voices (FR-016).
     // The scan gets the display's own comments, so a comment-only paragraph is
     // no turn here exactly as it is on the read's own path (FR-011, ripple 3).
-    var turns = turnsOf(_content,
+    var turns = turnsOf(_spoken,
         removed: _roles.removedFor(_rolesVersion),
         comments: _commentDisplay.comments);
     var roles = rolesOf(turns);
@@ -1589,7 +1593,7 @@ class _ReadingViewState extends State<ReadingView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) {
           Future<void> refresh() async {
-            turns = turnsOf(_content,
+            turns = turnsOf(_spoken,
                 removed: _roles.removedFor(_rolesVersion),
                 comments: _commentDisplay.comments);
             roles = rolesOf(turns);
@@ -1703,7 +1707,7 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _openRoleVoice(String role) async {
     final l10n = AppLocalizations.of(context);
     final key = _anchorKey;
-    final turns = turnsOf(_content,
+    final turns = turnsOf(_spoken,
         removed: _roles.removedFor(_rolesVersion),
         comments: _commentDisplay.comments);
     final first = turns.firstWhere(
@@ -2399,6 +2403,10 @@ class _ReadingViewState extends State<ReadingView> {
           sentences: sentences,
           runs: runs,
           inView: inView,
+          // 024: the scenes the page's own display derived from this content —
+          // the same derivation the read and the frames use, so the option pairs
+          // what the video will speak (FR-009).
+          scenes: _commentDisplay.scenes,
         ),
       ),
     );
@@ -2855,6 +2863,13 @@ class _ReadingViewState extends State<ReadingView> {
   CommentDisplay? _displayCache;
   String? _displaySource;
 
+  /// 024: the text every speech-bearing derivation is cut from — the content
+  /// with 015's, 019's and 024's own characters elided or masked (data-model
+  /// §3). It is the content itself for a text with no tag and no mark, so a
+  /// tag-free content's steps, sentences and turns are the ones it had before
+  /// this feature (FR-016).
+  String get _spoken => _commentDisplay.masked;
+
   CommentDisplay get _commentDisplay {
     final cached = _displayCache;
     if (cached != null && identical(_displaySource, _content)) return cached;
@@ -2882,7 +2897,7 @@ class _ReadingViewState extends State<ReadingView> {
       }
       break;
     }
-    return resolve(_content, offset);
+    return resolve(_spoken, offset);
   }
 
   /// Explicit body style for the reading text. Two device-quirk-driven
@@ -3081,10 +3096,9 @@ class _ReadingViewState extends State<ReadingView> {
                                     'Format',
                             // Disabled, not a silent no-op, when the press would
                             // change nothing — the Undo button's own pattern.
-                            onPressed:
-                                formatForDialogue(value.text) == value.text
-                                    ? null
-                                    : _formatDialogue,
+                            onPressed: _formatOf(value.text) == value.text
+                                ? null
+                                : _formatDialogue,
                           ),
                         ),
                         IconButton(

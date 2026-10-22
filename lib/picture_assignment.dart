@@ -7,6 +7,7 @@
 /// render then does. Nothing in this file paints, stores or speaks.
 library;
 
+import 'scene_tag.dart';
 import 'video_pictures.dart';
 import 'video_timeline.dart';
 
@@ -481,4 +482,52 @@ AssignmentAnswer assignmentsFor({
     ],
     stale: stale,
   );
+}
+
+/// The scenes given to the pictures, in order (FR-009, FR-010, FR-011, FR-013):
+/// picture `i` takes scene `i`'s sentences, for as long as both sides last.
+///
+/// A scene that owns no sentence is **skipped** and consumes no picture — the
+/// reader wrote a boundary with nothing under it, and that is not a decision
+/// about a picture. Scenes past the last picture are left alone, and pictures
+/// past the last scene keep the empty runs the page already shows.
+///
+/// **Why the pictures and not a count**: a run names its picture by its own
+/// name (`PictureRun.name`), so the answer cannot be written from a number —
+/// the caller's own pictures, in the order the render walks them, are the
+/// input the record needs (data-model §5's `pictureCount`, made concrete).
+///
+/// [sentences] are the page's own — the video's own list, in the render's order
+/// — and a sentence belongs to the scene whose range its **start** lies in, so
+/// the preamble before the first tag and the heading on a tag line are in no
+/// run (FR-014, FR-017). Every run the answer writes obeys 020's rules by
+/// construction: the scenes come in the text's order, so their sentences ascend
+/// across the pictures without a repeat, and the sentences of one scene are
+/// contiguous and ascending inside its run.
+///
+/// Null when nothing pairs: no picture, no scene, or no scene that owns a
+/// sentence. That is the no-assignment state the page and the render already
+/// read as 012's own split (FR-009) — not an empty decision.
+List<PictureRun>? assignScenesToPictures({
+  required List<Scene> scenes,
+  required List<VideoSentence> sentences,
+  required List<HeldPicture> pictures,
+}) {
+  if (pictures.isEmpty || scenes.isEmpty) return null;
+  final runs = <PictureRun>[
+    for (final picture in pictures)
+      PictureRun(name: picture.name, spans: const <(int, int)>[]),
+  ];
+  var written = 0;
+  for (final scene in scenes) {
+    if (written >= pictures.length) break;
+    final owned = <(int, int)>[
+      for (final sentence in sentences)
+        if (scene.owns(sentence.start)) (sentence.start, sentence.end),
+    ];
+    if (owned.isEmpty) continue;
+    runs[written] = PictureRun(name: pictures[written].name, spans: owned);
+    written++;
+  }
+  return written == 0 ? null : runs;
 }

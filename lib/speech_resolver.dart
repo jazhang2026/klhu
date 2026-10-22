@@ -84,7 +84,12 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
     return _withComments(speeches, spoken, content, start, to, loadVoice, display);
   }
 
-  final turns = turnsOf(content,
+  // 024: the turns are cut from the masked text, so a scene tag's line is no
+  // turn's own characters — a role tag on the line under a scene tag is still
+  // the paragraph's head, and a tag line alone in its paragraph is no turn at all
+  // (FR-005, research R4). The offsets are the content's own, so every speech's
+  // span still points into the text the page paints and the video renders.
+  final turns = turnsOf(shown.masked,
       start: start, end: to, removed: removed, comments: comments);
   final turnSpeeches =
       await _turnSpeeches(turns, picks, loadVoice, loadInstalled, content, display);

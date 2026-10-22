@@ -475,4 +475,24 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get assignmentSwitchConfirm => 'Moverla';
+
+  @override
+  String get assignmentScenesButton => 'Asignar escenas';
+
+  @override
+  String get assignmentScenesTitle => '¿Asignar las escenas?';
+
+  @override
+  String assignmentScenesBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count imágenes toman las frases de sus escenas, en orden.',
+      one: '1 imagen toma las frases de su escena.',
+    );
+    return '$_temp0 Lo que esas imágenes tienen ahora se sustituye.';
+  }
+
+  @override
+  String get assignmentScenesConfirm => 'Asignar';
 }

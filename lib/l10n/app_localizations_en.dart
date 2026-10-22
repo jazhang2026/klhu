@@ -475,4 +475,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assignmentSwitchConfirm => 'Move it';
+
+  @override
+  String get assignmentScenesButton => 'Auto assign scenes';
+
+  @override
+  String get assignmentScenesTitle => 'Auto assign the scenes?';
+
+  @override
+  String assignmentScenesBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pictures take their scenes\' sentences, in order.',
+      one: '1 picture takes its scene\'s sentences.',
+    );
+    return '$_temp0 What those pictures hold now is replaced.';
+  }
+
+  @override
+  String get assignmentScenesConfirm => 'Assign';
 }

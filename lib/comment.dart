@@ -17,6 +17,7 @@ library;
 
 import 'head_tag.dart';
 import 'language.dart';
+import 'scene_tag.dart';
 import 'segmenter.dart';
 
 /// The spellings this app recognises, one row per language its own locales are
@@ -308,12 +309,33 @@ class CommentDisplay {
   /// `#`/`##` line.
   final List<HeadTag> heads;
 
+  /// 024: the text's own scene tags, in text order — empty for a content with
+  /// no scene line. Derived with the comments' and the marked lines' spans as
+  /// the shapes it is **not** recognised in (FR-015), so the three rules' elided
+  /// characters are disjoint by construction.
+  final List<SceneTag> sceneTags;
+
+  /// 024: what each scene owns, over the content's own sentence ranges
+  /// (data-model §2). The page hands these to the assignment page's option.
+  final List<Scene> scenes;
+
+  /// 024: the content with every scene tag's line replaced by spaces of the
+  /// same length (data-model §3) — the string every speech-bearing derivation
+  /// is cut from, so a tag line is no sentence, no step, no turn and no slot
+  /// while every offset stays the content's own.
+  ///
+  /// The content itself for a text with no scene tag, which is what keeps a
+  /// tag-free content's read byte for byte what it was (FR-016).
+  final String masked;
+
   /// The spans this display removes, in text order: every comment tag's own
-  /// characters and every mark's, which are disjoint (019 FR-009).
+  /// characters, every mark's, and every scene tag's whole line — which are
+  /// disjoint, the last two recognised around the first (019 FR-009, 024
+  /// FR-015).
   final List<(int, int)> _elided;
 
-  const CommentDisplay._(
-      this.text, this.comments, this.heads, this._elided);
+  const CommentDisplay._(this.text, this.comments, this.heads, this.sceneTags,
+      this.scenes, this.masked, this._elided);
 
   /// The content offset a display offset is painted at.
   ///
@@ -385,27 +407,49 @@ class CommentDisplay {
 /// The display of [content] — what the reading page paints (data-model §3).
 CommentDisplay displayOf(String content) {
   final comments = commentsOf(content);
-  final spans = [
+  final commentSpans = [
+    for (final comment in comments) (comment.tag.start, comment.contentEnd),
+  ];
+  final spans = <(int, int)>[
     for (final comment in comments) (comment.tag.start, comment.tag.tagEnd),
   ];
   // 019: a mark is recognised outside every comment's span only (FR-009), and
   // its own characters join the same elision as the tags'.
-  final heads = headTagsOf(content, inside: [
-    for (final comment in comments) (comment.tag.start, comment.contentEnd),
-  ]);
+  final heads = headTagsOf(content, inside: commentSpans);
   spans.addAll([for (final head in heads) (head.start, head.markEnd)]);
+  // 024: a scene tag is a whole line, recognised at a line's head outside every
+  // comment's span and every marked line (FR-015). Its span takes the line and
+  // the break that ends it — the characters FR-004 says are painted nowhere.
+  final sceneTags = sceneTagsOf(content, inside: [
+    ...commentSpans,
+    for (final head in heads) (head.start, head.lineEnd),
+  ]);
+  spans.addAll([for (final tag in sceneTags) tag.spanIn(content)]);
+  final scenes = scenesFromTags(content, sceneTags);
+  final masked = maskedFromTags(content, sceneTags);
   if (spans.isEmpty) {
-    return CommentDisplay._(content, comments, heads, const []);
+    return CommentDisplay._(
+        content, comments, heads, sceneTags, scenes, masked, const []);
   }
   spans.sort((a, b) => a.$1.compareTo(b.$1));
+  // One pass, and a span that a wider one already covers is dropped rather than
+  // elided twice: a comment's marker standing inside a scene tag's line goes
+  // with the line it stands in (research R1's pinned reading), and the mapping
+  // below reads a list of disjoint spans or none at all.
+  final elided = <(int, int)>[];
+  for (final span in spans) {
+    if (elided.isNotEmpty && span.$1 < elided.last.$2) continue;
+    elided.add(span);
+  }
   final buffer = StringBuffer();
   var cursor = 0;
-  for (final span in spans) {
+  for (final span in elided) {
     buffer.write(content.substring(cursor, span.$1));
     cursor = span.$2;
   }
   buffer.write(content.substring(cursor));
-  return CommentDisplay._(buffer.toString(), comments, heads, spans);
+  return CommentDisplay._(
+      buffer.toString(), comments, heads, sceneTags, scenes, masked, elided);
 }
 
 /// The separator and the spaces after it belong to the tag (FR-001): spaces,

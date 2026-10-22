@@ -455,6 +455,26 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assignmentSwitchConfirm => '移动';
+
+  @override
+  String get assignmentScenesButton => '按場景自動分配';
+
+  @override
+  String get assignmentScenesTitle => '按場景自動分配？';
+
+  @override
+  String assignmentScenesBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 張圖片按順序取得各場景的句子。',
+      one: '1 張圖片取得它那個場景的句子。',
+    );
+    return '$_temp0這些圖片原有的分配會被取代。';
+  }
+
+  @override
+  String get assignmentScenesConfirm => '分配';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -907,4 +927,24 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assignmentSwitchConfirm => '移动';
+
+  @override
+  String get assignmentScenesButton => '按场景自动分配';
+
+  @override
+  String get assignmentScenesTitle => '按场景自动分配？';
+
+  @override
+  String assignmentScenesBody(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 张图片按顺序取得各场景的句子。',
+      one: '1 张图片取得它那个场景的句子。',
+    );
+    return '$_temp0这些图片原有的分配会被取代。';
+  }
+
+  @override
+  String get assignmentScenesConfirm => '分配';
 }

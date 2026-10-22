@@ -34,6 +34,7 @@ import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
 import 'picture_assignment.dart';
 import 'picture_cell.dart';
+import 'scene_tag.dart';
 import 'video_pictures.dart';
 import 'video_timeline.dart';
 
@@ -44,6 +45,7 @@ class PictureAssignmentScreen extends StatefulWidget {
     required this.sentences,
     required this.runs,
     this.inView,
+    this.scenes = const [],
   });
 
   /// The pictures in force, in the order the render will walk them.
@@ -60,6 +62,13 @@ class PictureAssignmentScreen extends StatefulWidget {
   /// hunting through the strip for it. Null (or a name not among [pictures])
   /// opens on the first.
   final String? inView;
+
+  /// 024: the content's own scenes, derived by the page that opened this one
+  /// (`scenesOf`). Empty — the default, so every 020 caller compiles unchanged —
+  /// means the content has no scene tag, and the option is not offered at all
+  /// (FR-008). The page never derives them itself: it is handed data, so what it
+  /// pairs is the text the render will speak (D6).
+  final List<Scene> scenes;
 
   @override
   State<PictureAssignmentScreen> createState() =>
@@ -433,6 +442,72 @@ class _PictureAssignmentScreenState extends State<PictureAssignmentScreen> {
     return null;
   }
 
+  /// 024's option (FR-008, FR-009, FR-011, FR-012): the i-th picture takes the
+  /// i-th scene's sentences, in the scenes' own order, inside 020's own run
+  /// rules.
+  ///
+  /// **Asked before it replaces anything.** A pairing writes the pictures that
+  /// hold sentences now only after the reader confirms it, and the question
+  /// names how many runs go; declining leaves [_runs] exactly as it was, spans
+  /// and order both (FR-012's rule for a refused edit). A page whose pictures
+  /// hold nothing has nothing to replace, so it writes with no question — the
+  /// option is then one press and the thumbnails' counts are the answer.
+  ///
+  /// The option is not offered at all for a content with no scene (the AppBar
+  /// action is absent): a press that could only answer "nothing to pair" is a
+  /// button the reader has to try to learn that.
+  Future<void> _autoAssignScenes() async {
+    final l10n = AppLocalizations.of(context);
+    final paired = assignScenesToPictures(
+      scenes: widget.scenes,
+      sentences: widget.sentences,
+      pictures: _pictures,
+    );
+    if (paired == null) return;
+    final replaced = <int>[
+      for (var picture = 0; picture < _runs.length; picture++)
+        if (_runs[picture].spans.isNotEmpty && !_isTheSameRun(_runs[picture], paired[picture]))
+          picture,
+    ];
+    if (replaced.isNotEmpty) {
+      final runs = paired.where((run) => run.spans.isNotEmpty).length;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l10n?.assignmentScenesTitle ?? 'Auto assign the scenes?'),
+          content: Text(l10n?.assignmentScenesBody(runs) ??
+              '$runs pictures take their scenes\' sentences, in order.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n?.cancelButton ?? 'Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l10n?.assignmentScenesConfirm ?? 'Assign'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    setState(() {
+      for (var picture = 0; picture < paired.length; picture++) {
+        _runs[picture] = paired[picture];
+      }
+    });
+    _refuseNothing();
+  }
+
+  /// Whether two runs are the same run of the record: same picture, same spans.
+  bool _isTheSameRun(PictureRun a, PictureRun b) {
+    if (a.name != b.name || a.spans.length != b.spans.length) return false;
+    for (var i = 0; i < a.spans.length; i++) {
+      if (a.spans[i] != b.spans[i]) return false;
+    }
+    return true;
+  }
+
   /// The reader's answer: **a run that holds nothing is not a decision**, so it
   /// is left out — an empty answer is the no-assignment state the render reads
   /// as 012's own split (FR-009). The pictures themselves stay in the order,
@@ -478,6 +553,15 @@ class _PictureAssignmentScreenState extends State<PictureAssignmentScreen> {
       appBar: AppBar(
         title: Text(l10n?.assignmentOpenButton ?? 'Assign sentences'),
         actions: [
+          // 024: one action beside Done, and only where the content has a
+          // scene (FR-008). It sits before Done so Done stays the right-hand
+          // word the reader already knows.
+          if (widget.scenes.isNotEmpty)
+            TextButton(
+              onPressed: _autoAssignScenes,
+              child: Text(
+                  l10n?.assignmentScenesButton ?? 'Auto assign scenes'),
+            ),
           TextButton(
             onPressed: _done,
             // 015's own word for it, reused rather than minted again: the

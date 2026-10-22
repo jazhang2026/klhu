@@ -130,5 +130,9 @@
   "assignmentDeleteBody": "Esta imagen se quitará del vídeo.",
   "assignmentSwitchTitle": "¿Dar esta frase a la imagen seleccionada?",
   "assignmentSwitchBody": "«{sentence}» pertenece ahora a otra imagen; pasará a la seleccionada.",
-  "assignmentSwitchConfirm": "Moverla"
+  "assignmentSwitchConfirm": "Moverla",
+  "assignmentScenesButton": "Asignar escenas",
+  "assignmentScenesTitle": "¿Asignar las escenas?",
+  "assignmentScenesBody": "{count, plural, =1 {1 imagen toma las frases de su escena.} other {{count} imágenes toman las frases de sus escenas, en orden.}} Lo que esas imágenes tienen ahora se sustituye.",
+  "assignmentScenesConfirm": "Asignar"
 }

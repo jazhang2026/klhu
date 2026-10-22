@@ -130,5 +130,9 @@
   "assignmentDeleteBody": "这张图片将从视频中移除。",
   "assignmentSwitchTitle": "把这句交给选中的图片？",
   "assignmentSwitchBody": "「{sentence}」现在属于另一张图片，将移到选中的这张。",
-  "assignmentSwitchConfirm": "移动"
+  "assignmentSwitchConfirm": "移动",
+  "assignmentScenesButton": "按場景自動分配",
+  "assignmentScenesTitle": "按場景自動分配？",
+  "assignmentScenesBody": "{count, plural, =1 {1 張圖片取得它那個場景的句子。} other {{count} 張圖片按順序取得各場景的句子。}}這些圖片原有的分配會被取代。",
+  "assignmentScenesConfirm": "分配"
 }

@@ -886,6 +886,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move it'**
   String get assignmentSwitchConfirm;
+
+  /// No description provided for @assignmentScenesButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto assign scenes'**
+  String get assignmentScenesButton;
+
+  /// No description provided for @assignmentScenesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto assign the scenes?'**
+  String get assignmentScenesTitle;
+
+  /// No description provided for @assignmentScenesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 picture takes its scene\'s sentences.} other {{count} pictures take their scenes\' sentences, in order.}} What those pictures hold now is replaced.'**
+  String assignmentScenesBody(int count);
+
+  /// No description provided for @assignmentScenesConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign'**
+  String get assignmentScenesConfirm;
 }
 
 class _AppLocalizationsDelegate

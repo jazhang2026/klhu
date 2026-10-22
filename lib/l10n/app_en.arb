@@ -182,7 +182,12 @@
   "assignmentSwitchTitle": "Give this sentence to the selected picture?",
   "assignmentSwitchBody": "\"{sentence}\" belongs to another picture now; it moves to the selected one.",
   "assignmentSwitchConfirm": "Move it",
+  "assignmentScenesButton": "Auto assign scenes",
+  "assignmentScenesTitle": "Auto assign the scenes?",
+  "assignmentScenesBody": "{count, plural, =1 {1 picture takes its scene's sentences.} other {{count} pictures take their scenes' sentences, in order.}} What those pictures hold now is replaced.",
+  "assignmentScenesConfirm": "Assign",
   "@assignmentSwitchBody": {"placeholders": {"sentence": {"type": "String"}}},
+  "@assignmentScenesBody": {"placeholders": {"count": {"type": "int"}}},
   "@assignmentSentenceCount": {"placeholders": {"count": {"type": "int"}}},
   "@assignmentStaleWarning": {"placeholders": {"count": {"type": "int"}}},
   "@assignmentStaleDetail": {"placeholders": {"picture": {"type": "String"}, "sentences": {"type": "String"}}}
