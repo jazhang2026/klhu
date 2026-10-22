@@ -158,9 +158,9 @@ sentence and high light second sentence.
     让背景图有轻微的移动和缩放效果，让视频更生动。移动方向可以是随机的。上下左右，远近和斜向都可以。
     单个方向的移动距离不要超过图片本身的宽度或高度的10%。到边界时可以反弹回到原位。继续下一个方向的移动。
 
-024. add [scene] or [场景] tag support.
+024. add [scene] or [场景] tag support. example: [场景] 1：青石观蚁
     same as role tag, format button will start a new paragraph if not yet. for scene tag.
     scene tag will not be read and showing in the reading page and video.
     on Assign sentences page, add option(if found scene tags): auto assign scene sentences to pictures.
-    scene sentences are the sentences after line of this [scene] or [场景] tag and before next [scene] or [场景] tag.
+    scene sentences are the sentences after this [scene] or [场景] tag line and before next [scene] or [场景] tag.
     use the same order of pictures and scenes.
