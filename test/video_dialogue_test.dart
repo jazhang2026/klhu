@@ -169,4 +169,46 @@ void main() {
               'sentence it paints');
     });
   });
+
+  group('23. a dialogue under a scene tag (024 FR-005, 014 FR-005)', () {
+    // The shape the reader's own Format press makes: a scene tag as its own
+    // paragraph, then the turns. The tag's line is silent, but the paragraph
+    // under it is still the paragraph 014 reads — the mask may not join them.
+    const scened = '[场景] 1：青石观蚁\n\n{旁白}：今天天气很好。\n\n{阿明}：你好。';
+
+    Future<List<VideoSentence>> sentencesOf(String content) => videoSentencesFrom(
+          content: content,
+          position: 0,
+          loadVoice: _noPick,
+          mode: ReadingMode.dialogue,
+          loadInstalled: _installed,
+        );
+
+    test('no slot carries a tag, and every turn keeps its speaker', () async {
+      final sentences = await sentencesOf(scened);
+
+      expect(sentences.map((sentence) => sentence.text).toList(),
+          ['今天天气很好。', '你好。'],
+          reason: 'the tag lines are no slot, and the roles read their own words');
+      expect(sentences.map((sentence) => sentence.role).toList(),
+          ['旁白', '阿明'],
+          reason: 'a `{name}` line under a scene tag is still a paragraph head');
+      for (final sentence in sentences) {
+        expect(sentence.text.contains('{'), isFalse,
+            reason: 'a tag is never displayed in a frame');
+        expect(sentence.text.contains('旁白'), isFalse);
+        expect(sentence.text.contains('场景'), isFalse,
+            reason: "nor is 024's own tag line");
+      }
+    });
+
+    test('a role tag on the line under the scene tag is still the head',
+        () async {
+      final sentences =
+          await sentencesOf('[场景] 1：青石观蚁\n{旁白}：今天天气很好。');
+
+      expect(sentences.single.text, '今天天气很好。');
+      expect(sentences.single.role, '旁白');
+    });
+  });
 }

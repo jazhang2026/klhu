@@ -164,3 +164,13 @@ sentence and high light second sentence.
     on Assign sentences page, add option(if found scene tags): auto assign scene sentences to pictures.
     scene sentences are the sentences after this [scene] or [场景] tag line and before next [scene] or [场景] tag.
     use the same order of pictures and scenes.
+
+025. as a kalahoo reading user, I like to input document file to generate reading content.
+    document file type: pdf, doc, docx, txt and popular e-book formats.
+    should support page by page reading for large file to avoid memory issue.
+    should support direct document file reading to avoid creating local file for kalahoo app.
+
+026. add AI access for Kalahoo Reading. First supporting model: Google AI Studio (Gemini 2.5 Flash Lite). For free text/image/video generation.
+    Configuration: add AI configuration page to input API key and select model.
+    On Edit page, add AI button to the right of Format button. When click AI button, show a dialog to input AI prompt.
+    The AI prompt should be a string that will be sent to the AI model. The reading content can optionally be included in the prompt.

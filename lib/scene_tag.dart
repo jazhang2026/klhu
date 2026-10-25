@@ -214,6 +214,13 @@ bool _isSpace(String char) =>
 /// hard case `[scene] 第一场。他说。` yields no sentence for `第一场。` and swallows
 /// none of `他说。` (FR-005).
 ///
+/// The **break that ends a tag line stays a break.** It is the one character of
+/// the span that is not the line's own text: masking it to a space would join
+/// the tag's paragraph to the paragraph under it, and 014's turns are
+/// paragraphs — a `{旁白}：` line standing under a scene tag would stop being a
+/// paragraph's head and be read and painted as text. The tag's line is silent
+/// either way; the boundary between two paragraphs is not the tag's to remove.
+///
 /// A text with no tag is returned **as it is**, which is what makes a tag-free
 /// content's every derived list the one it had before this feature (FR-016).
 String sceneMasked(String text, {List<(int, int)> inside = const []}) =>
@@ -228,7 +235,11 @@ String maskedFromTags(String text, List<SceneTag> tags) {
   for (final tag in tags) {
     final (from, to) = tag.spanIn(text);
     if (from > cursor) buffer.write(text.substring(cursor, from));
-    buffer.write(' ' * (to - from));
+    // The break that ends the line is not the tag's to erase (see above): keep
+    // it, mask the rest as far as the span reaches.
+    final breakAt = to > from && text[to - 1] == '\n' ? to - 1 : to;
+    buffer.write(' ' * (breakAt - from));
+    if (breakAt < to) buffer.write(text.substring(breakAt, to));
     cursor = to;
   }
   buffer.write(text.substring(cursor));

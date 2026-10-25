@@ -232,6 +232,27 @@ void main() {
       }
     });
 
+    test('a tag line masks to spaces but keeps the break that ends it', () {
+      // A scene tag standing as its own paragraph — the shape the reader's own
+      // Format press makes. Masking the break with it would swallow the blank
+      // line under the tag, and 014's turns are paragraphs: the `{旁白}：` line
+      // under the tag would stop being a paragraph's head and be read and
+      // painted as text. The mask may silence the tag's line, not the boundary.
+      const text = '[场景] 1：青石观蚁\n\n{旁白}：今天天气很好。\n\n{阿明}：你好。';
+      final masked = sceneMasked(text);
+      expect(masked.length, text.length);
+      final tag = sceneTagsOf(text).single;
+      final (from, to) = tag.spanIn(text);
+      expect(masked.substring(from, to - 1).trim(), isEmpty,
+          reason: "the tag's own characters and its heading are silent");
+      expect(masked[to - 1], '\n', reason: 'the break is not the tag line');
+      // The paragraphs the read speaks are the deleted twin's own — one turn per
+      // reader's paragraph, the tags' lines producing none.
+      final deleted = _deleted(text);
+      expect([for (final para in paragraphRanges(masked)) _texts([para], masked).single],
+          [for (final para in paragraphRanges(deleted)) _texts([para], deleted).single]);
+    });
+
     test('no delimiter survives inside a tag line', () {
       const text = '[event] 第一场。他说。\n';
       // A near miss for the rule (so the mask is the text) and the real case.

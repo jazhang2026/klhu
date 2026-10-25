@@ -95,12 +95,21 @@ class Role {
 /// The prefix rule (FR-004): is this paragraph headed by a braced tag?
 ///
 /// ```text
-/// paragraph head := the paragraph's first line, its leading spaces trimmed
+/// paragraph head := the paragraph's first line that holds a character,
+///                   its leading spaces trimmed
 /// tag            := '{' name '}'  — ASCII braces only
 /// name           := between the braces, trimmed, at least one character,
 ///                   never spanning a line, ended by the first '}'
 /// separator      := spaces, an optional single ':' or '：', spaces
 /// ```
+///
+/// The head is the first line that **holds a character** rather than simply the
+/// first line, because 024 masks a scene tag's line to spaces of the same length
+/// (only the break that ends it survives): a `{旁白}：` line standing under a
+/// scene tag — whether the reader left no blank line between them or the tag has
+/// a paragraph of its own — is still the paragraph's head, so the tag is neither
+/// read nor painted. In a text with no such masked line the two readings are the
+/// same line and nothing about the rule changes.
 ///
 /// Returns null for anything else — `12:30`, `https://…`, `时间：8 点`,
 /// `他说：我来了`, `{阿明` (no closing brace), `{}` and a full-width `｛阿明｝`
@@ -115,7 +124,8 @@ class Role {
 /// characters. Only the head is a prefix.
 RoleTag? roleTagAt(String text, int paragraphStart, int paragraphEnd) {
   if (paragraphStart < 0 || paragraphEnd > text.length) return null;
-  final head = _lineRange(text, paragraphStart, paragraphEnd);
+  final head = _speakingLine(text, paragraphStart, paragraphEnd);
+  if (head == null) return null;
   var i = head.$1;
   while (i < head.$2 && (text[i] == ' ' || text[i] == '\t')) {
     i++;
@@ -536,9 +546,23 @@ String? languageOfVoice(String locale) {
   return null;
 }
 
-/// The first line of a paragraph, as `(start, end)` — tags never span a line.
-(int, int) _lineRange(String text, int paragraphStart, int paragraphEnd) {
-  final newline = text.indexOf('\n', paragraphStart);
-  final end = newline < 0 || newline > paragraphEnd ? paragraphEnd : newline;
-  return (paragraphStart, end);
+/// The paragraph's head line as `(start, end)`: the first of its lines that
+/// holds a character, or null when it holds none at all.
+///
+/// Tags never span a line, so the unit is the line. A line of nothing but
+/// whitespace is skipped rather than answered: only a mask makes one (024's
+/// scene line, spaces where the tag stood), and a paragraph whose first line
+/// speaks nothing is still headed by the line that does.
+(int, int)? _speakingLine(String text, int paragraphStart, int paragraphEnd) {
+  var lineStart = paragraphStart;
+  while (lineStart < paragraphEnd) {
+    final newline = text.indexOf('\n', lineStart);
+    final lineEnd = newline < 0 || newline > paragraphEnd ? paragraphEnd : newline;
+    for (var i = lineStart; i < lineEnd; i++) {
+      if (!_isSpace(text[i])) return (lineStart, lineEnd);
+    }
+    if (lineEnd >= paragraphEnd) break;
+    lineStart = lineEnd + 1;
+  }
+  return null;
 }
