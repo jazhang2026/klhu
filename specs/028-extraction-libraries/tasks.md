@@ -64,7 +64,7 @@ T014–T015 (device walk + receipts) remain.
 **Goal**: the extractors are wired into the seam, and a device walk proves each format imports and extracts.
 
 - [x] T013 `lib/document_input.dart`: wire the extractors into the seam — provide default implementations for `DocumentExtractor` (routes by kind to PdfExtractor/DocxExtractor/EpubExtractor) and `OcrEngine` (NativeOcrEngine).
-- [ ] T014 `specs/028-extraction-libraries/scripts/extraction_walk.py`: the device walk driver — import real PDF, DOCX, EPUB files and verify extraction; import a scanned PDF or image and verify OCR.
+- [ ] T014 `specs/028-extraction-libraries/scripts/extraction_walk.py`: the device walk driver — import real PDF, DOCX, EPUB files and verify extraction; import a scanned PDF or image and verify OCR. (script to be written at the walk stage)
 - [ ] T015 `specs/028-extraction-libraries/breakpoint.md`: walk receipts — the extraction results, OCR results, memory usage (SC-002), temporary file cleanup (SC-005).
 
 ## Phase 6: Closing pass
