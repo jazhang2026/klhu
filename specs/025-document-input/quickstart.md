@@ -33,6 +33,11 @@ Proves FR-002, SC-002.
 scanned page has no text to yield and this row cannot fail for the reason it was written (breakpoint.md § What is
 owed 2).
 
+**State 2026-10-27**: **PASS** (unit) — the seam's OCR functions now answer through an injected engine, so a scanned
+page has text to yield and this row can fail for the reason it was written; the OCR'd text enters the content pipeline
+like any other extracted text (FR-003, SC-003). The scanned document's read on device is the walk's next row (the
+engine is the device's own measurement).
+
 Test: the seam's OCR function against a scanned/picture-only input.
 Steps: OCR yields the text; the OCR'd text enters the pipeline like any other extracted text (FR-003, SC-003).
 Expected: the scanned document reads.

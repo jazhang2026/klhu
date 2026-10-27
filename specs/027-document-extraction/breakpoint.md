@@ -7,10 +7,11 @@ deferred kinds' real extraction on device is the mechanism's next step, held by 
 
 ## What is owed
 
-1. **The extraction mechanism** — answered in two halves: the feature's own seam (`lib/platform/document_extractor.dart`)
-   is the deferred kinds' extraction answer, and the platform's own facilities carry the text — **not yet implemented**;
-   until that lands, a deferred kind's answer is the Phase 1 holding answer (empty → the OCR answer, FR-003/Q2), and the
-   deferred kinds' own device walk is the row that waits on the mechanism.
+1. **The extraction mechanism** — answered in two halves: the feature's own seam (`lib/document_input.dart`) is the
+   deferred kinds' extraction answer, and the platform's own facilities carry the text — **not yet implemented**.
+   The OCR functions the seam hands the unextractable document to have now landed themselves (the added
+   `ocrText`/`OcrEngine` seam, #3); until the platform's own OCR does, a deferred kind's answer stays the Phase 1
+   holding answer, and the deferred kinds' own device walk is the row that waits on the mechanism.
 2. **The memory bound** — SC-002's page-by-page read, now wired for every content through the read's own units (the
    document's pages when it has them, else bounded segments of the extracted text, each unit holding its own text and
    content range): proven at unit level, the genuinely large document's read on device is the walk's next row.
@@ -41,11 +42,11 @@ check_artifact_refs.py              → no unresolved references
 
 ## Findings the reviewer must weigh
 
-### F1 — the extraction mechanism's answer, landed in two halves; the deferred kinds' own device walk waits on the platform
+### F1 — the extraction mechanism's answer, landed in three halves; the deferred kinds' own device walk waits on the platform
 
-The feature's own seam (`lib/platform/document_extractor.dart`) is the deferred kinds' extraction answer, and the
-seam grew: `extractText` now hands a deferred kind (PDF, DOC, DOCX, EPUB) to the platform extraction through an
-injectable `DocumentExtractor`, TXT still decodes as UTF-8, and the unextractable answer (the OCR functions, FR-003/Q2)
-holds. The platform's own facilities that carry the text have **not** landed — Phase 1's answer is the holding one — so
-a real deferred-kind document is not yet readable end to end, and the deferred kinds' own device walk is the row that
-waits on the mechanism.
+The feature's own seam (`lib/document_input.dart`) is the deferred kinds' extraction answer, and the seam grew:
+`extractText` now hands a deferred kind (PDF, DOC, DOCX, EPUB) to the platform extraction through an injectable
+`DocumentExtractor`, TXT still decodes as UTF-8, and where the text layer is absent the added OCR functions answer
+through an injectable `OcrEngine` (`lib/platform/ocr_engine.dart`, FR-003/Q2). The platform's own facilities that
+carry the text have **not** landed — Phase 1's answer is the holding one — so a real deferred-kind document is not yet
+readable end to end, and the deferred kinds' own device walk is the row that waits on the mechanism.

@@ -6,7 +6,9 @@ reading of SC-003 (in-memory only, burned after the read) landed the burn in the
 16:51:29 (`dumpsys package … lastUpdateTime`), with no file under `lib/` or `android/app/src` newer than it. (The
 16:23 run drove the 15:35:20 build; its numbers stand for that build.)
 **Status**: Phase 1–6 closed. Row 4 **WALKED — PASS** (21/21 checks, exit 0). Rows 1–2 pass at unit level; row 3
-**NOT WALKED** (no OCR implementation exists). Three findings (F2–F4) and four items owed, below; F1 is fixed.
+**PASS** (unit) as of 2026-10-27 (the OCR implementation landed, #3) — the scanned document's read on device is the
+walk's next row. Three findings (F2–F4) and four items owed, below; F1 is fixed. Item 2 is now **RESOLVED BY
+IMPLEMENTATION**.
 
 ## The walk, row by row
 
@@ -14,7 +16,7 @@ reading of SC-003 (in-memory only, burned after the read) landed the burn in the
 |---|---|---|
 | 1 — the pick → read seam answers for a text document | **PASS** (unit) | `test/document_input_test.dart`, inside the 908-case suite: the supported kinds, the refusal of `rtf`/`null`/`''`, the landing as `origin: user` |
 | 2 — the page/segment choice | **PASS** (unit) | the same table: pages own their text, an unsegmented text is cut into bounded segments, `'   '` yields none |
-| 3 — the OCR path | **NOT WALKED** | `requiresOcr()` is a predicate with a test; nothing OCRs a document (owed item 2) |
+| 3 — the OCR path | **PASS** (unit) | the seam's OCR functions (`lib/document_input.dart` + `lib/platform/ocr_engine.dart`) answer through an injected engine; the OCR'd text enters the pipeline like any other extracted text (FR-003, SC-003) |
 | 4 — the import end to end | **WALKED — PASS**, 20/20, exit 0 | `python3 -u specs/025-document-input/scripts/klhu_walk_document.py 4`; verbatim lines below |
 | structural (T007) | **PASS** | the numbers below |
 
@@ -147,9 +149,11 @@ moving the new test file aside), 908 with it.
    are deferred to later document-extraction features, which take the wider accepted list up; no row covers them
    here because row 4 drives TXT only. The readers themselves are therefore owed by those later features, not by
    025.
-2. **Q3's OCR.** `requiresOcr()` is a predicate with a test and no caller. Row 3 of the quickstart ("OCR yields the
-   text") is `NOT WALKED` and cannot be walked until there is an OCR implementation; the spec's edge case ("a document
-   with no extractable text is read through the added OCR functions") is unimplemented.
+2. **Q3's OCR — RESOLVED BY IMPLEMENTATION** (2026-10-27, #3): `requiresOcr()` now has its caller — the document
+   seam's `extractText` runs the added OCR functions when the extraction came back empty — and those functions
+   answer through an injected engine (`lib/platform/ocr_engine.dart`). Row 3 of the quickstart ("OCR yields the
+   text") is **PASS** (unit), and the OCR'd text enters the content pipeline like any other extracted text (FR-003,
+   SC-003). The scanned document's read on device is the walk's next row: the engine is the device's own measurement.
 3. **FR-002 in the read pipeline.** `documentSegments()` is unit-tested and has **no caller in `lib/`** (grep: only its
    own definition and the test). The read therefore still walks whatever text it is handed, whole. SC-002's device half
    is proven for a 141-char document without memory pressure — it says nothing yet about a document large enough to
