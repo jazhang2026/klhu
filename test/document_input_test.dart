@@ -9,11 +9,22 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/document_input.dart';
 import 'package:klhu/models/content.dart';
+import 'package:klhu/platform/document_extractor.dart';
 import 'package:klhu/services/content_store.dart';
+
+class _FakeExtractor implements DocumentExtractor {
+  _FakeExtractor(this.answer);
+
+  final String answer;
+
+  @override
+  Future<String> extract(Uint8List bytes, String kind) async => answer;
+}
 
 void main() {
   group('the document import seam', () {
@@ -33,6 +44,26 @@ void main() {
       expect(isSupportedDocumentKind('rtf'), isFalse);
       expect(isSupportedDocumentKind(null), isFalse);
       expect(isSupportedDocumentKind(''), isFalse);
+    });
+
+    test('a deferred kind goes through the platform extraction, and the unextractable answer holds (FR-001, FR-003)',
+        () async {
+      // FR-001: a deferred kind (PDF, DOC, DOCX, EPUB) is accepted and its text is
+      // the platform's own extraction's answer through the seam.
+      final extracted = await extractText(
+        Uint8List.fromList(<int>[1, 2, 3, 4]),
+        'pdf',
+        extractor: _FakeExtractor('The quick brown fox.'),
+      );
+      expect(extracted, 'The quick brown fox.');
+      // FR-003, Q2: where the platform cannot read the kind, the OCR answer holds.
+      expect(
+        await extractText(Uint8List.fromList(<int>[1]), 'epub', extractor: _FakeExtractor('')),
+        '',
+      );
+      expect(requiresOcr('pdf', ''), isTrue);
+      expect(requiresOcr('epub', ''), isFalse);
+      expect(requiresOcr('pdf', 'the text layer survived'), isFalse);
     });
 
     test('the no-text case is OCR’s to answer', () {
