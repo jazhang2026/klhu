@@ -67,7 +67,6 @@ class FileDocumentPicker implements DocumentPicker {
   static XTypeGroup documentTypes(TargetPlatform platform) {
     const List<String> extensions = <String>[
       'pdf',
-      'doc',
       'docx',
       'txt',
       'epub',

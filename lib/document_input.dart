@@ -22,7 +22,7 @@ import 'package:klhu/services/content_store.dart';
 
 /// The document kinds this feature accepts (spec FR-001, re-cut by Q2 — EPUB is
 /// the first-cut e-book format).
-const List<String> supportedDocumentKinds = <String>['txt', 'pdf', 'doc', 'docx', 'epub'];
+const List<String> supportedDocumentKinds = <String>['txt', 'pdf', 'docx', 'epub'];
 
 /// Is [kind] one this feature accepts?
 bool isSupportedDocumentKind(String? kind) {
@@ -32,9 +32,11 @@ bool isSupportedDocumentKind(String? kind) {
 
 /// Extracts text from a document file.
 ///
-/// TXT decodes as UTF-8. A deferred kind (PDF, DOC, DOCX, EPUB) is routed to
-/// the platform library that owns that kind (FR-001); where extraction yields
+/// TXT decodes as UTF-8. A deferred kind (PDF, DOCX, EPUB) is routed to the
+/// platform library that owns that kind (FR-001); where extraction yields
 /// nothing, the added OCR functions answer through [ocrEngine] (FR-003, Q2).
+/// Legacy DOC is excluded (out of scope for 028 — no Dart-level extraction
+/// library exists; a scanned PDF falls through to OCR instead).
 Future<String> extractText(Uint8List bytes, String kind,
     {DocumentExtractor? extractor, OcrEngine? ocrEngine}) async {
   final lowerKind = kind.toLowerCase();
@@ -54,6 +56,7 @@ Future<String> extractText(Uint8List bytes, String kind,
 
 /// The default platform extractor for [kind] — routes to the library that owns
 /// that kind (FR-001, 028 T013). Returns empty for a kind without a library yet.
+/// Legacy DOC is excluded (out of scope for 028).
 DocumentExtractor defaultExtractor(String kind) {
   switch (kind) {
     case 'pdf':

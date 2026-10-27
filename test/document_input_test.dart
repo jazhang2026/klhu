@@ -39,12 +39,13 @@ class _FakeOcrEngine implements OcrEngine {
 void main() {
   group('the document import seam', () {
     test('a supported text document yields its text', () {
-      // FR-001: the accepted kinds are the reader's own list — PDF, DOC, DOCX,
-      // TXT and popular e-book formats, EPUB the first cut (Q2).
+  // FR-001: the accepted kinds are the reader's own list — PDF, DOCX, TXT and
+  // popular e-book formats, EPUB the first cut (Q2). Legacy DOC is out of scope
+  // for 028 (no Dart-level extraction library exists; scanned PDFs fall through
+  // to OCR instead).
       expect(supportedDocumentKinds, containsAll(<String>[
         'txt',
         'pdf',
-        'doc',
         'docx',
         'epub',
       ]));
