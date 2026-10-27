@@ -58,6 +58,27 @@ void main() {
       expect(bounded.every((segment) => segment.isNotEmpty), isTrue);
       expect(documentSegments('   '), isEmpty);
     });
+
+    test('the read’s units: pages own their range, else bounded segments own theirs', () {
+      // FR-002, re-cut by Q1: the read walks the document’s own pages when it
+      // has them, else bounded segments of the extracted text - each unit the
+      // read holds in memory at a time, with the content range it owns (SC-002).
+      final pages = documentUnits('first page',
+          pages: <String>['first page', 'second page']);
+      expect(pages.length, 2);
+      expect(pages[0].text, 'first page');
+      expect(pages[0].start, 0);
+      expect(pages[0].end, 10);
+      expect(pages[1].text, 'second page');
+      expect(pages[1].start, 10);
+      expect(pages[1].end, 21);
+      final bounded = documentUnits('a sentence that is long enough to need cutting ' * 8,
+          maxChars: 40);
+      expect(bounded.length, greaterThan(1));
+      expect(bounded.every((unit) => unit.text.isNotEmpty), isTrue);
+      expect(bounded.first.end, greaterThan(0));
+      expect(documentUnits('   '), isEmpty);
+    });
   });
 
   group('the landing', () {

@@ -1149,6 +1149,66 @@ class _ReadingViewState extends State<ReadingView> {
     // its own `_runRead` (FR-010).
     _steppedRead = step;
     _stepEndKey = end;
+    // FR-002/SC-002: a whole-content read walks the content's units - the
+    // document's own pages, else bounded segments of the extracted text - as
+    // the seam's `documentUnits` lays them out, holding one unit's text in
+    // memory at a time and awaiting each unit's read before the next. A STEP
+    // read is not a paged read: its sentence or paragraph range is the unit the
+    // press asked for, not a segment.
+    if (!step) {
+      final units = documentUnits(_content);
+      final reads = <DocumentUnit>[];
+      if (units.isEmpty) {
+        reads.add(DocumentUnit(_content.substring(start, end).trim(), start, end));
+      }
+      for (final unit in units) {
+        final from = start > unit.start ? start : unit.start;
+        final to = end < unit.end ? end : unit.end;
+        if (to <= from) continue;
+        reads.add(DocumentUnit(_content.substring(from, to).trim(), from, to));
+      }
+      for (var i = 0; i < reads.length; i++) {
+        final unit = reads[i];
+        final speeches = await resolveSpeeches(
+          content: _content,
+          start: unit.start,
+          end: unit.end,
+          mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
+          removed: _roles.removedFor(_rolesVersion),
+          picks: _roles.voices,
+          // 015: this content's own answer, in both text types.
+          commentsRead: _roles.commentsRead,
+          loadVoice: widget.voiceStore.loadVoice,
+          // Only 多人对话 asks for the device's voices, and only because a role with
+          // no pick falls back to an assignment over them (FR-014). 標準's path is
+          // today's and never calls this (SC-005).
+          loadInstalled: _installedVoices,
+        );
+        if (speeches.isEmpty) {
+          if (i == reads.length - 1) {
+            setState(() =>
+                _hint = AppLocalizations.of(context)?.nothingToReadMessage ??
+                    'Nothing left to read from here.');
+          }
+          continue;
+        }
+        // Device evidence for the range actually read: `flutter_tts` never logs the
+        // utterance text on Android, so this is what proves a read started where
+        // the user pointed (research D10).
+        debugPrint('klhu read range: ${unit.start}..${unit.end}');
+        final gen = ++_readGen;
+        await _runRead(
+          gen,
+          () => widget.reader.speakParagraphs(
+            speeches,
+            onSentenceStart:
+                track ? (spoken) => _onSpokenSentence(gen, spoken) : null,
+          ),
+          last: i == reads.length - 1,
+        );
+      }
+      return;
+    }
     final speeches = await resolveSpeeches(
       content: _content,
       start: start,
@@ -1429,7 +1489,8 @@ class _ReadingViewState extends State<ReadingView> {
     _scrollToRect(geometry.paragraph, rect);
   }
 
-  Future<void> _runRead(int gen, Future<void> Function() start) async {
+  Future<void> _runRead(int gen, Future<void> Function() start,
+      {bool last = true}) async {
     if (mounted) setState(() => _mode = _Mode.speaking);
     try {
       await start();
@@ -1453,13 +1514,20 @@ class _ReadingViewState extends State<ReadingView> {
           if (!stepped) _highlight = null;
         });
         if (advances) {
-          _advanceStep(_stepEndKey);
+          if (last) {
+            _advanceStep(_stepEndKey);
+          }
         } else if (!stepped) {
-          // ⏭'s read (and any read that is not a step) still drops the
-          // highlight and the position together (011 FR-022, which 016 narrows
-          // for a step and for nothing else). A paragraph step keeps both: its
-          // unit is the paragraph, and there is no next sentence for it.
-          await _clearAnchor();
+          // A paged read's intermediate unit hands the floor to the next
+          // unit's own read instead of ending the read; only the last unit of a
+          // paged read - and every step or whole-content read - ends it, and an
+          // ending read still drops the highlight and the position together
+          // (011 FR-022, which 016 narrows for a step and for nothing else). A
+          // paragraph step keeps both: its unit is the paragraph, and there is
+          // no next sentence for it.
+          if (last) {
+            await _clearAnchor();
+          }
         }
       }
     }

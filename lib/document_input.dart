@@ -40,23 +40,53 @@ String extractText(Uint8List bytes, String kind) {
   return '';
 }
 
+/// A read unit of a paged document: the text one read holds in memory at a
+/// time, and the content range it owns (FR-002, Q1, SC-002) — the unit's own
+/// trimmed text, the offsets the read's sentences point into.
+class DocumentUnit {
+  final String text;
+  final int start;
+  final int end;
+
+  const DocumentUnit(this.text, this.start, this.end);
+}
+
+/// The read's units for [text]: the document's own pages when it has them, else
+/// bounded segments of the extracted text (FR-002, Q1); an empty [text] yields
+/// no units, so a read of nothing holds nothing (FR-003).
+List<DocumentUnit> documentUnits(String text,
+    {List<String>? pages, int maxChars = 4000}) {
+  final owned = pages ?? const <String>[];
+  if (owned.isNotEmpty) {
+    final units = <DocumentUnit>[];
+    var cursor = 0;
+    for (final page in owned) {
+      final start = cursor;
+      final end = cursor + page.length;
+      units.add(DocumentUnit(page.trim(), start, end));
+      cursor = end;
+    }
+    return units;
+  }
+  final clean = text.trim();
+  if (clean.isEmpty) return const <DocumentUnit>[];
+  final units = <DocumentUnit>[];
+  var start = 0;
+  while (start < text.length) {
+    final end = start + maxChars < text.length ? start + maxChars : text.length;
+    units.add(DocumentUnit(text.substring(start, end).trim(), start, end));
+    start = end;
+  }
+  return units;
+}
+
 /// The segments a read walks from extracted text: the document's own pages when
 /// it has them (Q1), else bounded segments of the extracted text (FR-002).
 List<String> documentSegments(String text, {List<String>? pages, int maxChars = 4000}) {
-  final owned = pages ?? const <String>[];
-  if (owned.isNotEmpty) {
-    return <String>[for (final page in owned) page.trim()];
-  }
-  final clean = text.trim();
-  if (clean.isEmpty) return const <String>[];
-  final segments = <String>[];
-  var start = 0;
-  while (start < clean.length) {
-    final end = start + maxChars < clean.length ? start + maxChars : clean.length;
-    segments.add(clean.substring(start, end).trim());
-    start = end;
-  }
-  return segments;
+  return <String>[
+    for (final unit in documentUnits(text, pages: pages, maxChars: maxChars))
+      unit.text,
+  ];
 }
 
 /// Does this document’s text need the OCR functions (FR-003, Q3)? A document
