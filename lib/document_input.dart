@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:klhu/models/content.dart';
 import 'package:klhu/platform/document_extractor.dart';
+import 'package:klhu/platform/ocr_engine.dart';
 import 'package:klhu/services/content_store.dart';
 
 /// The document kinds this feature accepts (spec FR-001, re-cut by Q2 — EPUB is
@@ -32,13 +33,29 @@ bool isSupportedDocumentKind(String? kind) {
 /// answer for the kinds the platform cannot read); the OCR functions answer
 /// where the text layer is absent (FR-003).
 Future<String> extractText(Uint8List bytes, String kind,
-    {DocumentExtractor? extractor}) async {
+    {DocumentExtractor? extractor, OcrEngine? ocrEngine}) async {
   final lowerKind = kind.toLowerCase();
   if (lowerKind == 'txt') {
     return utf8.decode(bytes, allowMalformed: true);
   }
-  return (extractor ?? const MethodChannelDocumentExtractor()).extract(
+  final extracted = await (extractor ?? const MethodChannelDocumentExtractor()).extract(
       bytes, lowerKind);
+  if (requiresOcr(lowerKind, extracted)) {
+    // FR-003/Q2: the text layer is absent — a scanned document — so the added
+    // OCR functions read the picture; the OCR'd text then enters the content
+    // pipeline like any other extracted text.
+    return ocrText(bytes, lowerKind, engine: ocrEngine);
+  }
+  return extracted;
+}
+
+/// The OCR functions the spec's Q2 answer added (FR-003): read a document whose
+/// text layer is absent — a scanned PDF — and yield its text; the OCR'd text then
+/// enters the content pipeline like any other extracted text. The engine is the
+/// platform's own capability behind them; a kind it cannot read answers empty, and
+/// the document seam then has no text to land (FR-003).
+Future<String> ocrText(Uint8List bytes, String kind, {OcrEngine? engine}) {
+  return (engine ?? const MethodChannelOcrEngine()).recognize(bytes, kind);
 }
 
 /// A read unit of a paged document: the text one read holds in memory at a
