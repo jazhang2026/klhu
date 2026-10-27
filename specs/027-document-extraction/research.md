@@ -44,6 +44,93 @@ same seam grown to PDF, DOC, DOCX and EPUB through the platform's own facilities
 - **R2** — OCR availability and cost on device — measured at the walk.
 - **R3** — the memory bound (SC-002) on a genuinely large extracted document — measured at the walk.
 
+## §4 Library findings (2026-10-27 supplement)
+
+### PDF extraction
+
+**Recommended**: `flutter_pdf_text` (0.9.0)
+- Android: Apache PdfBox (battle-tested, page-by-page support)
+- iOS: Apple PDFKit (native, efficient)
+- Supports page-by-page extraction (matches Q1 requirement)
+- Lazy loading: text cached page-per-page
+- Published 20 months ago, actively maintained
+
+**Alternative**: `qnox_pdf_text` (0.1.2)
+- Similar capabilities, also supports URLs
+- Android: pdfbox-android, iOS: PDFKit
+- Slightly newer (13 months ago)
+
+### DOCX extraction
+
+**Recommended**: `docx_to_text` (pure Dart)
+- Pure Dart implementation, no platform dependencies
+- Simple API: `docxToText(bytes)`
+- Lightweight, cross-platform
+- Good for .docx; .doc requires older format parser
+
+**Alternative**: `doc_text_extractor` (2.1.1)
+- Supports .doc, .docx, PDF, Google Docs
+- Uses Syncfusion PDF extraction
+- More heavyweight
+
+### EPUB extraction
+
+**Recommended**: `epub_decoder` (0.1.4)
+- Pure Dart/Flutter, parses EPUB 2 & 3
+- Lists sections/chapters in reading order
+- Extracts text per section (matches page-by-page requirement)
+- Get metadata: title, authors, language
+- Published 23 months ago
+
+**Alternative**: `sakura_epub` (0.1.3)
+- Full EPUB reader with text extraction
+- Built on epub.js and flutter_inappwebview
+- More heavyweight, includes rendering
+
+### OCR
+
+**Recommended**: `flutter_native_ocr` (0.1.0)
+- iOS: Apple Vision framework (native, no ML Kit)
+- Android: Google ML Kit Text Recognition v2
+- On-device, no internet required
+- High accuracy, multiple languages
+- Simple API: `recognizeText(imagePath)`
+
+**Alternative**: `platform_text_recognition` (0.2.0)
+- iOS: Apple Vision (no ML Kit/SPM deps)
+- Android: Google ML Kit
+- Avoids ML Kit on iOS (lighter build)
+- Similar capabilities
+
+**Alternative**: `tesseract_ocr` (0.5.0)
+- Tesseract 4 on both platforms
+- Supports 100+ languages
+- Heavier, but more language options
+
+### Unified approach option
+
+**Consider**: `extract_text` (0.0.2)
+- Single package for PDF, DOCX, TXT, and OCR
+- Uses `read_pdf_text` for PDF
+- Uses ML Kit for OCR (Android/iOS)
+- Simple unified API: `ExtractText.fromFile(filePath)`
+- Early version (0.0.2), may have stability concerns
+- DOCX works on all platforms, PDF/OCR mobile only
+
+### Recommendation
+
+Use the individual specialized libraries:
+- PDF: `flutter_pdf_text` (battle-tested, page-by-page)
+- DOCX: `docx_to_text` (pure Dart, simple)
+- EPUB: `epub_decoder` (sections/chapters)
+- OCR: `flutter_native_ocr` (platform-native, accurate)
+
+This approach:
+- Uses battle-tested, specialized libraries for each format
+- Provides fine-grained control per format
+- Avoids single-point-of-failure in one monolithic package
+- Aligns with the seam's injectable `DocumentExtractor` design
+
 ## What this research does not measure
 
 The device-side numbers (extraction capability, OCR behaviour, memory) are design inputs here and become receipts at

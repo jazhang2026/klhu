@@ -43,6 +43,12 @@ checklist against that cut.
 | **FR-003** direct read + OCR | 025's row 1/4, via the cut | the no-staging rule re-entered with the deferred kinds |
 | **FR-004** ordinary content | 025's row 3/4, via the cut | the landing is the existing store |
 
+### Stage result — the OCR stage (2026-10-27, #3)
+
+The added OCR functions landed in the document seam (`lib/document_input.dart`, behind the injected `OcrEngine` in
+`lib/platform/ocr_engine.dart`); FR-003's OCR arm is implemented at unit level, and the seam's OCR answer — quickstart
+row 1 of this feature and row 3 of 025 — now **PASS** (unit).
+
 ### What is owed
 
 - **The extraction mechanism** for PDF/DOCX/epub on device — which platform facilities carry the text, and what a
