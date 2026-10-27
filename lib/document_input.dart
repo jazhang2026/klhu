@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:klhu/models/content.dart';
+import 'package:klhu/platform/document_extractor.dart';
 import 'package:klhu/services/content_store.dart';
 
 /// The document kinds this feature accepts (spec FR-001, re-cut by Q2 — EPUB is
@@ -26,18 +27,18 @@ bool isSupportedDocumentKind(String? kind) {
 
 /// Extracts text from a document file.
 ///
-/// For TXT files, decodes as UTF-8. For other formats (PDF, DOC, DOCX, EPUB),
-/// this is a placeholder that returns an empty string — the actual extraction
-/// uses platform facilities and OCR (research §3, Q3), which are added in
-/// follow-up work.
-String extractText(Uint8List bytes, String kind) {
+/// TXT decodes as UTF-8. A deferred kind (PDF, DOC, DOCX, EPUB) is handed to the
+/// platform's own extraction through [extractor] (FR-001, FR-003, and the Q2
+/// answer for the kinds the platform cannot read); the OCR functions answer
+/// where the text layer is absent (FR-003).
+Future<String> extractText(Uint8List bytes, String kind,
+    {DocumentExtractor? extractor}) async {
   final lowerKind = kind.toLowerCase();
   if (lowerKind == 'txt') {
     return utf8.decode(bytes, allowMalformed: true);
   }
-  // Placeholder for PDF, DOC, DOCX, EPUB extraction.
-  // These require platform-specific libraries or OCR (Q3).
-  return '';
+  return (extractor ?? const MethodChannelDocumentExtractor()).extract(
+      bytes, lowerKind);
 }
 
 /// A read unit of a paged document: the text one read holds in memory at a

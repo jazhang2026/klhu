@@ -17,6 +17,7 @@ import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/picture_assignment_screen.dart';
 import 'package:klhu/picture_assignment_store.dart';
 import 'package:klhu/picture_cell.dart';
+import 'package:klhu/platform/document_extractor.dart';
 import 'package:klhu/platform/document_picker.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
@@ -115,6 +116,11 @@ class ReadingView extends StatefulWidget {
   /// test's own keeps the dialog out of the test.
   final DocumentPicker documentPicker;
 
+  /// The platform's own text extraction for a deferred document kind (027), the
+  /// seam the import's extraction grows through - the real one is the app's, a
+  /// test's own keeps the engine out of the test.
+  final DocumentExtractor? documentExtractor;
+
   final Function(String)? onLanguageChanged;
   final dynamic localizationService;
 
@@ -130,6 +136,7 @@ class ReadingView extends StatefulWidget {
     this.videoWorkDir,
     PicturePicker? picturePicker,
     DocumentPicker? documentPicker,
+    DocumentExtractor? documentExtractor,
     this.onLanguageChanged,
     this.localizationService,
   })  : reader = reader ?? ReaderService(),
@@ -142,7 +149,8 @@ class ReadingView extends StatefulWidget {
         videoFileStore = videoFileStore ?? MethodChannelVideoFileStore(),
         videoPlayer = videoPlayer ?? PlatformVideoPlayer(),
         picturePicker = picturePicker ?? const FilePicturePicker(),
-        documentPicker = documentPicker ?? const FileDocumentPicker();
+        documentPicker = documentPicker ?? const FileDocumentPicker(),
+        documentExtractor = documentExtractor ?? const MethodChannelDocumentExtractor();
 
   /// The engine a render speaks through — the reader's own when it can write
   /// files, else a fresh service (D5: the read and the render share one voice
@@ -897,7 +905,7 @@ class _ReadingViewState extends State<ReadingView> {
         return;
       }
 
-      final text = extractText(bytes, kind);
+      final text = await extractText(bytes, kind, extractor: widget.documentExtractor);
       if (text.isEmpty) {
         if (!mounted) return;
         setState(() => _error = AppLocalizations.of(context)
