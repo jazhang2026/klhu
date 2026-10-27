@@ -13,7 +13,11 @@ import 'dart:typed_data';
 
 import 'package:klhu/models/content.dart';
 import 'package:klhu/platform/document_extractor.dart';
+import 'package:klhu/platform/docx_extractor.dart';
+import 'package:klhu/platform/epub_extractor.dart';
+import 'package:klhu/platform/native_ocr_engine.dart';
 import 'package:klhu/platform/ocr_engine.dart';
+import 'package:klhu/platform/pdf_extractor.dart';
 import 'package:klhu/services/content_store.dart';
 
 /// The document kinds this feature accepts (spec FR-001, re-cut by Q2 — EPUB is
@@ -28,18 +32,17 @@ bool isSupportedDocumentKind(String? kind) {
 
 /// Extracts text from a document file.
 ///
-/// TXT decodes as UTF-8. A deferred kind (PDF, DOC, DOCX, EPUB) is handed to the
-/// platform's own extraction through [extractor] (FR-001, FR-003, and the Q2
-/// answer for the kinds the platform cannot read); the OCR functions answer
-/// where the text layer is absent (FR-003).
+/// TXT decodes as UTF-8. A deferred kind (PDF, DOC, DOCX, EPUB) is routed to
+/// the platform library that owns that kind (FR-001); where extraction yields
+/// nothing, the added OCR functions answer through [ocrEngine] (FR-003, Q2).
 Future<String> extractText(Uint8List bytes, String kind,
     {DocumentExtractor? extractor, OcrEngine? ocrEngine}) async {
   final lowerKind = kind.toLowerCase();
   if (lowerKind == 'txt') {
     return utf8.decode(bytes, allowMalformed: true);
   }
-  final extracted = await (extractor ?? const MethodChannelDocumentExtractor()).extract(
-      bytes, lowerKind);
+  final docExtractor = extractor ?? defaultExtractor(lowerKind);
+  final extracted = await docExtractor.extract(bytes, lowerKind);
   if (requiresOcr(lowerKind, extracted)) {
     // FR-003/Q2: the text layer is absent — a scanned document — so the added
     // OCR functions read the picture; the OCR'd text then enters the content
@@ -48,6 +51,25 @@ Future<String> extractText(Uint8List bytes, String kind,
   }
   return extracted;
 }
+
+/// The default platform extractor for [kind] — routes to the library that owns
+/// that kind (FR-001, 028 T013). Returns empty for a kind without a library yet.
+DocumentExtractor defaultExtractor(String kind) {
+  switch (kind) {
+    case 'pdf':
+      return const PdfExtractor();
+    case 'docx':
+      return const DocxExtractor();
+    case 'epub':
+      return const EpubExtractor();
+    default:
+      return const MethodChannelDocumentExtractor();
+  }
+}
+
+/// The default OCR engine (FR-003, 028 T013): the platform's own OCR capability
+/// via flutter_native_ocr.
+OcrEngine defaultOcrEngine() => const NativeOcrEngine();
 
 /// The OCR functions the spec's Q2 answer added (FR-003): read a document whose
 /// text layer is absent — a scanned PDF — and yield its text; the OCR'd text then
@@ -107,11 +129,16 @@ List<String> documentSegments(String text, {List<String>? pages, int maxChars = 
   ];
 }
 
-/// Does this document’s text need the OCR functions (FR-003, Q3)? A document
-/// whose extraction came back empty and that can carry a picture — a PDF — does.
+/// Does this document's text need the OCR functions (FR-003, Q3)? A document
+/// whose extraction came back empty and that can carry a picture — a PDF or an
+/// image kind the OCR engine knows — does. (The spec's Q2 answer: OCR for any
+/// image-based document, including scanned PDFs and images the reader picks.)
 bool requiresOcr(String kind, String extractedText) {
   if (extractedText.trim().isNotEmpty) return false;
-  return kind == 'pdf';
+  // The OCR engine handles PDF and common image formats; a non-image non-PDF
+  // with no text layer is simply empty and never OCR'd.
+  const ocrKinds = <String>{'pdf', 'png', 'jpg', 'jpeg'};
+  return ocrKinds.contains(kind);
 }
 
 /// The landing (spec FR-004): the produced text becomes a user content through

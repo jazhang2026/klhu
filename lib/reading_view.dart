@@ -157,8 +157,8 @@ class ReadingView extends StatefulWidget {
         videoPlayer = videoPlayer ?? PlatformVideoPlayer(),
         picturePicker = picturePicker ?? const FilePicturePicker(),
         documentPicker = documentPicker ?? const FileDocumentPicker(),
-        documentExtractor = documentExtractor ?? const MethodChannelDocumentExtractor(),
-        ocrEngine = ocrEngine ?? const MethodChannelOcrEngine();
+        documentExtractor = documentExtractor ?? defaultExtractor('pdf'),
+        ocrEngine = ocrEngine ?? defaultOcrEngine();
 
   /// The engine a render speaks through — the reader's own when it can write
   /// files, else a fresh service (D5: the read and the render share one voice

@@ -43,6 +43,16 @@ dependencies:
   # contents/<id>.txt. Text does not belong in SharedPreferences (whole map is
   # parsed into memory at launch); see specs/008-content-storage/research.md D1.
   path_provider: ^2.1.6
+  # PDF extraction (spec 028 FR-001): Apache PdfBox on Android, Apple PDFKit on iOS
+  flutter_pdf_text: ^0.9.0
+  # DOCX extraction (spec 028 FR-002): pure Dart implementation
+  docx_to_text: ^1.0.1
+  # EPUB extraction (spec 028 FR-003): pure Dart implementation with chapters
+  epub_decoder: ^0.1.4
+  # XML parsing for EPUB XHTML text extraction (transitive via epub_decoder, made direct here)
+  xml: ^6.5.0
+  # OCR (spec 028 FR-004): Apple Vision on iOS, Google ML Kit on Android
+  flutter_native_ocr: ^0.1.0
   # The reader's own pictures (spec 012 FR-025): the platform's own FILE picker
   # rather than the photo picker, because the reader's images are files — made
   # on the phone, on a PC, or by an AI tool — and the file dialog is the one
