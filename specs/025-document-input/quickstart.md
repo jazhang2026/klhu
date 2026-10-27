@@ -16,6 +16,9 @@ enters the content pipeline (FR-004/SC-001).
 Expected: the seam answers for the txt fixture; the refusal holds.
 Proves FR-001, FR-003, FR-004, SC-001.
 
+**State 2026-10-27**: the seam's accepted set is **TXT** — the FR-001 TXT-first cut closed this row's FR-001, and the
+PDF, DOC, DOCX and EPUB kinds are the later document-extraction features' scope (breakpoint.md § What is owed, item 1).
+
 ### 2. The page/segment choice — the phone's original pages, else bounded segments — [unit]
 
 Test: the same seam's table, on a multi-page-shaped text and on a long single-segment text.

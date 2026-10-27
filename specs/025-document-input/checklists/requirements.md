@@ -73,7 +73,7 @@ Each requirement is read against the row that claimed it — not against what th
 
 | requirement | row that claimed it | what the walk shows |
 |---|---|---|
-| **FR-001** accepted types | row 1 (unit), row 4 (device) | TXT: accepted, imported, landed, read, rendered — row 4, 21/21. PDF/DOC/DOCX/EPUB: *accepted and then refused in effect* — `extractText()` returns `''`, so the reader picks a PDF and the app answers *No text could be extracted from this document*. The requirement as written is **not** met for four of its five kinds. |
+| **FR-001** accepted types | row 1 (unit), row 4 (device) | TXT: accepted, imported, landed, read, rendered — row 4, 21/21; the accepted set this feature implements is now **TXT** (the FR-001 TXT-first cut, 2026-10-27). PDF/DOC/DOCX/EPUB: deferred with that cut to later document-extraction features, which take the wider list up — this feature accepts the supported set it can read and refuses the rest. |
 | **FR-002** page by page | rows 2 (unit), 4 (device) | `documentSegments()` answers Q1 in its unit table, and has **no caller in `lib/`**. The read pipeline still holds what it is handed; nothing reads page by page. **Not met** as behaviour. |
 | **FR-003** direct read + OCR | rows 1 (unit), 4 (device) | Direct: met, on the reader's own terms (Q4) — the bytes are read into memory and the platform's staged copy is burned once they are there; the app's cache held no copy of the document after the walk. OCR: `requiresOcr()` only; **not met** (Q3's answer is unimplemented). |
 | **FR-004** ordinary content | rows 3 (unit), 4 (device) | Met for load/save/read/render: the import added exactly one `origin: user` content whose stored text is the document's, and it read and rendered like any other. Delete of an imported content: unproven (no row). |
@@ -92,8 +92,9 @@ Each requirement is read against the row that claimed it — not against what th
 
 ### What is owed, and what each one needs decided
 
-- **PDF/DOC/DOCX/EPUB extraction** — implement the four readers, or amend FR-001 to a TXT-first cut. The app
-  currently accepts kinds it cannot read.
+- **PDF/DOC/DOCX/EPUB extraction** — **RESOLVED BY DECISION** (FR-001's TXT-first cut, 2026-10-27): the four kinds
+  are deferred to later document-extraction features, which take the wider accepted list up; the extraction itself is
+  now owed by those features, not by 025. The app no longer accepts kinds it cannot read.
 - **OCR (Q3)** — there is a predicate and no reader; quickstart row 3 stays `NOT WALKED`.
 - **Paging in the read** — `documentSegments()` needs a caller in `reading_view`/`reader_service` before SC-002 means
   anything for a large document.

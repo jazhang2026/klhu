@@ -141,11 +141,12 @@ moving the new test file aside), 908 with it.
 
 ## What is owed (each one is a decision, not a chore)
 
-1. **FR-001/FR-003 for PDF, DOC, DOCX and EPUB.** `extractText()` returns `''` for all four; the reader can pick one,
-   and the app then says *No text could be extracted from this document.* So the accepted-types list is a promise the
-   extraction does not keep. Either implement the four readers (platform facilities; EPUB needs an unzip + XHTML text
-   pass, DOC/DOCX need OOXML/Word text extraction, PDF needs a text layer or OCR) or amend FR-001 to a TXT-first cut
-   with the rest as their own feature. No row covers these kinds today — row 4 drives TXT only.
+1. **FR-001/FR-003 for PDF, DOC, DOCX and EPUB — RESOLVED BY DECISION (TXT-first cut, 2026-10-27).** `extractText()`
+   returned `''` for all four, so the accepted-types list was a promise the extraction did not keep; FR-001 was
+   then amended to a TXT-first cut, and this feature's accepted set is **TXT**. The PDF, DOC, DOCX and EPUB kinds
+   are deferred to later document-extraction features, which take the wider accepted list up; no row covers them
+   here because row 4 drives TXT only. The readers themselves are therefore owed by those later features, not by
+   025.
 2. **Q3's OCR.** `requiresOcr()` is a predicate with a test and no caller. Row 3 of the quickstart ("OCR yields the
    text") is `NOT WALKED` and cannot be walked until there is an OCR implementation; the spec's edge case ("a document
    with no extractable text is read through the added OCR functions") is unimplemented.

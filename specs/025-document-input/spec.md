@@ -97,7 +97,10 @@ exhaustion.
 ### Functional Requirements
 
 - **FR-001**: The app MUST accept a document file as reading-content input; the accepted types are the
-  reader's own list — PDF, DOC, DOCX, TXT, and EPUB (the first-cut e-book format).
+  reader's own list — PDF, DOC, DOCX, TXT, and EPUB (the first-cut e-book format). **TXT-first cut** (2026-10-27):
+  the accepted set this feature implements is **TXT**, the first-cut type its own extraction reads; the PDF, DOC,
+  DOCX and EPUB kinds are deferred to later document-extraction features, and a file outside the supported set is
+  refused, with nothing stored (FR-003).
 - **FR-002**: The app MUST read an accepted document page by page — using the phone's original document's page
   where the document has one, and bounded segments of the extracted text otherwise — holding no more than one
   page's text in memory at a time.
@@ -124,8 +127,9 @@ exhaustion.
   roots — the page painted the document's 140 chars, the store gained exactly one content (`origin: user`,
   `language: zh-Hans`), its stored text was 141 chars byte-equal to the file, one `Continue Read` press logged
   `klhu read range: 0..141` and 8 `klhu speak` lines in the document's own sentence order, and the render reported
-  `sentences=8 … frames=1135` with 8 slots. **Limit**: TXT only — PDF/DOC/DOCX/EPUB extraction does not exist yet,
-  and no row drives deleting an imported content (breakpoint.md § What is owed 1 and 4).
+  `sentences=8 … frames=1135` with 8 slots. **Limit**: TXT only — the PDF, DOC, DOCX and EPUB extraction is
+  deferred to later document-extraction features (FR-001's TXT-first cut, 2026-10-27) — and no row drives deleting
+  an imported content (breakpoint.md § What is owed 4).
 - **SC-002**: A large document is read page by page — the phone's original pages where they exist, bounded
   segments of the extracted text otherwise — and the read completes without memory exhaustion. **Receipt**:
   `documentSegments()` answers Q1 with bounded segments (unit table), and row 4's read of a 141-char document ran to

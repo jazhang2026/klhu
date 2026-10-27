@@ -31,12 +31,15 @@ row 4 → 21/21   a real .txt through the app's own import tab and DocumentsUI's
                 render sentences=8, 1134 frames, 8 slots
 ```
 
-**What a reviewer should argue with first**: the feature's promise is wider than what runs. `extractText()` returns
-`''` for PDF/DOC/DOCX/EPUB — the app accepts all four and then says it could not extract text; `requiresOcr()` is a
-predicate with no caller; and `documentSegments()` has **no caller in `lib/`**, so the read pipeline is unchanged and
-nothing reads page by page yet. The four items owed, each with the decision it needs, are in
-[breakpoint.md](./breakpoint.md) § What is owed. The pick's own copy is settled: Q4's answer (*内存副本只用于阅读，读完即焚*)
-re-worded FR-003/SC-003 and T010 burns the platform's staged copy once the bytes are in memory.
+**What a reviewer should argue with first**: the feature's promise is narrower than the reader's own wish, which
+named five kinds and asked for all three seams; this feature's accepted set is now **TXT** (the first-cut type its own
+extraction reads — the FR-001 TXT-first cut of 2026-10-27), so the PDF, DOC, DOCX and EPUB kinds are deferred to later
+document-extraction features rather than accepted-and-refused. `requiresOcr()` is a predicate with no caller; and
+`documentSegments()` has **no caller in `lib/`**, so the read pipeline is unchanged and nothing reads page by page yet.
+The items owed, each with the decision it needs, are in
+[breakpoint.md](./breakpoint.md) § What is owed (item 1 closed by the cut; items 2–4 still open). The pick's own copy is
+settled: Q4's answer (*内存副本只用于阅读，读完即焚*) re-worded FR-003/SC-003 and T010 burns the platform's staged
+copy once the bytes are in memory.
 
 ## Grounding notes (the decisions these tasks implement)
 
@@ -157,7 +160,7 @@ the reader during the walk when the measure showed `file_selector` leaving one c
 
 | requirement | tasks |
 |---|---|
-| FR-001 (accepted types: PDF, DOC, DOCX, TXT, EPUB first cut) | T001, T002, T003b |
+| FR-001 (accepted type: TXT, first cut) | T001, T002, T003b |
 | FR-002 (page-by-page: phone-original pages else bounded segments; memory bound) | T002, T004, T005 |
 | FR-003 (direct read; OCR where text cannot be extracted) | T001, T002, T006, T010 |
 | FR-004 (imported content is an ordinary content) | T003, T004 |

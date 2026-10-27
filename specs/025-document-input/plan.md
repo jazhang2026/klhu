@@ -9,6 +9,10 @@ document reading — closed at the clarify stage by the reader's answers of 2026
 document's page if possible, else bounded segments of the extracted text), **Q2** (EPUB, for now), **Q3** (add OCR
 functions for this spec and the next AI support).
 
+**TXT-first cut** (2026-10-27): the accepted set this stage implements is **TXT**, the first-cut type its own
+extraction reads; the PDF, DOC, DOCX and EPUB kinds are deferred to later document-extraction features, and the plan
+no longer carries them as this feature's scope.
+
 ## What this plan builds, in one paragraph
 
 An **input before the content pipeline**: the reader picks a document file, the app reads it — the phone's own
