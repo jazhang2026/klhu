@@ -99,6 +99,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contentsTitle => 'Contents';
 
   @override
+  String get importDocumentButton => 'Import document';
+
+  @override
+  String get unsupportedDocumentMessage => 'Unsupported document type';
+
+  @override
+  String get emptyDocumentMessage =>
+      'No text could be extracted from this document';
+
+  @override
+  String get documentImportFailedMessage => 'Failed to import document';
+
+  @override
   String get saveButton => 'Save';
 
   @override

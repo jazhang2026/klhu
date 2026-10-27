@@ -11,11 +11,13 @@ import 'package:klhu/content_naming.dart';
 import 'package:klhu/dialogue.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/comment.dart';
+import 'package:klhu/document_input.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/picture_assignment_screen.dart';
 import 'package:klhu/picture_assignment_store.dart';
 import 'package:klhu/picture_cell.dart';
+import 'package:klhu/platform/document_picker.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
@@ -108,6 +110,11 @@ class ReadingView extends StatefulWidget {
   /// test's own keeps the dialog out of the test.
   final PicturePicker picturePicker;
 
+  /// The reader's own documents, chosen from their files (025 FR-001): the
+  /// platform's file dialog, behind its own seam. The real one is the app's; a
+  /// test's own keeps the dialog out of the test.
+  final DocumentPicker documentPicker;
+
   final Function(String)? onLanguageChanged;
   final dynamic localizationService;
 
@@ -122,6 +129,7 @@ class ReadingView extends StatefulWidget {
     VideoPlayer? videoPlayer,
     this.videoWorkDir,
     PicturePicker? picturePicker,
+    DocumentPicker? documentPicker,
     this.onLanguageChanged,
     this.localizationService,
   })  : reader = reader ?? ReaderService(),
@@ -133,7 +141,8 @@ class ReadingView extends StatefulWidget {
         videoEncoder = videoEncoder ?? MethodChannelVideoEncoder(),
         videoFileStore = videoFileStore ?? MethodChannelVideoFileStore(),
         videoPlayer = videoPlayer ?? PlatformVideoPlayer(),
-        picturePicker = picturePicker ?? const FilePicturePicker();
+        picturePicker = picturePicker ?? const FilePicturePicker(),
+        documentPicker = documentPicker ?? const FileDocumentPicker();
 
   /// The engine a render speaks through — the reader's own when it can write
   /// files, else a fresh service (D5: the read and the render share one voice
@@ -596,6 +605,13 @@ class _ReadingViewState extends State<ReadingView> {
         tooltip: l10n?.contentsButton ?? 'Contents',
         onPressed: () => _openContentList(),
       ),
+      // Document import (025 FR-001): offered idle-only, importing
+      // replaces the current content.
+      IconButton(
+        icon: const Icon(Icons.upload_file),
+        tooltip: l10n?.importDocumentButton ?? 'Import document',
+        onPressed: _isSpeakingOrPaused ? null : _importDocument,
+      ),
       // The text type (014 FR-022): offered in 标准 too, because the
       // chooser is where a dialogue is turned on; allowed mid-read,
       // since switching changes nothing but the setting (FR-020).
@@ -859,6 +875,50 @@ class _ReadingViewState extends State<ReadingView> {
         }
       case NewContentRequest():
         await _startNewContent();
+    }
+  }
+
+  /// Import a document file (025 FR-001).
+  Future<void> _importDocument() async {
+    await widget.reader.stop();
+    if (!mounted) return;
+    final picked = await widget.documentPicker.pick();
+    if (picked == null || !mounted) return;
+    if (_hasUnsavedEdits && await _confirmDiscard() != true) return;
+
+    try {
+      final bytes = await picked.read();
+      final kind = picked.name.split('.').last.toLowerCase();
+      if (!isSupportedDocumentKind(kind)) {
+        if (!mounted) return;
+        setState(() => _error = AppLocalizations.of(context)
+                ?.unsupportedDocumentMessage ??
+            'Unsupported document type');
+        return;
+      }
+
+      final text = extractText(bytes, kind);
+      if (text.isEmpty) {
+        if (!mounted) return;
+        setState(() => _error = AppLocalizations.of(context)
+                ?.emptyDocumentMessage ??
+            'No text could be extracted from this document');
+        return;
+      }
+
+      // Save the imported text as a user content (FR-004).
+      final saved = await saveImported(_store, text);
+      await _loadEntry(saved);
+
+      if (mounted && _mode == _Mode.edit) {
+        setState(() => _mode = _Mode.read);
+        _disposeUndo();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = AppLocalizations.of(context)
+              ?.documentImportFailedMessage ??
+          'Failed to import document: $e');
     }
   }
 

@@ -270,7 +270,8 @@ def render_plan(log):
     if not match:
         return None
     ranges = []
-    for token in match.group(2).split(","):
+    tokens = match.group(2).split(",") if match.group(2) else []
+    for token in tokens:
         if token == "-":
             ranges.append(None)
             continue

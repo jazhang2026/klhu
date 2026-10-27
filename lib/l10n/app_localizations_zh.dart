@@ -98,6 +98,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get contentsTitle => '内容';
 
   @override
+  String get importDocumentButton => '导入文档';
+
+  @override
+  String get unsupportedDocumentMessage => '不支持的文档类型';
+
+  @override
+  String get emptyDocumentMessage => '无法从此文档提取文本';
+
+  @override
+  String get documentImportFailedMessage => '导入文档失败';
+
+  @override
   String get saveButton => '保存';
 
   @override
@@ -568,6 +580,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get contentsTitle => '内容';
+
+  @override
+  String get importDocumentButton => '导入文档';
+
+  @override
+  String get unsupportedDocumentMessage => '不支持的文档类型';
+
+  @override
+  String get emptyDocumentMessage => '无法从此文档提取文本';
+
+  @override
+  String get documentImportFailedMessage => '导入文档失败';
 
   @override
   String get saveButton => '保存';

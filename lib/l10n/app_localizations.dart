@@ -263,6 +263,30 @@ abstract class AppLocalizations {
   /// **'Contents'**
   String get contentsTitle;
 
+  /// No description provided for @importDocumentButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import document'**
+  String get importDocumentButton;
+
+  /// No description provided for @unsupportedDocumentMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported document type'**
+  String get unsupportedDocumentMessage;
+
+  /// No description provided for @emptyDocumentMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No text could be extracted from this document'**
+  String get emptyDocumentMessage;
+
+  /// No description provided for @documentImportFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to import document'**
+  String get documentImportFailedMessage;
+
   /// No description provided for @saveButton.
   ///
   /// In en, this message translates to:
