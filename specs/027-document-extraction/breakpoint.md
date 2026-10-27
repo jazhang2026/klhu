@@ -42,11 +42,11 @@ check_artifact_refs.py              → no unresolved references
 
 ## Findings the reviewer must weigh
 
-### F1 — the extraction mechanism's answer, landed in three halves; the deferred kinds' own device walk waits on the platform
+### F1 — the extraction mechanism is now landed; the deferred kinds' own device walk waits on a real file
 
 The feature's own seam (`lib/document_input.dart`) is the deferred kinds' extraction answer, and the seam grew:
-`extractText` now hands a deferred kind (PDF, DOC, DOCX, EPUB) to the platform extraction through an injectable
-`DocumentExtractor`, TXT still decodes as UTF-8, and where the text layer is absent the added OCR functions answer
-through an injectable `OcrEngine` (`lib/platform/ocr_engine.dart`, FR-003/Q2). The platform's own facilities that
-carry the text have **not** landed — Phase 1's answer is the holding one — so a real deferred-kind document is not yet
-readable end to end, and the deferred kinds' own device walk is the row that waits on the mechanism.
+`extractText` now routes PDF to `PdfExtractor` (flutter_pdf_text), DOCX to `DocxExtractor` (docx_to_text), EPUB to
+`EpubExtractor` (epub_decoder), and unextractable documents to `NativeOcrEngine` (flutter_native_ocr) via
+`defaultExtractor`/`defaultOcrEngine`. The deferred kinds' own device walk is the row that waits on a real file:
+the unit rows are green, the platform library implementations are in place — what remains is the device walk that
+imports a real PDF, DOCX, EPUB and scanned image to prove each path end-to-end.
