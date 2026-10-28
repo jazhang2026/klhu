@@ -10,9 +10,10 @@ Rows with no story label are the shared core, the walk, or the closing.
 
 ## Status
 
-**IN PROGRESS — 13 of 18 tasks done** (2026-10-27). Phase 1–4 complete: all four platform extractors implemented and tested.
-Phase 5 in progress: T013 integration done (defaultExtractor/defaultOcrEngine wire the four libraries into the seam);
-T014–T015 (device walk + receipts) remain.
+**CLOSED — 18 of 18 tasks done** (2026-10-28). All four platform extractors (PDF via flutter_pdf_text, DOCX via docx_to_text,
+EPUB via epub_decoder, OCR via flutter_native_ocr) implemented behind the 027 seams and unit-tested. Integration (T013) wires
+them into `defaultExtractor`/`defaultOcrEngine`. Device walk (T014–T015): row 1 (PDF import) 5/5 on device; row 6 (delete) 5/5.
+Structural row 5: flutter analyze clean, 932 tests pass, 139 ARB keys per locale, all six artifact checkers green.
 
 ## Grounding notes (the decisions these tasks implement)
 
@@ -71,9 +72,9 @@ T014–T015 (device walk + receipts) remain.
 
 **Goal**: the stage is closed on its own numbers.
 
-- [ ] T016 `specs/028-extraction-libraries/breakpoint.md`: the structural row — `flutter analyze`, the suite's count, the ARB keys, the artifact checkers.
-- [ ] T017 `specs/028-extraction-libraries/spec.md`: write the walk's measured figures back into SC-001–SC-005's own sentences.
-- [ ] T018 `specs/028-extraction-libraries/checklists/requirements.md`: the checklist's stage notes — what landed, what is owed, and each requirement read against the row that claimed it.
+- [x] T016 `specs/028-extraction-libraries/breakpoint.md`: the structural row — `flutter analyze`, the suite's count, the ARB keys, the artifact checkers.
+- [x] T017 `specs/028-extraction-libraries/spec.md`: write the walk's measured figures back into SC-001–SC-005's own sentences.
+- [x] T018 `specs/028-extraction-libraries/checklists/requirements.md`: the checklist's stage notes — what landed, what is owed, and each requirement read against the row that claimed it.
 
 ## Dependencies & ordering
 
