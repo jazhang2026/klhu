@@ -11,9 +11,9 @@
 /// extracted text, and the only copy while reading is the one in memory.
 ///
 /// 026 — Google Drive support: when `file.readAsBytes()` returns empty for a
-/// `content://` URI (Google Drive files), we fall back to opening the file in
-/// Google Drive for export. The returned map contains the original URI and a
-/// message explaining what to do next.
+/// `content://` URI (Google Drive files), the read falls back to the platform's
+/// ContentResolver through [readContentUri], so Drive files flow through the
+/// existing extraction seam unchanged.
 library;
 
 import 'dart:io';
@@ -79,44 +79,6 @@ Future<Uint8List> readContentUri(String uri) async {
   }
 }
 
-/// Exports a Google Drive file by opening it in the Google Drive app.
-///
-/// Google Drive files live behind DocListProvider, which is not exported to
-/// third-party apps. Direct ContentResolver reads fail. This function opens
-/// the file in Google Drive via ACTION_VIEW, where the user can export it
-/// to a local file (share → Save to device), then pick it again from their
-/// local storage.
-///
-/// Returns a map with keys:
-///   - `uri`: the original content:// URI (for reference)
-///   - `message`: user-facing instruction text
-/// Returns null on failure.
-/// See spec 026, FR-002.
-Future<Map<String, String>?> exportDriveFile(String uri) async {
-  final channel = MethodChannel('klhu/document_picker');
-  try {
-    final dynamic response = await channel.invokeMethod(
-        'exportDriveFile', <String, dynamic>{'uri': uri});
-    if (response is Map) {
-      return {
-        'uri': response['uri'] as String? ?? '',
-        'message': response['message'] as String? ?? '',
-      };
-    }
-    return null;
-  } catch (_) {
-    return null;
-  }
-}
-
-/// Whether a path looks like a Google Drive content URI.
-///
-/// Matches URIs from the two Drive authority roots that DocumentsUI uses:
-/// `com.google.android.apps.docs.storage` and `com.google.android.apps.photoscontent`.
-bool isDriveUri(String path) =>
-    path.startsWith('content://com.google.android.apps.docs') ||
-    path.startsWith('content://com.google.android.apps.photoscontent');
-
 /// Chooses documents from the reader's files.
 abstract class DocumentPicker {
   /// The document the reader chose. Empty when the reader cancelled; throws
@@ -129,8 +91,6 @@ class FileDocumentPicker implements DocumentPicker {
   const FileDocumentPicker();
 
   /// The document kinds the dialog offers (FR-001: PDF, DOCX, TXT, EPUB).
-  /// Includes Google Drive MIME types so Drive files appear in the picker and
-  /// can be handled through the native export layer (spec 026).
   static XTypeGroup documentTypes(TargetPlatform platform) {
     const List<String> extensions = <String>[
       'pdf',
@@ -146,7 +106,7 @@ class FileDocumentPicker implements DocumentPicker {
           uniformTypeIdentifiers: <String>[
             'com.adobe.pdf',
             'com.microsoft.word.doc',
-            'org.openxmlformats-wordprocessingml.document',
+            'org.openxmlformats.wordprocessingml.document',
             'public.plain-text',
             'org.idpf.epub-container',
           ],
@@ -165,12 +125,6 @@ class FileDocumentPicker implements DocumentPicker {
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'text/plain',
             'application/epub+zip',
-            // spec 026: Google Drive native formats.
-            'application/vnd.google-apps.document',
-            'application/vnd.google-apps.spreadsheet',
-            'application/vnd.google-apps.presentation',
-            'application/vnd.google-apps.drawing',
-            'application/vnd.google-apps.form',
           ],
         );
     }
@@ -188,13 +142,10 @@ class FileDocumentPicker implements DocumentPicker {
       name: file.name,
       read: () async {
         Uint8List bytes = await file.readAsBytes();
-        // 026: content:// fallback for Google Drive and other content
-        // provider URIs. First try readAsBytes() directly (fast path for
-        // local files). If that returns empty and the path is a content://
-        // URI, attempt to read through the native ContentResolver. If that
-        // also fails (e.g. for Google Drive files behind DocListProvider),
-        // fall through — the caller will see empty bytes and the extraction
-        // seam will hand the document to OCR or refuse it.
+        // 026: content:// fallback — when readAsBytes() returns empty for a
+        // Google Drive (or other content-provider) URI, try the platform's
+        // ContentResolver. If that also returns empty, the extraction seam
+        // will hand the document to OCR (FR-003) or refuse it.
         if (bytes.isEmpty && file.path.startsWith('content://')) {
           bytes = await readContentUri(file.path);
         }
