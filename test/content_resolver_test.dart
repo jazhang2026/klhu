@@ -66,8 +66,8 @@ void main() {
       final result = await exportDriveFile(
           'content://com.google.android.apps.docs.storage/document/raw/1a2b3c');
       expect(result, isNotNull);
-      expect(result?.success, isFalse);
-      expect(result?.message, isNotEmpty);
+      expect(result!['uri'], contains('content://'));
+      expect(result['message'], isNotEmpty);
     });
 
     test('exportDriveFile returns null on failure', () async {

@@ -38,17 +38,6 @@ class PickedDocument {
   final Future<Uint8List> Function() read;
 }
 
-/// Result of a Drive import attempt.
-class DriveImportResult {
-  const DriveImportResult({required this.success, required this.message});
-
-  /// Whether the import succeeded.
-  final bool success;
-
-  /// User-facing message explaining the result.
-  final String message;
-}
-
 /// Deletes the platform's own cached copy of a pick, once its bytes are in
 /// memory (FR-003, SC-003).
 ///
@@ -98,19 +87,21 @@ Future<Uint8List> readContentUri(String uri) async {
 /// to a local file (share → Save to device), then pick it again from their
 /// local storage.
 ///
-/// Returns a [DriveImportResult] with success=false and a user-facing message.
+/// Returns a map with keys:
+///   - `uri`: the original content:// URI (for reference)
+///   - `message`: user-facing instruction text
 /// Returns null on failure.
 /// See spec 026, FR-002.
-Future<DriveImportResult?> exportDriveFile(String uri) async {
+Future<Map<String, String>?> exportDriveFile(String uri) async {
   final channel = MethodChannel('klhu/document_picker');
   try {
     final dynamic response = await channel.invokeMethod(
         'exportDriveFile', <String, dynamic>{'uri': uri});
     if (response is Map) {
-      return DriveImportResult(
-        success: false,
-        message: response['message'] as String? ?? '',
-      );
+      return {
+        'uri': response['uri'] as String? ?? '',
+        'message': response['message'] as String? ?? '',
+      };
     }
     return null;
   } catch (_) {
