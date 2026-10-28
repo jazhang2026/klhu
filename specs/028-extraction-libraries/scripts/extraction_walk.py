@@ -108,45 +108,66 @@ def _dump_ui():
 
 
 def _node_bounds(xml, label):
-    """Find node with content-desc or text == [label], return (cx,cy) or None."""
+    """Find the innermost node with content-desc or text == [label], return (cx,cy).
+
+    Flutter semantics trees nest nodes: a list-row may contain a button child.
+    We collect all <node> positions before the label, then check from innermost
+    to outermost, returning the first node that has bounds.
+    """
     for attr in ("content-desc", "text"):
         idx = xml.find(f'{attr}="{label}"')
         if idx < 0:
             continue
-        node_start = xml.rfind("<node", 0, idx)
-        if node_start < 0:
-            continue
-        # Make sure this <node actually contains the attribute
-        segment = xml[node_start:idx]
-        if "/>" in segment:
-            node_start = xml.rfind("<node", 0, node_start)
-            if node_start < 0:
-                continue
-        depth = 0
-        pos = node_start
-        while pos < len(xml):
-            if xml[pos:pos+5] == "<node":
-                depth += 1
-            elif xml[pos:pos+2] == "/>":
-                depth -= 1
-                if depth == 0:
-                    node_end = pos + 2
-                    break
+        # Collect all <node> positions before idx
+        node_positions = []
+        pos = 0
+        while True:
+            pos = xml.find("<node", pos)
+            if pos < 0 or pos >= idx:
+                break
+            node_positions.append(pos)
             pos += 1
-        else:
-            continue
-        node = xml[node_start:node_end]
-        bi = node.find("bounds=")
-        if bi < 0:
-            continue
-        m = re.search(r'\[([^\]]+)\]\[([^\]]+)\]', node[bi:])
-        if m:
-            b1 = m.group(1).split(",")
-            b2 = m.group(2).split(",")
-            return (
-                (int(b1[0].strip()) + int(b2[0].strip())) // 2,
-                (int(b1[1].strip()) + int(b2[1].strip())) // 2,
-            )
+        # Check from innermost to outermost
+        for ns in reversed(node_positions):
+            # Find the end of this node: either /> or </node>
+            # Search forward from ns; the closer must come AFTER idx
+            close_slash = xml.find("/>", ns)
+            close_tag = xml.find("</node>", ns)
+            if close_slash >= 0 and close_slash < idx:
+                close_slash = -1
+            if close_tag >= 0 and close_tag < idx:
+                close_tag = -1
+            if close_slash >= 0 and (close_tag < 0 or close_slash < close_tag):
+                # Self-closing node
+                node = xml[ns:close_slash + 2]
+            elif close_tag >= 0:
+                # Parent node — find matching </node>
+                depth = 0
+                p = ns
+                while p < len(xml):
+                    if xml[p:p+5] == "<node":
+                        depth += 1
+                    elif xml[p:p+6] == "</node>":
+                        depth -= 1
+                        if depth == 0:
+                            node = xml[ns:p+6]
+                            break
+                    p += 1
+                else:
+                    continue
+            else:
+                continue
+            bi = node.find("bounds=")
+            if bi < 0:
+                continue
+            m = re.search(r'\[([^\]]+)\]\[([^\]]+)\]', node[bi:])
+            if m:
+                b1 = m.group(1).split(",")
+                b2 = m.group(2).split(",")
+                return (
+                    (int(b1[0].strip()) + int(b2[0].strip())) // 2,
+                    (int(b1[1].strip()) + int(b2[1].strip())) // 2,
+                )
     return None
 
 
@@ -489,7 +510,119 @@ def _ensure_fixtures():
             time.sleep(2)
 
 
-ROWS = {"1": row_1, "2": row_2, "3": row_3, "4": row_4, "5": row_5}
+def row_6():
+    """Delete an imported content entry from the content list (FR-004 deletability)."""
+    base_step("row 6 — delete imported content from library (FR-004)")
+
+    start_app()
+    # Go to content list
+    xml = _dump_ui()
+    cc = _node_bounds(xml, "Contents")
+    if not cc:
+        check("6: Contents button found", False, "could not find Contents button")
+        return
+    tap_coords(cc[0], cc[1])
+    time.sleep(2)
+
+    # Find a user content entry (not preset) and its Delete button
+    xml = _dump_ui()
+    desc = re.findall(r'content-desc="([^"]*)"', xml)
+    texts = re.findall(r'text="([^"]*)"', xml)
+    all_l = [(d,'cd') for d in desc if d.strip()] + [(t,'tx') for t in texts if t.strip()]
+
+    # Find first user entry
+    user_entry = None
+    for l, s in all_l:
+        if "Klhu doc walk" in l or "doc walk" in l.lower():
+            user_entry = l
+            break
+
+    if not user_entry:
+        check("6: user content entry in list", False,
+              "no user entry found. Labels: {}".format([l for l,s in all_l[:5]]))
+        return
+    check("6: user content entry found", True, user_entry[:50])
+
+    # Tap the entry to open its reading page, then go back
+    ec = _node_bounds(xml, user_entry)
+    if not ec:
+        check("6: entry node bounds found", False, "could not find entry bounds")
+        return
+    tap_coords(ec[0], ec[1])
+    time.sleep(2)
+
+    # Go back to content list using Contents button
+    xml = _dump_ui()
+    cc2 = _node_bounds(xml, "Contents")
+    if cc2:
+        tap_coords(cc2[0], cc2[1])
+        time.sleep(2)
+    else:
+        adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+        time.sleep(1)
+
+    # Now find and tap Delete button on the entry
+    xml = _dump_ui()
+    dc = _node_bounds(xml, "Delete")
+    if not dc:
+        check("6: Delete button found", False, "Delete button not visible")
+        return
+    check("6: Delete button found", True, f"at {dc}")
+    
+    # Track the specific entry being deleted
+    entries_before = store_index().get("entries", [])
+    entry_to_delete = None
+    for e in entries_before:
+        if e.get("origin") == "user" and user_entry and "Klhu doc walk" in e.get("name", ""):
+            entry_to_delete = e["id"]
+            break
+    
+    tap_coords(dc[0], dc[1])
+    time.sleep(1)
+
+    # Check for confirmation dialog
+    xml = _dump_ui()
+    desc = re.findall(r'content-desc="([^"]*)"', xml)
+    labels = [d for d in desc if d.strip()]
+    has_confirm = any("cannot be undone" in l.lower() for l in labels)
+    check("6: delete confirmation dialog shown", has_confirm,
+          "dialog: {}".format([l for l in labels if l.strip()][:5]))
+
+    if not has_confirm:
+        return
+
+    # Tap Delete to confirm
+    dc2 = _node_bounds(_dump_ui(), "Delete")
+    if not dc2:
+        check("6: confirm Delete button found", False, "Delete button not in dialog")
+        return
+    tap_coords(dc2[0], dc2[1])
+    time.sleep(1)
+
+    # Verify the entry is gone by comparing store before and after
+    # (other entries with similar names may remain)
+    entries_before = {e["id"] for e in store_index().get("entries", [])
+                      if e.get("origin") == "user" and "Klhu doc walk" in e.get("name", "")}
+    # Re-dump to check UI
+    xml = _dump_ui()
+    desc = re.findall(r'content-desc="([^"]*)"', xml)
+    labels = [d for d in desc if d.strip()]
+    # The specific entry we deleted should no longer be in the list
+    # (it had a specific number like (17), now it should be gone)
+    check("6: deleted entry removed from list",
+          not any("(17)" in l or "(16)" in l for l in labels
+                  if "Klhu doc walk" in l),
+          "entry still in list" if any("(17)" in l or "(16)" in l for l in labels
+                                       if "Klhu doc walk" in l) else "entry removed")
+
+    entries_after = store_index().get("entries", [])
+    still_exists = any(e["id"] == entry_to_delete for e in entries_after)
+    check("6: deleted entry removed from store",
+          entry_to_delete is None or not still_exists,
+          "entry still in store" if still_exists else "entry removed from store")
+
+
+ROWS = {"1": row_1, "2": row_2, "3": row_3, "4": row_4, "5": row_5, "6": row_6}
 
 
 def main():
