@@ -9,7 +9,7 @@
 
 ## Status
 
-IN PROGRESS — 5 of 5 tasks done (2026-10-28). Stub implementation in place; content:// fallback wired in document_picker.dart, tests added. Device walk row 1 awaits a device with Google Drive installed and signed-in account.
+IN PROGRESS — 5 of 5 tasks done (2026-10-28). Stub implementation committed; content:// fallback wired in document_picker.dart, tests added. Device walk: Google Drive app present on emulator but no signed-in account — Drive root not visible in DocumentsUI. Full Drive import walk requires a real device with signed-in Drive account or emulator setup with a Google account.
 
 ## Phase 1: Research
 
