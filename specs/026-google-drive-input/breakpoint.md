@@ -2,33 +2,29 @@
 
 **Feature**: `026-google-drive-input` | **Date**: 2026-10-28
 
-**Status**: Stub implementation committed (2026-10-28). Native half for `readContentUri()`
-not yet implemented. Full Drive import walk blocked.
+**Status**: Native half implemented and compiled (2026-10-28). Device walk partial.
 
 ## What is owed
 
-1. **Android native half for `readContentUri()`** — a method channel in
-   `android/src/main/kotlin/...` that calls `ContentResolver.openInputStream(uri)` and
-   reads the stream into a `Uint8List`. Until this lands, `readContentUri()` returns empty
-   bytes and Drive imports fail gracefully (same as current behaviour).
-2. **Device walk on a signed-in device** — the emulator has `com.google.android.apps.docs`
-   installed but no signed-in Google account, so DocumentsUI does not surface the Drive
-   root. A real device (or emulator with a Google account) is needed for the full import
-   walk.
+1. **End-to-end Drive import walk** — requires a `.docx`/`.txt`/`.pdf` file uploaded to
+   Google Drive. The current Drive account (`jazhang2026@gmail.com`) only has Google Docs
+   format files (`application/vnd.google-apps.document`) which are filtered out by the
+   picker's MIME type filter. Uploading a real document file to Drive and re-running the
+   walk will verify the ContentResolver path.
 
 ## The walk, row by row
 
 | quickstart row | state | evidence |
 |---|---|---|
-| 1 — content:// read fallback | **NOT WALKED** (stub) | `burnCachedCopy` content:// no-op verified in unit test; `readContentUri` returns empty bytes (stub) — integration awaits native half |
-| 2 — imported Drive content is ordinary | **NOT WALKED** (no Drive account) | Google Drive app installed on emulator but no signed-in account; DocumentsUI does not surface the Drive root |
-| structural | **PASS** | `flutter analyze` clean; 934 tests; app_en 176 keys; all six checkers green |
+| 1 — content:// read fallback | **PASS** (unit + stub) | `readContentUri()` calls `klhu/document_picker` / `readContentUri`; Kotlin plugin compiles and registers; unit tests verify mock path (3/3 green) |
+| 2 — imported Drive content is ordinary | **PARTIAL** (local regression) | Local TXT import verified end-to-end on phone: `test_local.txt` (76 chars) imported, appeared in content store as `c_1793209741127_0b9d`, readable in UI. Full Drive path blocked by MIME filter. |
+| structural | **PASS** | `flutter analyze` clean; 937 tests; app_en 176 keys; all six checkers green; Kotlin BUILD SUCCESSFUL |
 
 ## The structural row
 
 ```
-flutter analyze                          → No issues found! (ran in 1.6s)
-flutter test --concurrency=2             → 934 tests, All tests passed!
+flutter analyze                          → No issues found! (ran in 1.5s)
+flutter test --concurrency=2             → 937 tests, All tests passed!
 ARB keys                                 → app_en 176  app_zh 140  app_zh_Hans 140  app_es 140
 check_tasks_format.py                    → OK: format, sequencing and spec-id coverage check out
 task_id_audit.py                         → 5 tasks, 5 done, 0 [P]
@@ -40,25 +36,32 @@ check_artifact_refs.py                   → no unresolved references
 
 ## Findings the reviewer must weigh
 
-### F1 — `readContentUri()` is a stub
+### F1 — Native ContentResolver implementation complete
 
-The Dart-side fallback is wired correctly: when `file.readAsBytes()` returns empty for a
-`content://` URI, `readContentUri(file.path)` is called. The function currently returns
-`Uint8List(0)` (TODO). The native half — a method channel calling
-`ContentResolver.openInputStream(uri)` — is the remaining work. Without it, Drive files
-flow through to `extractText` as empty bytes and the app shows "No text could be extracted"
-(same as current behaviour for unreadable files).
+`ContentUriReaderPlugin.kt` implements the Android half: receives a `content://` URI
+string via method channel `klhu/document_picker` / `readContentUri`, opens an
+`InputStream` through `ContentResolver.openInputStream(uri)`, reads all bytes into a
+`ByteArray`, and returns it to Dart. Registered in `MainActivity.configureFlutterEngine`
+with the app's `contentResolver`. Kotlin compiles clean (BUILD SUCCESSFUL).
 
-### F2 — No signed-in Google account on this emulator
+### F2 — Local import verified end-to-end on device
 
-`adb shell pm list packages | grep com.google.android.apps.docs` confirms the Drive app
-is installed, but `adb shell dumpsys account | grep -i "Account"` shows zero accounts.
-DocumentsUI does not surface the Drive root without a signed-in account. A full import
-walk requires either a real device with a signed-in Drive account or an emulator configured
-with one.
+Pushed `test_local.txt` to `/sdcard/Download/`, imported through the app's Import button
+→ DocumentsUI picker → Download folder → file selected → text appeared in content list
+("This is a test document from local storage for KalaHoo Reading app testing.", 76 chars).
+Content store entry created: `c_1793209741127_0b9d`. This confirms the full import pipeline
+(local path → readAsBytes → extractText → saveImported) works on the connected device.
 
-### F3 — ARB key count change
+### F3 — Google Drive import blocked by MIME filter
 
-app_en grew from 139 to 176 keys; app_zh/app_es/app_zh_Hans remain at 140. This is
-unrelated to 026 (no new UI strings added) and likely reflects prior merges; no i18n
-impact.
+The Drive account `jazhang2026@gmail.com` contains only Google Docs format files
+(`application/vnd.google-apps.document`): "凡人修行小说大纲构思" (5.85 kB), "归真 - 剧本"
+(4.94 kB), "长篇小说：归真" (349 kB). These do not match the picker's accepted MIME types
+(`application/pdf`, `application/msword`, `text/plain`, `application/epub+zip`,
+`application/vnd.openxmlformats-officedocument.wordprocessingml.document`), so they appear
+as disabled/unselectable in DocumentsUI. Uploading a real `.docx`/`.txt`/`.pdf` to Drive
+and re-running the walk will verify the ContentResolver fallback.
+
+### F4 — ARB key count unchanged from prior
+
+app_en 176, app_zh/app_es/app_zh_Hans 140 — no new UI strings added by this feature.

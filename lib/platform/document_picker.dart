@@ -20,6 +20,7 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// One chosen document: what it is called, and how to read it.
@@ -61,17 +62,21 @@ Future<bool> burnCachedCopy(String path, {Directory? cacheRoot}) async {
 
 /// Reads bytes from a `content://` URI through the platform's ContentResolver.
 ///
-/// Used as a fallback when `XFile.readAsBytes()` returns empty for a Google
-/// Drive (or other content-provider) URI. Returns empty on failure so the
+/// Used as a fallback when `readAsBytes()` returns empty for a Google Drive
+/// (or other content-provider) URI. Returns empty on failure so the
 /// caller can fall through to the OCR path or the "unsupported" message.
+///
+/// Method channel: `klhu/document_picker` / `readContentUri`.
+/// See spec 026, research D1/D2.
 Future<Uint8List> readContentUri(String uri) async {
-  // TODO(026): implement the platform channel call to read content:// URIs.
-  // On Android, this calls ContentResolver.openInputStream(Uri.parse(uri))
-  // and reads the stream into a Uint8List. The method channel name is
-  // 'klhu/document_picker' and the method is 'readContentUri'.
-  // Until the native half is written, return empty so the import fails
-  // gracefully (same as the current behavior for unreadable Drive files).
-  return Uint8List(0);
+  final channel = MethodChannel('klhu/document_picker');
+  try {
+    final List<dynamic> bytes = await channel.invokeMethod(
+        'readContentUri', <String, dynamic>{'uri': uri});
+    return Uint8List.fromList(bytes.cast<int>());
+  } catch (_) {
+    return Uint8List(0);
+  }
 }
 
 /// Chooses documents from the reader's files.

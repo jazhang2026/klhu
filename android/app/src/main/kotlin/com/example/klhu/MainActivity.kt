@@ -13,6 +13,10 @@ class MainActivity : FlutterActivity() {
      * Three of them: the render's encoder, the library the reader keeps a video
      * in (and hands it to the share list from), and the picture the review and
      * a kept video are watched on.
+     *
+     * Plus spec 026: the ContentResolver reader for Google Drive (and other
+     * content-provider) URIs that `file_selector` returns but
+     * `XFile.readAsBytes()` cannot read on some Android versions.
      */
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -24,5 +28,7 @@ class MainActivity : FlutterActivity() {
             VideoPlayerView.VIEW_TYPE,
             VideoPlayerViewFactory(messenger),
         )
+        // spec 026: content:// URI reader for Google Drive and other providers.
+        ContentUriReaderPlugin().register(messenger, contentResolver)
     }
 }
