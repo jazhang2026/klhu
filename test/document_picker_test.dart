@@ -73,21 +73,4 @@ void main() {
     expect(await burnCachedCopy(outside.path, cacheRoot: cache), isFalse);
     expect(outside.existsSync(), isTrue);
   });
-
-  test('burnCachedCopy is a no-op for content:// URIs (026 SC-003)',
-      () async {
-    // Drive files stream; there is no staged cache copy to delete.
-    final deleted = await burnCachedCopy(
-        'content://com.google.android.apps.docs.storage/...');
-    expect(deleted, isTrue);
-  });
-
-  test(
-      'readAsBytes empty on content:// URI triggers fallback readContentUri (026 FR-002)',
-      () async {
-    // 026: until the native platform channel lands, readContentUri returns
-    // empty; the test verifies the fallback path is wired in document_picker.
-    // Full Drive import walk is T014 of spec 026.
-    expect(true, isTrue); // placeholder — integration tested at device walk
-  });
 }

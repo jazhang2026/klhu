@@ -9,11 +9,6 @@
 /// the bytes can be read, so the bytes are read first and that copy is deleted
 /// the moment they are in memory — the content that lands in the library is the
 /// extracted text, and the only copy while reading is the one in memory.
-///
-/// 026 — Google Drive support: when `file.readAsBytes()` returns empty for a
-/// `content://` URI (Google Drive files), the read falls back to the platform's
-/// ContentResolver through [readContentUri], so Drive files flow through the
-/// existing extraction seam unchanged.
 library;
 
 import 'dart:io';
@@ -46,8 +41,6 @@ class PickedDocument {
 /// Answers whether a file was deleted.
 Future<bool> burnCachedCopy(String path, {Directory? cacheRoot}) async {
   if (path.isEmpty) return false;
-  // content:// URIs have no local cache copy to delete — Drive files stream.
-  if (path.startsWith('content://')) return true;
   final Directory root = cacheRoot ?? await getApplicationCacheDirectory();
   final File file = File(path).absolute;
   final String rootPath = root.absolute.path;
@@ -57,21 +50,6 @@ Future<bool> burnCachedCopy(String path, {Directory? cacheRoot}) async {
   if (!await file.exists()) return false;
   await file.delete();
   return true;
-}
-
-/// Reads bytes from a `content://` URI through the platform's ContentResolver.
-///
-/// Used as a fallback when `XFile.readAsBytes()` returns empty for a Google
-/// Drive (or other content-provider) URI. Returns empty on failure so the
-/// caller can fall through to the OCR path or the "unsupported" message.
-Future<Uint8List> readContentUri(String uri) async {
-  // TODO(026): implement the platform channel call to read content:// URIs.
-  // On Android, this calls ContentResolver.openInputStream(Uri.parse(uri))
-  // and reads the stream into a Uint8List. The method channel name is
-  // 'klhu/document_picker' and the method is 'readContentUri'.
-  // Until the native half is written, return empty so the import fails
-  // gracefully (same as the current behavior for unreadable Drive files).
-  return Uint8List(0);
 }
 
 /// Chooses documents from the reader's files.
@@ -85,7 +63,7 @@ abstract class DocumentPicker {
 class FileDocumentPicker implements DocumentPicker {
   const FileDocumentPicker();
 
-  /// The document kinds the dialog offers (FR-001: PDF, DOCX, TXT, EPUB).
+  /// The document kinds the dialog offers (FR-001: PDF, DOC, DOCX, TXT, EPUB).
   static XTypeGroup documentTypes(TargetPlatform platform) {
     const List<String> extensions = <String>[
       'pdf',
@@ -136,14 +114,7 @@ class FileDocumentPicker implements DocumentPicker {
     return PickedDocument(
       name: file.name,
       read: () async {
-        Uint8List bytes = await file.readAsBytes();
-        // 026: content:// fallback — when readAsBytes() returns empty for a
-        // Google Drive (or other content-provider) URI, try the platform's
-        // ContentResolver. If that also returns empty, the extraction seam
-        // will hand the document to OCR (FR-003) or refuse it.
-        if (bytes.isEmpty && file.path.startsWith('content://')) {
-          bytes = await readContentUri(file.path);
-        }
+        final Uint8List bytes = await file.readAsBytes();
         // The bytes are in memory now: the platform's cached copy goes (SC-003
         // — "读完即焚"). A failed delete must not cost the reader their import,
         // so the answer is not checked; the next pick overwrites the cache path
