@@ -29,6 +29,7 @@ class MainActivity : FlutterActivity() {
             VideoPlayerViewFactory(messenger),
         )
         // spec 026: content:// URI reader for Google Drive and other providers.
-        ContentUriReaderPlugin().register(messenger, contentResolver)
+        // Passes the activity so Drive export intents can be launched.
+        ContentUriReaderPlugin().register(messenger, contentResolver, this)
     }
 }

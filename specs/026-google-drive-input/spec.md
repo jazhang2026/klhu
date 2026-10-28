@@ -2,20 +2,19 @@
 
 **Feature Branch**: `026-google-drive-input`
 
-**Created**: 2026-10-28
+**Created**: 2026-10-28 | **Updated**: 2026-10-28
 
-**Input**: reader's wish list item 026 — "When Kalahoo input document file, I can see google
-docs files in My Drive and Shared Drive, but I cannot input them in Kalahoo Reading app."
+**Input**: reader's wish list item 026 — "When Kalahoo input document file, I can see google docs files
+in My Drive and Shared Drive, but I cannot input them in Kalahoo Reading app."
 
 ## What this feature does
 
-Extends the document import path to handle `content://` URIs that Google Drive files
-use. The existing `XFile.readAsBytes()` path works for local files; for Drive files
-the read falls back to a ContentResolver-based path (via a small platform channel)
-so the bytes reach the existing extraction seam unchanged.
-
-Additionally, the reader asked for page/tab forward/backward navigation on imported
-documents — scoped as a follow-up, not in MVP.
+Extends the document import path to handle Google Drive files. The picker now accepts
+Google Drive MIME types (`application/vnd.google-apps.*`), so Drive files appear in
+the file picker. When a Drive file is picked, the app attempts to read it through
+Android's ContentResolver. If the direct read fails (because DocListProvider is not
+exported to third-party apps), the app opens the file in Google Drive for export,
+and the user can then pick the exported local copy.
 
 ## Clarifications
 
@@ -25,7 +24,8 @@ documents — scoped as a follow-up, not in MVP.
 |---|---|---|---|
 | **Q1** | Which Drive sources? | **My Drive and Shared Drive** — the two roots DocumentsUI shows for Google Drive. | limiting to only one source. |
 | **Q2** | What about pages/tab navigation? | **Not in MVP.** Scoped separately. | bundling it here and bloating the feature. |
-| **Q3** | Does burn-after-read still apply? | **Yes.** Drive files stream, not stage — `burnCachedCopy` is a no-op for `content://` URIs, which is correct. | keeping a copy of the Drive file. |
+| **Q3** | Does burn-after-read still apply? | **Yes.** Drive files stream, not stage — `burnCachedCopy` is a no-op for `content://` URIs. | keeping a copy of the Drive file. |
+| **Q4** | Can we read Drive files directly? | **No** — DocListProvider is not exported to third-party apps (Android security restriction). The app opens the file in Drive for export. | bypassing the restriction. |
 
 ## User Scenarios & Testing
 
@@ -44,8 +44,10 @@ renderer already serve.
 
 **Acceptance Scenarios**:
 
-1. **Given** a Google Drive document, **When** the reader picks it through the Import
-   button, **Then** its text is extracted and lands as user content in the library.
+1. **Given** a Google Drive document (My Drive or Shared Drive), **When** the reader
+   picks it through the Import button, **Then** the app attempts to read it; if the
+   read fails due to Drive's content provider restrictions, the app opens the file
+   in Google Drive for export, and the reader can re-pick the exported local copy.
 2. **Given** imported Drive content, **When** the reader reads it, **Then** it behaves
    exactly like any locally-imported document.
 3. **Given** a Drive document with no extractable text, **When** the reader imports it,
@@ -53,8 +55,7 @@ renderer already serve.
 
 ## Edge Cases
 
-- A Drive file the reader cannot access (permission denied) is refused with a clear
-  error message.
+- A Drive file the reader cannot access (permission denied) is refused with a clear error message.
 - A Drive file whose MIME type is not in the accepted set is refused (same as local files).
 - A network error during read is handled gracefully — the import fails, nothing is stored.
 - The burn-after-read rule (SC-003) still applies — nothing of the Drive file survives on disk.
@@ -67,8 +68,9 @@ renderer already serve.
   Drive) through the existing Import button, extract its text, and land it as ordinary
   content — the same pipeline as local files.
 - **FR-002**: Where `XFile.readAsBytes()` returns empty for a `content://` URI (Google
-  Drive files), the app MUST fall back to reading through Android's ContentResolver
-  (via a small platform channel), then proceed through the existing extraction seam.
+  Drive files), the app MUST attempt to read through Android's ContentResolver via a
+  method channel, and if that fails (DocListProvider not exported), open the file in
+  Google Drive for export.
 - **FR-003**: The app MUST refuse a Drive pick that cannot be read (permission denied,
   network error, unsupported MIME type) with the same error message used for local files.
 - **FR-004**: Imported Drive content is an ordinary content: it appears in the library
@@ -85,8 +87,9 @@ renderer already serve.
 
 ### Measurable Outcomes
 
-- **SC-001**: A Google Drive document imports successfully, its text is extracted, and it
-  becomes readable content — the reader can open it, read it aloud, and render its video.
+- **SC-001**: A Google Drive document imports successfully (after export), its text is
+  extracted, and it becomes readable content — the reader can open it, read it aloud,
+  and render its video.
 - **SC-002**: A large Drive document is read page by page — the memory bound from 027/028 holds.
 - **SC-003**: No local copy of the Drive file survives the read: the bytes are held in
   memory for reading, and the content that enters the library is the extracted text.
@@ -98,6 +101,8 @@ renderer already serve.
 - **A2**: The app already has the `READ_EXTERNAL_STORAGE` permission via `file_selector`;
   reading `content://` URIs from Drive requires no additional permission on Android 10+.
 - **A3**: Page/tab forward/backward navigation is out of scope for this feature.
+- **A4**: Google Drive's DocListProvider is not exported to third-party apps (Android
+  security restriction); direct ContentResolver reads will fail with SecurityException.
 
 ## Out of scope
 
@@ -105,6 +110,7 @@ renderer already serve.
 - Page/tab forward/backward navigation on imported documents (reader's secondary request).
 - Syncing imported Drive content back to Drive.
 - Editing Drive files in place.
+- Automatic export of Drive files without user interaction.
 
 ## What this feature does not supersede
 
