@@ -905,6 +905,15 @@ class _ReadingViewState extends State<ReadingView> {
     try {
       final bytes = await picked.read();
       final kind = picked.name.split('.').last.toLowerCase();
+      // 026: Google Drive files — if readAsBytes() returned empty for a
+      // content:// URI, the native layer tried ContentResolver and failed
+      // (DocListProvider is not exported). Show a helpful message.
+      if (bytes.isEmpty && (isDriveUri(picked.name) || picked.name.startsWith('content://'))) {
+        if (!mounted) return;
+        setState(() => _error =
+            'Google Drive 文件需要先从 Drive 导出到本地，然后再选择。');
+        return;
+      }
       if (!isSupportedDocumentKind(kind)) {
         if (!mounted) return;
         setState(() => _error = AppLocalizations.of(context)
