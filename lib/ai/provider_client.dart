@@ -75,7 +75,7 @@ class AIProviderClient {
         ? 'gemini-2.5-flash-image-preview'
         : type == AIPromptType.video
             ? 'gemini-2.5-flash-video-preview'
-            : 'gemini-2.5-flash-lite';
+            : 'gemini-3.5-flash-lite';
     // provider.url is the base (e.g. https://generativelanguage.googleapis.com/v1beta),
     // so append /models/$model:generateContent.
     final uri = Uri.parse('${provider.url}/models/$model:generateContent')
