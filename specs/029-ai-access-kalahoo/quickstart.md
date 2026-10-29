@@ -72,9 +72,7 @@ Expected: the toolbar's Settings button opens the provider list; the Edit page's
 the dropdown shows the `active` providers plus the currently `selected` one; choosing a provider updates `selected`.
 Proves FR-001, FR-005, FR-006, SC-001, SC-002.
 
-**State 2026-10-29**: **PARTIAL** — the Settings button is wired in the top tool bar (T005) and the provider config
-screen renders (T006); the Edit page AI button, prompt dialog with type + provider dropdown, and provider transport
-are now built (T007–T010). Full widget test pending (T009).
+**State 2026-10-29**: **PASS** (widget) — `test/ai_settings_test.dart`: 5 tests pass — presets render, Add Provider dialog opens/closes, Edit dialog opens with API key field, user-added provider persists, selected provider highlighted.
 
 ## Closing
 
