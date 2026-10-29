@@ -400,6 +400,7 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
   late final TextEditingController _apiKeyController;
   bool _saving = false;
   TestResult? _testResult;
+  bool _obscureKey = true;
 
   @override
   void initState() {
@@ -463,11 +464,21 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
               ),
             TextField(
               controller: _apiKeyController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'API Key',
                 hintText: 'Enter your API key...',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureKey ? Icons.visibility_off : Icons.visibility,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscureKey = !_obscureKey);
+                  },
+                  tooltip: _obscureKey ? 'Show key' : 'Hide key',
+                ),
               ),
-              obscureText: true,
+              obscureText: _obscureKey,
             ),
             if (_testResult != null)
               Padding(

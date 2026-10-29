@@ -10,6 +10,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 /// The result of a connectivity test.
 enum TestResult {
   /// The test call returned a valid response — the key works.
@@ -40,23 +42,20 @@ class GeminiConnectivityTest implements ProviderConnectivityTest {
       final uri = Uri.parse('$url/v1beta/models').replace(
         queryParameters: {'key': apiKey},
       );
-      final response = await _request(uri);
-      return response.statusCode >= 200 && response.statusCode < 300
-          ? TestResult.passed
-          : TestResult.failed;
-    } catch (_) {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      try {
+        final request = await client.getUrl(uri);
+        final response = await request.close();
+        return response.statusCode >= 200 && response.statusCode < 300
+            ? TestResult.passed
+            : TestResult.failed;
+      } finally {
+        client.close();
+      }
+    } catch (e) {
+      debugPrint('klhu Gemini connectivity test failed: $e');
       return TestResult.failed;
-    }
-  }
-
-  Future<_HttpResponse> _request(Uri uri) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      return _HttpResponse(response.statusCode);
-    } finally {
-      client.close();
     }
   }
 }
@@ -71,31 +70,21 @@ class OpenRouterConnectivityTest implements ProviderConnectivityTest {
     if (apiKey.isEmpty) return TestResult.failed;
     try {
       final uri = Uri.parse('$url/api/v1/models');
-      final response = await _request(uri, headers: {
-        'Authorization': 'Bearer $apiKey',
-      });
-      return response.statusCode >= 200 && response.statusCode < 300
-          ? TestResult.passed
-          : TestResult.failed;
-    } catch (_) {
-      return TestResult.failed;
-    }
-  }
-
-  Future<_HttpResponse> _request(Uri uri,
-      {Map<String, String>? headers}) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(uri);
-      if (headers != null) {
-        for (final entry in headers.entries) {
-          request.headers.set(entry.key, entry.value);
-        }
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      try {
+        final request = await client.getUrl(uri);
+        request.headers.set('Authorization', 'Bearer $apiKey');
+        final response = await request.close();
+        return response.statusCode >= 200 && response.statusCode < 300
+            ? TestResult.passed
+            : TestResult.failed;
+      } finally {
+        client.close();
       }
-      final response = await request.close();
-      return _HttpResponse(response.statusCode);
-    } finally {
-      client.close();
+    } catch (e) {
+      debugPrint('klhu OpenRouter connectivity test failed: $e');
+      return TestResult.failed;
     }
   }
 }
@@ -115,43 +104,25 @@ class NVIDIANIMConnectivityTest implements ProviderConnectivityTest {
         'messages': [{'role': 'user', 'content': 'hi'}],
         'max_tokens': 1,
       });
-      final response = await _request(uri, headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      }, body: body);
-      return response.statusCode >= 200 && response.statusCode < 300
-          ? TestResult.passed
-          : TestResult.failed;
-    } catch (_) {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      try {
+        final request = await client.postUrl(uri);
+        request.headers.set('Authorization', 'Bearer $apiKey');
+        request.headers.set('Content-Type', 'application/json');
+        request.write(body);
+        final response = await request.close();
+        return response.statusCode >= 200 && response.statusCode < 300
+            ? TestResult.passed
+            : TestResult.failed;
+      } finally {
+        client.close();
+      }
+    } catch (e) {
+      debugPrint('klhu NVIDIA NIM connectivity test failed: $e');
       return TestResult.failed;
     }
   }
-
-  Future<_HttpResponse> _request(Uri uri,
-      {Map<String, String>? headers, String? body}) async {
-    final client = HttpClient();
-    try {
-      final request = await client.postUrl(uri);
-      if (headers != null) {
-        for (final entry in headers.entries) {
-          request.headers.set(entry.key, entry.value);
-        }
-      }
-      if (body != null) {
-        request.write(body);
-      }
-      final response = await request.close();
-      return _HttpResponse(response.statusCode);
-    } finally {
-      client.close();
-    }
-  }
-}
-
-/// HTTP response wrapper to avoid exposing dart:io directly.
-class _HttpResponse {
-  final int statusCode;
-  const _HttpResponse(this.statusCode);
 }
 
 /// The connectivity test for [url], or null if the URL is not recognised.
