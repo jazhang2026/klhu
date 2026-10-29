@@ -76,7 +76,10 @@ class AIProviderClient {
         : type == AIPromptType.video
             ? 'gemini-2.5-flash-video-preview'
             : 'gemini-2.5-flash-lite';
-    final uri = Uri.parse('${provider.url}/v1beta/models/$model:generateContent?key=${provider.apiKey}');
+    // provider.url is the base (e.g. https://generativelanguage.googleapis.com/v1beta),
+    // so append /models/$model:generateContent.
+    final uri = Uri.parse('${provider.url}/models/$model:generateContent')
+        .replace(queryParameters: {'key': provider.apiKey});
     debugPrint('klhu Gemini generate: $uri');
 
     final body = jsonEncode({
