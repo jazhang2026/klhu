@@ -39,7 +39,9 @@ class GeminiConnectivityTest implements ProviderConnectivityTest {
   Future<TestResult> test(String url, String apiKey) async {
     if (apiKey.isEmpty) return TestResult.failed;
     try {
-      final uri = Uri.parse('$url/v1beta/models').replace(
+      // Build the full endpoint: url already contains the base path (e.g.
+      // https://generativelanguage.googleapis.com/v1beta), so append /models.
+      final uri = Uri.parse('$url/models').replace(
         queryParameters: {'key': apiKey},
       );
       debugPrint('klhu Gemini test: $uri');
