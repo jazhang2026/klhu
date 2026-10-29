@@ -178,6 +178,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appearanceButton => 'Apariencia';
 
   @override
+  String get settingsButton => 'Configuración';
+
+  @override
   String get appearanceTitle => 'Apariencia';
 
   @override
@@ -403,6 +406,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get formatButton => 'Formato';
+
+  @override
+  String get aiButton => 'IA';
 
   @override
   String get commentsReadLabel => 'Leer los comentarios';

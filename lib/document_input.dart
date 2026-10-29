@@ -11,14 +11,12 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:klhu/models/content.dart';
 import 'package:klhu/platform/document_extractor.dart';
 import 'package:klhu/platform/docx_extractor.dart';
 import 'package:klhu/platform/epub_extractor.dart';
 import 'package:klhu/platform/native_ocr_engine.dart';
 import 'package:klhu/platform/ocr_engine.dart';
 import 'package:klhu/platform/pdf_extractor.dart';
-import 'package:klhu/services/content_store.dart';
 
 /// The document kinds this feature accepts (spec FR-001, re-cut by Q2 — EPUB is
 /// the first-cut e-book format).
@@ -142,16 +140,4 @@ bool requiresOcr(String kind, String extractedText) {
   // with no text layer is simply empty and never OCR'd.
   const ocrKinds = <String>{'pdf', 'png', 'jpg', 'jpeg'};
   return ocrKinds.contains(kind);
-}
-
-/// The landing (spec FR-004): the produced text becomes a user content through
-/// the content store the reader already has — an ordinary content, savable,
-/// editable and deletable like hand-written text; the read consumes it through
-/// the unchanged segmenter.
-Future<SavedContent> saveImported(
-  ContentStore store,
-  String text, {
-  String? language,
-}) async {
-  return store.saveNew(text, language: language);
 }

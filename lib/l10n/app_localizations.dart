@@ -407,6 +407,12 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearanceButton;
 
+  /// No description provided for @settingsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsButton;
+
   /// No description provided for @appearanceTitle.
   ///
   /// In en, this message translates to:
@@ -790,6 +796,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Format'**
   String get formatButton;
+
+  /// No description provided for @aiButton.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get aiButton;
 
   /// No description provided for @commentsReadLabel.
   ///

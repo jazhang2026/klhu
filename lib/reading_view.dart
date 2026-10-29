@@ -6,6 +6,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:klhu/appearance_screen.dart';
 import 'package:klhu/appearance_store.dart';
+import 'package:klhu/ai/provider_config_screen.dart';
+import 'package:klhu/ai/config_store.dart';
+import 'package:klhu/ai/prompt.dart';
+import 'package:klhu/ai/provider_client.dart';
+import 'package:klhu/ai/provider_list.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/dialogue.dart';
@@ -667,6 +672,15 @@ class _ReadingViewState extends State<ReadingView> {
           tooltip: l10n?.videoListTitle ?? 'Videos',
           onPressed: _openVideoList,
         ),
+      // The AI provider configuration (029 FR-001): grouped under a Settings
+      // button on the tool bar; the reader adds/edit/deletes providers and
+      // marks one active. Offered idle-only — changing providers mid-read would
+      // fight the read's own tracking, which is measured on the page's text.
+      IconButton(
+        icon: const Icon(Icons.settings),
+        tooltip: l10n?.settingsButton ?? 'Settings',
+        onPressed: _isSpeakingOrPaused ? null : _openAIProviderConfig,
+      ),
     ];
   }
 
@@ -894,6 +908,85 @@ class _ReadingViewState extends State<ReadingView> {
     }
   }
 
+  /// Open the AI provider configuration (029 FR-001): the Settings group's
+  /// AI control that lets the reader add/edit/delete providers, fill in API
+  /// keys (which trigger an auto-connectivity test), and mark one active.
+  Future<void> _openAIProviderConfig() async {
+    await widget.reader.stop();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const AIProviderConfigScreen(),
+      ),
+    );
+  }
+
+  /// Open the AI prompt dialog (029 FR-005): the Edit page's AI button opens
+  /// a dialog with generation type picker, provider options dropdown (only
+  /// active providers by default, plus the currently selected one), and the
+  /// prompt string. Submitting sends the prompt to the chosen provider's model.
+  Future<void> _openAIPromptDialog() async {
+    await widget.reader.stop();
+    if (!mounted) return;
+
+    // Load the current provider list and last-picked type.
+    final store = AIConfigStore();
+    final providers = await store.load();
+    final lastType = await store.loadLastType();
+
+    if (!mounted) return;
+    final result = await showDialog<_AIPromptResult>(
+      context: context,
+      builder: (context) => _AIPromptDialog(
+        providers: providers,
+        initialType: lastType,
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    // Save the selected provider's `selected` flag.
+    final updated = providers.map((p) {
+      if (p.name == result.providerName) {
+        return p.copyWith(selected: true);
+      }
+      return p.copyWith(selected: false);
+    }).toList();
+    await store.save(updated);
+    await store.saveLastType(result.type);
+
+    // Send the prompt to the provider.
+    final provider = providers.firstWhere(
+      (p) => p.name == result.providerName,
+      orElse: () => providers.first,
+    );
+    final prompt = AIPrompt(
+      type: result.type,
+      text: result.promptText,
+      includeReadingContent: result.includeReadingContent,
+      readingContent: _content,
+    );
+    final client = AIProviderClient();
+    final aiResult = await client.generate(
+      provider: provider,
+      prompt: prompt,
+      readingContent: _content,
+    );
+
+    if (!mounted) return;
+    if (aiResult.success) {
+      // Land the generated content as an ordinary content (research D4).
+      final saved = await _store.saveNew(aiResult.content);
+      await _loadEntry(saved);
+      if (mounted && _mode == _Mode.edit) {
+        setState(() => _mode = _Mode.read);
+        _disposeUndo();
+      }
+    } else {
+      // FR-007: surface the failure without losing configuration or prompt.
+      setState(() => _error = aiResult.errorMessage ?? 'AI generation failed');
+    }
+  }
+
   /// Import a document file (025 FR-001).
   Future<void> _importDocument() async {
     await widget.reader.stop();
@@ -923,9 +1016,22 @@ class _ReadingViewState extends State<ReadingView> {
         return;
       }
 
-      // Save the imported text as a user content (FR-004).
-      final saved = await saveImported(_store, text);
-      await _loadEntry(saved);
+      // The picked document is read into memory and held there (025 FR-003/Q3):
+      // nothing of the document is kept on this side — the extracted text is the
+      // read's own — so the import is memory-only. No content is written through
+      // the store, no content-list entry is created for what the reader merely
+      // picked, and the read consumes the text through the unchanged segmenter.
+      if (!mounted) return;
+      setState(() {
+        _content = text;
+        _loaded = null;
+        _anchor = null;
+        _setAnchorKey(null);
+        _highlight = null;
+        _error = null;
+        _hint = null;
+      });
+      await _adoptAnchor();
 
       if (mounted && _mode == _Mode.edit) {
         setState(() => _mode = _Mode.read);
@@ -3246,6 +3352,17 @@ class _ReadingViewState extends State<ReadingView> {
                                 : _formatDialogue,
                           ),
                         ),
+                        // AI button (029 FR-005): to the right of Format, opens
+                        // the prompt dialog — distinct from the Settings/AI
+                        // config control on the top tool bar.
+                        IconButton(
+                          icon: const Icon(Icons.psychology),
+                          tooltip: AppLocalizations.of(context)?.aiButton ??
+                              'AI',
+                          onPressed: _isSpeakingOrPaused
+                              ? null
+                              : _openAIPromptDialog,
+                        ),
                         IconButton(
                           icon: const Icon(Icons.undo),
                           tooltip: AppLocalizations.of(context)?.undoButton,
@@ -3570,4 +3687,182 @@ class MovableThumbnail extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The result of the AI prompt dialog (spec FR-005).
+class _AIPromptResult {
+  final String providerName;
+  final AIPromptType type;
+  final String promptText;
+  final bool includeReadingContent;
+
+  const _AIPromptResult({
+    required this.providerName,
+    required this.type,
+    required this.promptText,
+    required this.includeReadingContent,
+  });
+}
+
+/// The AI prompt dialog opened by the Edit page's AI button (spec FR-005, Q8,
+/// Q9). The dialog offers a generation type picker, a provider options
+/// dropdown (only `active` providers by default; the currently `selected` one
+/// is always shown so the reader can switch back), and the prompt string.
+class _AIPromptDialog extends StatefulWidget {
+  final List<AIProvider> providers;
+  final AIPromptType initialType;
+
+  const _AIPromptDialog({
+    required this.providers,
+    required this.initialType,
+  });
+
+  @override
+  State<_AIPromptDialog> createState() => _AIPromptDialogState();
+}
+
+class _AIPromptDialogState extends State<_AIPromptDialog> {
+  late AIPromptType _selectedType;
+  late String _selectedProviderName;
+  late TextEditingController _promptController;
+  bool _includeReadingContent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedType = widget.initialType;
+    final selectedProvider = widget.providers.firstWhere(
+      (p) => p.selected,
+      orElse: () => widget.providers.first,
+    );
+    _selectedProviderName = selectedProvider.name;
+    _promptController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_promptController.text.trim().isEmpty) return;
+    Navigator.of(context).pop(_AIPromptResult(
+      providerName: _selectedProviderName,
+      type: _selectedType,
+      promptText: _promptController.text.trim(),
+      includeReadingContent: _includeReadingContent,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Only active providers are listed by default; the currently selected
+    // provider is always included so the reader can switch back and re-test.
+    final activeProviders =
+        widget.providers.where((p) => p.active).toList();
+    AIProvider? currentSelected;
+    try {
+      currentSelected = widget.providers.firstWhere((p) => p.selected);
+    } catch (_) {}
+
+    // Build the dropdown items: active providers + the currently selected one
+    // if it's not already in the active list.
+    final items = <AIProvider>[
+      ...activeProviders,
+      if (currentSelected != null &&
+          !activeProviders.any((p) => p.name == currentSelected!.name))
+        currentSelected,
+    ];
+
+    return AlertDialog(
+      title: const Text('AI Prompt'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Generation type picker (Q8).
+            DropdownButton<AIPromptType>(
+              value: _selectedType,
+              isExpanded: true,
+              items: AIPromptType.values.map((type) {
+                return DropdownMenuItem<AIPromptType>(
+                  value: type,
+                  child: Text(type.name.toUpperCase()),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedType = value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            // Provider options dropdown (Q9).
+            DropdownButton<String>(
+              value: _selectedProviderName,
+              isExpanded: true,
+              items: items.map((provider) {
+                return DropdownMenuItem<String>(
+                  value: provider.name,
+                  child: Row(
+                    children: [
+                      if (provider.active)
+                        const Icon(Icons.check_circle,
+                            color: Colors.green, size: 16),
+                      if (!provider.active)
+                        const Icon(Icons.help_outline,
+                            color: Colors.grey, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(provider.name)),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _selectedProviderName = value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            // Prompt text field.
+            TextField(
+              controller: _promptController,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: 'Enter your AI prompt...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Include reading content toggle (A3).
+            CheckboxListTile(
+              title: const Text('Include reading content'),
+              subtitle: const Text(
+                  'Optionally include the current text in the prompt'),
+              value: _includeReadingContent,
+              onChanged: (value) {
+                setState(() => _includeReadingContent = value ?? false);
+              },
+              dense: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _promptController.text.trim().isEmpty
+              ? null
+              : _submit,
+          child: const Text('Generate'),
+        ),
+      ],
+    );
+  }
 }

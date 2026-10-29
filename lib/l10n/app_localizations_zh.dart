@@ -172,6 +172,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceButton => '外观';
 
   @override
+  String get settingsButton => '设置';
+
+  @override
   String get appearanceTitle => '外观';
 
   @override
@@ -387,6 +390,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get formatButton => '排版';
+
+  @override
+  String get aiButton => 'AI';
 
   @override
   String get commentsReadLabel => '朗读注释';
@@ -656,6 +662,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get appearanceButton => '外观';
 
   @override
+  String get settingsButton => '设置';
+
+  @override
   String get appearanceTitle => '外观';
 
   @override
@@ -871,6 +880,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get formatButton => '排版';
+
+  @override
+  String get aiButton => 'AI';
 
   @override
   String get commentsReadLabel => '朗读注释';

@@ -328,21 +328,13 @@ def walk_row(fixture_name, fixture_path, expected_text_contains, kind_label):
     ok, detail = import_and_verify(fixture_name, expected_text_contains, kind_label)
 
     after_count = len(store_index().get("entries", []))
-    check(f"{kind_label}: one new content added to library (FR-004)",
-          ok and after_count == before_count + 1,
+    # 2026-10-29: the import is now memory-only (the reader's own bug-fix) — no
+    # content is written through the store and no content-list entry is created for
+    # the document the reader merely picked. The check inverts: the store is
+    # unchanged by the import.
+    check(f"{kind_label}: no content added to library (memory-only import)",
+          ok and after_count == before_count,
           f"{before_count} before, {after_count} after — {detail}")
-
-    if ok:
-        # Verify the text content
-        entries = store_index().get("entries", [])
-        user_entries = [e for e in entries if e.get("origin") == "user"]
-        if user_entries:
-            latest = user_entries[-1]
-            body = read_content_text(latest["id"])
-            check(f"{kind_label}: imported text contains expected content",
-                  expected_text_contains in body,
-                  f"expected '{expected_text_contains[:30]}...' in "
-                  f"{len(body)} chars: {body[:80]!r}")
 
     # Verify cache cleanup
     leftovers = cache_copies(fixture_name)
