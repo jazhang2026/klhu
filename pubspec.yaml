@@ -39,6 +39,7 @@ dependencies:
   flutter_tts: ^4.2.3
   shared_preferences: ^2.5.5
   http: ^1.2.0
+  url_launcher: ^6.3.0
   intl: ^0.20.3
   # Content library (spec 008): app documents directory for index.json +
   # contents/<id>.txt. Text does not belong in SharedPreferences (whole map is

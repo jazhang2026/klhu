@@ -3737,6 +3737,8 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
     );
     _selectedProviderName = selectedProvider.name;
     _promptController = TextEditingController();
+    // Listen for text changes so the Generate button re-evaluates its state.
+    _promptController.addListener(() => setState(() {}));
   }
 
   @override

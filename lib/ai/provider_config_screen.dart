@@ -13,9 +13,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:klhu/ai/auto_test.dart';
 import 'package:klhu/ai/config_store.dart';
 import 'package:klhu/ai/provider_list.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// The AI provider configuration screen opened from the top tool bar's
 /// Settings group (spec FR-001, FR-002, FR-003, FR-004).
@@ -386,6 +388,53 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
   }
 }
 
+/// Extracts URLs from [text] and makes them tappable via [url_launcher].
+/// Falls back to plain text for non-URL content.
+class _RegisterTipLink extends StatelessWidget {
+  final String text;
+
+  const _RegisterTipLink({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    // Match http/https URLs in the text.
+    final urlPattern = RegExp(r'https?://[^\s]+');
+    final matches = urlPattern.allMatches(text);
+    if (matches.isEmpty) {
+      return Text(text, style: Theme.of(context).textTheme.bodySmall);
+    }
+    // Build a rich text with tappable URL spans.
+    final spans = <InlineSpan>[];
+    var cursor = 0;
+    for (final match in matches) {
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, match.start)));
+      }
+      spans.add(TextSpan(
+        text: match.group(0),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.blue,
+              decoration: TextDecoration.underline,
+            ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () async {
+            final url = match.group(0)!;
+            if (await canLaunchUrl(Uri.parse(url))) {
+              await launchUrl(Uri.parse(url));
+            }
+          },
+      ));
+      cursor = match.end;
+    }
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor)));
+    }
+    return RichText(
+      text: TextSpan(style: Theme.of(context).textTheme.bodySmall, children: spans),
+    );
+  }
+}
+
 /// Dialog for editing an existing provider's API key.
 class _EditProviderDialog extends StatefulWidget {
   final AIProvider provider;
@@ -457,10 +506,7 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
             if (widget.provider.registerTip.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  widget.provider.registerTip,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                child: _RegisterTipLink(text: widget.provider.registerTip),
               ),
             TextField(
               controller: _apiKeyController,
