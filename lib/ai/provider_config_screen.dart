@@ -390,39 +390,55 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
 
 /// Extracts URLs from [text] and makes them tappable via [url_launcher].
 /// Falls back to plain text for non-URL content.
+///
+/// Tries `externalApplication` mode first (avoids chooser), then falls back
+/// to `platformDefault` which shows the app chooser. If neither works (e.g.
+/// no browser on the device), the tap is silently ignored and a SnackBar
+/// reports the failure.
 class _RegisterTipLink extends StatelessWidget {
   final String text;
 
   const _RegisterTipLink({required this.text});
 
+  Future<void> _openUrl(String url, BuildContext context) async {
+    final uri = Uri.parse(url);
+    // Try external application first (no chooser — opens directly).
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication).catchError(
+        (_) => launchUrl(uri),
+      );
+      return;
+    }
+    // Nothing can open this URL — report it.
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot open $url'), duration: const Duration(seconds: 3)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Match http/https URLs in the text.
     final urlPattern = RegExp(r'https?://[^\s]+');
     final matches = urlPattern.allMatches(text);
     if (matches.isEmpty) {
       return Text(text, style: Theme.of(context).textTheme.bodySmall);
     }
-    // Build a rich text with tappable URL spans.
     final spans = <InlineSpan>[];
     var cursor = 0;
     for (final match in matches) {
       if (match.start > cursor) {
         spans.add(TextSpan(text: text.substring(cursor, match.start)));
       }
+      final url = match.group(0)!;
       spans.add(TextSpan(
-        text: match.group(0),
+        text: url,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.blue,
               decoration: TextDecoration.underline,
             ),
         recognizer: TapGestureRecognizer()
-          ..onTap = () async {
-            final url = match.group(0)!;
-            if (await canLaunchUrl(Uri.parse(url))) {
-              await launchUrl(Uri.parse(url));
-            }
-          },
+          ..onTap = () => _openUrl(url, context),
       ));
       cursor = match.end;
     }
