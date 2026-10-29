@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart' show TapGestureRecognizer;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:klhu/ai/auto_test.dart';
 import 'package:klhu/ai/config_store.dart';
 import 'package:klhu/ai/provider_list.dart';
@@ -403,18 +404,37 @@ class _RegisterTipLink extends StatelessWidget {
   Future<void> _openUrl(String url, BuildContext context) async {
     final uri = Uri.parse(url);
     // Try external application first (no chooser — opens directly).
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication).catchError(
-        (_) => launchUrl(uri),
-      );
-      return;
-    }
-    // Nothing can open this URL — report it.
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot open $url'), duration: const Duration(seconds: 3)),
-      );
-    }
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+    // Fallback to platform default (shows chooser).
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        return;
+      }
+    } catch (_) {}
+    // Nothing can open this URL — copy to clipboard so the user can paste it.
+    if (!context.mounted) return;
+    final currentContext = context;
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!currentContext.mounted) return;
+    final snackBar = SnackBar(
+      content: Text('Copied to clipboard: $url'),
+      duration: const Duration(seconds: 4),
+      action: SnackBarAction(
+        label: 'Open',
+        onPressed: () async {
+          if (currentContext.mounted && await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          }
+        },
+      ),
+    );
+    ScaffoldMessenger.of(currentContext).showSnackBar(snackBar);
   }
 
   @override
