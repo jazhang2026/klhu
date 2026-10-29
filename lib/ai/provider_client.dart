@@ -77,12 +77,14 @@ class AIProviderClient {
             ? 'gemini-2.5-flash-video-preview'
             : 'gemini-2.5-flash-lite';
     final uri = Uri.parse('${provider.url}/v1beta/models/$model:generateContent?key=${provider.apiKey}');
+    debugPrint('klhu Gemini generate: $uri');
 
     final body = jsonEncode({
       'contents': [
         {'parts': [{'text': prompt}]}
       ],
     });
+    debugPrint('klhu Gemini body: ${body.substring(0, body.length.clamp(0, 200))}');
 
     final client = HttpClient();
     try {
@@ -91,22 +93,34 @@ class AIProviderClient {
       request.write(body);
       final response = await request.close();
       final responseBody = await response.transform(const Utf8Decoder()).join();
+      debugPrint('klhu Gemini response: status=${response.statusCode} body=${responseBody.substring(0, responseBody.length.clamp(0, 500))}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
-        // Extract the generated content from the response.
-        final candidates = decoded['candidates'] as List? ?? [];
-        if (candidates.isNotEmpty) {
-          final content = candidates[0]['content'] as Map? ?? {};
-          final parts = content['parts'] as List? ?? [];
-          if (parts.isNotEmpty) {
-            final text = parts[0]['text'] as String? ?? '';
-            return AIResult(content: text, success: true);
+        try {
+          final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+          // Extract the generated content from the response.
+          final candidates = decoded['candidates'] as List? ?? [];
+          debugPrint('klhu Gemini candidates: ${candidates.length}');
+          if (candidates.isNotEmpty) {
+            final content = candidates[0]['content'] as Map? ?? {};
+            final parts = content['parts'] as List? ?? [];
+            debugPrint('klhu Gemini parts: ${parts.length}');
+            if (parts.isNotEmpty) {
+              final text = parts[0]['text'] as String? ?? '';
+              debugPrint('klhu Gemini text: ${text.substring(0, text.length.clamp(0, 100))}');
+              return AIResult(content: text, success: true);
+            }
           }
+          return AIResult(content: responseBody, success: true);
+        } catch (e) {
+          debugPrint('klhu Gemini parse error: $e');
+          return AIResult(content: responseBody, success: true);
         }
-        return AIResult(content: responseBody, success: true);
       }
-      return AIResult.failed('Gemini error: $responseBody');
+      return AIResult.failed('Gemini error (HTTP $response.statusCode): $responseBody');
+    } catch (e, st) {
+      debugPrint('klhu Gemini exception: $e\n$st');
+      return AIResult.failed('Generate failed: $e');
     } finally {
       client.close();
     }
