@@ -8,9 +8,9 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:http/http.dart' as http;
 
 /// The result of a connectivity test.
 enum TestResult {
@@ -42,19 +42,14 @@ class GeminiConnectivityTest implements ProviderConnectivityTest {
       final uri = Uri.parse('$url/v1beta/models').replace(
         queryParameters: {'key': apiKey},
       );
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 10);
-      try {
-        final request = await client.getUrl(uri);
-        final response = await request.close();
-        return response.statusCode >= 200 && response.statusCode < 300
-            ? TestResult.passed
-            : TestResult.failed;
-      } finally {
-        client.close();
-      }
-    } catch (e) {
-      debugPrint('klhu Gemini connectivity test failed: $e');
+      debugPrint('klhu Gemini test: $uri');
+      final response = await http.get(uri);
+      debugPrint('klhu Gemini test: status=${response.statusCode} body=${response.body.substring(0, response.body.length.clamp(0, 200))}');
+      return response.statusCode >= 200 && response.statusCode < 300
+          ? TestResult.passed
+          : TestResult.failed;
+    } catch (e, st) {
+      debugPrint('klhu Gemini connectivity test failed: $e\n$st');
       return TestResult.failed;
     }
   }
@@ -70,26 +65,22 @@ class OpenRouterConnectivityTest implements ProviderConnectivityTest {
     if (apiKey.isEmpty) return TestResult.failed;
     try {
       final uri = Uri.parse('$url/api/v1/models');
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 10);
-      try {
-        final request = await client.getUrl(uri);
-        request.headers.set('Authorization', 'Bearer $apiKey');
-        final response = await request.close();
-        return response.statusCode >= 200 && response.statusCode < 300
-            ? TestResult.passed
-            : TestResult.failed;
-      } finally {
-        client.close();
-      }
-    } catch (e) {
-      debugPrint('klhu OpenRouter connectivity test failed: $e');
+      debugPrint('klhu OpenRouter test: $uri');
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $apiKey',
+      });
+      debugPrint('klhu OpenRouter test: status=${response.statusCode} body=${response.body.substring(0, response.body.length.clamp(0, 200))}');
+      return response.statusCode >= 200 && response.statusCode < 300
+          ? TestResult.passed
+          : TestResult.failed;
+    } catch (e, st) {
+      debugPrint('klhu OpenRouter connectivity test failed: $e\n$st');
       return TestResult.failed;
     }
   }
 }
 
-/// NVIDIA NIM connectivity test. Probes the `/chat/completions` endpoint with
+/// NVIDIA NIM connectivity test. Probes the `/v1/chat/completions` endpoint with
 /// the Authorization header; a 200 response means the key works.
 class NVIDIANIMConnectivityTest implements ProviderConnectivityTest {
   const NVIDIANIMConnectivityTest();
@@ -104,22 +95,21 @@ class NVIDIANIMConnectivityTest implements ProviderConnectivityTest {
         'messages': [{'role': 'user', 'content': 'hi'}],
         'max_tokens': 1,
       });
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 10);
-      try {
-        final request = await client.postUrl(uri);
-        request.headers.set('Authorization', 'Bearer $apiKey');
-        request.headers.set('Content-Type', 'application/json');
-        request.write(body);
-        final response = await request.close();
-        return response.statusCode >= 200 && response.statusCode < 300
-            ? TestResult.passed
-            : TestResult.failed;
-      } finally {
-        client.close();
-      }
-    } catch (e) {
-      debugPrint('klhu NVIDIA NIM connectivity test failed: $e');
+      debugPrint('klhu NVIDIA NIM test: $uri');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+      debugPrint('klhu NVIDIA NIM test: status=${response.statusCode} body=${response.body.substring(0, response.body.length.clamp(0, 200))}');
+      return response.statusCode >= 200 && response.statusCode < 300
+          ? TestResult.passed
+          : TestResult.failed;
+    } catch (e, st) {
+      debugPrint('klhu NVIDIA NIM connectivity test failed: $e\n$st');
       return TestResult.failed;
     }
   }
