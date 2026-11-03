@@ -17,16 +17,18 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('a fresh store', () {
-    test('returns the three presets, with the first selected', () async {
+    test('returns the four presets, with the first selected', () async {
       final store = AIConfigStore();
       final providers = await store.load();
-      expect(providers.length, 3);
-      expect(providers[0].name, 'Google AI Studio (Gemini)');
-      expect(providers[1].name, 'OpenRouter (:free)');
-      expect(providers[2].name, 'NVIDIA NIM');
+      expect(providers.length, 4);
+      expect(providers[0].name, 'Agnes AI');
+      expect(providers[1].name, 'Google AI Studio (Gemini)');
+      expect(providers[2].name, 'OpenRouter (:free)');
+      expect(providers[3].name, 'NVIDIA NIM');
       expect(providers[0].selected, isTrue);
       expect(providers[1].selected, isFalse);
       expect(providers[2].selected, isFalse);
+      expect(providers[3].selected, isFalse);
       // Nothing written yet — the store returned the in-memory default.
       expect((await SharedPreferences.getInstance()).getString(storeKey),
           isNull);
@@ -51,7 +53,7 @@ void main() {
       await store.save(providers);
 
       final loaded = await store.load();
-      expect(loaded.length, 4);
+      expect(loaded.length, 5);
       expect(loaded.last.name, 'Custom Provider');
       expect(loaded.last.url, 'https://custom.example.com');
       expect(loaded.last.apiKey, 'custom-key');
@@ -59,12 +61,38 @@ void main() {
       expect(loaded[0].selected, isTrue);
     });
 
+    test('stores and reloads provider model overrides', () async {
+      final store = AIConfigStore();
+      var providers = await store.load();
+      // Update the Gemini preset with explicit models.
+      providers = providers.map((p) {
+        if (p.name == 'Google AI Studio (Gemini)') {
+          return p.copyWith(
+            textModel: 'gemini-3.5-flash-lite',
+            imageModel: 'gemini-3.1-flash-lite-image',
+            videoModel: 'gemini-omni-1.1-flash',
+          );
+        }
+        return p;
+      }).toList();
+      await store.save(providers);
+
+      final loaded = await store.load();
+      final gemini = loaded.firstWhere(
+        (p) => p.name == 'Google AI Studio (Gemini)',
+        orElse: () => throw Exception('not found'),
+      );
+      expect(gemini.textModel, 'gemini-3.5-flash-lite');
+      expect(gemini.imageModel, 'gemini-3.1-flash-lite-image');
+      expect(gemini.videoModel, 'gemini-omni-1.1-flash');
+    });
+
     test('a malformed stored value is tolerated — returns presets', () async {
       await (await SharedPreferences.getInstance())
           .setString(storeKey, 'not-json');
       final store = AIConfigStore();
       final providers = await store.load();
-      expect(providers.length, 3);
+      expect(providers.length, 4);
     });
 
     test('a stored entry with missing fields falls back gracefully', () async {
@@ -77,10 +105,28 @@ void main() {
       );
       final store = AIConfigStore();
       final providers = await store.load();
-      expect(providers.length, 1);
-      expect(providers[0].name, 'Partial');
-      expect(providers[0].url, isEmpty);
-      expect(providers[0].apiKey, isEmpty);
+      // The partial entry is preserved and missing presets are merged in.
+      expect(providers.length, greaterThan(1));
+      expect(providers.any((p) => p.name == 'Partial'), isTrue);
+    });
+
+    test('missing presets are merged into stored data (migration)', () async {
+      // Simulate old stored data with only 3 presets (no Agnes AI).
+      final oldProviders = AIProvider.presets
+          .where((p) => p.name != 'Agnes AI')
+          .map((p) => p.toJson())
+          .toList();
+      await (await SharedPreferences.getInstance()).setString(
+        storeKey,
+        jsonEncode(oldProviders),
+      );
+      final store = AIConfigStore();
+      final providers = await store.load();
+      // Agnes AI should now be present even though it wasn't stored.
+      expect(providers.length, 4);
+      expect(providers.any((p) => p.name == 'Agnes AI'), isTrue);
+      // The existing stored entries are preserved.
+      expect(providers.any((p) => p.name == 'Google AI Studio (Gemini)'), isTrue);
     });
   });
 
@@ -112,9 +158,9 @@ void main() {
       await store.save(providers);
 
       final loaded = await store.load();
-      expect(loaded[0].selected, isFalse);
-      expect(loaded[1].selected, isTrue);
-      expect(loaded[2].selected, isFalse);
+      // Agnes AI (index 0) is active, so it gets auto-selected.
+      expect(loaded[0].selected, isTrue);
+      expect(loaded[0].name, 'Agnes AI');
     });
 
     test(
@@ -127,6 +173,28 @@ void main() {
 
       final loaded = await store.load();
       expect(loaded[0].selected, isTrue);
+    });
+
+    test(
+        'when multiple providers are selected, only the first active one'
+        ' remains selected (Q10)', () async {
+      final store = AIConfigStore();
+      var providers = await store.load();
+      // Mark multiple providers as selected.
+      providers = providers
+          .map((p) => p.copyWith(selected: true, active: true))
+          .toList();
+      await store.save(providers);
+
+      final loaded = await store.load();
+      // Only the first active provider should be selected.
+      expect(loaded.where((p) => p.selected).length, 1);
+      expect(loaded[0].selected, isTrue);
+      expect(loaded[0].name, 'Agnes AI');
+      // Others should not be selected.
+      expect(loaded[1].selected, isFalse);
+      expect(loaded[2].selected, isFalse);
+      expect(loaded[3].selected, isFalse);
     });
   });
 

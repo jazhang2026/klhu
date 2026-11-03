@@ -117,6 +117,31 @@ class NVIDIANIMConnectivityTest implements ProviderConnectivityTest {
   }
 }
 
+/// Agnes AI connectivity test. Probes the `/v1/models` endpoint with the
+/// Authorization header; a 200 response means the key works.
+class AgnesAIConnectivityTest implements ProviderConnectivityTest {
+  const AgnesAIConnectivityTest();
+
+  @override
+  Future<TestResult> test(String url, String apiKey) async {
+    if (apiKey.isEmpty) return TestResult.failed;
+    try {
+      final uri = Uri.parse('$url/models');
+      debugPrint('klhu Agnes AI test: $uri');
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $apiKey',
+      });
+      debugPrint('klhu Agnes AI test: status=${response.statusCode} body=${response.body.substring(0, response.body.length.clamp(0, 200))}');
+      return response.statusCode >= 200 && response.statusCode < 300
+          ? TestResult.passed
+          : TestResult.failed;
+    } catch (e, st) {
+      debugPrint('klhu Agnes AI connectivity test failed: $e\n$st');
+      return TestResult.failed;
+    }
+  }
+}
+
 /// The connectivity test for [url], or null if the URL is not recognised.
 /// The caller maps the provider's url to the right test (spec FR-004, research D1).
 ProviderConnectivityTest? testFor(String url) {
@@ -128,6 +153,9 @@ ProviderConnectivityTest? testFor(String url) {
   }
   if (url.contains('nvidia.com')) {
     return const NVIDIANIMConnectivityTest();
+  }
+  if (url.contains('agnes-ai.com')) {
+    return const AgnesAIConnectivityTest();
   }
   return null;
 }

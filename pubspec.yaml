@@ -66,7 +66,7 @@ dependencies:
   # `lib/platform/picture_picker.dart` — `extensions` is not accepted on iOS and
   # `mimeTypes` is not accepted on Windows, and the plugin throws on both.
   file_selector: ^1.1.0
-
+  share_plus: ^13.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

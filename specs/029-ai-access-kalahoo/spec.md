@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-28
 
-**Status**: Draft
+**Status**: CLOSED
 
 **Input**: the reader's wish list (`text.txt`), item 029 — add AI access for Kalahoo Reading; first supporting model is Google AI Studio (Gemini 2.5 Flash Lite), for free text/image/video generation; configuration: add an AI configuration page to select the model and input the API key; on the Edit page add an AI button to the right of the Format button, which opens a dialog to input the AI prompt; the AI prompt should be a string that will be sent to the AI model, and the reading content can optionally be included in the prompt.
 

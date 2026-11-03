@@ -9,8 +9,10 @@ import 'package:klhu/appearance_store.dart';
 import 'package:klhu/ai/provider_config_screen.dart';
 import 'package:klhu/ai/config_store.dart';
 import 'package:klhu/ai/prompt.dart';
+import 'package:klhu/ai/prompt_history.dart';
 import 'package:klhu/ai/provider_client.dart';
 import 'package:klhu/ai/provider_list.dart';
+import 'package:flutter/services.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/dialogue.dart';
@@ -586,6 +588,9 @@ class _ReadingViewState extends State<ReadingView> {
   String? _error;
   String? _hint;
 
+  /// Whether an image is currently being downloaded for saving.
+  bool _isSavingImage = false;
+
   /// Guard against rapid language switching
   bool _isLanguageChanging = false;
 
@@ -929,10 +934,11 @@ class _ReadingViewState extends State<ReadingView> {
     await widget.reader.stop();
     if (!mounted) return;
 
-    // Load the current provider list and last-picked type.
+    // Load the current provider list, last-picked type, and prompt history.
     final store = AIConfigStore();
     final providers = await store.load();
     final lastType = await store.loadLastType();
+    final history = await store.loadPromptHistory();
 
     if (!mounted) return;
     final result = await showDialog<_AIPromptResult>(
@@ -940,6 +946,7 @@ class _ReadingViewState extends State<ReadingView> {
       builder: (context) => _AIPromptDialog(
         providers: providers,
         initialType: lastType,
+        history: history,
       ),
     );
     if (result == null || !mounted) return;
@@ -953,6 +960,12 @@ class _ReadingViewState extends State<ReadingView> {
     }).toList();
     await store.save(updated);
     await store.saveLastType(result.type);
+    // Persist the prompt so the reader can retrieve it on the next attempt.
+    await store.addPromptHistory(
+      text: result.promptText,
+      type: result.type,
+      includeReadingContent: result.includeReadingContent,
+    );
 
     // Send the prompt to the provider.
     final provider = providers.firstWhere(
@@ -965,6 +978,16 @@ class _ReadingViewState extends State<ReadingView> {
       includeReadingContent: result.includeReadingContent,
       readingContent: _content,
     );
+
+    // Show progress indicator while the AI request is in flight.
+    final progressMsg = _progressMessage(result.type, result.promptText);
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _AIPendingDialog(message: progressMsg),
+    );
+
     final client = AIProviderClient();
     final aiResult = await client.generate(
       provider: provider,
@@ -972,19 +995,214 @@ class _ReadingViewState extends State<ReadingView> {
       readingContent: _content,
     );
 
+    // Dismiss the progress dialog.
+    if (mounted) Navigator.of(context).pop();
+
+    // Server-suggested model fallback (safety net for unknown deprecations not
+    // yet in the client registry). The client's built-in registry and auto-
+    // retry handle the common cases, so this block only fires for truly novel
+    // model renames.
+    if (!aiResult.success && aiResult.suggestedModel != null) {
+      debugPrint(
+          'klhu AI model suggestion: ${aiResult.suggestedModel}, retrying');
+      // Show a brief retry indicator.
+      if (mounted) {
+        Navigator.of(context).pop();
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(strokeWidth: 4),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Retrying with suggested model…',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      final updatedProvider = _updateProviderModel(
+          provider, aiResult.suggestedModel!, prompt.type);
+      final retryResult = await client.generate(
+        provider: updatedProvider,
+        prompt: prompt,
+        readingContent: _content,
+      );
+      if (mounted) Navigator.of(context).pop();
+      if (retryResult.success) {
+        final updated = providers.map((p) =>
+            p.name == provider.name ? updatedProvider : p).toList();
+        await store.save(updated);
+        if (!mounted) return;
+        setState(() {
+          _content = retryResult.content;
+          _editController?.value = TextEditingValue(
+            text: retryResult.content,
+            selection: TextSelection.collapsed(
+                offset: retryResult.content.length),
+          );
+        });
+        return;
+      }
+      if (!mounted) return;
+      setState(
+          () => _error = retryResult.errorMessage ?? 'AI generation failed');
+      return;
+    }
+
     if (!mounted) return;
     if (aiResult.success) {
-      // Land the generated content as an ordinary content (research D4).
-      final saved = await _store.saveNew(aiResult.content);
-      await _loadEntry(saved);
-      if (mounted && _mode == _Mode.edit) {
-        setState(() => _mode = _Mode.read);
-        _disposeUndo();
+      // Persist any model auto-resolve so future sessions use the corrected model.
+      if (aiResult.resolvedProvider != null &&
+          aiResult.resolvedProvider != provider) {
+        debugPrint(
+            'klhu AI persisted resolved model: ${aiResult.resolvedProvider!.name}');
+        final updated = providers.map((p) =>
+            p.name == provider.name ? aiResult.resolvedProvider! : p).toList();
+        await store.save(updated);
       }
+      // Check if the result is an image URL (starts with http or is a data URI).
+      final isImageUrl = aiResult.content.startsWith('http') ||
+          aiResult.content.startsWith('data:image');
+      debugPrint('klhu AI result isImageUrl: $isImageUrl');
+      if (isImageUrl) {
+        // Show the image in a preview dialog with a save option.
+        debugPrint('klhu AI showing image preview');
+        if (!mounted) {
+          debugPrint('klhu AI not mounted, skipping preview');
+          return;
+        }
+        await _showImagePreview(context, aiResult.content);
+        debugPrint('klhu AI preview dialog closed');
+        return;
+      }
+      // Replace the edit-box content with the AI result and stay in edit
+      // mode so the reader can review and decide whether to save (FR-007).
+      setState(() {
+        _content = aiResult.content;
+        _editController?.value = TextEditingValue(
+          text: aiResult.content,
+          selection: TextSelection.collapsed(
+              offset: aiResult.content.length),
+        );
+      });
     } else {
       // FR-007: surface the failure without losing configuration or prompt.
       setState(() => _error = aiResult.errorMessage ?? 'AI generation failed');
     }
+  }
+
+  /// Returns a human-readable progress message for the given prompt type.
+  String _progressMessage(AIPromptType type, String prompt) {
+    switch (type) {
+      case AIPromptType.text:
+        return 'Generating text…';
+      case AIPromptType.image:
+        return 'Generating image… This may take a minute.';
+      case AIPromptType.video:
+        return 'Generating video… This may take a while.';
+    }
+  }
+
+  /// Show an AI-generated image in a full-screen dialog with a save button.
+  Future<void> _showImagePreview(
+    BuildContext context,
+    String imageUrl,
+  ) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _AIImagePreviewDialog(
+        imageUrl: imageUrl,
+        onSave: _saveImageToGallery,
+      ),
+    );
+  }
+
+  /// Download the image from [imageUrl] and save it directly into the device's
+  /// Gallery (Pictures/Klhu album). On API 29+ this uses MediaStore with no
+  /// permission required; on older devices it writes to the public directory
+  /// and announces it with a media scan.
+  Future<void> _saveImageToGallery(String imageUrl) async {
+    if (_isSavingImage || !mounted) return;
+    setState(() => _isSavingImage = true);
+    try {
+      final bytes = await _downloadImageBytes(imageUrl);
+      if (!mounted) return;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final baseName = 'AI_$timestamp';
+      debugPrint('klhu AI saving image: $baseName (${bytes.length} bytes)');
+      final platform = MethodChannel('klhu/image_files');
+      final result = await platform.invokeMethod('save', {
+        'bytes': bytes,
+        'mimeType': 'image/png',
+        'baseName': baseName,
+      });
+      final Map<String, dynamic> resultMap =
+          Map<String, dynamic>.from(result as Map);
+      final uri = resultMap['uri'] as String? ?? '';
+      final path = resultMap['path'] as String? ?? '';
+      debugPrint('klhu AI image saved: uri=$uri path=$path');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved to Gallery: Klhu folder')),
+      );
+    } catch (e) {
+      debugPrint('klhu AI save failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingImage = false);
+    }
+  }
+
+  /// Download image bytes from [url].
+  Future<List<int>> _downloadImageBytes(String url) async {
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      final bytes = await response.fold<List<int>>(
+        [],
+        ( List<int> acc, List<int> chunk) => acc..addAll(chunk),
+      );
+      return bytes;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Return a copy of [provider] with its model for [type] updated to [model].
+  /// The update is scoped to the relevant field (text/image/video) so that only
+  /// the failing modality is changed. Does not mutate [provider] or any list.
+  AIProvider _updateProviderModel(
+    AIProvider provider,
+    String model,
+    AIPromptType type,
+  ) {
+    if (type == AIPromptType.image) {
+      return provider.copyWith(imageModel: model);
+    }
+    if (type == AIPromptType.video) {
+      return provider.copyWith(videoModel: model);
+    }
+    return provider.copyWith(textModel: model);
   }
 
   /// Import a document file (025 FR-001).
@@ -3430,6 +3648,114 @@ class _ReadingViewState extends State<ReadingView> {
   }
 }
 
+/// A progress dialog shown while an AI request is in flight.
+class _AIPendingDialog extends StatelessWidget {
+  final String message;
+
+  const _AIPendingDialog({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(strokeWidth: 4),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A full-screen dialog for previewing an AI-generated image with a save option.
+class _AIImagePreviewDialog extends StatefulWidget {
+  final String imageUrl;
+  final Future<void> Function(String) onSave;
+
+  const _AIImagePreviewDialog({
+    required this.imageUrl,
+    required this.onSave,
+  });
+
+  @override
+  State<_AIImagePreviewDialog> createState() => _AIImagePreviewDialogState();
+}
+
+class _AIImagePreviewDialogState extends State<_AIImagePreviewDialog> {
+  bool _isLoading = true;
+  bool _loadError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer image pre-caching until after the widget is fully built,
+    // so inherited widgets like MediaQuery are available.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheImage(NetworkImage(widget.imageUrl), context).then((_) {
+        if (mounted) setState(() => _isLoading = false);
+      }).catchError((_) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _loadError = true;
+          });
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withOpacity(0.8),
+        title: const Text('AI Image'),
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save, color: Colors.white),
+            onPressed: () => widget.onSave(widget.imageUrl),
+            tooltip: 'Save to gallery',
+          ),
+        ],
+      ),
+      body: Center(
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : _loadError
+                ? const Icon(Icons.broken_image, color: Colors.white, size: 64)
+                : InteractiveViewer(
+                    child: Image.network(
+                      widget.imageUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stack) =>
+                          const Icon(Icons.broken_image,
+                              color: Colors.white, size: 64),
+                    ),
+                  ),
+      ),
+    );
+  }
+}
+
 
 /// How tall the window the chosen pictures are reviewed in is (FR-030): two rows
 /// of thumbnails and the space between them — a small window the reader scrolls
@@ -3711,10 +4037,12 @@ class _AIPromptResult {
 class _AIPromptDialog extends StatefulWidget {
   final List<AIProvider> providers;
   final AIPromptType initialType;
+  final List<AIPromptEntry> history;
 
   const _AIPromptDialog({
     required this.providers,
     required this.initialType,
+    this.history = const [],
   });
 
   @override
@@ -3726,6 +4054,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   late String _selectedProviderName;
   late TextEditingController _promptController;
   bool _includeReadingContent = false;
+  bool _historyExpanded = false;
 
   @override
   void initState() {
@@ -3745,6 +4074,16 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   void dispose() {
     _promptController.dispose();
     super.dispose();
+  }
+
+  /// Restore a prompt from history into the text field and restore its type
+  /// and includeReadingContent setting.
+  void _restoreFromHistory(AIPromptEntry entry) {
+    setState(() {
+      _promptController.text = entry.text;
+      _selectedType = entry.type;
+      _includeReadingContent = entry.includeReadingContent;
+    });
   }
 
   void _submit() {
@@ -3777,80 +4116,171 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
         currentSelected,
     ];
 
+    // Format timestamp as a short relative label.
+    String formatTime(int ms) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final diff = now - ms;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return '${(diff / 60000).floor()}m ago';
+      if (diff < 86400000) return '${(diff / 3600000).floor()}h ago';
+      return '${(diff / 86400000).floor()}d ago';
+    }
+
     return AlertDialog(
       title: const Text('AI Prompt'),
       content: SizedBox(
         width: 400,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Generation type picker (Q8).
-            DropdownButton<AIPromptType>(
-              value: _selectedType,
-              isExpanded: true,
-              items: AIPromptType.values.map((type) {
-                return DropdownMenuItem<AIPromptType>(
-                  value: type,
-                  child: Text(type.name.toUpperCase()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedType = value);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            // Provider options dropdown (Q9).
-            DropdownButton<String>(
-              value: _selectedProviderName,
-              isExpanded: true,
-              items: items.map((provider) {
-                return DropdownMenuItem<String>(
-                  value: provider.name,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Generation type picker (Q8).
+              DropdownButton<AIPromptType>(
+                value: _selectedType,
+                isExpanded: true,
+                items: AIPromptType.values.map((type) {
+                  return DropdownMenuItem<AIPromptType>(
+                    value: type,
+                    child: Text(type.name.toUpperCase()),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedType = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              // Provider options dropdown (Q9).
+              DropdownButton<String>(
+                value: _selectedProviderName,
+                isExpanded: true,
+                items: items.map((provider) {
+                  return DropdownMenuItem<String>(
+                    value: provider.name,
+                    child: Row(
+                      children: [
+                        if (provider.active)
+                          const Icon(Icons.check_circle,
+                              color: Colors.green, size: 16),
+                        if (!provider.active)
+                          const Icon(Icons.help_outline,
+                              color: Colors.grey, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(provider.name)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedProviderName = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              // Prompt text field.
+              TextField(
+                controller: _promptController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  hintText: 'Enter your AI prompt...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Include reading content toggle (A3).
+              CheckboxListTile(
+                title: const Text('Include reading content'),
+                subtitle: const Text(
+                    'Optionally include the current text in the prompt'),
+                value: _includeReadingContent,
+                onChanged: (value) {
+                  setState(() => _includeReadingContent = value ?? false);
+                },
+                dense: true,
+              ),
+              // Recent prompts history.
+              if (widget.history.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () => setState(() => _historyExpanded = !_historyExpanded),
                   child: Row(
                     children: [
-                      if (provider.active)
-                        const Icon(Icons.check_circle,
-                            color: Colors.green, size: 16),
-                      if (!provider.active)
-                        const Icon(Icons.help_outline,
-                            color: Colors.grey, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(provider.name)),
+                      Icon(
+                        _historyExpanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Recent prompts (${widget.history.length})',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _selectedProviderName = value);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            // Prompt text field.
-            TextField(
-              controller: _promptController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Enter your AI prompt...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Include reading content toggle (A3).
-            CheckboxListTile(
-              title: const Text('Include reading content'),
-              subtitle: const Text(
-                  'Optionally include the current text in the prompt'),
-              value: _includeReadingContent,
-              onChanged: (value) {
-                setState(() => _includeReadingContent = value ?? false);
-              },
-              dense: true,
-            ),
-          ],
+                ),
+                if (_historyExpanded)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      children: widget.history.map((entry) {
+                        return InkWell(
+                          onTap: () => _restoreFromHistory(entry),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 2),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.grey.shade50,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  entry.type == AIPromptType.image
+                                      ? Icons.image
+                                      : entry.type == AIPromptType.video
+                                          ? Icons.videocam
+                                          : Icons.text_fields,
+                                  size: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    entry.text.length > 60
+                                        ? '${entry.text.substring(0, 60)}...'
+                                        : entry.text,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  formatTime(entry.timestamp),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [

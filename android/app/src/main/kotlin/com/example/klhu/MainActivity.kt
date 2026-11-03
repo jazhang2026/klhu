@@ -19,6 +19,7 @@ class MainActivity : FlutterActivity() {
         val messenger = flutterEngine.dartExecutor.binaryMessenger
         VideoEncoderPlugin().register(messenger)
         VideoFileStore.register(messenger, this, this)
+        ImageFileStore.register(messenger, this)
         VideoPlayerView.register(messenger)
         flutterEngine.platformViewsController.registry.registerViewFactory(
             VideoPlayerView.VIEW_TYPE,

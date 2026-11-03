@@ -27,6 +27,13 @@ void main() {
       );
     });
 
+    test('maps an Agnes AI URL to the Agnes AI test', () {
+      expect(
+        testFor('https://apihub.agnes-ai.com/v1'),
+        isA<AgnesAIConnectivityTest>(),
+      );
+    });
+
     test('returns null for an unknown URL', () {
       expect(testFor('https://unknown.example.com'), isNull);
     });
@@ -61,6 +68,15 @@ void main() {
       final test_ = const NVIDIANIMConnectivityTest();
       expect(
           await test_.test('https://integrate.api.nvidia.com/v1', ''),
+          TestResult.failed);
+    });
+  });
+
+  group('AgnesAIConnectivityTest', () {
+    test('returns failed for an empty key', () async {
+      final test_ = const AgnesAIConnectivityTest();
+      expect(
+          await test_.test('https://apihub.agnes-ai.com/v1', ''),
           TestResult.failed);
     });
   });

@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'provider_list.dart';
 import 'prompt.dart';
+import 'prompt_history.dart';
 
 /// Persists the AI provider list in `shared_preferences` (spec FR-002, FR-003).
 ///
@@ -39,24 +40,58 @@ class AIConfigStore {
   AIConfigStore({Future<SharedPreferences> Function()? prefs})
       : _prefs = prefs ?? SharedPreferences.getInstance;
 
-  /// The provider list, seeded with the three presets and with the reader's own
+  /// The provider list, seeded with the four presets and with the reader's own
   /// entries merged in. The first `active` provider is marked `selected` (Q10);
   /// if none is active yet the first preset is selected (the reader sees the
   /// dialog with a default).
+  ///
+  /// Missing presets from the seed are automatically merged in so that adding
+  /// a new preset (e.g. a new provider) is visible to readers who already have
+  /// stored data.
   Future<List<AIProvider>> load() async {
     try {
       final prefs = await _prefs();
       final raw = prefs.getString(providersKey);
       final entries = _parseEntries(raw);
       if (entries.isEmpty) return List.from(AIProvider.presets);
-      final providers = <AIProvider>[];
+      var providers = <AIProvider>[];
       for (final json in entries) {
         providers.add(AIProvider.fromJson(json));
       }
-      // Ensure exactly one provider is selected: the first active, or the first
-      // entry if none is active yet (prevents an empty dropdown).
-      final hasSelected = providers.any((p) => p.selected);
-      if (!hasSelected) {
+      // Merge any presets that are missing from the stored list (e.g. a new
+      // preset added in a later app version). Presets take priority over
+      // user-added providers with the same name.
+      final existingNames = providers.map((p) => p.name).toSet();
+      for (final preset in AIProvider.presets) {
+        if (!existingNames.contains(preset.name)) {
+          providers.add(preset);
+        }
+      }
+      // Invariant: only active providers can be selected. Clear any stale
+      // selected flag on inactive providers (can happen after a migration).
+      providers = providers
+          .map((p) => (!p.active && p.selected)
+              ? p.copyWith(selected: false)
+              : p)
+          .toList();
+      // Invariant: exactly one provider must be selected. If multiple are
+      // selected, keep only the first active one; if none is selected, pick
+      // the first active or fall back to the first entry.
+      final selectedProviders = providers.where((p) => p.selected).toList();
+      if (selectedProviders.length > 1) {
+        // Multiple selected — clear all and pick the first active.
+        providers = providers
+            .map((p) => p.copyWith(selected: false))
+            .toList();
+        var firstActiveIdx = providers.indexWhere((p) => p.active);
+        if (firstActiveIdx < 0) firstActiveIdx = 0;
+        if (firstActiveIdx >= 0 && firstActiveIdx < providers.length) {
+          providers[firstActiveIdx] =
+              providers[firstActiveIdx].copyWith(selected: true);
+          await _save(prefs, providers);
+        }
+      } else if (selectedProviders.isEmpty) {
+        // None selected — pick the first active or fall back to first entry.
         var firstActiveIdx = providers.indexWhere((p) => p.active);
         if (firstActiveIdx < 0) firstActiveIdx = 0;
         if (firstActiveIdx >= 0 && firstActiveIdx < providers.length) {
@@ -104,6 +139,24 @@ class AIConfigStore {
     } catch (e) {
       debugPrint('klhu AI last type not persisted: $e');
     }
+  }
+
+  /// Load the prompt history from SharedPreferences.
+  /// Exposed for tests; delegates to [AIPromptHistory.load].
+  Future<List<AIPromptEntry>> loadPromptHistory() async {
+    final history = AIPromptHistory(prefs: _prefs);
+    return history.load();
+  }
+
+  /// Add a prompt to the history.
+  /// Exposed for tests; delegates to [AIPromptHistory.add].
+  Future<void> addPromptHistory({
+    required String text,
+    required AIPromptType type,
+    required bool includeReadingContent,
+  }) async {
+    final history = AIPromptHistory(prefs: _prefs);
+    await history.add(text: text, type: type, includeReadingContent: includeReadingContent);
   }
 
   Future<void> _save(

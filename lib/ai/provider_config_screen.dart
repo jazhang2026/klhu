@@ -13,7 +13,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:klhu/ai/auto_test.dart';
 import 'package:klhu/ai/config_store.dart';
@@ -151,7 +150,10 @@ class _AIProviderConfigScreenState extends State<AIProviderConfigScreen> {
   }
 
   /// Mark a provider as selected (the default shown in the AI dialog).
+  /// Inactive providers cannot be selected — the user must first set an API
+  /// key so the provider becomes active (spec Q9).
   Future<void> _selectProvider(AIProvider provider) async {
+    if (!provider.active) return; // Inactive providers cannot be selected.
     var providers = await _providersFuture;
     providers = providers
         .map((p) => p.copyWith(selected: p.name == provider.name))
@@ -227,46 +229,43 @@ class _ProviderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPreset = AIProvider.presets.any((p) => p.name == provider.name);
+    final statusText = provider.selected && provider.active
+        ? 'Selected'
+        : provider.active
+            ? 'Active'
+            : null;
+    final statusColor = provider.selected && provider.active
+        ? Colors.green
+        : provider.active
+            ? Colors.blue
+            : Colors.grey;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: provider.active ? Colors.green : Colors.grey,
-          child: Icon(
-            provider.active ? Icons.check : Icons.help,
-            color: Colors.white,
-            size: 20,
-          ),
+          backgroundColor: statusColor,
+          child: provider.active
+              ? const Icon(Icons.check, color: Colors.white, size: 20)
+              : const Icon(Icons.help, color: Colors.white, size: 20),
         ),
         title: Text(provider.name),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              provider.url,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (provider.registerTip.isNotEmpty)
-              Text(
-                provider.registerTip,
-                style: Theme.of(context).textTheme.bodySmall,
+            if (statusText != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Chip(
+                  label: Text(statusText),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: statusColor.withValues(alpha: 0.15),
+                  side: BorderSide(color: statusColor, width: 1),
+                ),
               ),
-            Row(
-              children: [
-                if (provider.active)
-                  const Chip(
-                    label: Text('Active'),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                if (provider.selected) ...[
-                  const SizedBox(width: 4),
-                  const Chip(
-                    label: Text('Selected'),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ],
-            ),
+            // Only show the URL from the register tip (e.g. the API key setup
+            // page), not the full instruction text.
+            if (provider.registerTip.isNotEmpty)
+              _RegisterTipLink(text: provider.registerTip),
           ],
         ),
         trailing: Row(
@@ -283,7 +282,9 @@ class _ProviderTile extends StatelessWidget {
               onPressed: onEdit,
               tooltip: 'Edit',
             ),
-            if (!provider.selected)
+            if (!provider.active)
+              const Icon(Icons.lock_outline, color: Colors.grey),
+            if (!provider.selected && provider.active)
               IconButton(
                 icon: const Icon(Icons.check_circle_outline),
                 onPressed: onSelect,
@@ -390,12 +391,11 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
 }
 
 /// Extracts URLs from [text] and makes them tappable via [url_launcher].
-/// Falls back to plain text for non-URL content.
+/// Only the URL itself is shown as a tappable link; surrounding instructional
+/// text (e.g. "Go to ... and create a key") is hidden — the reader just sees
+/// the link they can tap to open the setup page.
 ///
-/// Tries `externalApplication` mode first (avoids chooser), then falls back
-/// to `platformDefault` which shows the app chooser. If neither works (e.g.
-/// no browser on the device), the tap is silently ignored and a SnackBar
-/// reports the failure.
+/// Falls back to plain text for non-URL content.
 class _RegisterTipLink extends StatelessWidget {
   final String text;
 
@@ -403,70 +403,65 @@ class _RegisterTipLink extends StatelessWidget {
 
   Future<void> _openUrl(String url, BuildContext context) async {
     final uri = Uri.parse(url);
-    // Try external application first (no chooser — opens directly).
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
         return;
       }
     } catch (_) {}
-    // Fallback to platform default (shows chooser).
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
         return;
       }
     } catch (_) {}
-    // Nothing can open this URL — copy to clipboard so the user can paste it.
     if (!context.mounted) return;
     final currentContext = context;
     await Clipboard.setData(ClipboardData(text: url));
     if (!currentContext.mounted) return;
-    final snackBar = SnackBar(
-      content: Text('Copied to clipboard: $url'),
-      duration: const Duration(seconds: 4),
-      action: SnackBarAction(
-        label: 'Open',
-        onPressed: () async {
-          if (currentContext.mounted && await canLaunchUrl(uri)) {
-            await launchUrl(uri);
-          }
-        },
+    ScaffoldMessenger.of(currentContext).showSnackBar(
+      SnackBar(
+        content: Text('Copied to clipboard: $url'),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Open',
+          onPressed: () async {
+            if (currentContext.mounted && await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+            }
+          },
+        ),
       ),
     );
-    ScaffoldMessenger.of(currentContext).showSnackBar(snackBar);
   }
 
   @override
   Widget build(BuildContext context) {
     final urlPattern = RegExp(r'https?://[^\s]+');
-    final matches = urlPattern.allMatches(text);
+    final matches = urlPattern.allMatches(text).toList();
     if (matches.isEmpty) {
-      return Text(text, style: Theme.of(context).textTheme.bodySmall);
+      return Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
     }
-    final spans = <InlineSpan>[];
-    var cursor = 0;
-    for (final match in matches) {
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, match.start)));
-      }
-      final url = match.group(0)!;
-      spans.add(TextSpan(
-        text: url,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.blue,
-              decoration: TextDecoration.underline,
-            ),
-        recognizer: TapGestureRecognizer()
-          ..onTap = () => _openUrl(url, context),
-      ));
-      cursor = match.end;
-    }
-    if (cursor < text.length) {
-      spans.add(TextSpan(text: text.substring(cursor)));
-    }
-    return RichText(
-      text: TextSpan(style: Theme.of(context).textTheme.bodySmall, children: spans),
+    // Show the full tip text with the first URL as a tappable link.
+    final firstUrl = matches.first.group(0)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: GestureDetector(
+        onTap: () => _openUrl(firstUrl, context),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.blue,
+                decoration: TextDecoration.underline,
+              ),
+        ),
+      ),
     );
   }
 }

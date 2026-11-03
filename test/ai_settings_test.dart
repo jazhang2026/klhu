@@ -16,7 +16,7 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('AIProviderConfigScreen', () {
-    testWidgets('shows the three presets on load', (tester) async {
+    testWidgets('shows the four presets on load', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -26,6 +26,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Agnes AI'), findsOneWidget);
       expect(find.text('Google AI Studio (Gemini)'), findsOneWidget);
       expect(find.text('OpenRouter (:free)'), findsOneWidget);
       expect(find.text('NVIDIA NIM'), findsOneWidget);
@@ -115,10 +116,10 @@ void main() {
     testWidgets('selected provider is highlighted', (tester) async {
       final store = AIConfigStore();
       var providers = await store.load();
-      // Mark the second preset as selected.
+      // Mark the second preset active AND selected.
       providers = providers
           .map((p) => p.name == 'OpenRouter (:free)'
-              ? p.copyWith(selected: true)
+              ? p.copyWith(active: true, selected: true)
               : p)
           .toList();
       await store.save(providers);
