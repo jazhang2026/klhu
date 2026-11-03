@@ -12,6 +12,9 @@ import 'package:klhu/ai/prompt.dart';
 import 'package:klhu/ai/prompt_history.dart';
 import 'package:klhu/ai/provider_client.dart';
 import 'package:klhu/ai/provider_list.dart';
+import 'package:klhu/ai/skill.dart';
+import 'package:klhu/ai/skill_store.dart';
+import 'package:klhu/ai/post_processor.dart';
 import 'package:flutter/services.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
@@ -934,11 +937,13 @@ class _ReadingViewState extends State<ReadingView> {
     await widget.reader.stop();
     if (!mounted) return;
 
-    // Load the current provider list, last-picked type, and prompt history.
+    // Load the current provider list, last-picked type, prompt history, and skills.
     final store = AIConfigStore();
     final providers = await store.load();
     final lastType = await store.loadLastType();
     final history = await store.loadPromptHistory();
+    final skillStore = AISkillStore();
+    final skills = await skillStore.load();
 
     if (!mounted) return;
     final result = await showDialog<_AIPromptResult>(
@@ -947,6 +952,7 @@ class _ReadingViewState extends State<ReadingView> {
         providers: providers,
         initialType: lastType,
         history: history,
+        skills: skills,
       ),
     );
     if (result == null || !mounted) return;
@@ -1091,12 +1097,17 @@ class _ReadingViewState extends State<ReadingView> {
       }
       // Replace the edit-box content with the AI result and stay in edit
       // mode so the reader can review and decide whether to save (FR-007).
+      // Spec 030: post-process text responses to strip conversational filler.
+      final processedContent = result.type == AIPromptType.text
+          ? postProcessAiText(aiResult.content)
+          : aiResult.content;
+      debugPrint('klhu AI result after post-process: ${processedContent.length} chars');
       setState(() {
-        _content = aiResult.content;
+        _content = processedContent;
         _editController?.value = TextEditingValue(
-          text: aiResult.content,
+          text: processedContent,
           selection: TextSelection.collapsed(
-              offset: aiResult.content.length),
+              offset: processedContent.length),
         );
       });
     } else {
@@ -4033,16 +4044,19 @@ class _AIPromptResult {
 /// The AI prompt dialog opened by the Edit page's AI button (spec FR-005, Q8,
 /// Q9). The dialog offers a generation type picker, a provider options
 /// dropdown (only `active` providers by default; the currently `selected` one
-/// is always shown so the reader can switch back), and the prompt string.
+/// is always shown so the reader can switch back), the prompt string, and an
+/// optional skill picker (spec 030).
 class _AIPromptDialog extends StatefulWidget {
   final List<AIProvider> providers;
   final AIPromptType initialType;
   final List<AIPromptEntry> history;
+  final List<AISkill> skills;
 
   const _AIPromptDialog({
     required this.providers,
     required this.initialType,
     this.history = const [],
+    this.skills = const [],
   });
 
   @override
@@ -4055,6 +4069,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   late TextEditingController _promptController;
   bool _includeReadingContent = false;
   bool _historyExpanded = false;
+  AISkill? _selectedSkill;
 
   @override
   void initState() {
@@ -4074,6 +4089,21 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   void dispose() {
     _promptController.dispose();
     super.dispose();
+  }
+
+  /// Apply [skill]'s template to the prompt field, replacing any existing text.
+  void _applySkill(AISkill skill) {
+    setState(() {
+      _selectedSkill = skill;
+      _promptController.text = skill.template;
+    });
+  }
+
+  /// Clear the skill selection and any template text.
+  void _clearSkill() {
+    setState(() {
+      _selectedSkill = null;
+    });
   }
 
   /// Restore a prompt from history into the text field and restore its type
@@ -4135,6 +4165,106 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Skill picker row (spec 030). Shown when skills are available.
+              if (widget.skills.isNotEmpty) ...[
+                const Text(
+                  'Skill',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    // "None" option — clear any skill selection.
+                    InkWell(
+                      onTap: _clearSkill,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: _selectedSkill == null
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(12),
+                          color: _selectedSkill == null
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : null,
+                        ),
+                        child: Text(
+                          'None',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _selectedSkill == null
+                                ? Theme.of(context).colorScheme.onPrimaryContainer
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Built-in and custom skill chips.
+                    ...widget.skills.map((skill) {
+                      final isSelected = _selectedSkill?.id == skill.id;
+                      return InkWell(
+                        onTap: () => _applySkill(skill),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                skill.isBuiltIn
+                                    ? Icons.auto_awesome
+                                    : Icons.bookmark_border,
+                                size: 14,
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                skill.name,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isSelected
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+                if (_selectedSkill != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _selectedSkill!.description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+              ],
               // Generation type picker (Q8).
               DropdownButton<AIPromptType>(
                 value: _selectedType,
