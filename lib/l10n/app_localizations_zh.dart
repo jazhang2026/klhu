@@ -559,7 +559,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPromptTitle => 'AI 提示';
 
   @override
-  String get aiPromptSkillLabel => '技能';
+  String get aiPromptSkillLabel => '提示模板';
 
   @override
   String get aiPromptSkillNone => '無';
@@ -1202,7 +1202,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aiPromptTitle => 'AI 提示';
 
   @override
-  String get aiPromptSkillLabel => '技能';
+  String get aiPromptSkillLabel => '提示模板';
 
   @override
   String get aiPromptSkillNone => '無';

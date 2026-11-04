@@ -580,7 +580,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aiPromptTitle => 'AI Prompt';
 
   @override
-  String get aiPromptSkillLabel => 'Skill';
+  String get aiPromptSkillLabel => 'Plantilla de prompt';
 
   @override
   String get aiPromptSkillNone => 'None';

@@ -4173,10 +4173,12 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               DropdownButton<AIPromptType>(
                 value: _selectedType,
                 isExpanded: true,
+                style: const TextStyle(fontSize: 13),
+                underline: const SizedBox(),
                 items: AIPromptType.values.map((type) {
                   return DropdownMenuItem<AIPromptType>(
                     value: type,
-                    child: Text(type.name.toUpperCase()),
+                    child: Text(type.name.toUpperCase(), style: const TextStyle(fontSize: 13)),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -4192,6 +4194,8 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               DropdownButton<String>(
                 value: _selectedProviderName,
                 isExpanded: true,
+                style: const TextStyle(fontSize: 13),
+                underline: const SizedBox(),
                 items: items.map((provider) {
                   return DropdownMenuItem<String>(
                     value: provider.name,
@@ -4204,7 +4208,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                           const Icon(Icons.help_outline,
                               color: Colors.grey, size: 16),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(provider.name)),
+                        Expanded(child: Text(provider.name, style: const TextStyle(fontSize: 13))),
                       ],
                     ),
                   );
@@ -4218,46 +4222,55 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               // Skill picker — only shown for text type (spec 030 FR-008).
               if (_selectedType == AIPromptType.text && widget.skills.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(
-                  l10n.aiPromptSkillLabel,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                DropdownButton<AISkill?>(
-                  value: _selectedSkill,
-                  isExpanded: true,
-                  hint: Text(l10n.aiPromptSkillNone),
-                  items: [
-                    const DropdownMenuItem<AISkill?>(
-                      value: null,
-                      child: Text('None'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      l10n.aiPromptSkillLabel,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
-                    ...widget.skills.map((skill) {
-                      return DropdownMenuItem<AISkill>(
-                        value: skill,
-                        child: Row(
-                          children: [
-                            Icon(
-                              skill.isBuiltIn
-                                  ? Icons.auto_awesome
-                                  : Icons.bookmark_border,
-                              size: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(skill.name)),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButton<AISkill?>(
+                        value: _selectedSkill,
+                        isExpanded: true,
+                        style: const TextStyle(fontSize: 13),
+                        underline: const SizedBox(),
+                        hint: Text(l10n.aiPromptSkillNone, style: const TextStyle(fontSize: 13)),
+                        items: [
+                          const DropdownMenuItem<AISkill?>(
+                            value: null,
+                            child: Text('None', style: TextStyle(fontSize: 13)),
+                          ),
+                          ...widget.skills.map((skill) {
+                            return DropdownMenuItem<AISkill>(
+                              value: skill,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    skill.isBuiltIn
+                                        ? Icons.auto_awesome
+                                        : Icons.bookmark_border,
+                                    size: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(child: Text(skill.name, style: const TextStyle(fontSize: 13))),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            _applySkill(value);
+                          } else {
+                            _clearSkill();
+                          }
+                        },
+                      ),
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      _applySkill(value);
-                    } else {
-                      _clearSkill();
-                    }
-                  },
                 ),
                 if (_selectedSkill != null) ...[
                   const SizedBox(height: 4),

@@ -214,7 +214,7 @@
   "@aiProviderFailSave": {"placeholders": {"error": {"type": "String"}}},
   "@aiProviderDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
   "aiPromptTitle": "AI Prompt",
-  "aiPromptSkillLabel": "Skill",
+  "aiPromptSkillLabel": "Prompt Template",
   "aiPromptSkillNone": "None",
   "aiPromptTypeLabel": "Type",
   "aiPromptProviderLabel": "Provider",

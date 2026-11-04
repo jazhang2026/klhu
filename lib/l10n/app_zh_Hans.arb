@@ -163,7 +163,7 @@
   "@aiProviderFailSave": {"placeholders": {"error": {"type": "String"}}},
   "@aiProviderDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
   "aiPromptTitle": "AI 提示",
-  "aiPromptSkillLabel": "技能",
+  "aiPromptSkillLabel": "提示模板",
   "aiPromptSkillNone": "無",
   "aiPromptTypeLabel": "類型",
   "aiPromptProviderLabel": "提供者",
