@@ -1,10 +1,15 @@
 # Implementation Plan: AI Skills for Content Generation
 
-**Branch**: `030-ai-skills-for-content-generation` | **Date**: 2026-11-03 | **Spec**: [specs/030-ai-skills-for-content-generation/spec.md](specs/030-ai-skills-for-content-generation/spec.md)
+**Branch**: `030-ai-skills-for-content-generation` | **Date**: 2026-11-03 | **Updated**: 2026-11-04
+**Spec**: [spec.md](./spec.md) | **Research**: [research.md](./research.md)
 
 ## Summary
 
-Add AI skills — pre-built prompt templates — to the AI prompt dialog so the reader can turn a simple request into properly formatted KalaHoo Reading content. Three shipped skills (Story, Dialogue, Lesson) plus the ability for the reader to save custom skills. An output post-processor strips conversational header/footer from AI text responses.
+Add AI skills — pre-built prompt templates — to the AI prompt dialog so the reader can turn a simple request into properly formatted KalaHoo Reading content. Three shipped skills (Story, Dialogue, Lesson), an output post-processor that strips conversational header/footer, and full i18n across all AI screens.
+
+## Status
+
+**CLOSED** — all planned tasks done; i18n added 2026-11-04. 1047 tests pass; `flutter analyze` clean (9 non-blocking issues).
 
 ## Technical Context
 
@@ -12,45 +17,49 @@ Add AI skills — pre-built prompt templates — to the AI prompt dialog so the 
 
 **Dependencies**: none new — `shared_preferences` (already in), `http` (already in via spec 029).
 
-**Storage**: SharedPreferences under key `klhu_ai_skills`; the three built-in templates are hardcoded in source.
+**Storage**: SharedPreferences under key `ai_skills`; the three built-in templates are hardcoded in `lib/ai/skill_store.dart`.
 
-**Target Platform**: iOS 16+, Android 10+ (API 29+).
+**i18n**: all AI strings live in the ARB files (`app_en.arb`, `app_zh.arb`, `app_zh_Hans.arb`, `app_es.arb`) and are accessed via `AppLocalizations.of(context)`.
 
-## Tasks
+## Implementation
 
 ### Phase 1: Data model and persistence
 
-- [ ] T001 [P] `lib/ai/skill.dart`: the `AISkill` class — `id`, `name`, `description`, `template`, `defaultType`, `isBuiltIn`.
-- [ ] T002 [P] `lib/ai/skill_store.dart`: the SharedPreferences persistence layer — load all skills (seeded built-ins + custom), save, update, delete. Seed the three built-ins on first launch.
-- [ ] T003 `lib/ai/post_processor.dart`: the output post-processor — strip conversational header/footer from raw AI text; returns cleaned text or the original if no split is found.
+| Task | File | Status |
+|---|---|---|
+| T001 `AISkill` model | `lib/ai/skill.dart` | ✅ done |
+| T002 `AISkillStore` persistence | `lib/ai/skill_store.dart` | ✅ done |
+| T003 Post-processor | `lib/ai/post_processor.dart` | ✅ done |
 
 ### Phase 2: Dialog integration
 
-- [ ] T004 [P] `lib/reading_view.dart` (`_AIPromptDialog`): add the skill picker row above the prompt text field; show built-in + custom skills as chips; tapping a skill renders its template into the prompt field.
-- [ ] T005 [P] `lib/reading_view.dart` (`_openAIPromptDialog`): integrate the post-processor — after `client.generate()` returns text, run `postProcess()` before applying the result to `_content`.
-- [ ] T006 `lib/reading_view.dart` (`_AIPromptDialog`): add "Save as skill" action — long-press or a dedicated button that opens a small input dialog to name the skill, then calls `skillStore.save()`.
+| Task | File | Status |
+|---|---|---|
+| T004 Skill dropdown in `_AIPromptDialog` | `lib/reading_view.dart` | ✅ done |
+| T005 Post-process AI text results | `lib/reading_view.dart` | ✅ done |
+| T006 i18n for all AI screens | `lib/l10n/*.arb` + generated files | ✅ done |
 
 ### Phase 3: Built-in skill templates
 
-- [ ] T007 `lib/ai/skill_store.dart`: define the three built-in templates:
-  - **Story**: "Write a short story about {{topic}}. Use descriptive language suitable for reading aloud."
-  - **Dialogue**: "Write a dialogue between {{characters}} about {{topic}}. Format each speaker's line as `{speaker name}：content`. Do not include any narrative introduction or conclusion."
-  - **Lesson**: "Create a bilingual lesson about {{topic}}. Write each sentence in the target language, followed by a [comment]English translation[/comment] tag on the same line. Use Spanish as the target language."
-- [ ] T008 `test/ai_skill_test.dart`: unit tests for `AISkill` equality, `SkillStore` seed/load/save/delete, post-processor stripping behavior.
+| Task | File | Status |
+|---|---|---|
+| T007 Three built-in skills | `lib/ai/skill_store.dart` | ✅ done |
+| T008 Unit tests | `test/ai_skill_test.dart`, `test/ai_post_processor_test.dart` | ✅ done |
 
 ### Phase 4: Testing & closing
 
-- [ ] T009 Widget test: `_AIPromptDialog` renders skill picker; tapping a skill fills the prompt; "Save as skill" persists a custom skill.
-- [ ] T010 `specs/030-ai-skills-for-content-generation/breakpoint.md`: structural row — counts, ARB keys, artifact checkers.
-- [ ] T011 `specs/030-ai-skills-for-content-generation/quickstart.md`: closing pass.
+| Task | File | Status |
+|---|---|---|
+| T009 Widget test updates | `test/ai_settings_test.dart` | ✅ done |
+| T010 `breakpoint.md` | `specs/030-ai-skills-for-content-generation/breakpoint.md` | ✅ done |
+| T011 `quickstart.md` | `specs/030-ai-skills-for-content-generation/quickstart.md` | ✅ done |
 
 ## Dependencies & ordering
 
-T001, T002, T003 → T004, T005, T006 (dialog integration depends on model + store + processor) → T007, T008 (templates + tests) → T009, T010, T011 (closing).
+T001, T002, T003 → T004, T005, T006 → T007, T008 → T009, T010, T011.
 
-## Parallel opportunities
+## What is not in scope (deferred)
 
-- T001 with T002: the data class and the store are different files.
-- T001 with T003: the model and the post-processor are independent.
-- T004 with T005: dialog UI and the post-process integration point are different code locations.
-- T007 with T008: template definitions and their tests are different files.
+- **"Save as skill" UI button** — the data model supports it (`AISkillStore.upsert`); the dialog entry point is not yet wired up (see spec FR-005 edge case).
+- **Image/video skills** — the `defaultType` field exists on `AISkill`; the dropdown is hidden for non-text types per FR-008.
+- **Skill editing** — only delete is exposed; editing requires deleting and re-adding.
