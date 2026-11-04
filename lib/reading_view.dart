@@ -4218,6 +4218,11 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               // Skill picker — only shown for text type (spec 030 FR-008).
               if (_selectedType == AIPromptType.text && widget.skills.isNotEmpty) ...[
                 const SizedBox(height: 12),
+                Text(
+                  l10n.aiPromptSkillLabel,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
                 DropdownButton<AISkill?>(
                   value: _selectedSkill,
                   isExpanded: true,
