@@ -1070,7 +1070,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiPromptSkillLabel.
   ///
   /// In en, this message translates to:
-  /// **'Skill'**
+  /// **'Prompt Template'**
   String get aiPromptSkillLabel;
 
   /// No description provided for @aiPromptSkillNone.

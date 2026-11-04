@@ -4173,12 +4173,12 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               DropdownButton<AIPromptType>(
                 value: _selectedType,
                 isExpanded: true,
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: 13, color: Colors.black),
                 underline: const SizedBox(),
                 items: AIPromptType.values.map((type) {
                   return DropdownMenuItem<AIPromptType>(
                     value: type,
-                    child: Text(type.name.toUpperCase(), style: const TextStyle(fontSize: 13)),
+                    child: Text(type.name.toUpperCase(), style: const TextStyle(fontSize: 13, color: Colors.black)),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -4194,7 +4194,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               DropdownButton<String>(
                 value: _selectedProviderName,
                 isExpanded: true,
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: 13, color: Colors.black),
                 underline: const SizedBox(),
                 items: items.map((provider) {
                   return DropdownMenuItem<String>(
@@ -4208,7 +4208,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                           const Icon(Icons.help_outline,
                               color: Colors.grey, size: 16),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(provider.name, style: const TextStyle(fontSize: 13))),
+                        Expanded(child: Text(provider.name, style: const TextStyle(fontSize: 13, color: Colors.black))),
                       ],
                     ),
                   );
@@ -4229,18 +4229,18 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                       l10n.aiPromptSkillLabel,
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButton<AISkill?>(
                         value: _selectedSkill,
                         isExpanded: true,
-                        style: const TextStyle(fontSize: 13),
+                        style: const TextStyle(fontSize: 13, color: Colors.black),
                         underline: const SizedBox(),
-                        hint: Text(l10n.aiPromptSkillNone, style: const TextStyle(fontSize: 13)),
+                        hint: Text(l10n.aiPromptSkillNone, style: const TextStyle(fontSize: 13, color: Colors.black)),
                         items: [
                           const DropdownMenuItem<AISkill?>(
                             value: null,
-                            child: Text('None', style: TextStyle(fontSize: 13)),
+                            child: Text('None', style: TextStyle(fontSize: 13, color: Colors.black)),
                           ),
                           ...widget.skills.map((skill) {
                             return DropdownMenuItem<AISkill>(
@@ -4255,7 +4255,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                                     color: Colors.grey.shade600,
                                   ),
                                   const SizedBox(width: 6),
-                                  Expanded(child: Text(skill.name, style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(skill.name, style: const TextStyle(fontSize: 13, color: Colors.black))),
                                 ],
                               ),
                             );
