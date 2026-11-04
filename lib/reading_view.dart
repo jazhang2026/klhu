@@ -1169,14 +1169,16 @@ class _ReadingViewState extends State<ReadingView> {
       final path = resultMap['path'] as String? ?? '';
       debugPrint('klhu AI image saved: uri=$uri path=$path');
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved to Gallery: Klhu folder')),
+        SnackBar(content: Text(l10n.aiImageSavedMessage)),
       );
     } catch (e) {
       debugPrint('klhu AI save failed: $e');
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Save failed: $e')),
+        SnackBar(content: Text(l10n.aiImageSaveFailed(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => _isSavingImage = false);
@@ -3731,11 +3733,12 @@ class _AIImagePreviewDialogState extends State<_AIImagePreviewDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black.withOpacity(0.8),
-        title: const Text('AI Image'),
+        title: Text(l10n.aiImagePreviewTitle),
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -3744,7 +3747,7 @@ class _AIImagePreviewDialogState extends State<_AIImagePreviewDialog> {
           IconButton(
             icon: const Icon(Icons.save, color: Colors.white),
             onPressed: () => widget.onSave(widget.imageUrl),
-            tooltip: 'Save to gallery',
+            tooltip: l10n.aiImageSaveButton,
           ),
         ],
       ),
@@ -4128,6 +4131,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     // Only active providers are listed by default; the currently selected
     // provider is always included so the reader can switch back and re-test.
     final activeProviders =
@@ -4157,7 +4161,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
     }
 
     return AlertDialog(
-      title: const Text('AI Prompt'),
+      title: Text(l10n.aiPromptTitle),
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
@@ -4165,106 +4169,6 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Skill picker row (spec 030). Shown when skills are available.
-              if (widget.skills.isNotEmpty) ...[
-                const Text(
-                  'Skill',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    // "None" option — clear any skill selection.
-                    InkWell(
-                      onTap: _clearSkill,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                              color: _selectedSkill == null
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                          color: _selectedSkill == null
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : null,
-                        ),
-                        child: Text(
-                          'None',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _selectedSkill == null
-                                ? Theme.of(context).colorScheme.onPrimaryContainer
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Built-in and custom skill chips.
-                    ...widget.skills.map((skill) {
-                      final isSelected = _selectedSkill?.id == skill.id;
-                      return InkWell(
-                        onTap: () => _applySkill(skill),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                                color: isSelected
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(12),
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                skill.isBuiltIn
-                                    ? Icons.auto_awesome
-                                    : Icons.bookmark_border,
-                                size: 14,
-                                color: isSelected
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Colors.grey.shade500,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                skill.name,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected
-                                      ? Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer
-                                      : Colors.grey.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                ),
-                if (_selectedSkill != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _selectedSkill!.description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade600,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-              ],
               // Generation type picker (Q8).
               DropdownButton<AIPromptType>(
                 value: _selectedType,
@@ -4278,6 +4182,8 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedType = value);
+                    // Clear skill when switching away from text.
+                    if (value != AIPromptType.text) _clearSkill();
                   }
                 },
               ),
@@ -4309,22 +4215,72 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                   }
                 },
               ),
+              // Skill picker — only shown for text type (spec 030 FR-008).
+              if (_selectedType == AIPromptType.text && widget.skills.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                DropdownButton<AISkill?>(
+                  value: _selectedSkill,
+                  isExpanded: true,
+                  hint: Text(l10n.aiPromptSkillNone),
+                  items: [
+                    const DropdownMenuItem<AISkill?>(
+                      value: null,
+                      child: Text('None'),
+                    ),
+                    ...widget.skills.map((skill) {
+                      return DropdownMenuItem<AISkill>(
+                        value: skill,
+                        child: Row(
+                          children: [
+                            Icon(
+                              skill.isBuiltIn
+                                  ? Icons.auto_awesome
+                                  : Icons.bookmark_border,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(skill.name)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      _applySkill(value);
+                    } else {
+                      _clearSkill();
+                    }
+                  },
+                ),
+                if (_selectedSkill != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _selectedSkill!.description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
               const SizedBox(height: 12),
               // Prompt text field.
               TextField(
                 controller: _promptController,
                 maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'Enter your AI prompt...',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: l10n.aiPromptPromptHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               // Include reading content toggle (A3).
               CheckboxListTile(
-                title: const Text('Include reading content'),
-                subtitle: const Text(
-                    'Optionally include the current text in the prompt'),
+                title: Text(l10n.aiPromptIncludeReading),
+                subtitle: Text(l10n.aiPromptIncludeReadingSub),
                 value: _includeReadingContent,
                 onChanged: (value) {
                   setState(() => _includeReadingContent = value ?? false);
@@ -4347,7 +4303,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Recent prompts (${widget.history.length})',
+                        l10n.aiPromptRecentPrompts(widget.history.length),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontSize: 12,
@@ -4416,13 +4372,13 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.aiPromptCancel),
         ),
         FilledButton(
           onPressed: _promptController.text.trim().isEmpty
               ? null
               : _submit,
-          child: const Text('Generate'),
+          child: Text(l10n.aiPromptGenerate),
         ),
       ],
     );

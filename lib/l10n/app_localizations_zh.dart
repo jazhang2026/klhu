@@ -404,7 +404,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assignmentNothingAssigned => '未分配句子';
 
   @override
-  String assignmentSentenceCount(int count) {
+  String assignmentSentenceCount(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -430,7 +430,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assignmentRefusedHoldsSentences => '這張圖已有句子；先解除分配再移動它。';
 
   @override
-  String assignmentStaleWarning(int count) {
+  String assignmentStaleWarning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -441,7 +441,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String assignmentStaleDetail(String picture, String sentences) {
+  String assignmentStaleDetail(Object picture, Object sentences) {
     return '$picture：$sentences 句';
   }
 
@@ -467,7 +467,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assignmentSwitchTitle => '把这句交给选中的图片？';
 
   @override
-  String assignmentSwitchBody(String sentence) {
+  String assignmentSwitchBody(Object sentence) {
     return '「$sentence」现在属于另一张图片，将移到选中的这张。';
   }
 
@@ -481,7 +481,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assignmentScenesTitle => '按場景自動分配？';
 
   @override
-  String assignmentScenesBody(int count) {
+  String assignmentScenesBody(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -493,6 +493,159 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assignmentScenesConfirm => '分配';
+
+  @override
+  String get aiProviderTitle => 'AI 提供者';
+
+  @override
+  String get aiProviderAddButton => '新增提供者';
+
+  @override
+  String get aiProviderDeleteTitle => '刪除提供者';
+
+  @override
+  String aiProviderDeleteConfirm(String name) {
+    return '刪除「$name」？';
+  }
+
+  @override
+  String get aiProviderDeleteCancel => '取消';
+
+  @override
+  String get aiProviderDeleteButton => '刪除';
+
+  @override
+  String get aiProviderStatusSelected => '已選取';
+
+  @override
+  String get aiProviderStatusActive => '已啟用';
+
+  @override
+  String get aiProviderEditTooltip => '編輯';
+
+  @override
+  String get aiProviderDeleteTooltip => '刪除';
+
+  @override
+  String get aiProviderSelectTooltip => '選取';
+
+  @override
+  String get aiProviderNameLabel => '名稱';
+
+  @override
+  String get aiProviderNameHint => '例如：我的自訂提供者';
+
+  @override
+  String get aiProviderUrlLabel => '網址';
+
+  @override
+  String get aiProviderUrlHint => '例如：https://api.example.com';
+
+  @override
+  String get aiProviderTipLabel => '註冊提示';
+
+  @override
+  String get aiProviderTipHint => '如何取得 API 金鑰…';
+
+  @override
+  String get aiProviderAddButton2 => '新增';
+
+  @override
+  String aiProviderFailSave(String error) {
+    return '儲存失敗：$error';
+  }
+
+  @override
+  String get aiPromptTitle => 'AI 提示';
+
+  @override
+  String get aiPromptSkillLabel => '技能';
+
+  @override
+  String get aiPromptSkillNone => '無';
+
+  @override
+  String get aiPromptTypeLabel => '類型';
+
+  @override
+  String get aiPromptProviderLabel => '提供者';
+
+  @override
+  String get aiPromptPromptHint => '輸入 AI 提示…';
+
+  @override
+  String get aiPromptIncludeReading => '包含閱讀內容';
+
+  @override
+  String get aiPromptIncludeReadingSub => '可選：在提示中包含目前文字';
+
+  @override
+  String aiPromptRecentPrompts(Object count) {
+    return '近期提示（$count）';
+  }
+
+  @override
+  String get aiPromptGenerate => '生成';
+
+  @override
+  String get aiPromptCancel => '取消';
+
+  @override
+  String get aiImagePreviewTitle => 'AI 圖片';
+
+  @override
+  String get aiImageSaveButton => '儲存到相簿';
+
+  @override
+  String get aiImageSavedMessage => '已儲存至相簿：Klhu 資料夾';
+
+  @override
+  String aiImageSaveFailed(String error) {
+    return '儲存失敗：$error';
+  }
+
+  @override
+  String get aiProgressGeneratingText => '正在生成文字…';
+
+  @override
+  String get aiProgressGeneratingImage => '正在生成圖片…這可能需要一分鐘。';
+
+  @override
+  String get aiProgressGeneratingVideo => '正在生成影片…這可能需要較長時間。';
+
+  @override
+  String get aiProgressRetrying => '正在使用建議模型重試…';
+
+  @override
+  String aiClipboardCopiedMessage(String url) {
+    return '已複製到剪貼簿：$url';
+  }
+
+  @override
+  String get aiClipboardOpenAction => '開啟';
+
+  @override
+  String get aiConnectivityTestFailed => '連線測試失敗，請檢查 API 金鑰。';
+
+  @override
+  String aiEditProviderTitle(String name) {
+    return '編輯：$name';
+  }
+
+  @override
+  String get aiEditApiKeyLabel => 'API 金鑰';
+
+  @override
+  String get aiEditApiKeyHint => '輸入您的 API 金鑰…';
+
+  @override
+  String get aiTestPassed => '連線測試通過';
+
+  @override
+  String get aiTestFailed => '連線測試失敗';
+
+  @override
+  String get aiEditSaveButton => '儲存並測試';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -894,7 +1047,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assignmentNothingAssigned => '未分配句子';
 
   @override
-  String assignmentSentenceCount(int count) {
+  String assignmentSentenceCount(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -920,7 +1073,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assignmentRefusedHoldsSentences => '这张图已有句子；先解除分配再移动它。';
 
   @override
-  String assignmentStaleWarning(int count) {
+  String assignmentStaleWarning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -931,7 +1084,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String assignmentStaleDetail(String picture, String sentences) {
+  String assignmentStaleDetail(Object picture, Object sentences) {
     return '$picture：$sentences 句';
   }
 
@@ -957,7 +1110,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assignmentSwitchTitle => '把这句交给选中的图片？';
 
   @override
-  String assignmentSwitchBody(String sentence) {
+  String assignmentSwitchBody(Object sentence) {
     return '「$sentence」现在属于另一张图片，将移到选中的这张。';
   }
 
@@ -971,7 +1124,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get assignmentScenesTitle => '按场景自动分配？';
 
   @override
-  String assignmentScenesBody(int count) {
+  String assignmentScenesBody(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -983,4 +1136,157 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assignmentScenesConfirm => '分配';
+
+  @override
+  String get aiProviderTitle => 'AI 提供者';
+
+  @override
+  String get aiProviderAddButton => '新增提供者';
+
+  @override
+  String get aiProviderDeleteTitle => '刪除提供者';
+
+  @override
+  String aiProviderDeleteConfirm(String name) {
+    return '刪除「$name」？';
+  }
+
+  @override
+  String get aiProviderDeleteCancel => '取消';
+
+  @override
+  String get aiProviderDeleteButton => '刪除';
+
+  @override
+  String get aiProviderStatusSelected => '已選取';
+
+  @override
+  String get aiProviderStatusActive => '已啟用';
+
+  @override
+  String get aiProviderEditTooltip => '編輯';
+
+  @override
+  String get aiProviderDeleteTooltip => '刪除';
+
+  @override
+  String get aiProviderSelectTooltip => '選取';
+
+  @override
+  String get aiProviderNameLabel => '名稱';
+
+  @override
+  String get aiProviderNameHint => '例如：我的自訂提供者';
+
+  @override
+  String get aiProviderUrlLabel => '網址';
+
+  @override
+  String get aiProviderUrlHint => '例如：https://api.example.com';
+
+  @override
+  String get aiProviderTipLabel => '註冊提示';
+
+  @override
+  String get aiProviderTipHint => '如何取得 API 金鑰…';
+
+  @override
+  String get aiProviderAddButton2 => '新增';
+
+  @override
+  String aiProviderFailSave(String error) {
+    return '儲存失敗：$error';
+  }
+
+  @override
+  String get aiPromptTitle => 'AI 提示';
+
+  @override
+  String get aiPromptSkillLabel => '技能';
+
+  @override
+  String get aiPromptSkillNone => '無';
+
+  @override
+  String get aiPromptTypeLabel => '類型';
+
+  @override
+  String get aiPromptProviderLabel => '提供者';
+
+  @override
+  String get aiPromptPromptHint => '輸入 AI 提示…';
+
+  @override
+  String get aiPromptIncludeReading => '包含閱讀內容';
+
+  @override
+  String get aiPromptIncludeReadingSub => '可選：在提示中包含目前文字';
+
+  @override
+  String aiPromptRecentPrompts(Object count) {
+    return '近期提示（$count）';
+  }
+
+  @override
+  String get aiPromptGenerate => '生成';
+
+  @override
+  String get aiPromptCancel => '取消';
+
+  @override
+  String get aiImagePreviewTitle => 'AI 圖片';
+
+  @override
+  String get aiImageSaveButton => '儲存到相簿';
+
+  @override
+  String get aiImageSavedMessage => '已儲存至相簿：Klhu 資料夾';
+
+  @override
+  String aiImageSaveFailed(String error) {
+    return '儲存失敗：$error';
+  }
+
+  @override
+  String get aiProgressGeneratingText => '正在生成文字…';
+
+  @override
+  String get aiProgressGeneratingImage => '正在生成圖片…這可能需要一分鐘。';
+
+  @override
+  String get aiProgressGeneratingVideo => '正在生成影片…這可能需要較長時間。';
+
+  @override
+  String get aiProgressRetrying => '正在使用建議模型重試…';
+
+  @override
+  String aiClipboardCopiedMessage(String url) {
+    return '已複製到剪貼簿：$url';
+  }
+
+  @override
+  String get aiClipboardOpenAction => '開啟';
+
+  @override
+  String get aiConnectivityTestFailed => '連線測試失敗，請檢查 API 金鑰。';
+
+  @override
+  String aiEditProviderTitle(String name) {
+    return '編輯：$name';
+  }
+
+  @override
+  String get aiEditApiKeyLabel => 'API 金鑰';
+
+  @override
+  String get aiEditApiKeyHint => '輸入您的 API 金鑰…';
+
+  @override
+  String get aiTestPassed => '連線測試通過';
+
+  @override
+  String get aiTestFailed => '連線測試失敗';
+
+  @override
+  String get aiEditSaveButton => '儲存並測試';
 }

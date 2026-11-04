@@ -825,7 +825,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =0 {No sentences} =1 {1 sentence} other {{count} sentences}}'**
-  String assignmentSentenceCount(int count);
+  String assignmentSentenceCount(num count);
 
   /// No description provided for @assignmentRemoveSentence.
   ///
@@ -861,13 +861,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1 {1 assigned run no longer fits this text} other {{count} assigned runs no longer fit this text}}'**
-  String assignmentStaleWarning(int count);
+  String assignmentStaleWarning(num count);
 
   /// No description provided for @assignmentStaleDetail.
   ///
   /// In en, this message translates to:
   /// **'{picture}: sentences {sentences}'**
-  String assignmentStaleDetail(String picture, String sentences);
+  String assignmentStaleDetail(Object picture, Object sentences);
 
   /// No description provided for @assignmentClose.
   ///
@@ -915,7 +915,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'\"{sentence}\" belongs to another picture now; it moves to the selected one.'**
-  String assignmentSwitchBody(String sentence);
+  String assignmentSwitchBody(Object sentence);
 
   /// No description provided for @assignmentSwitchConfirm.
   ///
@@ -939,13 +939,295 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1 {1 picture takes its scene\'s sentences.} other {{count} pictures take their scenes\' sentences, in order.}} What those pictures hold now is replaced.'**
-  String assignmentScenesBody(int count);
+  String assignmentScenesBody(num count);
 
   /// No description provided for @assignmentScenesConfirm.
   ///
   /// In en, this message translates to:
   /// **'Assign'**
   String get assignmentScenesConfirm;
+
+  /// No description provided for @aiProviderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Providers'**
+  String get aiProviderTitle;
+
+  /// No description provided for @aiProviderAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Provider'**
+  String get aiProviderAddButton;
+
+  /// No description provided for @aiProviderDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete provider'**
+  String get aiProviderDeleteTitle;
+
+  /// No description provided for @aiProviderDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String aiProviderDeleteConfirm(String name);
+
+  /// No description provided for @aiProviderDeleteCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get aiProviderDeleteCancel;
+
+  /// No description provided for @aiProviderDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get aiProviderDeleteButton;
+
+  /// No description provided for @aiProviderStatusSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get aiProviderStatusSelected;
+
+  /// No description provided for @aiProviderStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get aiProviderStatusActive;
+
+  /// No description provided for @aiProviderEditTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get aiProviderEditTooltip;
+
+  /// No description provided for @aiProviderDeleteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get aiProviderDeleteTooltip;
+
+  /// No description provided for @aiProviderSelectTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get aiProviderSelectTooltip;
+
+  /// No description provided for @aiProviderNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get aiProviderNameLabel;
+
+  /// No description provided for @aiProviderNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. My Custom Provider'**
+  String get aiProviderNameHint;
+
+  /// No description provided for @aiProviderUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'URL'**
+  String get aiProviderUrlLabel;
+
+  /// No description provided for @aiProviderUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. https://api.example.com'**
+  String get aiProviderUrlHint;
+
+  /// No description provided for @aiProviderTipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration Tip'**
+  String get aiProviderTipLabel;
+
+  /// No description provided for @aiProviderTipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'How to get an API key...'**
+  String get aiProviderTipHint;
+
+  /// No description provided for @aiProviderAddButton2.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get aiProviderAddButton2;
+
+  /// No description provided for @aiProviderFailSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save: {error}'**
+  String aiProviderFailSave(String error);
+
+  /// No description provided for @aiPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Prompt'**
+  String get aiPromptTitle;
+
+  /// No description provided for @aiPromptSkillLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill'**
+  String get aiPromptSkillLabel;
+
+  /// No description provided for @aiPromptSkillNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get aiPromptSkillNone;
+
+  /// No description provided for @aiPromptTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get aiPromptTypeLabel;
+
+  /// No description provided for @aiPromptProviderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get aiPromptProviderLabel;
+
+  /// No description provided for @aiPromptPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your AI prompt...'**
+  String get aiPromptPromptHint;
+
+  /// No description provided for @aiPromptIncludeReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Include reading content'**
+  String get aiPromptIncludeReading;
+
+  /// No description provided for @aiPromptIncludeReadingSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Optionally include the current text in the prompt'**
+  String get aiPromptIncludeReadingSub;
+
+  /// No description provided for @aiPromptRecentPrompts.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent prompts ({count})'**
+  String aiPromptRecentPrompts(Object count);
+
+  /// No description provided for @aiPromptGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get aiPromptGenerate;
+
+  /// No description provided for @aiPromptCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get aiPromptCancel;
+
+  /// No description provided for @aiImagePreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Image'**
+  String get aiImagePreviewTitle;
+
+  /// No description provided for @aiImageSaveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to gallery'**
+  String get aiImageSaveButton;
+
+  /// No description provided for @aiImageSavedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Gallery: Klhu folder'**
+  String get aiImageSavedMessage;
+
+  /// No description provided for @aiImageSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed: {error}'**
+  String aiImageSaveFailed(String error);
+
+  /// No description provided for @aiProgressGeneratingText.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating text…'**
+  String get aiProgressGeneratingText;
+
+  /// No description provided for @aiProgressGeneratingImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating image… This may take a minute.'**
+  String get aiProgressGeneratingImage;
+
+  /// No description provided for @aiProgressGeneratingVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating video… This may take a while.'**
+  String get aiProgressGeneratingVideo;
+
+  /// No description provided for @aiProgressRetrying.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying with suggested model…'**
+  String get aiProgressRetrying;
+
+  /// No description provided for @aiClipboardCopiedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard: {url}'**
+  String aiClipboardCopiedMessage(String url);
+
+  /// No description provided for @aiClipboardOpenAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get aiClipboardOpenAction;
+
+  /// No description provided for @aiConnectivityTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connectivity test failed. Please check the API key.'**
+  String get aiConnectivityTestFailed;
+
+  /// No description provided for @aiEditProviderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit: {name}'**
+  String aiEditProviderTitle(String name);
+
+  /// No description provided for @aiEditApiKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key'**
+  String get aiEditApiKeyLabel;
+
+  /// No description provided for @aiEditApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your API key…'**
+  String get aiEditApiKeyHint;
+
+  /// No description provided for @aiTestPassed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connectivity test passed'**
+  String get aiTestPassed;
+
+  /// No description provided for @aiTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connectivity test failed'**
+  String get aiTestFailed;
+
+  /// No description provided for @aiEditSaveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & Test'**
+  String get aiEditSaveButton;
 }
 
 class _AppLocalizationsDelegate

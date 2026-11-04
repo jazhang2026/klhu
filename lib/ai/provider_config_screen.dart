@@ -17,6 +17,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:klhu/ai/auto_test.dart';
 import 'package:klhu/ai/config_store.dart';
 import 'package:klhu/ai/provider_list.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// The AI provider configuration screen opened from the top tool bar's
@@ -58,8 +59,9 @@ class _AIProviderConfigScreenState extends State<AIProviderConfigScreen> {
     } catch (e) {
       debugPrint('klhu AI provider config save failed: $e');
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
+          SnackBar(content: Text(l10n.aiProviderFailSave(e.toString()))),
         );
       }
     }
@@ -123,19 +125,20 @@ class _AIProviderConfigScreenState extends State<AIProviderConfigScreen> {
     final isPreset = AIProvider.presets.any((p) => p.name == provider.name);
     if (isPreset) return; // Presets cannot be deleted.
 
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete provider'),
-        content: Text('Delete "${provider.name}"?'),
+        title: Text(l10n.aiProviderDeleteTitle),
+        content: Text(l10n.aiProviderDeleteConfirm(provider.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.aiProviderDeleteCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l10n.aiProviderDeleteButton),
           ),
         ],
       ),
@@ -165,9 +168,10 @@ class _AIProviderConfigScreenState extends State<AIProviderConfigScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Providers'),
+        title: Text(l10n.aiProviderTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -194,7 +198,7 @@ class _AIProviderConfigScreenState extends State<AIProviderConfigScreen> {
                             child: FilledButton.icon(
                               onPressed: _addProvider,
                               icon: const Icon(Icons.add),
-                              label: const Text('Add Provider'),
+                              label: Text(l10n.aiProviderAddButton),
                             ),
                           );
                         }
@@ -228,11 +232,12 @@ class _ProviderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isPreset = AIProvider.presets.any((p) => p.name == provider.name);
     final statusText = provider.selected && provider.active
-        ? 'Selected'
+        ? l10n.aiProviderStatusSelected
         : provider.active
-            ? 'Active'
+            ? l10n.aiProviderStatusActive
             : null;
     final statusColor = provider.selected && provider.active
         ? Colors.green
@@ -275,12 +280,12 @@ class _ProviderTile extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: onDelete,
-                tooltip: 'Delete',
+                tooltip: l10n.aiProviderDeleteTooltip,
               ),
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: onEdit,
-              tooltip: 'Edit',
+              tooltip: l10n.aiProviderEditTooltip,
             ),
             if (!provider.active)
               const Icon(Icons.lock_outline, color: Colors.grey),
@@ -288,7 +293,7 @@ class _ProviderTile extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.check_circle_outline),
                 onPressed: onSelect,
-                tooltip: 'Select',
+                tooltip: l10n.aiProviderSelectTooltip,
               ),
             if (provider.selected)
               const Icon(Icons.check_circle, color: Colors.green),
@@ -338,33 +343,34 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const Text('Add Provider'),
+      title: Text(l10n.aiProviderAddButton),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'e.g. My Custom Provider',
+              decoration: InputDecoration(
+                labelText: l10n.aiProviderNameLabel,
+                hintText: l10n.aiProviderNameHint,
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _urlController,
-              decoration: const InputDecoration(
-                labelText: 'URL',
-                hintText: 'e.g. https://api.example.com',
+              decoration: InputDecoration(
+                labelText: l10n.aiProviderUrlLabel,
+                hintText: l10n.aiProviderUrlHint,
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _tipController,
-              decoration: const InputDecoration(
-                labelText: 'Registration Tip',
-                hintText: 'How to get an API key...',
+              decoration: InputDecoration(
+                labelText: l10n.aiProviderTipLabel,
+                hintText: l10n.aiProviderTipHint,
               ),
             ),
           ],
@@ -373,7 +379,7 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.aiProviderDeleteCancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _submit,
@@ -383,7 +389,7 @@ class _AddProviderDialogState extends State<_AddProviderDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Add'),
+              : Text(l10n.aiProviderAddButton2),
         ),
       ],
     );
@@ -417,14 +423,15 @@ class _RegisterTipLink extends StatelessWidget {
     } catch (_) {}
     if (!context.mounted) return;
     final currentContext = context;
+    final l10n = AppLocalizations.of(context)!;
     await Clipboard.setData(ClipboardData(text: url));
     if (!currentContext.mounted) return;
     ScaffoldMessenger.of(currentContext).showSnackBar(
       SnackBar(
-        content: Text('Copied to clipboard: $url'),
+        content: Text(l10n.aiClipboardCopiedMessage(url)),
         duration: const Duration(seconds: 4),
         action: SnackBarAction(
-          label: 'Open',
+          label: l10n.aiClipboardOpenAction,
           onPressed: () async {
             if (currentContext.mounted && await canLaunchUrl(uri)) {
               await launchUrl(uri);
@@ -519,16 +526,18 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
       ));
     } else {
       // Show error and let them try again.
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Connectivity test failed. Please check the API key.')),
+        SnackBar(content: Text(l10n.aiConnectivityTestFailed)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: Text('Edit: ${widget.provider.name}'),
+      title: Text(l10n.aiEditProviderTitle(widget.provider.name)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -542,8 +551,8 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
             TextField(
               controller: _apiKeyController,
               decoration: InputDecoration(
-                labelText: 'API Key',
-                hintText: 'Enter your API key...',
+                labelText: l10n.aiEditApiKeyLabel,
+                hintText: l10n.aiEditApiKeyHint,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscureKey ? Icons.visibility_off : Icons.visibility,
@@ -573,8 +582,8 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
                     const SizedBox(width: 8),
                     Text(
                       _testResult == TestResult.passed
-                          ? 'Connectivity test passed'
-                          : 'Connectivity test failed',
+                          ? l10n.aiTestPassed
+                          : l10n.aiTestFailed,
                       style: TextStyle(
                         color: _testResult == TestResult.passed
                             ? Colors.green
@@ -590,7 +599,7 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.aiProviderDeleteCancel),
         ),
         FilledButton(
           onPressed: _saving ? null : _testAndSave,
@@ -600,7 +609,7 @@ class _EditProviderDialogState extends State<_EditProviderDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Save & Test'),
+              : Text(l10n.aiEditSaveButton),
         ),
       ],
     );

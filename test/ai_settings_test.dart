@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/ai/config_store.dart';
 import 'package:klhu/ai/provider_list.dart';
 import 'package:klhu/ai/provider_config_screen.dart';
+import 'package:klhu/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -19,6 +20,8 @@ void main() {
     testWidgets('shows the four presets on load', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: const AIProviderConfigScreen(),
           ),
@@ -35,6 +38,8 @@ void main() {
     testWidgets('Add Provider dialog opens and closes', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: const AIProviderConfigScreen(),
           ),
@@ -63,6 +68,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: const AIProviderConfigScreen(),
           ),
@@ -103,6 +110,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: const AIProviderConfigScreen(),
           ),
@@ -126,6 +135,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: const AIProviderConfigScreen(),
           ),

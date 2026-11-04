@@ -46,7 +46,7 @@ As a KalaHoo Reading user, I want to pick the "Lesson" skill, enter a topic like
 
 **Why this priority**: Bilingual content is a common teaching use case; the `[comment]` tag is already supported by the reader.
 
-**Independent Test**: pick Lesson skill → enter topic → submit → returned text contains `[comment]English translation[/comment]` after each Spanish sentence → the reader hears only Spanish, sees both languages.
+**Independent Test**: pick Lesson skill → enter topic → submit → returned text contains `[comment]English translation` after each Spanish sentence → the reader hears only Spanish, sees both languages.
 
 ### User Story 3 — Save and reuse a custom skill (Priority: P3)
 

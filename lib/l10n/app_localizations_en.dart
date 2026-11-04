@@ -418,7 +418,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assignmentNothingAssigned => 'No sentences assigned';
 
   @override
-  String assignmentSentenceCount(int count) {
+  String assignmentSentenceCount(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -449,7 +449,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This picture holds sentences; un-assign them before moving it.';
 
   @override
-  String assignmentStaleWarning(int count) {
+  String assignmentStaleWarning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -460,7 +460,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String assignmentStaleDetail(String picture, String sentences) {
+  String assignmentStaleDetail(Object picture, Object sentences) {
     return '$picture: sentences $sentences';
   }
 
@@ -488,7 +488,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Give this sentence to the selected picture?';
 
   @override
-  String assignmentSwitchBody(String sentence) {
+  String assignmentSwitchBody(Object sentence) {
     return '\"$sentence\" belongs to another picture now; it moves to the selected one.';
   }
 
@@ -502,7 +502,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assignmentScenesTitle => 'Auto assign the scenes?';
 
   @override
-  String assignmentScenesBody(int count) {
+  String assignmentScenesBody(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -514,4 +514,161 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get assignmentScenesConfirm => 'Assign';
+
+  @override
+  String get aiProviderTitle => 'AI Providers';
+
+  @override
+  String get aiProviderAddButton => 'Add Provider';
+
+  @override
+  String get aiProviderDeleteTitle => 'Delete provider';
+
+  @override
+  String aiProviderDeleteConfirm(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get aiProviderDeleteCancel => 'Cancel';
+
+  @override
+  String get aiProviderDeleteButton => 'Delete';
+
+  @override
+  String get aiProviderStatusSelected => 'Selected';
+
+  @override
+  String get aiProviderStatusActive => 'Active';
+
+  @override
+  String get aiProviderEditTooltip => 'Edit';
+
+  @override
+  String get aiProviderDeleteTooltip => 'Delete';
+
+  @override
+  String get aiProviderSelectTooltip => 'Select';
+
+  @override
+  String get aiProviderNameLabel => 'Name';
+
+  @override
+  String get aiProviderNameHint => 'e.g. My Custom Provider';
+
+  @override
+  String get aiProviderUrlLabel => 'URL';
+
+  @override
+  String get aiProviderUrlHint => 'e.g. https://api.example.com';
+
+  @override
+  String get aiProviderTipLabel => 'Registration Tip';
+
+  @override
+  String get aiProviderTipHint => 'How to get an API key...';
+
+  @override
+  String get aiProviderAddButton2 => 'Add';
+
+  @override
+  String aiProviderFailSave(String error) {
+    return 'Failed to save: $error';
+  }
+
+  @override
+  String get aiPromptTitle => 'AI Prompt';
+
+  @override
+  String get aiPromptSkillLabel => 'Skill';
+
+  @override
+  String get aiPromptSkillNone => 'None';
+
+  @override
+  String get aiPromptTypeLabel => 'Type';
+
+  @override
+  String get aiPromptProviderLabel => 'Provider';
+
+  @override
+  String get aiPromptPromptHint => 'Enter your AI prompt...';
+
+  @override
+  String get aiPromptIncludeReading => 'Include reading content';
+
+  @override
+  String get aiPromptIncludeReadingSub =>
+      'Optionally include the current text in the prompt';
+
+  @override
+  String aiPromptRecentPrompts(Object count) {
+    return 'Recent prompts ($count)';
+  }
+
+  @override
+  String get aiPromptGenerate => 'Generate';
+
+  @override
+  String get aiPromptCancel => 'Cancel';
+
+  @override
+  String get aiImagePreviewTitle => 'AI Image';
+
+  @override
+  String get aiImageSaveButton => 'Save to gallery';
+
+  @override
+  String get aiImageSavedMessage => 'Saved to Gallery: Klhu folder';
+
+  @override
+  String aiImageSaveFailed(String error) {
+    return 'Save failed: $error';
+  }
+
+  @override
+  String get aiProgressGeneratingText => 'Generating text…';
+
+  @override
+  String get aiProgressGeneratingImage =>
+      'Generating image… This may take a minute.';
+
+  @override
+  String get aiProgressGeneratingVideo =>
+      'Generating video… This may take a while.';
+
+  @override
+  String get aiProgressRetrying => 'Retrying with suggested model…';
+
+  @override
+  String aiClipboardCopiedMessage(String url) {
+    return 'Copied to clipboard: $url';
+  }
+
+  @override
+  String get aiClipboardOpenAction => 'Open';
+
+  @override
+  String get aiConnectivityTestFailed =>
+      'Connectivity test failed. Please check the API key.';
+
+  @override
+  String aiEditProviderTitle(String name) {
+    return 'Edit: $name';
+  }
+
+  @override
+  String get aiEditApiKeyLabel => 'API Key';
+
+  @override
+  String get aiEditApiKeyHint => 'Enter your API key…';
+
+  @override
+  String get aiTestPassed => 'Connectivity test passed';
+
+  @override
+  String get aiTestFailed => 'Connectivity test failed';
+
+  @override
+  String get aiEditSaveButton => 'Save & Test';
 }
