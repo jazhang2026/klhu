@@ -564,6 +564,12 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get aiPromptSkillNone => '無';
 
+  String get aiPromptTypeText => '文字';
+
+  String get aiPromptTypeImage => '圖片';
+
+  String get aiPromptTypeVideo => '影片';
+
   @override
   String get aiPromptTypeLabel => '類型';
 
@@ -1206,6 +1212,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get aiPromptSkillNone => '無';
+
+  String get aiPromptTypeText => '文字';
+
+  String get aiPromptTypeImage => '圖片';
+
+  String get aiPromptTypeVideo => '影片';
 
   @override
   String get aiPromptTypeLabel => '類型';

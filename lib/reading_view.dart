@@ -4178,7 +4178,14 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                 items: AIPromptType.values.map((type) {
                   return DropdownMenuItem<AIPromptType>(
                     value: type,
-                    child: Text(type.name.toUpperCase(), style: const TextStyle(fontSize: 13, color: Colors.black)),
+                    child: Text(
+                  _selectedType == AIPromptType.text
+                      ? l10n.aiPromptTypeText
+                      : _selectedType == AIPromptType.image
+                          ? l10n.aiPromptTypeImage
+                          : l10n.aiPromptTypeVideo,
+                  style: const TextStyle(fontSize: 13, color: Colors.black),
+                ),
                   );
                 }).toList(),
                 onChanged: (value) {

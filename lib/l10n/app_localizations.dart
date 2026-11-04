@@ -1079,6 +1079,24 @@ abstract class AppLocalizations {
   /// **'None'**
   String get aiPromptSkillNone;
 
+  /// No description provided for @aiPromptTypeText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get aiPromptTypeText;
+
+  /// No description provided for @aiPromptTypeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get aiPromptTypeImage;
+
+  /// No description provided for @aiPromptTypeVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get aiPromptTypeVideo;
+
   /// No description provided for @aiPromptTypeLabel.
   ///
   /// In en, this message translates to:
