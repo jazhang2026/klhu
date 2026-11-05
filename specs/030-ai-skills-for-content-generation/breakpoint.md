@@ -2,7 +2,7 @@
 
 **Feature**: `030-ai-skills-for-content-generation` | **Date**: 2026-11-04
 
-**Status**: CLOSED — all tasks done; i18n added 2026-11-04. 1047 tests pass; `flutter analyze` clean (9 non-blocking issues).
+**Status**: CLOSED — all tasks done; template language selector added 2026-11-04. 1047 tests pass; `flutter analyze` clean (9 non-blocking issues).
 
 ## The walk, row by row
 
