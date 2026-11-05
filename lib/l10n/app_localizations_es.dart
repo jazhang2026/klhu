@@ -516,68 +516,68 @@ class AppLocalizationsEs extends AppLocalizations {
   String get assignmentScenesConfirm => 'Asignar';
 
   @override
-  String get aiProviderTitle => 'AI Providers';
+  String get aiProviderTitle => 'Proveedores de IA';
 
   @override
-  String get aiProviderAddButton => 'Add Provider';
+  String get aiProviderAddButton => 'Agregar proveedor';
 
   @override
-  String get aiProviderDeleteTitle => 'Delete provider';
+  String get aiProviderDeleteTitle => 'Eliminar proveedor';
 
   @override
   String aiProviderDeleteConfirm(String name) {
-    return 'Delete \"$name\"?';
+    return '¿Eliminar \"$name\"?';
   }
 
   @override
-  String get aiProviderDeleteCancel => 'Cancel';
+  String get aiProviderDeleteCancel => 'Cancelar';
 
   @override
-  String get aiProviderDeleteButton => 'Delete';
+  String get aiProviderDeleteButton => 'Eliminar';
 
   @override
-  String get aiProviderStatusSelected => 'Selected';
+  String get aiProviderStatusSelected => 'Seleccionado';
 
   @override
-  String get aiProviderStatusActive => 'Active';
+  String get aiProviderStatusActive => 'Activo';
 
   @override
-  String get aiProviderEditTooltip => 'Edit';
+  String get aiProviderEditTooltip => 'Editar';
 
   @override
-  String get aiProviderDeleteTooltip => 'Delete';
+  String get aiProviderDeleteTooltip => 'Eliminar';
 
   @override
-  String get aiProviderSelectTooltip => 'Select';
+  String get aiProviderSelectTooltip => 'Seleccionar';
 
   @override
-  String get aiProviderNameLabel => 'Name';
+  String get aiProviderNameLabel => 'Nombre';
 
   @override
-  String get aiProviderNameHint => 'e.g. My Custom Provider';
+  String get aiProviderNameHint => 'Ej. Mi proveedor personalizado';
 
   @override
   String get aiProviderUrlLabel => 'URL';
 
   @override
-  String get aiProviderUrlHint => 'e.g. https://api.example.com';
+  String get aiProviderUrlHint => 'Ej. https://api.example.com';
 
   @override
-  String get aiProviderTipLabel => 'Registration Tip';
+  String get aiProviderTipLabel => 'Consejo de registro';
 
   @override
-  String get aiProviderTipHint => 'How to get an API key...';
+  String get aiProviderTipHint => 'Cómo obtener una clave API…';
 
   @override
-  String get aiProviderAddButton2 => 'Add';
+  String get aiProviderAddButton2 => 'Agregar';
 
   @override
   String aiProviderFailSave(String error) {
-    return 'Failed to save: $error';
+    return 'Error al guardar: $error';
   }
 
   @override
-  String get aiPromptTitle => 'AI Prompt';
+  String get aiPromptTitle => 'Prompt de IA';
 
   @override
   String get aiPromptSkillLabel => 'Plantilla de prompt';
@@ -595,31 +595,31 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aiPromptTypeVideo => 'Vídeo';
 
   @override
-  String get aiPromptTypeLabel => 'Type';
+  String get aiPromptTypeLabel => 'Tipo';
 
   @override
-  String get aiPromptProviderLabel => 'Provider';
+  String get aiPromptProviderLabel => 'Proveedor';
 
   @override
-  String get aiPromptPromptHint => 'Enter your AI prompt...';
+  String get aiPromptPromptHint => 'Escribe tu prompt de IA…';
 
   @override
-  String get aiPromptIncludeReading => 'Include reading content';
+  String get aiPromptIncludeReading => 'Incluir contenido de lectura';
 
   @override
   String get aiPromptIncludeReadingSub =>
-      'Optionally include the current text in the prompt';
+      'Opcional: incluye el texto actual en el prompt';
 
   @override
   String aiPromptRecentPrompts(Object count) {
-    return 'Recent prompts ($count)';
+    return 'Prompts recientes ($count)';
   }
 
   @override
-  String get aiPromptGenerate => 'Generate';
+  String get aiPromptGenerate => 'Generar';
 
   @override
-  String get aiPromptCancel => 'Cancel';
+  String get aiPromptCancel => 'Cancelar';
 
   @override
   String get aiImagePreviewTitle => 'Imagen de IA';
@@ -632,7 +632,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String aiImageSaveFailed(String error) {
-    return 'Save failed: $error';
+    return 'Error al guardar: $error';
   }
 
   @override
