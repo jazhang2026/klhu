@@ -4077,11 +4077,13 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   bool _includeReadingContent = false;
   bool _historyExpanded = false;
   AISkill? _selectedSkill;
+  late String _templateLocale; // locale for template text (separate from app locale)
 
   @override
   void initState() {
     super.initState();
     _selectedType = widget.initialType;
+    _templateLocale = widget.locale;
     final selectedProvider = widget.providers.firstWhere(
       (p) => p.selected,
       orElse: () => widget.providers.first,
@@ -4102,7 +4104,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   void _applySkill(AISkill skill) {
     setState(() {
       _selectedSkill = skill;
-      _promptController.text = skill.promptTemplate(widget.locale);
+      _promptController.text = skill.promptTemplate(_templateLocale);
     });
   }
 
@@ -4111,6 +4113,28 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
     setState(() {
       _selectedSkill = null;
     });
+  }
+
+  /// Small language chip for the template locale selector.
+  Widget _LangChip(String label, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          border: Border.all(color: color, width: 1),
+          borderRadius: BorderRadius.circular(8),
+          color: color != Colors.grey.shade600
+              ? color.withValues(alpha: 0.1)
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
+        ),
+      ),
+    );
   }
 
   /// Restore a prompt from history into the text field and restore its type
@@ -4240,7 +4264,19 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                       l10n.aiPromptSkillLabel,
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                     ),
-                    const SizedBox(width: 16),
+                    const Spacer(),
+                    // Template language selector — always show all 3 regardless of app locale.
+                    _LangChip('EN', _templateLocale == 'en' ? Theme.of(context).colorScheme.primary : Colors.grey.shade600, () => setState(() => _templateLocale = 'en')),
+                    const SizedBox(width: 4),
+                    _LangChip('中文', _templateLocale == 'zh' ? Theme.of(context).colorScheme.primary : Colors.grey.shade600, () => setState(() => _templateLocale = 'zh')),
+                    const SizedBox(width: 4),
+                    _LangChip('ES', _templateLocale == 'es' ? Theme.of(context).colorScheme.primary : Colors.grey.shade600, () => setState(() => _templateLocale = 'es')),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
                     Expanded(
                       child: DropdownButton<AISkill?>(
                         value: _selectedSkill,
@@ -4266,7 +4302,8 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                                     color: Colors.grey.shade600,
                                   ),
                                   const SizedBox(width: 6),
-                                  Expanded(child: Text(skill.name, style: const TextStyle(fontSize: 13, color: Colors.black))),
+                                  // Skill name always in app locale
+                                  Expanded(child: Text(skill.displayName(widget.locale), style: const TextStyle(fontSize: 13, color: Colors.black))),
                                 ],
                               ),
                             );
