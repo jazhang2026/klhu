@@ -17,32 +17,45 @@
 | Video page toolbar | `lib/reading_view.dart` (video review screen) | "Choose pictures" button, "Auto assign scenes" button |
 | Provider config | `lib/ai/provider_config_screen.dart` | provider list with active/selected flags |
 
+### Key code locations for 031 integration points
+
+- **Video page picture selection** — `lib/reading_view.dart` lines 2644–2660: the "Choose pictures" `TextButton.icon`. The new "Create pictures" button goes here, below it, conditional on `[image_prompt]` tags.
+- **Scene tag parsing** — `lib/scene_tag.dart`: the existing parser recognises `[scene]` lines and produces `Scene` objects with `first`/`last` ranges. Extending this to also capture `[image_prompt]` lines per scene is the core parser change.
+- **AI image generation** — `lib/ai/provider_client.dart:generate()`: the existing `generate()` method already supports `AIPromptType.image`. Reusing it per-prompt is straightforward.
+- **Picture assignment** — `lib/picture_assignment.dart`: generated images are promoted into the assignment via the same `PictureAssignment` model.
+
 ## §2 Decisions
 
-### D1 — `[image_prompt]` is a line-level tag, not a content-format field
+### D1 — `[image_prompt]` is a line-level tag parallel to `[scene]`
 
-The tag sits on its own line, followed by prompt text. It is parsed, scoped to the preceding scene, and elided from reading and video — the same shape as `[scene]` and `[comment]`. No new content-model field is needed.
+The tag sits on its own line: `[image_prompt] prompt text here`. It is parsed by a new `lib/image_prompt_tag.dart`, following the exact same pattern as `lib/scene_tag.dart`: one spelling per locale, line-scoped, elided from reading and video. The four spellings are: `image_prompt` / `图像提示` / `imagem` / `prompt_img`.
 
-### D2 — Batch image generation is a modal dialog, not a new page
+### D2 — Scene-image prompt scoping rule
 
-The batch dialog is a `showDialog` call from the Video page. It shares the same provider configuration as the edit-page AI dialog and reuses `AIProviderClient.generate()` per prompt. No new top-level route.
+A scene's image prompt is the last `[image_prompt]` line that appears after the scene's `[scene]` line and before the next `[scene]` line (or EOF). If no `[image_prompt]` line exists in that span, the scene has no prompt (`null`). Orphaned `[image_prompt]` lines (not preceded by a `[scene]` in the same span) are skipped.
 
-### D3 — Generated images are temp until promoted
+### D3 — Batch generation is a modal dialog, not a page
 
-Images generated in the batch dialog live in the app's cache directory. Tapping "Save" copies the image into the picture assignment list (the same flow as the existing "Choose pictures" → pick → assign). The image prompt text itself is never saved back into the content file.
+The batch image-generation dialog is a `showDialog<void>` call from the Video page. It lists all image prompts, provides a provider/type selector at the top, and shows per-prompt generate/save/delete rows. Each generation runs independently via `AIProviderClient.generate()`.
 
-### D4 — No new dependency
+### D4 — Generated images are temp until promoted
 
-All infrastructure already exists: `shared_preferences`, `http`, the AI provider client, the image preview dialog, the picture assignment store. Adding `image_prompt_tag.dart` and the batch dialog reuses everything.
+Images generated in the batch dialog live in the app's cache directory (same as the render's working directory). Tapping "Save" copies the image into the picture assignment via the existing `PictureAssignment` flow. The image prompt text itself is never saved back into the content file.
+
+### D5 — No new dependency
+
+All infrastructure already exists: `shared_preferences`, `http`, the AI provider client, the image preview dialog, the picture assignment store, the scene tag parser. Adding `image_prompt_tag.dart` and the batch dialog reuses everything.
 
 ## §3 Risks and reservations
 
 - **R1** — Batch generation latency. Multiple image prompts can take many minutes total. The dialog must not block the UI thread; each generation runs independently and updates its row.
 - **R2** — Provider image-model availability. Not all configured providers support image generation. The batch dialog should filter to image-capable providers only (or warn when the selected provider cannot generate images).
-- **R3** — Scene-image prompt scoping. A scene's image prompt is defined as the last `[image_prompt]` line before the next `[scene]` or EOF. If the reader places an `[image_prompt]` line without a preceding `[scene]`, it is orphaned and skipped in the batch list.
+- **R3** — Scene-image prompt scoping edge cases. If the reader places an `[image_prompt]` line without a preceding `[scene]`, it is orphaned and skipped in the batch list. The parser must handle this gracefully.
+- **R4** — Content change during batch session. If the reader edits the content while the batch dialog is open, the prompt list becomes stale. The dialog should detect content changes and either refresh or close with a warning.
 
 ## §4 What this research does not measure
 
 - Provider rate limits for image generation (known from spec 029 research).
-- The exact visual layout of the batch dialog (prototype and measure).
+- The exact visual layout of the batch dialog (prototype and measure on device).
 - How many image prompts a typical scene dialog contains (depends on the skill's output).
+- The performance impact of generating multiple images in sequence (single-threaded per prompt for now).
