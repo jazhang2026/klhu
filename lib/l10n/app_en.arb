@@ -136,6 +136,7 @@
     }
   },
   "videoPicturesButton": "Choose pictures",
+  "videoCreatePicturesButton": "Create pictures",
   "videoPicturesChosen": "{count, plural, =0 {No pictures chosen} =1 {1 picture chosen} other {{count} pictures chosen}}",
   "@videoPicturesChosen": {
     "placeholders": {

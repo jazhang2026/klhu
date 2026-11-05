@@ -36,6 +36,8 @@ import 'package:klhu/platform/video_player.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/role_store.dart';
 import 'package:klhu/scene_tag.dart';
+import 'package:klhu/image_prompt_tag.dart';
+import 'package:klhu/video_image_batch_dialog.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/services/content_store.dart';
 import 'package:klhu/services/voice_mapping_service.dart';
@@ -2658,6 +2660,27 @@ class _ReadingViewState extends State<ReadingView> {
                     ? l10n?.videoPicturesButton ?? 'Choose pictures'
                     : l10n?.videoPicturesChooseMore ?? 'Choose more'),
               ),
+              // 031: "Create pictures" — shown only when the content carries
+              // [image_prompt] tags (FR-004). Tapping opens the batch dialog
+              // that generates one image per prompt line.
+              if (imagePromptTagsOf(_content).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: TextButton.icon(
+                    onPressed: () => _openBatchImageDialog(
+                      l10n: l10n,
+                      picturesDir: picturesDir,
+                      held: held,
+                      onChosen: (next) => setDialog(() {
+                        held = next;
+                        pickFailure = null;
+                      }),
+                    ),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(
+                        l10n?.videoCreatePicturesButton ?? 'Create pictures'),
+                  ),
+                ),
               // The assignment pass, one line beside the pick (020 FR-001 —
               // the reader's own layout (A) of its sketch, 2026-10-13). What
               // the line says is what is in force: the reader sees their own
@@ -2930,6 +2953,40 @@ class _ReadingViewState extends State<ReadingView> {
       onFailure(
         l10n?.videoPicturesFailed ?? 'Could not open your pictures. Try again.',
       );
+    }
+  }
+
+  /// 031: Open the batch image-generation dialog (FR-005).
+  ///
+  /// Shows all `[image_prompt]` tags from [_content], one provider selector,
+  /// and per-prompt generate/save/delete buttons. Generated images are written
+  /// into [picturesDir] and merged into [held] via [onChosen].
+  Future<void> _openBatchImageDialog({
+    required AppLocalizations? l10n,
+    required Directory picturesDir,
+    required List<HeldPicture> held,
+    required void Function(List<HeldPicture> held) onChosen,
+  }) async {
+    final providers = await AIConfigStore().load();
+    final prompts = imagePromptTagsOf(_content);
+    if (prompts.isEmpty) return;
+
+    final newPictures = <HeldPicture>[];
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => VideoImageBatchDialog(
+          imagePrompts: prompts,
+          providers: providers,
+          picturesDir: picturesDir,
+          onSaved: (pics) {
+            setDialog(() => newPictures.addAll(pics));
+          },
+        ),
+      ),
+    );
+    if (newPictures.isNotEmpty) {
+      onChosen(mergePicks(held, newPictures));
     }
   }
 
@@ -4357,7 +4414,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                   border: const OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               // Include reading content toggle (A3).
               CheckboxListTile(
                 title: Text(l10n.aiPromptIncludeReading),

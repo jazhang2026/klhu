@@ -671,6 +671,12 @@ abstract class AppLocalizations {
   /// **'Choose pictures'**
   String get videoPicturesButton;
 
+  /// No description provided for @videoCreatePicturesButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create pictures'**
+  String get videoCreatePicturesButton;
+
   /// No description provided for @videoPicturesChosen.
   ///
   /// In en, this message translates to:

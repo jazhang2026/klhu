@@ -312,6 +312,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get videoPicturesButton => '选择图片';
 
   @override
+  String get videoCreatePicturesButton => '创建图片';
+
+  @override
   String videoPicturesChosen(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -962,6 +965,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get videoPicturesButton => '选择图片';
+
+  @override
+  String get videoCreatePicturesButton => '创建图片';
 
   @override
   String videoPicturesChosen(int count) {

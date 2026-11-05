@@ -94,6 +94,28 @@ class AISkillStore {
       },
       isBuiltIn: true,
     ),
+    AISkill(
+      id: 'scene_dialog',
+      name: 'Scene Dialog',
+      localizedNames: {
+        'zh': '场景对话',
+        'es': 'Diálogo de escenas',
+      },
+      description: 'Multi-scene script with [scene] and [image_prompt] tags',
+      localizedDescriptions: {
+        'zh': '多场景脚本，含[scene]标题和[image_prompt]图片提示',
+        'es': 'Guion multi-escena con etiquetas [scene] y [image_prompt]',
+      },
+      template:
+          'Create a scene dialog about {{topic}}. For each scene, write a [scene] heading line, then dialog paragraphs in {role}： format, then an [image_prompt] line with a visual description for the scene\'s image. Include at least 3 scenes. Each scene should have at least 2 dialogue turns. Only output the scene dialog content — no introduction or conclusion.',
+      localizedTemplates: {
+        'zh':
+            '创作一个关于{{topic}}的场景对话脚本。每个场景先写[scene]标题行，然后写{角色名}：格式的对话段落，最后写一行[image_prompt]图片提示，描述该场景的画面。至少包含3个场景，每个场景至少2个对话回合。只输出场景对话内容，不加开场或结尾。',
+        'es':
+            'Crea un diálogo de escenas sobre {{topic}}. Para cada escena, escribe una línea de título [scene], luego párrafos de diálogo en formato {personaje}：, luego una línea [image_prompt] con una descripción visual para la imagen de la escena. Incluye al menos 3 escenas. Cada escena debe tener al menos 2 turnos de diálogo. Solo contiene el contenido del diálogo de escenas — sin introducción ni conclusión.',
+      },
+      isBuiltIn: true,
+    ),
   ];
 
   /// Load all skills: built-in defaults merged with any custom skills stored

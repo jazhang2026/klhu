@@ -95,6 +95,7 @@
   "videoUnavailableMessage": "此设备无法生成视频。",
   "videoDoneMessage": "已制作视频：{name}（{seconds} 秒）",
   "videoPicturesButton": "选择图片",
+  "videoCreatePicturesButton": "创建图片",
   "videoPicturesChosen": "{count, plural, =0 {未选择图片} other {已选择 {count} 张图片}}",
   "videoPicturesChooseMore": "再选更多",
   "videoPicturesReorder": "按住一张图拖到另一张上即可换序；拖到窗口边缘可继续滚动。",

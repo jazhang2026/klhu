@@ -66,12 +66,13 @@ void main() {
   group('AISkillStore', () {
     test('load returns built-in skills when nothing stored', () async {
       final skills = await store.load();
-      expect(skills.length, 3);
+      expect(skills.length, 4);
       expect(skills.every((s) => s.isBuiltIn), isTrue);
       final ids = skills.map((s) => s.id).toList();
       expect(ids, contains('story'));
       expect(ids, contains('dialogue'));
       expect(ids, contains('lesson'));
+      expect(ids, contains('scene_dialog'));
     });
 
     test('load merges custom skills with built-ins', () async {
@@ -86,7 +87,7 @@ void main() {
       await prefs.setString('ai_skills', '[${jsonEncode(custom.toJson())}]');
 
       final skills = await store.load();
-      expect(skills.length, 4); // 3 built-in + 1 custom
+      expect(skills.length, 5); // 4 built-in + 1 custom
       expect(skills.any((s) => s.id == 'my-custom'), isTrue);
       expect(skills.any((s) => s.isBuiltIn), isTrue);
     });

@@ -319,6 +319,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoPicturesButton => 'Choose pictures';
 
   @override
+  String get videoCreatePicturesButton => 'Create pictures';
+
+  @override
   String videoPicturesChosen(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

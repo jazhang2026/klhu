@@ -95,6 +95,7 @@
   "videoUnavailableMessage": "Este dispositivo no puede crear vídeos.",
   "videoDoneMessage": "Vídeo creado: {name} ({seconds} s)",
   "videoPicturesButton": "Elegir imágenes",
+  "videoCreatePicturesButton": "Crear imágenes",
   "videoPicturesChosen": "{count, plural, =0 {Ninguna imagen elegida} =1 {1 imagen elegida} other {{count} imágenes elegidas}}",
   "videoPicturesChooseMore": "Elegir más",
   "videoPicturesReorder": "Mantén una imagen y suéltala sobre otra para cambiar el orden; arrástrala al borde de la ventana para ver el resto.",
