@@ -63,12 +63,12 @@ class AISkillStore {
         'es': 'Conversación multi-rol con etiquetas {role}',
       },
       template:
-          'Write a dialogue between {{characters}} about {{topic}}. Format each speaker\'s line as `{speaker name}：content`. Write at least 6 turns. Do not include any narrative introduction or conclusion — only the dialogue lines.',
+          'Write a dialogue between {{characters}} about {{topic}}. Format each speaker\'s line as `{speaker name}：content`. Add a space line after each turn. Write at least 6 turns. Do not include any narrative introduction or conclusion — only the dialogue lines.',
       localizedTemplates: {
         'zh':
-            '写一段{{characters}}关于{{topic}}的对话。每句对话格式为`{角色名}：内容`。至少写6个回合。不要加入任何叙述性开场或结尾，只保留对话行。',
+            '写一段{{characters}}关于{{topic}}的对话。每句对话格式为`{角色名}：内容`。每段对话后加一个空行。至少写6个回合。不要加入任何叙述性开场或结尾，只保留对话行。',
         'es':
-            'Escribe un diálogo entre {{characters}} sobre {{topic}}. Formatea cada línea como `{nombre del personaje}：contenido`. Escribe al menos 6 turnos. No incluyas introducción ni conclusión narrativa — solo las líneas de diálogo.',
+            'Escribe un diálogo entre {{characters}} sobre {{topic}}. Formatea cada línea como `{nombre del personaje}：contenido`. Agrega una línea vacía después de cada turno. Escribe al menos 6 turnos. No incluyas introducción ni conclusión narrativa — solo las líneas de diálogo.',
       },
       isBuiltIn: true,
     ),
