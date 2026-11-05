@@ -21,8 +21,12 @@ class AISkill {
   /// `'es'`). Falls back to [name].
   final Map<String, String> localizedNames;
 
-  /// A one-liner explaining what the skill does.
+  /// A one-liner explaining what the skill does. Used as fallback when no
+  /// locale-specific description is available.
   final String description;
+
+  /// Localized descriptions keyed by locale name. Falls back to [description].
+  final Map<String, String> localizedDescriptions;
 
   /// The prompt template with `{{variable}}` placeholders. Rendered by the
   /// dialog before sending. Used as fallback when no locale-specific template
@@ -44,6 +48,7 @@ class AISkill {
     required this.name,
     this.localizedNames = const {},
     required this.description,
+    this.localizedDescriptions = const {},
     required this.template,
     this.localizedTemplates = const {},
     this.defaultType = AIPromptType.text,
@@ -59,11 +64,16 @@ class AISkill {
   String promptTemplate(String locale) =>
       localizedTemplates[locale] ?? localizedTemplates['en'] ?? template;
 
+  /// Returns the description for [locale], falling back to [description].
+  String descriptionFor(String locale) =>
+      localizedDescriptions[locale] ?? localizedDescriptions['en'] ?? description;
+
   AISkill copyWith({
     String? id,
     String? name,
     Map<String, String>? localizedNames,
     String? description,
+    Map<String, String>? localizedDescriptions,
     String? template,
     Map<String, String>? localizedTemplates,
     AIPromptType? defaultType,
@@ -74,6 +84,7 @@ class AISkill {
       name: name ?? this.name,
       localizedNames: localizedNames ?? this.localizedNames,
       description: description ?? this.description,
+      localizedDescriptions: localizedDescriptions ?? this.localizedDescriptions,
       template: template ?? this.template,
       localizedTemplates: localizedTemplates ?? this.localizedTemplates,
       defaultType: defaultType ?? this.defaultType,
@@ -95,6 +106,7 @@ class AISkill {
         'name': name,
         'localizedNames': localizedNames,
         'description': description,
+        'localizedDescriptions': localizedDescriptions,
         'template': template,
         'localizedTemplates': localizedTemplates,
         'defaultType': defaultType.name,
@@ -125,6 +137,9 @@ class AISkill {
               ?.map((k, v) => MapEntry(k as String, v as String)) ??
           {},
       description: json['description'] as String? ?? '',
+      localizedDescriptions: (json['localizedDescriptions'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k as String, v as String)) ??
+          {},
       template: json['template'] as String? ?? '',
       localizedTemplates: (json['localizedTemplates'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k as String, v as String)) ??

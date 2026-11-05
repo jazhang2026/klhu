@@ -36,6 +36,10 @@ class AISkillStore {
         'es': 'Historia',
       },
       description: 'Narrative story with rich descriptions',
+      localizedDescriptions: {
+        'zh': '叙事故事，语言生动丰富',
+        'es': 'Cuento narrativo con descripciones ricas',
+      },
       template:
           'Write a short story about {{topic}}. Use vivid, descriptive language suitable for reading aloud. Keep the story between 200 and 500 words. Only contains the content of the story.',
       localizedTemplates: {
@@ -54,6 +58,10 @@ class AISkillStore {
         'es': 'Diálogo',
       },
       description: 'Multi-role conversation with {role} tags',
+      localizedDescriptions: {
+        'zh': '多角色对话，含{角色}标签',
+        'es': 'Conversación multi-rol con etiquetas {role}',
+      },
       template:
           'Write a dialogue between {{characters}} about {{topic}}. Format each speaker\'s line as `{speaker name}：content`. Write at least 6 turns. Do not include any narrative introduction or conclusion — only the dialogue lines.',
       localizedTemplates: {
@@ -72,6 +80,10 @@ class AISkillStore {
         'es': 'Lección',
       },
       description: 'Bilingual lesson with [comment] tags',
+      localizedDescriptions: {
+        'zh': '双语课程，含[comment]标签',
+        'es': 'Lección bilingüe con etiquetas [comment]',
+      },
       template:
           'Create a bilingual lesson about {{topic}}. Write each sentence in Spanish, followed by a "[comment]" tag, then followed by the English translation on the same line. then followed by an empty line. Include at least 8 sentence-pairs. Only contains the lesson to the students.',
       localizedTemplates: {

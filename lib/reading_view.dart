@@ -4323,7 +4323,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                 if (_selectedSkill != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    _selectedSkill!.description,
+                    _selectedSkill!.descriptionFor(_templateLocale),
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade600,
