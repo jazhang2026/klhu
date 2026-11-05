@@ -4303,7 +4303,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                                   ),
                                   const SizedBox(width: 6),
                                   // Skill name always in app locale
-                                  Expanded(child: Text(skill.displayName(widget.locale), style: const TextStyle(fontSize: 13, color: Colors.black))),
+                                  Expanded(child: Text(skill.displayName(_templateLocale), style: const TextStyle(fontSize: 13, color: Colors.black))),
                                 ],
                               ),
                             );
