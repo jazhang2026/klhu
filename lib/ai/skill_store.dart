@@ -73,12 +73,12 @@ class AISkillStore {
       },
       description: 'Bilingual lesson with [comment] tags',
       template:
-          'Create a bilingual lesson about {{topic}}. Write each sentence in Spanish, followed by a "[comment]" tag, then followed by the English translation on the same line. Include at least 8 sentence-pairs. Only contains the lesson to the students.',
+          'Create a bilingual lesson about {{topic}}. Write each sentence in Spanish, followed by a "[comment]" tag, then followed by the English translation on the same line. then followed by an empty line. Include at least 8 sentence-pairs. Only contains the lesson to the students.',
       localizedTemplates: {
         'zh':
-            '創作一堂關於{{topic}}的雙語課程。每句先用中文寫，然後在同一行加上[comment]英文翻譯[/comment]標籤。至少包含8組句子對。[comment]內容永遠不應朗讀——僅供顯示。',
+            '創作一堂關於{{topic}}的雙語課程。每句先用西班牙語寫，然後在同一行加上"[comment]"標籤，再寫英文翻譯，然後空一行。至少包含8組句子對。只保留課程內容，不加開場或結尾。',
         'es':
-            'Crea una lección bilingüe sobre {{topic}}. Escribe cada oración en español, seguida de una etiqueta [comment]traducción al inglés[/comment] en la misma línea. Incluye al menos 8 pares de oraciones. El contenido en [comment]nunca debe leerse en voz alta — solo para visualización.',
+            'Crea una lección bilingüe sobre {{topic}}. Escribe cada oración en español, seguida de una etiqueta "[comment]", luego la traducción al inglés en la misma línea, luego una línea vacía. Incluye al menos 8 pares de oraciones. Solo contiene la lección para los estudiantes.',
       },
       isBuiltIn: true,
     ),
