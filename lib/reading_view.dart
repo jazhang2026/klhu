@@ -4179,13 +4179,13 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                   return DropdownMenuItem<AIPromptType>(
                     value: type,
                     child: Text(
-                  _selectedType == AIPromptType.text
-                      ? l10n.aiPromptTypeText
-                      : _selectedType == AIPromptType.image
-                          ? l10n.aiPromptTypeImage
-                          : l10n.aiPromptTypeVideo,
-                  style: const TextStyle(fontSize: 13, color: Colors.black),
-                ),
+                      type == AIPromptType.text
+                          ? l10n.aiPromptTypeText
+                          : type == AIPromptType.image
+                              ? l10n.aiPromptTypeImage
+                              : l10n.aiPromptTypeVideo,
+                      style: const TextStyle(fontSize: 13, color: Colors.black),
+                    ),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -4245,9 +4245,9 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                         underline: const SizedBox(),
                         hint: Text(l10n.aiPromptSkillNone, style: const TextStyle(fontSize: 13, color: Colors.black)),
                         items: [
-                          const DropdownMenuItem<AISkill?>(
+                          DropdownMenuItem<AISkill?>(
                             value: null,
-                            child: Text('None', style: TextStyle(fontSize: 13, color: Colors.black)),
+                            child: Text(l10n.aiPromptSkillNone, style: TextStyle(fontSize: 13, color: Colors.black)),
                           ),
                           ...widget.skills.map((skill) {
                             return DropdownMenuItem<AISkill>(

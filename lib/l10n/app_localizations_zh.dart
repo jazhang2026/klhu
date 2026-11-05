@@ -564,10 +564,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get aiPromptSkillNone => '無';
 
+  @override
   String get aiPromptTypeText => '文字';
 
+  @override
   String get aiPromptTypeImage => '圖片';
 
+  @override
   String get aiPromptTypeVideo => '影片';
 
   @override
@@ -1213,10 +1216,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   @override
   String get aiPromptSkillNone => '無';
 
+  @override
   String get aiPromptTypeText => '文字';
 
+  @override
   String get aiPromptTypeImage => '圖片';
 
+  @override
   String get aiPromptTypeVideo => '影片';
 
   @override

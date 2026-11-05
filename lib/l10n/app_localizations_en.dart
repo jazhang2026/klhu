@@ -585,10 +585,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiPromptSkillNone => 'None';
 
+  @override
   String get aiPromptTypeText => 'Text';
 
+  @override
   String get aiPromptTypeImage => 'Image';
 
+  @override
   String get aiPromptTypeVideo => 'Video';
 
   @override
