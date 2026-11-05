@@ -4203,16 +4203,20 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                 isExpanded: true,
                 style: const TextStyle(fontSize: 13, color: Colors.black),
                 underline: const SizedBox(),
+                dropdownColor: Theme.of(context).colorScheme.surface,
                 items: AIPromptType.values.map((type) {
                   return DropdownMenuItem<AIPromptType>(
                     value: type,
-                    child: Text(
-                      type == AIPromptType.text
-                          ? l10n.aiPromptTypeText
-                          : type == AIPromptType.image
-                              ? l10n.aiPromptTypeImage
-                              : l10n.aiPromptTypeVideo,
-                      style: const TextStyle(fontSize: 13, color: Colors.black),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        type == AIPromptType.text
+                            ? l10n.aiPromptTypeText
+                            : type == AIPromptType.image
+                                ? l10n.aiPromptTypeImage
+                                : l10n.aiPromptTypeVideo,
+                        style: const TextStyle(fontSize: 13, color: Colors.black),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -4224,27 +4228,31 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                   }
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               // Provider options dropdown (Q9).
               DropdownButton<String>(
                 value: _selectedProviderName,
                 isExpanded: true,
                 style: const TextStyle(fontSize: 13, color: Colors.black),
                 underline: const SizedBox(),
+                dropdownColor: Theme.of(context).colorScheme.surface,
                 items: items.map((provider) {
                   return DropdownMenuItem<String>(
                     value: provider.name,
-                    child: Row(
-                      children: [
-                        if (provider.active)
-                          const Icon(Icons.check_circle,
-                              color: Colors.green, size: 16),
-                        if (!provider.active)
-                          const Icon(Icons.help_outline,
-                              color: Colors.grey, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(provider.name, style: const TextStyle(fontSize: 13, color: Colors.black))),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          if (provider.active)
+                            const Icon(Icons.check_circle,
+                                color: Colors.green, size: 16),
+                          if (!provider.active)
+                            const Icon(Icons.help_outline,
+                                color: Colors.grey, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(provider.name, style: const TextStyle(fontSize: 13, color: Colors.black))),
+                        ],
+                      ),
                     ),
                   );
                 }).toList(),
@@ -4256,7 +4264,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
               ),
               // Skill picker — only shown for text type (spec 030 FR-008).
               if (_selectedType == AIPromptType.text && widget.skills.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -4273,7 +4281,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                     _LangChip('ES', _templateLocale == 'es' ? Theme.of(context).colorScheme.primary : Colors.grey.shade600, () => setState(() => _templateLocale = 'es')),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -4283,28 +4291,35 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                         isExpanded: true,
                         style: const TextStyle(fontSize: 13, color: Colors.black),
                         underline: const SizedBox(),
+                        dropdownColor: Theme.of(context).colorScheme.surface,
                         hint: Text(l10n.aiPromptSkillNone, style: const TextStyle(fontSize: 13, color: Colors.black)),
                         items: [
                           DropdownMenuItem<AISkill?>(
                             value: null,
-                            child: Text(l10n.aiPromptSkillNone, style: TextStyle(fontSize: 13, color: Colors.black)),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Text(l10n.aiPromptSkillNone, style: const TextStyle(fontSize: 13, color: Colors.black)),
+                            ),
                           ),
                           ...widget.skills.map((skill) {
                             return DropdownMenuItem<AISkill>(
                               value: skill,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    skill.isBuiltIn
-                                        ? Icons.auto_awesome
-                                        : Icons.bookmark_border,
-                                    size: 14,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  // Skill name always in app locale
-                                  Expanded(child: Text(skill.displayName(_templateLocale), style: const TextStyle(fontSize: 13, color: Colors.black))),
-                                ],
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      skill.isBuiltIn
+                                          ? Icons.auto_awesome
+                                          : Icons.bookmark_border,
+                                      size: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // Skill name always in app locale
+                                    Expanded(child: Text(skill.displayName(_templateLocale), style: const TextStyle(fontSize: 13, color: Colors.black))),
+                                  ],
+                                ),
                               ),
                             );
                           }).toList(),
@@ -4332,11 +4347,11 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                   ),
                 ],
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               // Prompt text field.
               TextField(
                 controller: _promptController,
-                maxLines: 5,
+                maxLines: 8,
                 decoration: InputDecoration(
                   hintText: l10n.aiPromptPromptHint,
                   border: const OutlineInputBorder(),
