@@ -37,11 +37,12 @@ class AISkillStore {
       },
       description: 'Narrative story with rich descriptions',
       template:
-          'Write a short story about {{topic}}. Use vivid, descriptive language suitable for reading aloud. Keep the story between 200 and 500 words.',
+          'Write a short story about {{topic}}. Use vivid, descriptive language suitable for reading aloud. Keep the story between 200 and 500 words. Only contains the content of the story.',
       localizedTemplates: {
         'zh':
-            '写一篇关于{{topic}}的短篇故事。使用生动、富有描述性的语言，适合朗读。字数控制在200到500字之间。',
+            '写一篇关于{{topic}}的短篇故事。使用生动、富有描述性的语言，适合朗读。字数控制在200到500字之间。只保留故事内容，不加开场或结尾。',
         'es':
+            'Escribe un cuento corto sobre {{topic}}. Usa un lenguaje vívido y descriptivo, adecuado para leer en voz alta. Mantén el cuento entre 200 y 500 palabras. Solo contiene el contenido del cuento.',
             'Escribe un cuento corto sobre {{topic}}. Usa un lenguaje vívido y descriptivo, adecuado para leer en voz alta. Mantén el cuento entre 200 y 500 palabras.',
       },
       isBuiltIn: true,
