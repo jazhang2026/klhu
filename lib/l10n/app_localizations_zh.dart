@@ -501,58 +501,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiProviderAddButton => '新增提供者';
 
   @override
-  String get aiProviderDeleteTitle => '刪除提供者';
+  String get aiProviderDeleteTitle => '删除提供者';
 
   @override
   String aiProviderDeleteConfirm(String name) {
-    return '刪除「$name」？';
+    return '删除「$name」？';
   }
 
   @override
   String get aiProviderDeleteCancel => '取消';
 
   @override
-  String get aiProviderDeleteButton => '刪除';
+  String get aiProviderDeleteButton => '删除';
 
   @override
-  String get aiProviderStatusSelected => '已選取';
+  String get aiProviderStatusSelected => '已选中';
 
   @override
-  String get aiProviderStatusActive => '已啟用';
+  String get aiProviderStatusActive => '已启用';
 
   @override
-  String get aiProviderEditTooltip => '編輯';
+  String get aiProviderEditTooltip => '编辑';
 
   @override
-  String get aiProviderDeleteTooltip => '刪除';
+  String get aiProviderDeleteTooltip => '删除';
 
   @override
-  String get aiProviderSelectTooltip => '選取';
+  String get aiProviderSelectTooltip => '选中';
 
   @override
-  String get aiProviderNameLabel => '名稱';
+  String get aiProviderNameLabel => '名称';
 
   @override
-  String get aiProviderNameHint => '例如：我的自訂提供者';
+  String get aiProviderNameHint => '例如：我的自定义提供者';
 
   @override
-  String get aiProviderUrlLabel => '網址';
+  String get aiProviderUrlLabel => '网址';
 
   @override
   String get aiProviderUrlHint => '例如：https://api.example.com';
 
   @override
-  String get aiProviderTipLabel => '註冊提示';
+  String get aiProviderTipLabel => '注册提示';
 
   @override
-  String get aiProviderTipHint => '如何取得 API 金鑰…';
+  String get aiProviderTipHint => '如何获取 API 密钥…';
 
   @override
   String get aiProviderAddButton2 => '新增';
 
   @override
   String aiProviderFailSave(String error) {
-    return '儲存失敗：$error';
+    return '保存失败：$error';
   }
 
   @override
@@ -562,31 +562,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPromptSkillLabel => '提示模板';
 
   @override
-  String get aiPromptSkillNone => '無';
+  String get aiPromptSkillNone => '无';
 
   @override
   String get aiPromptTypeText => '文字';
 
   @override
-  String get aiPromptTypeImage => '圖片';
+  String get aiPromptTypeImage => '图片';
 
   @override
-  String get aiPromptTypeVideo => '影片';
+  String get aiPromptTypeVideo => '视频';
 
   @override
-  String get aiPromptTypeLabel => '類型';
+  String get aiPromptTypeLabel => '类型';
 
   @override
   String get aiPromptProviderLabel => '提供者';
 
   @override
-  String get aiPromptPromptHint => '輸入 AI 提示…';
+  String get aiPromptPromptHint => '输入 AI 提示…';
 
   @override
-  String get aiPromptIncludeReading => '包含閱讀內容';
+  String get aiPromptIncludeReading => '包含阅读内容';
 
   @override
-  String get aiPromptIncludeReadingSub => '可選：在提示中包含目前文字';
+  String get aiPromptIncludeReadingSub => '可选：在提示中包含当前文字';
 
   @override
   String aiPromptRecentPrompts(Object count) {
@@ -600,61 +600,61 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPromptCancel => '取消';
 
   @override
-  String get aiImagePreviewTitle => 'AI 圖片';
+  String get aiImagePreviewTitle => 'AI 图片';
 
   @override
-  String get aiImageSaveButton => '儲存到相簿';
+  String get aiImageSaveButton => '保存到相册';
 
   @override
-  String get aiImageSavedMessage => '已儲存至相簿：Klhu 資料夾';
+  String get aiImageSavedMessage => '已保存至相册：Klhu 文件夹';
 
   @override
   String aiImageSaveFailed(String error) {
-    return '儲存失敗：$error';
+    return '保存失败：$error';
   }
 
   @override
   String get aiProgressGeneratingText => '正在生成文字…';
 
   @override
-  String get aiProgressGeneratingImage => '正在生成圖片…這可能需要一分鐘。';
+  String get aiProgressGeneratingImage => '正在生成图片…这可能需要一分钟。';
 
   @override
-  String get aiProgressGeneratingVideo => '正在生成影片…這可能需要較長時間。';
+  String get aiProgressGeneratingVideo => '正在生成视频…这可能需要较长时间。';
 
   @override
-  String get aiProgressRetrying => '正在使用建議模型重試…';
+  String get aiProgressRetrying => '正在使用建议模型重试…';
 
   @override
   String aiClipboardCopiedMessage(String url) {
-    return '已複製到剪貼簿：$url';
+    return '已复制到剪贴板：$url';
   }
 
   @override
-  String get aiClipboardOpenAction => '開啟';
+  String get aiClipboardOpenAction => '打开';
 
   @override
-  String get aiConnectivityTestFailed => '連線測試失敗，請檢查 API 金鑰。';
+  String get aiConnectivityTestFailed => '连接测试失败，请检查 API 密钥。';
 
   @override
   String aiEditProviderTitle(String name) {
-    return '編輯：$name';
+    return '编辑：$name';
   }
 
   @override
-  String get aiEditApiKeyLabel => 'API 金鑰';
+  String get aiEditApiKeyLabel => 'API 密钥';
 
   @override
-  String get aiEditApiKeyHint => '輸入您的 API 金鑰…';
+  String get aiEditApiKeyHint => '输入您的 API 密钥…';
 
   @override
-  String get aiTestPassed => '連線測試通過';
+  String get aiTestPassed => '连接测试通过';
 
   @override
-  String get aiTestFailed => '連線測試失敗';
+  String get aiTestFailed => '连接测试失败';
 
   @override
-  String get aiEditSaveButton => '儲存並測試';
+  String get aiEditSaveButton => '保存并测试';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1153,58 +1153,58 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aiProviderAddButton => '新增提供者';
 
   @override
-  String get aiProviderDeleteTitle => '刪除提供者';
+  String get aiProviderDeleteTitle => '删除提供者';
 
   @override
   String aiProviderDeleteConfirm(String name) {
-    return '刪除「$name」？';
+    return '删除「$name」？';
   }
 
   @override
   String get aiProviderDeleteCancel => '取消';
 
   @override
-  String get aiProviderDeleteButton => '刪除';
+  String get aiProviderDeleteButton => '删除';
 
   @override
-  String get aiProviderStatusSelected => '已選取';
+  String get aiProviderStatusSelected => '已选中';
 
   @override
-  String get aiProviderStatusActive => '已啟用';
+  String get aiProviderStatusActive => '已启用';
 
   @override
-  String get aiProviderEditTooltip => '編輯';
+  String get aiProviderEditTooltip => '编辑';
 
   @override
-  String get aiProviderDeleteTooltip => '刪除';
+  String get aiProviderDeleteTooltip => '删除';
 
   @override
-  String get aiProviderSelectTooltip => '選取';
+  String get aiProviderSelectTooltip => '选中';
 
   @override
-  String get aiProviderNameLabel => '名稱';
+  String get aiProviderNameLabel => '名称';
 
   @override
-  String get aiProviderNameHint => '例如：我的自訂提供者';
+  String get aiProviderNameHint => '例如：我的自定义提供者';
 
   @override
-  String get aiProviderUrlLabel => '網址';
+  String get aiProviderUrlLabel => '网址';
 
   @override
   String get aiProviderUrlHint => '例如：https://api.example.com';
 
   @override
-  String get aiProviderTipLabel => '註冊提示';
+  String get aiProviderTipLabel => '注册提示';
 
   @override
-  String get aiProviderTipHint => '如何取得 API 金鑰…';
+  String get aiProviderTipHint => '如何获取 API 密钥…';
 
   @override
   String get aiProviderAddButton2 => '新增';
 
   @override
   String aiProviderFailSave(String error) {
-    return '儲存失敗：$error';
+    return '保存失败：$error';
   }
 
   @override
@@ -1214,31 +1214,31 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aiPromptSkillLabel => '提示模板';
 
   @override
-  String get aiPromptSkillNone => '無';
+  String get aiPromptSkillNone => '无';
 
   @override
   String get aiPromptTypeText => '文字';
 
   @override
-  String get aiPromptTypeImage => '圖片';
+  String get aiPromptTypeImage => '图片';
 
   @override
-  String get aiPromptTypeVideo => '影片';
+  String get aiPromptTypeVideo => '视频';
 
   @override
-  String get aiPromptTypeLabel => '類型';
+  String get aiPromptTypeLabel => '类型';
 
   @override
   String get aiPromptProviderLabel => '提供者';
 
   @override
-  String get aiPromptPromptHint => '輸入 AI 提示…';
+  String get aiPromptPromptHint => '输入 AI 提示…';
 
   @override
-  String get aiPromptIncludeReading => '包含閱讀內容';
+  String get aiPromptIncludeReading => '包含阅读内容';
 
   @override
-  String get aiPromptIncludeReadingSub => '可選：在提示中包含目前文字';
+  String get aiPromptIncludeReadingSub => '可选：在提示中包含当前文字';
 
   @override
   String aiPromptRecentPrompts(Object count) {
@@ -1252,59 +1252,59 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aiPromptCancel => '取消';
 
   @override
-  String get aiImagePreviewTitle => 'AI 圖片';
+  String get aiImagePreviewTitle => 'AI 图片';
 
   @override
-  String get aiImageSaveButton => '儲存到相簿';
+  String get aiImageSaveButton => '保存到相册';
 
   @override
-  String get aiImageSavedMessage => '已儲存至相簿：Klhu 資料夾';
+  String get aiImageSavedMessage => '已保存至相册：Klhu 文件夹';
 
   @override
   String aiImageSaveFailed(String error) {
-    return '儲存失敗：$error';
+    return '保存失败：$error';
   }
 
   @override
   String get aiProgressGeneratingText => '正在生成文字…';
 
   @override
-  String get aiProgressGeneratingImage => '正在生成圖片…這可能需要一分鐘。';
+  String get aiProgressGeneratingImage => '正在生成图片…这可能需要一分钟。';
 
   @override
-  String get aiProgressGeneratingVideo => '正在生成影片…這可能需要較長時間。';
+  String get aiProgressGeneratingVideo => '正在生成视频…这可能需要较长时间。';
 
   @override
-  String get aiProgressRetrying => '正在使用建議模型重試…';
+  String get aiProgressRetrying => '正在使用建议模型重试…';
 
   @override
   String aiClipboardCopiedMessage(String url) {
-    return '已複製到剪貼簿：$url';
+    return '已复制到剪贴板：$url';
   }
 
   @override
-  String get aiClipboardOpenAction => '開啟';
+  String get aiClipboardOpenAction => '打开';
 
   @override
-  String get aiConnectivityTestFailed => '連線測試失敗，請檢查 API 金鑰。';
+  String get aiConnectivityTestFailed => '连接测试失败，请检查 API 密钥。';
 
   @override
   String aiEditProviderTitle(String name) {
-    return '編輯：$name';
+    return '编辑：$name';
   }
 
   @override
-  String get aiEditApiKeyLabel => 'API 金鑰';
+  String get aiEditApiKeyLabel => 'API 密钥';
 
   @override
-  String get aiEditApiKeyHint => '輸入您的 API 金鑰…';
+  String get aiEditApiKeyHint => '输入您的 API 密钥…';
 
   @override
-  String get aiTestPassed => '連線測試通過';
+  String get aiTestPassed => '连接测试通过';
 
   @override
-  String get aiTestFailed => '連線測試失敗';
+  String get aiTestFailed => '连接测试失败';
 
   @override
-  String get aiEditSaveButton => '儲存並測試';
+  String get aiEditSaveButton => '保存并测试';
 }

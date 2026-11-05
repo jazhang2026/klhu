@@ -40,7 +40,7 @@ class AISkillStore {
           'Write a short story about {{topic}}. Use vivid, descriptive language suitable for reading aloud. Keep the story between 200 and 500 words.',
       localizedTemplates: {
         'zh':
-            '寫一個關於{{topic}}的短篇故事。使用生動、富有描述性的語言，適合朗讀。字數控制在200到500字之間。',
+            '写一篇关于{{topic}}的短篇故事。使用生动、富有描述性的语言，适合朗读。字数控制在200到500字之间。',
         'es':
             'Escribe un cuento corto sobre {{topic}}. Usa un lenguaje vívido y descriptivo, adecuado para leer en voz alta. Mantén el cuento entre 200 y 500 palabras.',
       },
@@ -50,7 +50,7 @@ class AISkillStore {
       id: 'dialogue',
       name: 'Dialogue',
       localizedNames: {
-        'zh': '對話',
+        'zh': '对话',
         'es': 'Diálogo',
       },
       description: 'Multi-role conversation with {role} tags',
@@ -58,7 +58,7 @@ class AISkillStore {
           'Write a dialogue between {{characters}} about {{topic}}. Format each speaker\'s line as `{speaker name}：content`. Write at least 6 turns. Do not include any narrative introduction or conclusion — only the dialogue lines.',
       localizedTemplates: {
         'zh':
-            '寫一段{{characters}}關於{{topic}}的對話。每句對話格式為`{角色名}：內容`。至少寫6個回合。不要加入任何敘述性開場或結尾，只保留對話行。',
+            '写一段{{characters}}关于{{topic}}的对话。每句对话格式为`{角色名}：内容`。至少写6个回合。不要加入任何叙述性开场或结尾，只保留对话行。',
         'es':
             'Escribe un diálogo entre {{characters}} sobre {{topic}}. Formatea cada línea como `{nombre del personaje}：contenido`. Escribe al menos 6 turnos. No incluyas introducción ni conclusión narrativa — solo las líneas de diálogo.',
       },
@@ -68,7 +68,7 @@ class AISkillStore {
       id: 'lesson',
       name: 'Lesson',
       localizedNames: {
-        'zh': '課程',
+        'zh': '课程',
         'es': 'Lección',
       },
       description: 'Bilingual lesson with [comment] tags',
@@ -76,7 +76,7 @@ class AISkillStore {
           'Create a bilingual lesson about {{topic}}. Write each sentence in Spanish, followed by a "[comment]" tag, then followed by the English translation on the same line. then followed by an empty line. Include at least 8 sentence-pairs. Only contains the lesson to the students.',
       localizedTemplates: {
         'zh':
-            '創作一堂關於{{topic}}的雙語課程。每句先用西班牙語寫，然後在同一行加上"[comment]"標籤，再寫英文翻譯，然後空一行。至少包含8組句子對。只保留課程內容，不加開場或結尾。',
+            '创作一堂关于{{topic}}的双语课程。每句先用西班牙语写，然后在同一行加上"[comment]"标签，再写英文翻译，然后空一行。至少包含8组句子对。只保留课程内容，不加开场或结尾。',
         'es':
             'Crea una lección bilingüe sobre {{topic}}. Escribe cada oración en español, seguida de una etiqueta "[comment]", luego la traducción al inglés en la misma línea, luego una línea vacía. Incluye al menos 8 pares de oraciones. Solo contiene la lección para los estudiantes.',
       },
