@@ -946,6 +946,7 @@ class _ReadingViewState extends State<ReadingView> {
     final skills = await skillStore.load();
 
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     final result = await showDialog<_AIPromptResult>(
       context: context,
       builder: (context) => _AIPromptDialog(
@@ -953,6 +954,7 @@ class _ReadingViewState extends State<ReadingView> {
         initialType: lastType,
         history: history,
         skills: skills,
+        locale: l10n.localeName,
       ),
     );
     if (result == null || !mounted) return;
@@ -4054,12 +4056,14 @@ class _AIPromptDialog extends StatefulWidget {
   final AIPromptType initialType;
   final List<AIPromptEntry> history;
   final List<AISkill> skills;
+  final String locale;
 
   const _AIPromptDialog({
     required this.providers,
     required this.initialType,
     this.history = const [],
     this.skills = const [],
+    this.locale = 'en',
   });
 
   @override
@@ -4098,7 +4102,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   void _applySkill(AISkill skill) {
     setState(() {
       _selectedSkill = skill;
-      _promptController.text = skill.template;
+      _promptController.text = skill.promptTemplate(widget.locale);
     });
   }
 
