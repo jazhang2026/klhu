@@ -625,6 +625,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiPromptCancel => 'Cancel';
 
   @override
+  String get aiBatchTitle => 'Create pictures';
+
+  @override
+  String get aiBatchGenerate => 'Generate';
+
+  @override
+  String get aiBatchGenerating => 'Generating…';
+
+  @override
+  String get aiBatchSave => 'Save';
+
+  @override
+  String get aiBatchSaved => 'Saved';
+
+  @override
+  String get aiBatchDelete => 'Delete';
+
+  @override
+  String get aiBatchProviderLabel => 'AI Provider';
+
+  @override
   String get aiImagePreviewTitle => 'AI Image';
 
   @override

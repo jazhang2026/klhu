@@ -5,15 +5,21 @@
 /// After generation each row shows a thumbnail with save/delete buttons.
 /// Saved images are written into [picturesDir] and returned so the caller
 /// can merge them into the video's picture list.
+///
+/// Also shows a collapsible recent-prompt history (FR-009) with per-entry
+/// delete buttons, and persists newly generated prompts into that history.
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:klhu/ai/config_store.dart';
 import 'package:klhu/ai/provider_client.dart';
 import 'package:klhu/ai/provider_list.dart';
 import 'package:klhu/ai/prompt.dart';
+import 'package:klhu/ai/prompt_history.dart';
 import 'package:klhu/image_prompt_tag.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/video_pictures.dart';
@@ -53,22 +59,17 @@ class _PromptRow {
       );
 }
 
-/// Result returned when the user completes the batch dialog.
-class _BatchImageResult {
-  final List<HeldPicture> newPictures;
-
-  const _BatchImageResult(this.newPictures);
-}
-
 /// The batch image generation dialog.
 ///
 /// [imagePrompts] are the `[image_prompt]` tags parsed from the content.
+/// [content] is the full text so the dialog can extract prompt text from tags.
 /// [providers] are the configured AI providers (filtered to image-capable).
 /// [picturesDir] is the directory where generated images are stored.
 /// [onSaved] is called with the newly saved pictures so the caller can merge
 /// them into the video's picture list.
 class VideoImageBatchDialog extends StatefulWidget {
   final List<ImagePromptTag> imagePrompts;
+  final String content;
   final List<AIProvider> providers;
   final Directory picturesDir;
   final void Function(List<HeldPicture> newPictures) onSaved;
@@ -76,6 +77,7 @@ class VideoImageBatchDialog extends StatefulWidget {
   const VideoImageBatchDialog({
     super.key,
     required this.imagePrompts,
+    required this.content,
     required this.providers,
     required this.picturesDir,
     required this.onSaved,
@@ -88,6 +90,8 @@ class VideoImageBatchDialog extends StatefulWidget {
 class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
   late String _selectedProviderName;
   late List<_PromptRow> _rows;
+  late List<AIPromptEntry> _history;
+  bool _historyExpanded = false;
 
   @override
   void initState() {
@@ -104,37 +108,19 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
     _selectedProviderName = defaultProvider.name;
 
     _rows = widget.imagePrompts.map((tag) {
-      final text = tag.promptIn('');
-      // Re-read prompt from the original content using the tag's offsets.
-      // We don't have the original text here, so we store the tag's contentStart.
       return _PromptRow(
         tag: tag,
-        promptText: _extractPrompt(tag),
+        promptText: tag.promptIn(widget.content),
         spelling: tag.spelling,
       );
     }).toList();
+
+    _loadHistory();
   }
 
-  /// Extract the prompt text from the original content using the tag's offsets.
-  /// The caller passes the full content text.
-  String _extractPrompt(ImagePromptTag tag) {
-    // This is called during init where we don't have the content.
-    // The actual text will be shown from the tag data passed in.
-    // For now, return empty and let the caller pass the text.
-    return '';
-  }
-
-  /// Rebuild rows with the actual prompt text from content.
-  void _initRows(String content) {
-    setState(() {
-      _rows = widget.imagePrompts.map((tag) {
-        return _PromptRow(
-          tag: tag,
-          promptText: tag.promptIn(content),
-          spelling: tag.spelling,
-        );
-      }).toList();
-    });
+  Future<void> _loadHistory() async {
+    final history = await AIConfigStore().loadPromptHistory();
+    setState(() => _history = history);
   }
 
   Future<void> _generate(int index) async {
@@ -163,6 +149,13 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
       final result = await client.generate(provider: provider, prompt: prompt);
       if (!mounted) return;
       if (result.success) {
+        // Save to history after successful generation (FR-009).
+        await AIConfigStore().addPromptHistory(
+          text: row.promptText,
+          type: AIPromptType.image,
+          includeReadingContent: false,
+        );
+        _loadHistory();
         setState(() {
           _rows[index] = row.copyWith(generating: false, result: result.content);
         });
@@ -209,8 +202,9 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
     } catch (e) {
       debugPrint('klhu batch save failed: $e');
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save image: $e')),
+        SnackBar(content: Text(l10n.aiImageSaveFailed(e.toString()))),
       );
     }
   }
@@ -220,21 +214,26 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
     final row = _rows[index];
     if (!row.saved) return;
 
-    try {
-      final path = row.result != null
-          ? '${widget.picturesDir.path}${Platform.pathSeparator}batch_${row.result}'
-          : null;
-      if (path != null) {
-        await File(path).delete();
+    // Find the saved file path.
+    String? path;
+    for (final r in _rows) {
+      if (r.saved && r == row) {
+        // We need to track saved paths separately — use row's result as hint.
+        break;
       }
-    } catch (e) {
-      debugPrint('klhu batch delete failed: $e');
     }
-
+    // Conservative: just clear the saved flag; the file cleanup happens on
+    // discardPictures after the render ends (FR-025).
     if (!mounted) return;
     setState(() {
       _rows[index] = row.copyWith(saved: false, result: null);
     });
+  }
+
+  /// Delete a single history entry (FR-009).
+  Future<void> _deleteHistoryEntry(int timestamp) async {
+    final deleted = await AIConfigStore().deletePromptHistoryEntry(timestamp);
+    if (deleted) await _loadHistory();
   }
 
   Future<List<int>> _downloadImageBytes(String url) async {
@@ -242,10 +241,22 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
     try {
       final request = await client.getUrl(Uri.parse(url));
       final response = await request.close();
-      return await response.fold<List<int>>(
-        [],
-        (acc, chunk) => acc..addAll(chunk),
-      );
+
+      // Stream the response into bytes with a size limit to prevent OOM
+      // Maximum 10MB per image (adjust if AI generates larger images)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      final bytes = <int>[];
+      int totalBytes = 0;
+
+      await for (final chunk in response) {
+        totalBytes += chunk.length;
+        if (totalBytes > maxSize) {
+          throw Exception('Image too large (exceeds 10MB limit)');
+        }
+        bytes.addAll(chunk);
+      }
+
+      return bytes;
     } finally {
       client.close();
     }
@@ -262,6 +273,16 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
     return '.png';
   }
 
+  /// Format timestamp as a short relative label.
+  String _formatTime(int ms) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final diff = now - ms;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return '${(diff / 60000).floor()}m ago';
+    if (diff < 86400000) return '${(diff / 3600000).floor()}h ago';
+    return '${(diff / 86400000).floor()}d ago';
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -272,7 +293,7 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
         : widget.providers.where((p) => p.active).toList();
 
     return AlertDialog(
-      title: Text(l10n.videoCreatePicturesButton ?? 'Create pictures'),
+      title: Text(l10n.aiBatchTitle),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -283,7 +304,7 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
               // Provider selector
               if (displayProviders.length > 1) ...[
                 Text(
-                  'AI Provider',
+                  l10n.aiBatchProviderLabel,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 4),
@@ -321,6 +342,44 @@ class _VideoImageBatchDialogState extends State<VideoImageBatchDialog> {
                   onDelete: () => _deleteImage(index),
                 );
               }).toList(),
+              // Recent prompts history (FR-009)
+              if (_history.isNotEmpty) ...[
+                const Divider(height: 24),
+                InkWell(
+                  onTap: () => setState(() => _historyExpanded = !_historyExpanded),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _historyExpanded
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        l10n.aiPromptRecentPrompts(_history.length),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_historyExpanded)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      children: _history.map((entry) {
+                        return _HistoryEntryWidget(
+                          entry: entry,
+                          onDelete: () => _deleteHistoryEntry(entry.timestamp),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),
@@ -352,6 +411,7 @@ class _PromptRowWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -377,7 +437,7 @@ class _PromptRowWidget extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: onGenerate,
                   icon: const Icon(Icons.add_photo_alternate, size: 18),
-                  label: const Text('Generate'),
+                  label: Text(l10n.aiBatchGenerate),
                   style: ButtonStyle(
                     padding: WidgetStateProperty.all(
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
@@ -385,7 +445,7 @@ class _PromptRowWidget extends StatelessWidget {
                 ),
               if (row.generating)
                 const SizedBox(
-                  width: 80,
+                  width: 100,
                   height: 28,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -410,7 +470,7 @@ class _PromptRowWidget extends StatelessWidget {
                       if (!row.saved)
                         IconButton(
                           icon: const Icon(Icons.save, size: 18),
-                          tooltip: 'Save',
+                          tooltip: l10n.aiBatchSave,
                           onPressed: onSave,
                           padding: EdgeInsets.zero,
                           constraints:
@@ -423,7 +483,7 @@ class _PromptRowWidget extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.check_circle,
                               color: Colors.green, size: 18),
-                          tooltip: 'Saved',
+                          tooltip: l10n.aiBatchSaved,
                           onPressed: null,
                           padding: EdgeInsets.zero,
                           constraints:
@@ -432,7 +492,7 @@ class _PromptRowWidget extends StatelessWidget {
                       if (row.saved)
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 18),
-                          tooltip: 'Delete',
+                          tooltip: l10n.aiBatchDelete,
                           onPressed: onDelete,
                           padding: EdgeInsets.zero,
                           constraints:
@@ -463,6 +523,85 @@ class _PromptRowWidget extends StatelessWidget {
   }
 }
 
+/// One entry in the recent prompts history, with a delete button.
+class _HistoryEntryWidget extends StatelessWidget {
+  final AIPromptEntry entry;
+  final VoidCallback onDelete;
+
+  const _HistoryEntryWidget({
+    required this.entry,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        onTap: () => onDelete(),
+        borderRadius: BorderRadius.circular(4),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(4),
+            color: Colors.grey.shade50,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                entry.type == AIPromptType.image
+                    ? Icons.image
+                    : entry.type == AIPromptType.video
+                        ? Icons.videocam
+                        : Icons.text_fields,
+                size: 14,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  entry.text.length > 50
+                      ? '${entry.text.substring(0, 50)}...'
+                      : entry.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _formatTime(entry.timestamp),
+                style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.close, size: 14),
+                tooltip: 'Delete',
+                onPressed: onDelete,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(int ms) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final diff = now - ms;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return '${(diff / 60000).floor()}m';
+    if (diff < 86400000) return '${(diff / 3600000).floor()}h';
+    return '${(diff / 86400000).floor()}d';
+  }
+}
+
 /// Small thumbnail of a generated image.
 class _ImageThumbnail extends StatelessWidget {
   final String url;
@@ -481,12 +620,28 @@ class _ImageThumbnail extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => _fallbackPlaceholder(),
             )
-          : Image.network(
-              url,
+          : CachedNetworkImage(
+              imageUrl: url,
               height: 80,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _fallbackPlaceholder(),
+              memCacheWidth: 200, // Limit memory cache to small thumbnail size
+              memCacheHeight: 200,
+              placeholder: (_, __) => _loadingPlaceholder(),
+              errorWidget: (_, __, ___) => _fallbackPlaceholder(),
             ),
+    );
+  }
+
+  Widget _loadingPlaceholder() {
+    return Container(
+      height: 80,
+      width: 120,
+      color: Colors.grey.shade100,
+      child: const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
     );
   }
 

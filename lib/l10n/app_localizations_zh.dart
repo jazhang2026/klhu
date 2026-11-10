@@ -603,6 +603,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPromptCancel => '取消';
 
   @override
+  String get aiBatchTitle => '创建图片';
+
+  @override
+  String get aiBatchGenerate => '生成';
+
+  @override
+  String get aiBatchGenerating => '生成中…';
+
+  @override
+  String get aiBatchSave => '保存';
+
+  @override
+  String get aiBatchSaved => '已保存';
+
+  @override
+  String get aiBatchDelete => '删除';
+
+  @override
+  String get aiBatchProviderLabel => 'AI 提供商';
+
+  @override
   String get aiImagePreviewTitle => 'AI 图片';
 
   @override
@@ -1256,6 +1277,27 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get aiPromptCancel => '取消';
+
+  @override
+  String get aiBatchTitle => '创建图片';
+
+  @override
+  String get aiBatchGenerate => '生成';
+
+  @override
+  String get aiBatchGenerating => '生成中…';
+
+  @override
+  String get aiBatchSave => '保存';
+
+  @override
+  String get aiBatchSaved => '已保存';
+
+  @override
+  String get aiBatchDelete => '删除';
+
+  @override
+  String get aiBatchProviderLabel => 'AI 提供商';
 
   @override
   String get aiImagePreviewTitle => 'AI 图片';

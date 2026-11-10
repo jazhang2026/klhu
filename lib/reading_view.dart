@@ -2977,6 +2977,7 @@ class _ReadingViewState extends State<ReadingView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => VideoImageBatchDialog(
           imagePrompts: prompts,
+          content: _content,
           providers: providers,
           picturesDir: picturesDir,
           onSaved: (pics) {

@@ -107,6 +107,51 @@ void main() {
       expect(await history.load(), isEmpty);
     });
 
+    test('deletes a single entry by timestamp', () async {
+      final history = AIPromptHistory(
+        prefs: () async {
+          final sp = await SharedPreferences.getInstance();
+          return sp;
+        },
+      );
+      // Use explicit timestamps to avoid millisecond collisions.
+      await history.add(
+        text: 'first', type: AIPromptType.text,
+        includeReadingContent: false,
+      );
+      // Ensure each add gets a distinct timestamp by awaiting between adds.
+      await Future.delayed(const Duration(milliseconds: 10));
+      await history.add(
+        text: 'second', type: AIPromptType.image,
+        includeReadingContent: true,
+      );
+      await Future.delayed(const Duration(milliseconds: 10));
+      await history.add(
+        text: 'third', type: AIPromptType.video,
+        includeReadingContent: false,
+      );
+
+      final entries = await history.load();
+      expect(entries.length, 3);
+      // Delete the oldest entry (last in loaded order).
+      final targetTimestamp = entries.last.timestamp;
+
+      final deleted = await history.deleteEntry(targetTimestamp);
+      expect(deleted, isTrue);
+
+      final remaining = await history.load();
+      expect(remaining.length, 2);
+      expect(remaining.any((e) => e.timestamp == targetTimestamp), isFalse);
+    });
+
+    test('deleteEntry returns false when timestamp not found', () async {
+      final history = AIPromptHistory();
+      await history.add(text: 'only one', type: AIPromptType.text, includeReadingContent: false);
+      final deleted = await history.deleteEntry(999999999999);
+      expect(deleted, isFalse);
+      expect((await history.load()).length, 1);
+    });
+
     test('a malformed stored value is tolerated — returns empty', () async {
       await (await SharedPreferences.getInstance()).setString(historyKey, 'not-json');
       final history = AIPromptHistory();

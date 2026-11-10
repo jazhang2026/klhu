@@ -41,6 +41,8 @@ dependencies:
   http: ^1.2.0
   url_launcher: ^6.3.0
   intl: ^0.20.3
+  # Image caching (spec 031): prevents OOM crashes when downloading multiple AI-generated images
+  cached_network_image: ^3.3.1
   # Content library (spec 008): app documents directory for index.json +
   # contents/<id>.txt. Text does not belong in SharedPreferences (whole map is
   # parsed into memory at launch); see specs/008-content-storage/research.md D1.

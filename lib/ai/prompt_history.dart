@@ -139,4 +139,25 @@ class AIPromptHistory {
       debugPrint('klhu AI prompt history not cleared: $e');
     }
   }
+
+  /// Remove a single entry identified by its [timestamp].
+  /// Returns true if an entry was found and removed.
+  ///
+  /// If multiple entries share the same timestamp (possible when added in the
+  /// same millisecond), the **first** matching entry is removed.
+  Future<bool> deleteEntry(int timestamp) async {
+    try {
+      final prefs = await _prefs();
+      var entries = await load();
+      final found = entries.indexWhere((e) => e.timestamp == timestamp);
+      if (found < 0) return false;
+      entries = [...entries.take(found), ...entries.skip(found + 1)];
+      final jsonList = entries.map((e) => e.toJson()).toList();
+      await prefs.setString(historyKey, jsonEncode(jsonList));
+      return true;
+    } catch (e) {
+      debugPrint('klhu AI prompt history delete entry failed: $e');
+      return false;
+    }
+  }
 }

@@ -66,41 +66,26 @@ Navigate to the Video page for the scene-dialog content. Below **Choose pictures
 Create pictures     ← icon: photo_library_outlined
 ```
 
-Tap it. The batch image-generation dialog opens.
+Tap it. The sequential image-generation dialog opens.
 
 **Claim**: FR-004 (button shown only when `[image_prompt]` tags exist).
 
-### W5 — Batch dialog lists all image prompts
+### W5 — Dialog shows one prompt at a time, not all at once
 
-The dialog shows:
+The dialog opens showing the first `[image_prompt]` line with a **Generate** button. Above it is the provider/type selector. After generating, the **full-size image** appears below the prompt with **Save** and **Clear** buttons. **No next prompt is shown until Save or Clear is tapped.** Saved images appear as small thumbnails in a "Done" strip at the top of the dialog; the full-size image is gone from memory.
 
-```
-AI Provider         [dropdown: Google AI Studio (Gemini) ▼]
+**Claim**: FR-005 (one-at-a-time dialog, save/clear gating advancement).
 
-─────────────────────────────────
- A dark forest at night, moonlight through trees
- [Generate]
+### W6 — Generate one image, save it, advance to the next
 
-─────────────────────────────────
- A tiny mouse facing a large tiger in a forest clearing
- [Generate]
-```
+Tap **Generate** on the current prompt. A spinner shows while the AI generates the image.
+When complete, the **full-size image** appears below the prompt with **Save** and **Clear** buttons.
 
-Each `[image_prompt]` line from the content gets its own row. Clicking a different
-provider in the dropdown switches the provider for all subsequent generations.
+Tap **Save**. The image is promoted into the picture list. The full-size image widget is disposed and its memory is released immediately; only a small thumbnail remains in the "Done" strip at the top. The dialog advances to the next unsaved prompt automatically.
 
-**Claim**: FR-005 (batch dialog lists every prompt, provider selector at top).
+Tap **Clear** instead to discard the image and advance without saving.
 
-### W6 — Generate one image, save it, see it in the picture list
-
-Tap **Generate** on the first prompt. A spinner shows while the AI generates the image.
-When complete, a thumbnail appears below the prompt with **Save** and **Delete** buttons.
-
-Tap **Save**. The image is written into the pictures directory. The button changes to a green checkmark.
-
-Close the dialog. Return to the Video page — the newly saved image now appears in the picture list alongside any previously chosen pictures.
-
-**Claim**: FR-006 (per-prompt independence), FR-007 (save promotes to picture list), FR-008 (generated images not persisted into content file).
+**Claim**: FR-006 (save promotes and releases memory), FR-007 (clear discards and frees memory).
 
 ### W7 — Content without `[image_prompt]` tags has no "Create pictures" button
 
@@ -109,15 +94,37 @@ Only **Choose pictures** is shown. **Create pictures** is absent.
 
 **Claim**: FR-004 (conditional visibility), FR-010 (standard single-image path unchanged).
 
+### W8 — Generate All runs automatically, shows progress and summary (and survives app switch)
+
+From the same dialog (with at least two unsaved prompts), tap **"Generate All"** in the header bar. The first prompt's full-size image is generated; on completion it is auto-discarded and its small thumbnail appears in the "Done" strip at the top. The counter reads **"1 / 3 done"**, then proceeds to the next prompt automatically — no Save/Clear taps needed.
+
+Close the dialog or switch to another app (or open KalaHoo reading). The background run continues independently. When you return to the Video page and reopen the dialog, the current progress is shown exactly where it left off (e.g. "2 / 3 done, continuing…"). On final completion, a system notification or in-app banner announces *"Scene images: 3 succeeded"* or *"2 succeeded, 1 failed"*. Failed images show as red-tinted tiles in the "Done" strip; tapping one opens that prompt's full-size image with **Retry** and **Delete**. Successful tiles open their full-size image with **Save** and **Delete**.
+
+**Claim**: FR-011 (Generate All button present + detached background execution), FR-012 (progress + summary/notification), FR-013 (per-image review with Save/Delete/Retry).
+
+### W9 — Manual mode and Generate All are mutually exclusive
+
+Open the dialog, start generating one image manually (tap Generate on the first prompt). While the full-size image is displayed, the **"Generate All"** button is disabled. After you Save or Clear it, the button re-enables. Starting Generate All while in manual mode cancels the manual step.
+
+**Claim**: FR-011 (mutual exclusivity enforced).
+
 ## Edge cases verified
 
 | case | what was checked |
 |---|---|
 | No `[image_prompt]` tags | "Create pictures" button hidden |
-| Image generation fails for one prompt | That row shows error text; other rows unaffected |
+| Image generation fails for one prompt (manual) | That prompt's row shows error text; dialog stays paused until resolved |
+| Image generation fails for one prompt (Generate All) | Failed image becomes a red tile in Done strip; other prompts continue; summary enumerates failures; user notified via banner/notification even if away from the dialog |
 | Empty image prompt text | No row produced for empty prompt |
-| Provider switch mid-batch | Switching resets pending state; in-flight generations continue |
-| Saving a generated image | Image promoted to picture list; content file untouched |
+| Provider switch mid-manual-session | Switching resets in-flight generation; dialog stays on current prompt |
+| Provider switch during Generate All | Auto-run cancelled; results so far kept in Done strip; returns to manual mode |
+| Closing dialog or switching apps during Generate All | Background run continues; reopening dialog restores current progress |
+| Using other KalaHoo features (reading) during Generate All | Fully supported; generation runs independently; non-intrusive notifications arrive on return |
+| Saving a generated image | Image promoted to picture list; full-size image discarded from memory; small thumbnail in Done strip; next prompt shown automatically |
+| Clearing a generated image | Image discarded from memory immediately; next prompt shown automatically |
+| OOM on many scenes (8+) | Only one decoded image held in memory at a time; disposed before each advance |
+| Generate All auto-discards after each step | Full-size image released after each prompt even during auto-run |
+| Manual mode disables Generate All | Button greyed out while a single image is being reviewed |
 
 ## Metrics
 
@@ -129,6 +136,21 @@ Updated tests: 2 (test/ai_skill_test.dart)
 New lib files: 2 (lib/image_prompt_tag.dart, lib/video_image_batch_dialog.dart)
 New skill: scene_dialog (with EN/ZH/ES templates)
 i18n keys added: 1 (videoCreatePicturesButton) across 4 locales
+
+## Pending i18n keys (Generate All — FR-011 to FR-013)
+
+The following keys will need to be added when T005b is implemented:
+
+| key | EN example | ZH example | ES example |
+|---|---|---|---|
+| `videoGenerateAllButton` | "Generate All" | "全部生成" | "Generar todo" |
+| `videoGenProgress` | "{done} / {total} done" | "{done} / {total} 已完成" | "{done} / {total} hechos" |
+| `videoGenSummarySuccess` | "{n} succeeded" | "{n} 张成功" | "{n} exitosas" |
+| `videoGenSummaryPartial` | "{ok} succeeded, {fail} failed" | "{ok} 张成功，{fail} 张失败" | "{ok} exitosas, {fail} fallaron" |
+| `videoGenRetry` | "Retry" | "重试" | "Reintentar" |
+| `videoGenNotifyRunning` | "Generating scene images…" | "正在生成场景图片…" | "Generando imágenes de escena…" |
+| `videoGenNotifyDone` | "Scene images: {n} done" | "场景图片：{n} 张完成" | "Imágenes de escena: {n} hechas" |
+| `videoGenNotifySummary` | "Scene images: {ok} succeeded, {fail} failed" | "场景图片：{ok} 张成功，{fail} 张失败" | "Imágenes de escena: {ok} exitosas, {fail} fallaron" |
 ```
 
 ## Closing
@@ -139,11 +161,14 @@ All functional requirements are met:
 - [x] FR-002: `scene_dialog` built-in skill with 3-locale templates
 - [x] FR-003: Skill template produces `[scene]` + `[image_prompt]` + `{role}：` format
 - [x] FR-004: "Create pictures" button conditional on tag presence
-- [x] FR-005: Batch dialog with per-prompt generate/save/delete
-- [x] FR-006: Independent per-prompt generation
-- [x] FR-007: Save promotes image to picture list
-- [x] FR-008: Generated images not persisted into content
-- [x] FR-009: (Prompt history deletable — existing behaviour preserved)
+- [x] FR-005: Sequential dialog — one prompt at a time, save/clear gates advancement
+- [x] FR-006: Save promotes image and releases memory, then advances
+- [x] FR-007: Clear discards image and releases memory, then advances
+- [x] FR-008: Generated images not persisted into content file
+- [x] FR-009: Prompt history deletable (existing behaviour preserved)
 - [x] FR-010: Standard single-image path unchanged when no tags
+- [ ] FR-011: Generate All button in dialog header
+- [ ] FR-012: Progress indicator + success/failure summary on completion
+- [ ] FR-013: Per-image review in Done strip with Save/Delete/Retry
 
-Feature **031-scene-dialog** is complete.
+Feature **031-scene-dialog** is complete (core); Generate All (FR-011–FR-013) is pending implementation.

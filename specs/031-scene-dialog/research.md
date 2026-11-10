@@ -34,28 +34,34 @@ The tag sits on its own line: `[image_prompt] prompt text here`. It is parsed by
 
 A scene's image prompt is the last `[image_prompt]` line that appears after the scene's `[scene]` line and before the next `[scene]` line (or EOF). If no `[image_prompt]` line exists in that span, the scene has no prompt (`null`). Orphaned `[image_prompt]` lines (not preceded by a `[scene]` in the same span) are skipped.
 
-### D3 — Batch generation is a modal dialog, not a page
+### D3 — Sequential single-image generation, not batch; runs detached from UI
 
-The batch image-generation dialog is a `showDialog<void>` call from the Video page. It lists all image prompts, provides a provider/type selector at the top, and shows per-prompt generate/save/delete rows. Each generation runs independently via `AIProviderClient.generate()`.
+The image-generation dialog shows **one prompt at a time**. After generating an image, the **full-size image** is displayed (not a thumbnail) so the reader can inspect it before deciding. The reader must tap **Save** (promote to picture list, discard full-size image from memory, advance) or **Clear** (discard, release memory, advance). Only then does the next prompt become available. Saved images accumulate as a strip of small thumbnails in the "Done" section at the top of the dialog — the full-size version is gone from memory. A **"Generate All"** button lets the reader kick off an automatic run of all remaining prompts; during auto-run the same memory rule applies — each image is shown full-size briefly, then auto-discarded, no Save/Clear needed.
+
+**Generate All is a detached background task.** Once tapped, the sequential run continues even if the user closes the dialog, switches to another app, or opens a different KalaHoo feature (reading, video editing, etc.). The app delivers progress/status messages via notification or banner. When the user returns and reopens the dialog, the current state (done strip + in-flight counter) is restored automatically. This prevents holding multiple high-resolution decoded images in memory simultaneously, which caused the OOM crash.
 
 ### D4 — Generated images are temp until promoted
 
-Images generated in the batch dialog live in the app's cache directory (same as the render's working directory). Tapping "Save" copies the image into the picture assignment via the existing `PictureAssignment` flow. The image prompt text itself is never saved back into the content file.
+Images generated in the dialog live in the app's cache directory (same as the render's working directory). Tapping "Save" copies the image into the picture assignment via the existing `PictureAssignment` flow. The image prompt text itself is never saved back into the content file.
 
 ### D5 — No new dependency
 
-All infrastructure already exists: `shared_preferences`, `http`, the AI provider client, the image preview dialog, the picture assignment store, the scene tag parser. Adding `image_prompt_tag.dart` and the batch dialog reuses everything.
+All infrastructure already exists: `shared_preferences`, `http`, the AI provider client, the image preview dialog, the picture assignment store, the scene tag parser. Adding `image_prompt_tag.dart` and the sequential dialog reuses everything.
 
 ## §3 Risks and reservations
 
-- **R1** — Batch generation latency. Multiple image prompts can take many minutes total. The dialog must not block the UI thread; each generation runs independently and updates its row.
-- **R2** — Provider image-model availability. Not all configured providers support image generation. The batch dialog should filter to image-capable providers only (or warn when the selected provider cannot generate images).
-- **R3** — Scene-image prompt scoping edge cases. If the reader places an `[image_prompt]` line without a preceding `[scene]`, it is orphaned and skipped in the batch list. The parser must handle this gracefully.
-- **R4** — Content change during batch session. If the reader edits the content while the batch dialog is open, the prompt list becomes stale. The dialog should detect content changes and either refresh or close with a warning.
+- **R1** — Memory pressure from multiple simultaneous images. **Mitigated**: the dialog now holds only one decoded image at a time. Before advancing to the next prompt, the previous full-size image widget is disposed and the image data is nulled out, giving the garbage collector a clear path to reclaim memory. This includes **after save** — the full-size image is discarded and replaced by a small thumbnail in the "Done" strip. During **Generate All**, the same rule applies: each generated image is held for only one cycle before being auto-discarded.
+- **R2** — Garbage collection may not run immediately after disposal. On some devices (especially Android with lower RAM), the system may delay GC. **Mitigation**: explicitly dispose image controllers/widgets and null out state variables before advancing. Use `Image.memory(null)` or replace the image widget with empty placeholder to signal the framework that the old image can be collected. Consider adding a small `await Future.delayed(...)` after dispose if profiling shows GC delay.
+- **R3** — Provider image-model availability. Not all configured providers support image generation. The dialog should filter to image-capable providers only (or warn when the selected provider cannot generate images).
+- **R4** — Content change during session. If the reader edits the content while the dialog is open, the prompt list becomes stale. The dialog should detect content changes on open and refresh accordingly.
+- **R5** — Generate All runs for an extended period (minutes for many scenes). The dialog must keep a stable in-flight state; cancelling mid-run must not leak the current image's memory. **Mitigation**: on cancel or provider switch, the current in-flight future is aborted and its result is discarded; the full-size image controller is cleared synchronously.
+- **R6** — App backgrounding during Generate All. On return, the dialog should restore which images succeeded/failed/pending. **Mitigation**: persist the sequence state (index, results map) in a lightweight in-memory structure keyed to the dialog instance; rebuild on dialog reopen if the content hash matches. The task should also survive being moved to the background by the OS — use a background isolate or isolates with `compute` rather than tying the work to the main UI isolate.
+- **R7** — iOS background-task limits. iOS restricts how long a background task can run without explicit permission. **Mitigation**: register a brief background task on app-enter-background, check completion status before suspending, and rely on the isolated computation continuing under iOS's allowed background-execution budget. For very long runs (20+ images), consider falling back to a periodic foreground-refresh approach where the app wakes periodically to push the next step. Android has looser constraints but still benefits from using `WorkManager` or a dedicated isolate.
+- **R8** — Notifications while the user is reading elsewhere in KalaHoo. Progress banners must not interrupt the reading experience. **Mitigation**: show non-intrusive toasts/banners at natural breakpoints (between images); suppress them while the reading view is in active use; use the platform notification channel for completion-only alerts.
 
 ## §4 What this research does not measure
 
 - Provider rate limits for image generation (known from spec 029 research).
-- The exact visual layout of the batch dialog (prototype and measure on device).
+- The exact visual layout of the sequential dialog (prototype and measure on device).
 - How many image prompts a typical scene dialog contains (depends on the skill's output).
 - The performance impact of generating multiple images in sequence (single-threaded per prompt for now).

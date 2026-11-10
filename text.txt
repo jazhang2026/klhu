@@ -3,12 +3,12 @@ Requirement:
 1. change App title to "KalaHoo" in English and "卡啦虎" in Chinese. Use images/kalahu.jpeg as the app icon.
 2. i18n support for English and Chinese. User can switch between English and Chinese.
 
-3. Voice list: change the voice name to a user-friendly name. has i18n form English and Chinese.
-   have more characters of the voice if possible: man/woman, yang/old, 方言.
+3. Voice list: change the voice name to a user-friendly name. has i18n format English and Chinese.
+   have more characters of the voice if possible: man/woman, young/old, 方言.
    use Approach: Static mapping table (recommended)
 
-4. change Stop to Puse/Resume functionality to stop and continue TTS reading(page reading). 
-   When Pused, next action is not Resume, Pause works as Stop.
+4. change Stop to Pause/Resume functionality to stop and continue TTS reading(page reading). 
+   When Paused, next action is not Resume, Pause works as Stop.
 
 5. use icon buttons instead of text buttons?
 
@@ -19,7 +19,7 @@ Requirement:
 8. add 中文 方言 广东话 as Voice option.
 
 9. save text page content(sample and user input) to local storage. can be loaded later. 
-   saved content can be edit, undo edit, save or delete. delete has a worning message.
+   saved content can be edited, undo edit, save or delete. delete has a warning message.
    remove the sample buttons. make the samples selectable and loadable.
 
 10. app icon: use images/kalahoo.jpeg as the new app icon.
@@ -28,15 +28,15 @@ Requirement:
     "Continue Read" is same as Read Page, but it starts from the position where the user set.
     pause/resume on sentence level, not paragraph level.
 
-12. on continue read, always high light one sentence by one sentence. 
-    Pause/Resume always heppen on the high lighted sentence.
+12. on continue read, always highlight one sentence by one sentence. 
+    Pause/Resume always happen on the highlighted sentence.
 
 13. on reading page, I like the page to automatically scroll when read out of view. so the highlighted sentence is always visible.
     on contents list, I like to have a "+" icon to add a new content.
     on the reading page, I like to preview/select font and character size of the text. App should remember the user's choice.
 
 14: I want to record the content reading into a mp4 video. 
-    Include the contents, hight lights, auto-scroll and reading voice.
+    Include the contents, highlights, auto-scroll and reading voice.
     make it good as a youtube video.
 
 15. add OCR functionality to extract text from images or camera input.
@@ -78,7 +78,7 @@ Requirement:
     1. 文本格式示例：角色前缀 + 冒号 + 内容
     2. 用户为每个角色选择不同的语音。语言由文本内容决定。
     3. 设定文本类型：可选择 (标准，多人对话)
-    4. 生成视频时，语音与对话(朗读)相同，只显示当前句子，文字不显示 角色前缀 + 冒号，只显示内容。
+    4. 生成视频时，语音与对话(朗读)相同，只显示当前句子，文字不显示角色前缀 + 冒号，只显示内容。
 
 015. besides the 角色前缀 tag. add a new tag for [comment](中文：[注]).
     comment tag is used to manage the reading of the comment. 
@@ -131,13 +131,13 @@ Requirement:
     3. On Assign sentences page, I like to be able to delete an un-assigned picture.
     4. On Assign sentences page, an already assigned sentence should have the selection check box disabled for other pictures.
 
-    filename is useless on the UI, don't show it. Only show sentences number on top right of thumnail. the number change in real time.
-    one tap select the thumnail to assign sentences(the thumnail is highlighted). sentence list is showing below.
-    tap+hold show large picture below. the thumnail is highlighted. the sentence list is hidden. If no sentences assigned to this picture, show move buttons and delete button. when move or delete is heppen, show the real change on the thumnails.
+    filename is useless on the UI, don't show it. Only show sentences number on top right of thumbnail. the number change in real time.
+    one tap select the thumbnail to assign sentences(the thumbnail is highlighted). sentence list is showing below.
+    tap+hold show large picture below. the thumbnail is highlighted. the sentence list is hidden. If no sentences assigned to this picture, show move buttons and delete button. when move or delete happens, show the real change on the thumbnails.
     use close button to close the large picture and show the sentences list.
     the pictures chosen dialog page should have same UI and function on the large picture, move and delete button.
-    Since the move and delete only happen to the selected large picture, file name is not needed. switch happens on two closed pictured. not use file name is OK.
-    the selected thumnail auto scroll to the middle of thumnail bar.
+    Since the move and delete only happen to the selected large picture, file name is not needed. switch happens on two closed pictures. not use file name is OK.
+    the selected thumbnail auto scroll to the middle of thumbnail bar.
 
     (2026-10-15 修订，读者本人：第 4 条已推翻 —— 不用「勾选框禁用」，改成别的图持有的句子仍可点、
      弹警告并确认后换手（switch）。本条的原文保留如上，撤销只在此处注明；规格里的记录见
@@ -150,9 +150,9 @@ Requirement:
          修法归 020，与 021 的 switch 同一段代码路径。)
 
 022. Add one change: On reading, auto scroll after read last sentence on screen. I like to start the auto scroll before highlight/read last sentence on screen. so the reading sentence is not the last sentence on screen unless its the last sentence of the content.
-     find a small issue: reading page, when not on the top/not show first sentence and no tap, click Continue Read, it scroll to top, 
-highlight first sentence the read. if click Read, no scroll to top happen before read first sentence. scroll happen after read first
-sentence and high light second sentence.
+     find a small issue: reading page, when not on the top/not show first sentence and no tap, click Continue Read, it scrolls to top,
+     highlight the first sentence and read. if click Read, no scroll to top happens before read first sentence. scroll happens after read first
+     sentence and highlight second sentence.
 
 023. 给视频中的背景图片加一个动态效果(可选):
     让背景图有轻微的移动和缩放效果，让视频更生动。移动方向可以是随机的。上下左右，远近和斜向都可以。
@@ -182,14 +182,14 @@ sentence and high light second sentence.
     - so AI can generate text content to meet kalahoo reading content format. Sentence, paragraph and
       the dialog content format: the role name should be in the format of {role name} or {角色名称}. and
       the comment content format: the comment should be in the format of [comment] or [注]. and
-      the scene_dialog contentformat: the scene dialog should be in the format of [scene] followed by dialog content and [image_prompt]. and
+      the scene_dialog content format: the scene dialog should be in the format of [scene] followed by dialog content and [image_prompt]. and
       the text content generated by AI should filter out the header/footer of AI response and only keep the kalahoo reading content.
 
 031. add a new content type: scene dialog. Which can contain multiple scenes. each scene contains scene title, dialog and image prompt.
     add a new skill: scene_dialog which can generate multiple scenes content from a story. each scene contains [scene] title, 
     followed by dialog and image prompt for scene's image/motion.
-    add a new [image_prompt] tag, it works same as [scene]. not show and not read on the reading and video.
-    the converted dialog can be readed. the image prompt will be used to generate images. 
+    add a new [image_prompt] tag to start the image prompt paragraph, it works same as [scene]. not show and not read on the reading and video.
+    The converted dialog can be read. the image prompt will be used to generate images. 
     The generated images with the dialog will be used to generate video.
 
     On the Video dialog, add "Create pictures" button under "Choose pictures".
@@ -197,7 +197,7 @@ sentence and high light second sentence.
     if the content have image prompts, show batch images generation dialog to generate images.
     batch images generation dialog has AI provider options and only use image model.
     batch images generation dialog list all image prompts. click on the generate button of each image prompt to generate the image.
-    show the generated image under the image prompt. each generated image can be save and deleted.
+    show the generated image under the image prompt. each generated image can be saved and deleted.
     do not save image prompt from batch images generation. make Recent prompts deletable.
 
     the generated images can be selected as chosen pictures for video generation.    

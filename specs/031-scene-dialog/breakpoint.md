@@ -5,6 +5,10 @@
 One writer, one build, one file: every device row appends here, and the number that
 identifies a row is the driver's own key.
 
+> **Revision 2026-11-10 (memory fix)**: The batch dialog was reworked from a multi-image concurrent generator to a sequential single-image-at-a-time dialog. Before advancing to the next prompt, the current image must be saved or cleared so its memory is released. See [spec.md](./spec.md) for the updated requirements.
+>
+> **Revision 2026-11-10 (generate all + background run)**: Added "Generate All" button (FR-011–FR-013). Generate All runs as a detached background task — user may close the dialog, switch apps, or use KalaHoo reading while it continues. Progress is restored on dialog reopen; completion notifies via banner/notification. Non-intrusive messaging while reading. See [spec.md](./spec.md) Q9, FR-011–FR-012, Edge Cases.
+
 ## What landed before the walk (unit side)
 
 ```
@@ -67,7 +71,7 @@ All four ARB files and all four generated Dart localization files carry the key.
 | file | action |
 |---|---|
 | `lib/image_prompt_tag.dart` | new — tag parser, 5 spellings, elision, scene pairing |
-| `lib/video_image_batch_dialog.dart` | new — batch generation dialog widget |
+| `lib/video_image_batch_dialog.dart` | new — sequential single-image dialog widget; **T005b extends** with detached background execution (Generate All), progress restoration on reopen, and non-intrusive notifications while reading/switching apps |
 | `lib/ai/skill_store.dart` | modified — added `scene_dialog` built-in skill |
 | `lib/reading_view.dart` | modified — import, "Create pictures" button, `_openBatchImageDialog` |
 | `lib/l10n/app_*.arb` | modified — added `videoCreatePicturesButton` |
@@ -77,9 +81,10 @@ All four ARB files and all four generated Dart localization files carry the key.
 
 ## What this breakpoint does not measure
 
-- The visual layout of the batch dialog on device (prototype and measure on physical device).
+- The visual layout of the sequential dialog on device (prototype and measure on physical device).
 - The actual image-generation flow end-to-end (provider connectivity, latency).
 - The scene_dialog skill's output quality in the AI prompt dialog.
-- i18n of the batch dialog widget itself (strings are currently literal English).
+- i18n of the dialog widget itself (strings are currently literal English).
+- Memory profiling across many scenes (≥ 8) on low-RAM devices to confirm OOM is resolved.
 
 These are device-side items for the quickstart walk.

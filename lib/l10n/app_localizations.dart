@@ -1151,6 +1151,48 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get aiPromptCancel;
 
+  /// No description provided for @aiBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create pictures'**
+  String get aiBatchTitle;
+
+  /// No description provided for @aiBatchGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get aiBatchGenerate;
+
+  /// No description provided for @aiBatchGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating…'**
+  String get aiBatchGenerating;
+
+  /// No description provided for @aiBatchSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get aiBatchSave;
+
+  /// No description provided for @aiBatchSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get aiBatchSaved;
+
+  /// No description provided for @aiBatchDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get aiBatchDelete;
+
+  /// No description provided for @aiBatchProviderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Provider'**
+  String get aiBatchProviderLabel;
+
   /// No description provided for @aiImagePreviewTitle.
   ///
   /// In en, this message translates to:

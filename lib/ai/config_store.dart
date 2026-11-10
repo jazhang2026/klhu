@@ -159,6 +159,13 @@ class AIConfigStore {
     await history.add(text: text, type: type, includeReadingContent: includeReadingContent);
   }
 
+  /// Delete a single prompt history entry by [timestamp].
+  /// Exposed for tests; delegates to [AIPromptHistory.deleteEntry].
+  Future<bool> deletePromptHistoryEntry(int timestamp) async {
+    final history = AIPromptHistory(prefs: _prefs);
+    return history.deleteEntry(timestamp);
+  }
+
   Future<void> _save(
     SharedPreferences prefs,
     List<AIProvider> providers,
