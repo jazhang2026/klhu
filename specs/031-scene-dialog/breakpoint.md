@@ -8,6 +8,8 @@ identifies a row is the driver's own key.
 > **Revision 2026-11-10 (memory fix)**: The batch dialog was reworked from a multi-image concurrent generator to a sequential single-image-at-a-time dialog. Before advancing to the next prompt, the current image must be saved or cleared so its memory is released. See [spec.md](./spec.md) for the updated requirements.
 >
 > **Revision 2026-11-10 (generate all + background run)**: Added "Generate All" button (FR-011–FR-013). Generate All runs as a detached background task — user may close the dialog, switch apps, or use KalaHoo reading while it continues. Progress is restored on dialog reopen; completion notifies via banner/notification. Non-intrusive messaging while reading. See [spec.md](./spec.md) Q9, FR-011–FR-012, Edge Cases.
+>
+> **Revision 2026-11-10 (device walk — UX, persistence, memory)**: The dialog was reworked after the OnePlus walk: browsable prompt navigator, persistent image files, Klhu-album save/delete, Save All, saved badges, and removal propagation to chosen pictures. Details below.
 
 ## What landed before the walk (unit side)
 
@@ -88,3 +90,80 @@ All four ARB files and all four generated Dart localization files carry the key.
 - Memory profiling across many scenes (≥ 8) on low-RAM devices to confirm OOM is resolved.
 
 These are device-side items for the quickstart walk.
+
+## Device-walk revision — dialog UX, persistence, memory (2026-11-10, OnePlus LE2115)
+
+Changes landed after the physical-device walk; all verified on device
+(`flutter analyze` 0 errors, `flutter test` 1063 pass).
+
+### Navigation & states (`lib/video_image_batch_dialog.dart`)
+
+- Replaced the forward-only cursor with a **browsable prompt navigator** `‹ n / N ›`:
+  every `[image_prompt]` is reachable in scene order with Prev/Next chevrons and a
+  per-prompt status icon (pending / done / failed). The redundant under-image
+  "Next" button was removed — one navigator serves all states.
+- `_buildManualBody` shows the viewed prompt's state: Generate button while
+  pending, spinner + `aiProgressGeneratingImage` while generating, full-size
+  image on success, error + Retry on failure. `_generatingIndex` guards
+  re-entrant Generate taps.
+- The **Recent prompts** history section was removed entirely — scene-dialog
+  prompts no longer enter or display prompt history.
+- `_doneItems` is kept sorted by prompt index on every insert (manual,
+  Generate All, state restore); a prompt has at most one result — regeneration
+  replaces, never duplicates.
+- `_firstPendingIndex()` drives the empty-state fallback; when all prompts are
+  done the last result stays reviewable instead of an empty body.
+
+### Image persistence & memory
+
+- Generated images arrive as multi-MB `data:` URIs. New top-level
+  `_materializeImageUrl()` decodes them once and writes to
+  `app_flutter/scene_images/` (via `getApplicationDocumentsDirectory()`); only
+  the file path is kept in memory and in the SharedPreferences batch state —
+  fixes both the prefs bloat and the retained-base64 memory issue. Works in
+  the Generate All isolate too (`_SpawnArgs.imageDirPath`).
+- `_FullSizeImage`/`_MiniThumb` handle three URL forms: `data:` (legacy),
+  `http(s)` (`CachedNetworkImage`), local path (`Image.file`).
+- `_downloadImageBytes` short-circuits `data:`/local paths — no HTTP fetch for
+  materialized images.
+
+### Save / Delete / Save All
+
+- **Save** writes the `HeldPicture` into `picturesDir` (video working copy) AND
+  publishes to the public `Pictures/Klhu` album through `klhu/image_files`.
+- Filenames are **deterministic**: `klhu_scene_<contentHash>_<promptIndex>` —
+  exactly one persisted file per scene prompt; re-saving overwrites.
+- `_SuccessItem` gained `savedUri`/`savedName`, persisted in `_BatchState`;
+  `_doSave` now calls `_saveState()` so the Saved status survives reopen.
+- Saved results show a green **Saved ✓** chip (unsaved show the Save button)
+  and a ✓ badge on their Done-strip thumbnail.
+- **Save All** button (before Done) saves every unsaved success in scene
+  order; hidden once all are saved; `_savingAll` is setState-guarded.
+- Save advances **linearly** to the next non-empty prompt (`i+1…`), not the
+  first-pending fallback that jumped to the last prompt.
+- **Delete** on a saved item removes the Klhu-album file (new `delete` channel
+  method), the materialized working file, and calls `onRemoved(name)` so the
+  host drops the matching `HeldPicture` from chosen pictures — no stale or
+  duplicated thumbnails.
+
+### Host integration (`lib/reading_view.dart`)
+
+- `_openBatchImageDialog` tracks `currentHeld` (the live list, since
+  `onChosen` replaces it mid-session); `onRemoved` filters both pending
+  `newPictures` and already-merged `held`; the close-time merge dedupes by
+  name against `currentHeld`.
+
+### Native (`android/.../ImageFileStore.kt`)
+
+- `upsert`: overwrites the existing Klhu-album `DISPLAY_NAME` via
+  `openOutputStream(uri, "wt")`, else inserts (API 29+ MediaStore; pre-Q file
+  overwrite). `findAlbumUri` helper queries `DISPLAY_NAME`+`RELATIVE_PATH`.
+- `delete`: removes a previously returned `content://` or `file://` URI.
+
+### i18n & misc
+
+- Added `aiBatchSaveAll` ("Save all" / "全部儲存" / "全部保存" / "Guardar
+  todo"); removed now-unused `aiBatchNext`.
+- Fixed RenderFlex right-overflow: status-row texts wrapped in `Expanded`.
+- `AGENTS.md` (repo root): documents the `frontend_server` OOM crash, its
+  cache-corruption root cause, and the cleanup-first rule for agents.

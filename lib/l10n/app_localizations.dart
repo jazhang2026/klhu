@@ -1181,6 +1181,12 @@ abstract class AppLocalizations {
   /// **'Saved'**
   String get aiBatchSaved;
 
+  /// No description provided for @aiBatchSaveAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Save all'**
+  String get aiBatchSaveAll;
+
   /// No description provided for @aiBatchDelete.
   ///
   /// In en, this message translates to:
@@ -1294,6 +1300,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save & Test'**
   String get aiEditSaveButton;
+
+  /// No description provided for @videoGenerateAllButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate All'**
+  String get videoGenerateAllButton;
+
+  /// No description provided for @videoGenProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} / {total} done'**
+  String videoGenProgress(int done, int total);
+
+  /// No description provided for @videoGenSummarySuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} succeeded'**
+  String videoGenSummarySuccess(int n);
+
+  /// No description provided for @videoGenSummaryPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'{ok} succeeded, {fail} failed'**
+  String videoGenSummaryPartial(int ok, int fail);
+
+  /// No description provided for @videoGenRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get videoGenRetry;
+
+  /// No description provided for @videoGenNotifyRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating scene images…'**
+  String get videoGenNotifyRunning;
+
+  /// No description provided for @videoGenNotifyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Scene images: {n} done'**
+  String videoGenNotifyDone(int n);
+
+  /// No description provided for @videoGenNotifySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Scene images: {ok} succeeded, {fail} failed'**
+  String videoGenNotifySummary(int ok, int fail);
 }
 
 class _AppLocalizationsDelegate

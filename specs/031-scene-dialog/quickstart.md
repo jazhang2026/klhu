@@ -70,22 +70,28 @@ Tap it. The sequential image-generation dialog opens.
 
 **Claim**: FR-004 (button shown only when `[image_prompt]` tags exist).
 
-### W5 — Dialog shows one prompt at a time, not all at once
+### W5 — Dialog shows one browsable prompt at a time
 
-The dialog opens showing the first `[image_prompt]` line with a **Generate** button. Above it is the provider/type selector. After generating, the **full-size image** appears below the prompt with **Save** and **Clear** buttons. **No next prompt is shown until Save or Clear is tapped.** Saved images appear as small thumbnails in a "Done" strip at the top of the dialog; the full-size image is gone from memory.
+The dialog opens on the first `[image_prompt]` with a **Generate** button and a `‹ n / N ›` navigator above it — every prompt is reachable in scene order with Prev/Next chevrons and a status icon (pending / done / failed). After generating, the **full-size image** appears below the prompt with **Save** and **Delete** buttons. Results appear as thumbnails in the "Done" strip at the top (saved ones carry a ✓ badge); generated images are stored as files, not kept as in-memory blobs.
 
-**Claim**: FR-005 (one-at-a-time dialog, save/clear gating advancement).
+**Claim**: FR-005 (one-at-a-time dialog); navigator added in device-walk revision.
 
 ### W6 — Generate one image, save it, advance to the next
 
-Tap **Generate** on the current prompt. A spinner shows while the AI generates the image.
-When complete, the **full-size image** appears below the prompt with **Save** and **Clear** buttons.
+Tap **Generate** on the viewed prompt. A spinner + "Generating image…" shows while the AI generates.
+When complete, the **full-size image** stays on screen with **Save** and **Delete** buttons.
 
-Tap **Save**. The image is promoted into the picture list. The full-size image widget is disposed and its memory is released immediately; only a small thumbnail remains in the "Done" strip at the top. The dialog advances to the next unsaved prompt automatically.
+Tap **Save**. The image is written into the video picture list AND published to the public **Pictures/Klhu** album (one deterministic file per scene prompt — re-saving overwrites). A green **Saved ✓** chip replaces the Save button and persists across dialog close/reopen. The view advances linearly to the next prompt in scene order.
 
-Tap **Clear** instead to discard the image and advance without saving.
+Tap **Delete** on a saved result to remove the Done item, the Klhu-album file, the working file, and the picture from the chosen-pictures list — the prompt becomes pending again for re-creation.
 
-**Claim**: FR-006 (save promotes and releases memory), FR-007 (clear discards and frees memory).
+**Claim**: FR-006 (save promotes and releases memory), FR-007 (delete discards); Klhu-album persistence added in device-walk revision.
+
+### W5b — Save All publishes every unsaved result at once
+
+With several generated-but-unsaved results, tap **Save All** (left of Done). Each image is saved to the picture list and the Klhu album in scene order; saved thumbnails gain ✓ badges and the button hides once everything is saved. Already-saved images are skipped.
+
+**Claim**: device-walk revision — batch publish convenience.
 
 ### W7 — Content without `[image_prompt]` tags has no "Create pictures" button
 
@@ -104,7 +110,7 @@ Close the dialog or switch to another app (or open KalaHoo reading). The backgro
 
 ### W9 — Manual mode and Generate All are mutually exclusive
 
-Open the dialog, start generating one image manually (tap Generate on the first prompt). While the full-size image is displayed, the **"Generate All"** button is disabled. After you Save or Clear it, the button re-enables. Starting Generate All while in manual mode cancels the manual step.
+Open the dialog, tap **Generate** on a prompt. While the image is generating or under review, **"Generate All"** does not start a duplicate run for prompts that already have results — it skips every prompt with a Done item (success or failure) and only generates pending ones. Delete a result first if you want it regenerated.
 
 **Claim**: FR-011 (mutual exclusivity enforced).
 
@@ -167,8 +173,8 @@ All functional requirements are met:
 - [x] FR-008: Generated images not persisted into content file
 - [x] FR-009: Prompt history deletable (existing behaviour preserved)
 - [x] FR-010: Standard single-image path unchanged when no tags
-- [ ] FR-011: Generate All button in dialog header
-- [ ] FR-012: Progress indicator + success/failure summary on completion
-- [ ] FR-013: Per-image review in Done strip with Save/Delete/Retry
+- [x] FR-011: Generate All button in dialog header (detached Isolate background task)
+- [x] FR-012: Progress indicator + success/failure summary notification on completion
+- [x] FR-013: Per-image review in Done strip with Save/Delete/Retry; full-size display; state persistence across dialog reopen
 
-Feature **031-scene-dialog** is complete (core); Generate All (FR-011–FR-013) is pending implementation.
+Feature **031-scene-dialog** is complete.

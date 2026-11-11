@@ -618,6 +618,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiBatchSaved => '已保存';
 
   @override
+  String get aiBatchSaveAll => '全部儲存';
+
+  @override
   String get aiBatchDelete => '删除';
 
   @override
@@ -679,6 +682,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiEditSaveButton => '保存并测试';
+
+  @override
+  String get videoGenerateAllButton => '全部生成';
+
+  @override
+  String videoGenProgress(int done, int total) {
+    return '$done / $total 已完成';
+  }
+
+  @override
+  String videoGenSummarySuccess(int n) {
+    return '$n 张成功';
+  }
+
+  @override
+  String videoGenSummaryPartial(int ok, int fail) {
+    return '$ok 张成功，$fail 张失败';
+  }
+
+  @override
+  String get videoGenRetry => '重试';
+
+  @override
+  String get videoGenNotifyRunning => '正在生成场景图片…';
+
+  @override
+  String videoGenNotifyDone(int n) {
+    return '场景图片：$n 张完成';
+  }
+
+  @override
+  String videoGenNotifySummary(int ok, int fail) {
+    return '场景图片：$ok 张成功，$fail 张失败';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1294,6 +1331,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get aiBatchSaved => '已保存';
 
   @override
+  String get aiBatchSaveAll => '全部保存';
+
+  @override
   String get aiBatchDelete => '删除';
 
   @override
@@ -1355,4 +1395,38 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get aiEditSaveButton => '保存并测试';
+
+  @override
+  String get videoGenerateAllButton => '全部生成';
+
+  @override
+  String videoGenProgress(int done, int total) {
+    return '$done / $total 已完成';
+  }
+
+  @override
+  String videoGenSummarySuccess(int n) {
+    return '$n 张成功';
+  }
+
+  @override
+  String videoGenSummaryPartial(int ok, int fail) {
+    return '$ok 张成功，$fail 张失败';
+  }
+
+  @override
+  String get videoGenRetry => '重试';
+
+  @override
+  String get videoGenNotifyRunning => '正在生成场景图片…';
+
+  @override
+  String videoGenNotifyDone(int n) {
+    return '场景图片：$n 张完成';
+  }
+
+  @override
+  String videoGenNotifySummary(int ok, int fail) {
+    return '场景图片：$ok 张成功，$fail 张失败';
+  }
 }

@@ -640,6 +640,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiBatchSaved => 'Saved';
 
   @override
+  String get aiBatchSaveAll => 'Save all';
+
+  @override
   String get aiBatchDelete => 'Delete';
 
   @override
@@ -704,4 +707,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiEditSaveButton => 'Save & Test';
+
+  @override
+  String get videoGenerateAllButton => 'Generate All';
+
+  @override
+  String videoGenProgress(int done, int total) {
+    return '$done / $total done';
+  }
+
+  @override
+  String videoGenSummarySuccess(int n) {
+    return '$n succeeded';
+  }
+
+  @override
+  String videoGenSummaryPartial(int ok, int fail) {
+    return '$ok succeeded, $fail failed';
+  }
+
+  @override
+  String get videoGenRetry => 'Retry';
+
+  @override
+  String get videoGenNotifyRunning => 'Generating scene images…';
+
+  @override
+  String videoGenNotifyDone(int n) {
+    return 'Scene images: $n done';
+  }
+
+  @override
+  String videoGenNotifySummary(int ok, int fail) {
+    return 'Scene images: $ok succeeded, $fail failed';
+  }
 }

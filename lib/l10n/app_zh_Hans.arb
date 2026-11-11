@@ -106,6 +106,7 @@
   "aiBatchGenerating": "生成中…",
   "aiBatchSave": "保存",
   "aiBatchSaved": "已保存",
+  "aiBatchSaveAll": "全部保存",
   "aiBatchDelete": "删除",
   "aiBatchProviderLabel": "AI 提供商",
   "textTypeButton": "文字类型",
@@ -203,5 +204,18 @@
   "aiEditApiKeyHint": "输入您的 API 密钥…",
   "aiTestPassed": "连接测试通过",
   "aiTestFailed": "连接测试失败",
-  "aiEditSaveButton": "保存并测试"
+  "aiEditSaveButton": "保存并测试",
+  "videoGenerateAllButton": "全部生成",
+  "videoGenProgress": "{done} / {total} 已完成",
+  "@videoGenProgress": {"placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "videoGenSummarySuccess": "{n} 张成功",
+  "@videoGenSummarySuccess": {"placeholders": {"n": {"type": "int"}}},
+  "videoGenSummaryPartial": "{ok} 张成功，{fail} 张失败",
+  "@videoGenSummaryPartial": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}},
+  "videoGenRetry": "重试",
+  "videoGenNotifyRunning": "正在生成场景图片…",
+  "videoGenNotifyDone": "场景图片：{n} 张完成",
+  "@videoGenNotifyDone": {"placeholders": {"n": {"type": "int"}}},
+  "videoGenNotifySummary": "场景图片：{ok} 张成功，{fail} 张失败",
+  "@videoGenNotifySummary": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}}
 }

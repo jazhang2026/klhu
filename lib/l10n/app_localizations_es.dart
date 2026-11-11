@@ -640,6 +640,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aiBatchSaved => 'Guardado';
 
   @override
+  String get aiBatchSaveAll => 'Guardar todo';
+
+  @override
   String get aiBatchDelete => 'Eliminar';
 
   @override
@@ -704,4 +707,38 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aiEditSaveButton => 'Guardar y probar';
+
+  @override
+  String get videoGenerateAllButton => 'Generar todo';
+
+  @override
+  String videoGenProgress(int done, int total) {
+    return '$done / $total hechos';
+  }
+
+  @override
+  String videoGenSummarySuccess(int n) {
+    return '$n exitosas';
+  }
+
+  @override
+  String videoGenSummaryPartial(int ok, int fail) {
+    return '$ok exitosas, $fail fallaron';
+  }
+
+  @override
+  String get videoGenRetry => 'Reintentar';
+
+  @override
+  String get videoGenNotifyRunning => 'Generando imágenes de escena…';
+
+  @override
+  String videoGenNotifyDone(int n) {
+    return 'Imágenes de escena: $n hechas';
+  }
+
+  @override
+  String videoGenNotifySummary(int ok, int fail) {
+    return 'Imágenes de escena: $ok exitosas, $fail fallaron';
+  }
 }

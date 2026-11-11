@@ -2972,6 +2972,9 @@ class _ReadingViewState extends State<ReadingView> {
     if (prompts.isEmpty) return;
 
     final newPictures = <HeldPicture>[];
+    // `held` is the snapshot at open time; onChosen replaces the caller's
+    // list, so track the live list here for mid-session removals.
+    var currentHeld = held;
     await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -2983,11 +2986,25 @@ class _ReadingViewState extends State<ReadingView> {
           onSaved: (pics) {
             setDialog(() => newPictures.addAll(pics));
           },
+          onRemoved: (name) {
+            // Drop from this session's pending merge AND from pictures
+            // already merged by earlier dialog sessions.
+            newPictures.removeWhere((p) => p.name == name);
+            final kept = currentHeld.where((p) => p.name != name).toList();
+            if (kept.length != currentHeld.length) {
+              currentHeld = kept;
+              onChosen(kept);
+            }
+          },
         ),
       ),
     );
     if (newPictures.isNotEmpty) {
-      onChosen(mergePicks(held, newPictures));
+      // Scene-dialog saves use deterministic names — a re-saved prompt maps
+      // to the same file, so drop duplicates before merging into held.
+      final seen = currentHeld.map((p) => p.name).toSet();
+      final fresh = newPictures.where((p) => seen.add(p.name)).toList();
+      if (fresh.isNotEmpty) onChosen(mergePicks(currentHeld, fresh));
     }
   }
 

@@ -31,7 +31,7 @@ Add a **scene dialog** content type and a **scene_dialog** skill. Each scene car
 ### Phase 3: Sequential image generation UI
 
 - [x] T005 `lib/video_image_batch_dialog.dart`: the sequential image-generation dialog — shows one `[image_prompt]` entry at a time; after generation, **full-size image** with Save and Clear buttons; advancing requires saving or clearing to free memory (full-size image is disposed on both paths); AI provider + type (image-only) selector at top; "Done" strip of small saved thumbnails only.
-- [ ] T005b `lib/video_image_batch_dialog.dart`: **"Generate All"** button in dialog header; auto-runs all unsaved prompts sequentially using the same single-image memory discipline (full-size held per step, discarded after each); progress counter ("k / N done") displayed during run; on completion a summary snackbar reports success/failure counts; failed images appear as errored tiles in the "Done" strip with Retry/Delete; manual mode and Generate All are mutually exclusive (starting one cancels the other). **Runs as a detached background task** — closing the dialog or switching apps does not stop the run; re-opening the dialog restores state. Platform-appropriate notification on completion/success-failure count.
+- [x] T005b `lib/video_image_batch_dialog.dart`: **"Generate All"** button in dialog header; auto-runs all unsaved prompts sequentially using the same single-image memory discipline (full-size held per step, discarded after each); progress counter ("k / N done") displayed during run; on completion a summary snackbar reports success/failure counts; failed images appear as errored tiles in the "Done" strip with Retry/Delete; manual mode and Generate All are mutually exclusive (starting one cancels the other). **Runs as a detached background task** via Dart Isolate — closing the dialog or switching apps does not stop the run; re-opening the dialog restores state via SharedPreferences. Platform-appropriate notification on completion/success-failure count.
 - [x] T006 `lib/reading_view.dart`: add "Create pictures" button to the Video page toolbar, shown only when `[image_prompt]` tags exist in the current content.
 - [x] T007 `lib/picture_assignment.dart`: integration — saving a generated image from the sequential dialog promotes it into the picture assignment list.
 
@@ -39,8 +39,8 @@ Add a **scene dialog** content type and a **scene_dialog** skill. Each scene car
 
 - [x] T008 `test/ai_skill_test.dart`: add scene_dialog skill to the loaded skills list test.
 - [x] T009 `test/image_prompt_tag_test.dart`: unit tests for the `[image_prompt]` parser (spelling recognition, elision, scope).
-- [ ] T010 `specs/031-scene-dialog/breakpoint.md`: structural row.
-- [ ] T011 `specs/031-scene-dialog/quickstart.md`: closing pass.
+- [x] T010 `specs/031-scene-dialog/breakpoint.md`: structural row.
+- [x] T011 `specs/031-scene-dialog/quickstart.md`: closing pass.
 
 ## Dependencies & ordering
 

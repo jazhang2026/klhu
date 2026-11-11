@@ -52,6 +52,31 @@ class ImageFileStore private constructor(
                     result.success(mapOf("uri" to uri.toString(), "path" to uri.path))
                 }
 
+                // Overwrites the existing Klhu-album file with the same
+                // display name, or inserts a new one — keeps exactly one
+                // persisted file per scene prompt.
+                "upsert" -> {
+                    val bytesList = call.argument<List<Int>>("bytes") ?: run {
+                        result.error("INVALID_ARGS", "bytes argument is required", null)
+                        return
+                    }
+                    val bytes = ByteArray(bytesList.size)
+                    for (i in bytesList.indices) bytes[i] = bytesList[i].toByte()
+                    val mimeType = call.argument<String>("mimeType") ?: MIME_JPEG
+                    val baseName = call.argument<String>("baseName") ?: "AI_image"
+                    val uri = upsertImage(bytes, mimeType, baseName)
+                    result.success(mapOf("uri" to uri.toString(), "path" to uri.path))
+                }
+
+                "delete" -> {
+                    val uriStr = call.argument<String>("uri")
+                    if (uriStr == null) {
+                        result.error("INVALID_ARGS", "uri argument is required", null)
+                        return
+                    }
+                    result.success(mapOf("deleted" to deleteImage(Uri.parse(uriStr))))
+                }
+
                 else -> result.notImplemented()
             }
         } catch (e: Exception) {
@@ -68,6 +93,61 @@ class ImageFileStore private constructor(
             saveToMediaStore(bytes, mimeType, baseName)
         } else {
             saveToPublicDirectory(bytes, mimeType, baseName)
+        }
+    }
+
+    /**
+     * Saves [bytes] into the Klhu album under [baseName], overwriting the
+     * existing file when one with the same display name is already there.
+     */
+    fun upsertImage(bytes: ByteArray, mimeType: String, baseName: String): Uri {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            findAlbumUri("$baseName.jpg")?.let { uri ->
+                context.contentResolver.openOutputStream(uri, "wt")?.use {
+                    it.write(bytes)
+                } ?: throw IOException("openOutputStream failed")
+                uri
+            } ?: saveToMediaStore(bytes, mimeType, baseName)
+        } else {
+            val dir = Environment.getExternalStoragePublicDirectory(
+                "${Environment.DIRECTORY_PICTURES}/$ALBUM")
+            val file = java.io.File(dir, "$baseName.jpg")
+            if (file.exists()) {
+                file.writeBytes(bytes)
+                Uri.fromFile(file)
+            } else {
+                saveToPublicDirectory(bytes, mimeType, baseName)
+            }
+        }
+    }
+
+    /** Returns the MediaStore URI of the Klhu-album image named [displayName]. */
+    private fun findAlbumUri(displayName: String): Uri? {
+        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val projection = arrayOf(MediaStore.Images.Media._ID)
+        val selection = "${MediaStore.Images.Media.DISPLAY_NAME}=? AND " +
+            "${MediaStore.Images.Media.RELATIVE_PATH}=?"
+        val selectionArgs = arrayOf(displayName, "${Environment.DIRECTORY_PICTURES}/$ALBUM/")
+        context.contentResolver.query(collection, projection, selection, selectionArgs, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    return android.content.ContentUris.withAppendedId(collection, id)
+                }
+            }
+        return null
+    }
+
+    /** Deletes an image previously returned by [saveImage]/[upsertImage]. */
+    fun deleteImage(uri: Uri): Boolean {
+        return try {
+            if (uri.scheme == "file") {
+                uri.path?.let { java.io.File(it).delete() } ?: false
+            } else {
+                context.contentResolver.delete(uri, null, null) > 0
+            }
+        } catch (e: Exception) {
+            false
         }
     }
 

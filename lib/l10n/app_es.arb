@@ -106,6 +106,7 @@
   "aiBatchGenerating": "Generando…",
   "aiBatchSave": "Guardar",
   "aiBatchSaved": "Guardado",
+  "aiBatchSaveAll": "Guardar todo",
   "aiBatchDelete": "Eliminar",
   "aiBatchProviderLabel": "Proveedor de IA",
   "textTypeButton": "Tipo de texto",
@@ -203,5 +204,18 @@
   "aiEditApiKeyHint": "Ingresa tu clave API…",
   "aiTestPassed": "Prueba de conectividad exitosa",
   "aiTestFailed": "Prueba de conectividad fallida",
-  "aiEditSaveButton": "Guardar y probar"
+  "aiEditSaveButton": "Guardar y probar",
+  "videoGenerateAllButton": "Generar todo",
+  "videoGenProgress": "{done} / {total} hechos",
+  "@videoGenProgress": {"placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "videoGenSummarySuccess": "{n} exitosas",
+  "@videoGenSummarySuccess": {"placeholders": {"n": {"type": "int"}}},
+  "videoGenSummaryPartial": "{ok} exitosas, {fail} fallaron",
+  "@videoGenSummaryPartial": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}},
+  "videoGenRetry": "Reintentar",
+  "videoGenNotifyRunning": "Generando imágenes de escena…",
+  "videoGenNotifyDone": "Imágenes de escena: {n} hechas",
+  "@videoGenNotifyDone": {"placeholders": {"n": {"type": "int"}}},
+  "videoGenNotifySummary": "Imágenes de escena: {ok} exitosas, {fail} fallaron",
+  "@videoGenNotifySummary": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}}
 }

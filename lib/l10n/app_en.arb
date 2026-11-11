@@ -233,6 +233,7 @@
   "aiBatchGenerating": "Generating…",
   "aiBatchSave": "Save",
   "aiBatchSaved": "Saved",
+  "aiBatchSaveAll": "Save all",
   "aiBatchDelete": "Delete",
   "aiBatchProviderLabel": "AI Provider",
   "aiImagePreviewTitle": "AI Image",
@@ -254,5 +255,18 @@
   "aiEditApiKeyHint": "Enter your API key…",
   "aiTestPassed": "Connectivity test passed",
   "aiTestFailed": "Connectivity test failed",
-  "aiEditSaveButton": "Save & Test"
+  "aiEditSaveButton": "Save & Test",
+  "videoGenerateAllButton": "Generate All",
+  "videoGenProgress": "{done} / {total} done",
+  "@videoGenProgress": {"placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "videoGenSummarySuccess": "{n} succeeded",
+  "@videoGenSummarySuccess": {"placeholders": {"n": {"type": "int"}}},
+  "videoGenSummaryPartial": "{ok} succeeded, {fail} failed",
+  "@videoGenSummaryPartial": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}},
+  "videoGenRetry": "Retry",
+  "videoGenNotifyRunning": "Generating scene images…",
+  "videoGenNotifyDone": "Scene images: {n} done",
+  "@videoGenNotifyDone": {"placeholders": {"n": {"type": "int"}}},
+  "videoGenNotifySummary": "Scene images: {ok} succeeded, {fail} failed",
+  "@videoGenNotifySummary": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}}
 }
