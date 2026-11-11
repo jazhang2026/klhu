@@ -2,6 +2,8 @@
 
 **Feature**: `031-scene-dialog` | **Build**: `flutter analyze --no-pub` on 2026-11-05 | **Driver**: manual review
 
+**Status**: CLOSED — all tasks done; device walk on OnePlus LE2115 completed 2026-11-10 with UX/persistence revision. 1063 tests pass; `flutter analyze` clean.
+
 One writer, one build, one file: every device row appends here, and the number that
 identifies a row is the driver's own key.
 

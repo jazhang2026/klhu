@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft
+**Status**: CLOSED
 
 **Input**: the reader's wish list (`text.txt`), item 031 — a new content type called "scene dialog" where each scene carries a title, dialog text, and an image prompt; a new skill generates this format; a sequential image-generation UI on the video page (one image at a time, with save/clear before advancing).
 

@@ -6,6 +6,10 @@
 
 Add a **scene dialog** content type and a **scene_dialog** skill. Each scene carries `[scene]` heading + dialog paragraphs + `[image_prompt]` line. Add a "Create pictures" button on the Video page that opens a sequential single-image generation dialog when `[image_prompt]` tags are present. Full i18n across EN/ZH/ES.
 
+## Status
+
+**CLOSED** — all planned tasks done; device-walk revision landed 2026-11-10 (navigable dialog, Klhu-album persistence, Save All, delete propagation). 1063 tests pass; `flutter analyze` clean.
+
 ## Technical Context
 
 **Language/Version**: Dart 3.13.4 (Flutter 3.47.5); single Flutter/Dart codebase.

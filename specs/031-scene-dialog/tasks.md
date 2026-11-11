@@ -10,8 +10,9 @@ dependency), `[Story]` = `US1` (generate scene dialog content), `US2` (sequentia
 
 ## Status
 
-**CLOSED** — 11 of 11 tasks done (T001–T011). Tests pass; `flutter analyze` clean. Stage closed on unit-level
-numbers; device walk pending live generation.
+**CLOSED** — 11 of 11 tasks done (T001–T011). 1063 tests pass; `flutter analyze` clean. Device walk on
+OnePlus LE2115 completed 2026-11-10, including the post-walk UX/persistence revision (see
+[breakpoint.md](./breakpoint.md)).
 
 ## Phase 1: Tag infrastructure
 
