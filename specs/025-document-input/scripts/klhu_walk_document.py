@@ -370,9 +370,14 @@ def row_4():
     if continue_label is None:
         return
     tap(rows, continue_label, exact=True, label="Continue Read")
-    read_labels = arb_value("readButton")
-    ended = wait_for(lambda: any((r["desc"] or r["text"]) in read_labels
-                                 for r in dump()), seconds=150)
+    # 032: Continue Read wraps instead of ending — the first pass's end is the
+    # SECOND `klhu read range` line (the wrap's own start). Stop ends it.
+    ended = wait_for(
+        lambda: len(RANGE_RE.findall(logcat())) >= 2, seconds=150)
+    rows = dump()
+    stop_label = on_screen_label(rows, "stopButton")
+    if stop_label is not None:
+        tap(rows, stop_label, exact=True, label="Stop")
     log = logcat()
     spoken = SPEAK_RE.findall(log)
     ranges = [(int(a), int(b)) for a, b in RANGE_RE.findall(log)]
@@ -380,14 +385,17 @@ def row_4():
     print(f"   the app logged {len(ranges)} range(s) and {len(spoken)} "
           f"utterance(s) for {len(expected)} sentences")
 
-    check("4: the read of the document ran to its end", bool(ended),
-          "the toolbar's Read came back" if ended else
-          "the toolbar still offers no Read")
+    check("4: the read of the document ran to its end and wrapped (032)",
+          bool(ended),
+          "the read finished a pass and started the next" if ended else
+          "the read never finished a pass")
     check("4: one press read the whole document (its own range)",
-          ranges == [(0, len(TEXT))],
-          f"the range: {ranges}, the document is {len(TEXT)} chars")
+          ranges[:1] == [(0, len(TEXT))] and
+          all(r == (0, len(TEXT)) for r in ranges),
+          f"the ranges: {ranges}, the document is {len(TEXT)} chars")
     check("4: the read speaks the document's own sentences, in order, whole",
-          spoken == expected,
+          len(spoken) >= len(expected) and
+          spoken[:len(expected)] == expected,
           f"{len(spoken)} spoken of {len(expected)}: {spoken[:2]} …")
     oom = [line for line in log.splitlines()
            if "OOM" in line or "OutOfMemory" in line]

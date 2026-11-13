@@ -1,13 +1,14 @@
-/// 016 — the stepping read (quickstart rows 2 and 3, and this feature's own
-/// cases): one press reads one sentence and stops, the highlight moves AHEAD to
-/// what the next press will read instead of clearing, a paragraph press keeps
-/// its own unit, and a step is a sentence **plus its comment**.
+/// 032 — tap-to-read (quickstart rows and this feature's own cases): a tap or
+/// long-press highlights AND reads its unit in one gesture, the highlight stays
+/// on what was just read instead of advancing, a paragraph press keeps its own
+/// unit, a step is a sentence **plus its comment**, and ⏭ Continue Read picks up
+/// at the next step — then loops (US2 lives in `reading_view_continue_test.dart`).
 ///
-/// The cases are the spec's own acceptance scenarios (US1's six, plus the two
-/// edge cases a step creates), written against the page's behaviour — never
-/// against values read off the implementation. The reader is a fake that
-/// records the speeches it is handed with their offsets, so "what the press
-/// read" is the range, not just the words.
+/// The cases are the spec's own acceptance scenarios (US1's five, plus the edge
+/// cases a tap creates), written against the page's behaviour — never against
+/// values read off the implementation. The reader is a fake that records the
+/// speeches it is handed with their offsets, so "what the tap read" is the
+/// range, not just the words.
 library;
 
 import 'dart:async';
@@ -181,147 +182,103 @@ void main() {
     await loadPageContent(tester);
   }
 
-  Future<void> pressRead(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Read'));
-    await tester.pump();
+  /// 032: the tap IS the read — one gesture highlights, reveals and speaks.
+  /// [inText] names the body when the case brought its own.
+  Future<void> tapRead(WidgetTester tester, String target,
+      {String? inText}) async {
+    await tester.tapAt(offsetInText(tester, target, inText: inText));
+    await tester.pumpAndSettle();
   }
 
-  group('US1: one press, one sentence, at the reader\'s own pace', () {
-    testWidgets('each press reads one sentence, in order, and stops',
+  group('US1: a tap reads one sentence, at the reader\'s own pace', () {
+    testWidgets('each tap reads the tapped sentence and stops',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
-      await pressRead(tester);
+      await tapRead(tester, 'The sun rose');
       expect(fake.speeches.length, 1);
-      expect(fake.speeches.single.start, p1First);
-      expect(fake.speeches.single.text, text.substring(p1First, p1Second).trimRight());
+      expect(fake.speeches.single.text, 'The sun rose over the quiet town.');
 
-      await pressRead(tester);
+      await tapRead(tester, 'Birds sang');
       expect(fake.speeches.length, 1);
       expect(fake.speeches.single.start, p1Second);
       expect(fake.speeches.single.text,
           text.substring(p1Second, p2First - 2).trimRight());
 
-      await pressRead(tester);
+      await tapRead(tester, 'Flutter makes');
       expect(fake.speeches.single.start, p2First);
     });
 
-    testWidgets('the highlight sits on the NEXT sentence, and is gone at the end',
+    testWidgets('the highlight stays on the sentence just read',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
-      await pressRead(tester);
-      // Decision 1 (A) / FR-004: the highlight always points at what the NEXT
-      // press will read, so the sentence just heard is no longer painted.
+      await tapRead(tester, 'Birds sang');
+      // 032 FR-004: no auto-advance — the sentence just heard is what stays
+      // painted, ready to be tapped again.
       expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
       expect(hasYellow(tester, 'The sun rose over the quiet town.'), isFalse);
 
-      // Eight sentences in this text: the eighth press reads the last one and
-      // ends with nothing left to point at.
-      for (var i = 0; i < 7; i++) {
-        await pressRead(tester);
-      }
-      expect(hasAnyYellow(tester), isFalse);
-      // …and it says nothing: an unhighlighted page is the whole message
-      // (FR-008, the reader's own correction).
-      expect(find.text('Nothing left to read from here.'), findsNothing);
-      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
-
-      // The end is not a mode: a further press is an ordinary fresh start
-      // (FR-001) — the reader is never stuck.
-      final before = fake.reads.length;
-      await pressRead(tester);
-      expect(fake.reads.length, before + 1);
-      expect(fake.speeches.single.start, 0);
-      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
+      await tapRead(tester, 'Flutter makes');
+      expect(hasYellow(tester, 'Flutter makes it easy to build beautiful apps.'),
+          isTrue);
+      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isFalse);
     });
 
-    testWidgets('with nothing highlighted · read the first sentence',
+    testWidgets('tapping the highlighted sentence repeats its read',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
-      await pressRead(tester);
+      await tapRead(tester, 'Birds sang');
+      expect(fake.reads.length, 1);
 
-      expect(fake.speeches.single.start, 0, reason: 'the text starts with a \\n');
-      expect(fake.speeches.single.text, 'The sun rose over the quiet town.');
-      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
+      await tapRead(tester, 'Birds sang');
+      expect(fake.reads.length, 2);
+      expect(fake.speeches.single.start, p1Second,
+          reason: 'the same sentence was read again');
     });
 
-    testWidgets('the page away from the top: ▶ brings the sentence it reads into '
-        'view before reading it (FR-012; 011 FR-001/FR-002)', (tester) async {
-      // The reader's own report of 2026-10-16, cut to the half this suite owns:
-      // with the page away from the top and nothing selected, ⏭ scrolls to the
-      // first sentence, highlights it and reads it, while ▶ "no scroll to top
-      // happen before read first sentence. scroll happen after read first
-      // sentence and high light second sentence." ▶ sets its own unit with
-      // `_select` and then reads it with `step: true` — which does **not** track,
-      // so no sentence report reaches `_followRead` — while ⏭ tracks and
-      // therefore reveals. FR-012 asks the page to bring the sentence a step
-      // highlights into view, and 011's own rule asks that the sentence being
-      // read be visible.
+    testWidgets('the tap brings its sentence into view before reading it',
+        (tester) async {
+      // 016 FR-012's rule, now on the tap itself: the unit a tap reads is
+      // revealed before it is spoken — a step read does not track, so nothing
+      // else would bring it into view. The page is parked at the bottom of a
+      // long body and the tapped sentence sits near the fold.
       tester.view.physicalSize = const Size(400, 600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
-      final fake = RecordingReader();
-      final body = List<String>.filled(12, kSampleEnText).join('\n\n');
-      await openPage(tester, fake, body: body);
-
-      const first = 'The sun rose over the quiet town.';
-      final position = stepScrollPosition(tester);
-      expect(position.maxScrollExtent, greaterThan(0.0),
-          reason: 'the fixture must be taller than the page');
-      position.jumpTo(position.maxScrollExtent);
-      await tester.pump();
-      final away = stepScrollPosition(tester).pixels;
-      expect(stepTextIsInsideViewport(tester, first, body), isFalse,
-          reason: 'the first sentence is off screen to begin with');
-
-      // The read stays in flight, so what is asserted is what the page did
-      // **before** speaking: the advance that follows a step belongs to the next
-      // press.
-      fake.hold = true;
-      await pressRead(tester);
-      await tester.pumpAndSettle();
-
-      expect(fake.speeches.single.text, first,
-          reason: '▶ reads the first sentence');
-      expect(stepScrollPosition(tester).pixels, lessThan(away),
-          reason: '▶ read the sentence with the page where it was: nothing '
-              'brought it into view');
-      expect(stepTextIsInsideViewport(tester, first, body), isTrue,
-          reason: 'the sentence being read is not inside the viewport');
-      fake.release();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('022: every step advance leaves a sentence ahead of the new '
-        'highlight (FR-006, SC-007)', (tester) async {
-      // US3's own case (tasks T011). The reader steps through a long text; after
-      // every advance the new highlight has a sentence after it on screen, so the
-      // highlight never rides the bottom edge — the same rule as the continuous
-      // read, on the surface where 016 leaves it behind (016 FR-012's reveal).
-      tester.view.physicalSize = const Size(400, 600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-      final fake = RecordingReader();
+      final fake = RecordingReader()..hold = true;
       final body = List.generate(40, (i) => 'Sentence number ${i + 1} ends here.')
           .join('\n\n');
       await openPage(tester, fake, body: body);
 
-      for (var press = 1; press <= 10; press++) {
-        await pressRead(tester);
+      const target = 'Sentence number 20 ends here.';
+      // The content is ONE RichText, so scrollUntilVisible cannot aim at a
+      // span inside it — drag the page until the sentence's own point is on
+      // screen, then tap there.
+      final screen = tester.getRect(find.byType(Scaffold));
+      var pos = offsetInText(tester, target, inText: body);
+      for (var i = 0; i < 40 && pos.dy > screen.bottom - 40; i++) {
+        await tester.drag(
+            find.byType(Scrollable).first, const Offset(0, -150));
         await tester.pumpAndSettle();
-        final highlight = 'Sentence number ${press + 1} ends here.';
-        final after = 'Sentence number ${press + 2} ends here.';
-        expect(stepTextIsAtLeastPartlyInsideViewport(tester, highlight, body),
-            isTrue,
-            reason: 'after press $press the highlight $highlight is off screen');
-        expect(stepTextIsAtLeastPartlyInsideViewport(tester, after, body), isTrue,
-            reason: 'after press $press nothing follows $highlight on screen');
+        pos = offsetInText(tester, target, inText: body);
       }
+      expect(pos.dy, lessThan(screen.bottom - 20),
+          reason: 'the sentence never scrolled into view');
+
+      await tester.tapAt(pos);
+      await tester.pumpAndSettle();
+
+      expect(fake.speeches.single.text, target,
+          reason: 'the tap read its own sentence');
+      expect(stepTextIsInsideViewport(tester, target, body), isTrue,
+          reason: 'the sentence being read is not inside the viewport');
+      fake.release();
+      await tester.pumpAndSettle();
     });
 
     testWidgets('a long press reads its paragraph and leaves it highlighted',
@@ -329,35 +286,31 @@ void main() {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
-      await tester.longPressAt(offsetOf(tester, 'codebase runs'));
-      await tester.pump();
-      // The gesture picked the PARAGRAPH, and that is the painted span.
-      expect(hasYellow(tester, text.substring(p2First, p3First - 2)), isTrue);
+      await tester.longPressAt(offsetInText(tester, 'codebase runs'));
+      await tester.pumpAndSettle();
 
-      // The paragraph press reads the paragraph — the reader's own unit is not
-      // overruled by the stepping rule (FR-003).
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
+      // The gesture picked the PARAGRAPH, and that is the painted span — and
+      // the read, with no button press (032 FR-003).
+      expect(hasYellow(tester, text.substring(p2First, p3First - 2)), isTrue);
       expect(fake.speeches.single.start, p2First);
       expect(fake.speeches.single.text, text.substring(p2First, p3First - 2));
     });
   });
 
-  group("US1: a step is the sentence plus its comment", () {
-    testWidgets('one press reads the sentence and its comment, and the next starts after it',
+  group("US1: a tap-read is the sentence plus its comment", () {
+    testWidgets('tapping the sentence reads it and its comment',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake, body: commentText);
 
-      await pressRead(tester);
+      await tapRead(tester, 'Hola.');
       // The sentence's own speech, then the comment's (015) — the step's range
       // reaches over the comment's span, or the comment is dropped silently.
       expect(fake.spoken, ['Hola.', 'How are you?']);
 
-      final afterStep = fake.spoken.length;
-      await pressRead(tester);
-      expect(fake.spoken.sublist(afterStep), ['Adiós.'],
-          reason: 'the next step is the sentence after the comment');
+      await tapRead(tester, 'Adiós.');
+      expect(fake.spoken.sublist(2), ['Adiós.'],
+          reason: 'the next tap is the sentence after the comment');
     });
 
     testWidgets('a comment between two sentences of one paragraph rides its owner',
@@ -365,57 +318,99 @@ void main() {
       final fake = RecordingReader();
       await openPage(tester, fake, body: inlineCommentText);
 
-      await pressRead(tester);
+      await tapRead(tester, 'Hola.');
       expect(fake.spoken, ['Hola.']);
 
-      await pressRead(tester);
+      await tapRead(tester, 'Adiós.');
       expect(fake.spoken.sublist(1), ['Adiós.', 'Fine.'],
-          reason: "the comment belongs to the sentence before it, and rides that press");
+          reason: "the comment belongs to the sentence before it, and rides that tap");
     });
   });
-  group('US2: a step leaves nothing behind', () {
-    testWidgets('⏭ after a step reads only the sentences the steps have not',
+
+  group('US1: the reader\'s own content — a line with no delimiter before its tag',
+      () {
+    testWidgets('taps walk the lines one at a time, and each keeps its comment',
         (tester) async {
       final fake = RecordingReader();
+      await openPage(tester, fake, body: readerContent);
+
+      // The title, with the comment that rides it.
+      await tapRead(tester, 'Basic Spanish 1');
+      expect(fake.speeches.first.start, 0);
+      expect(fake.speeches.first.text.trim(), 'Basic Spanish 1');
+      expect(fake.speeches.last.text.trim(), 'Greetings');
+
+      // The very next line — not the third, which is where it used to land.
+      await tapRead(tester, 'Hola');
+      expect(fake.speeches.first.start, readerContent.indexOf('Hola'));
+      expect(fake.speeches.first.text.trim(), 'Hola');
+      expect(fake.speeches.last.text.trim(), 'Hello');
+
+      // And then the line after that.
+      await tapRead(tester, '¿Cómo estás?');
+      expect(fake.speeches.first.start, readerContent.indexOf('¿Cómo estás?'));
+      expect(fake.speeches.last.text.trim(), 'How are you?');
+    });
+  });
+
+  group('US1: what a tap-read leaves for ⏭ and for Stop', () {
+    testWidgets('⏭ after a tap-read starts from the NEXT sentence',
+        (tester) async {
+      final fake = RecordingReader()..hold = true;
       await openPage(tester, fake);
 
-      await pressRead(tester);
-      await pressRead(tester);
-      final reads = fake.reads.length;
+      await tester.tapAt(offsetInText(tester, 'The sun rose'));
+      await tester.pump();
+      expect(fake.speeches.single.text, 'The sun rose over the quiet town.');
 
+      // Park the tap-read, then end it: the highlight stays on the sentence
+      // just read, and the position it leaves is the NEXT step (FR-005).
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Resume'));
+      await tester.pump();
+      fake.release();
+      await tester.pumpAndSettle();
+
+      expect(hasYellow(tester, 'The sun rose over the quiet town.'), isTrue);
+      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isFalse);
+
+      fake.hold = true;
       await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
-
-      expect(fake.reads.length, reads + 1);
-      // From the sentence the highlight sat on — not from the first one.
-      expect(fake.speeches.first.start, p2First);
-      expect(fake.speeches.first.text, text.substring(p2First, p3First - 2));
-      expect(fake.speeches.last.end, readEnd);
+      // The continue read's first speech starts at the second sentence — the
+      // one the tap-read left the position on — not at the first.
+      expect(fake.reads.last.first.start, p1Second);
+      fake.release();
+      fake.hold = false;
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pumpAndSettle();
     });
 
-    testWidgets('Stop clears the highlight, so the next press starts at the first sentence',
+    testWidgets('Stop clears the highlight, and the next tap reads fresh',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
-      await pressRead(tester);
+      await tapRead(tester, 'Birds sang');
       expect(hasAnyYellow(tester), isTrue);
 
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
 
       expect(hasAnyYellow(tester), isFalse);
-      await pressRead(tester);
-      expect(fake.speeches.single.start, 0, reason: 'nothing is in force again');
-      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
+      await tapRead(tester, 'The sun rose');
+      expect(fake.speeches.last.text, 'The sun rose over the quiet town.');
+      expect(hasYellow(tester, 'The sun rose over the quiet town.'), isTrue);
     });
 
-    testWidgets('a parked step advances when its sentence is resumed',
+    testWidgets('a parked tap-read keeps its highlight when resumed',
         (tester) async {
       final fake = RecordingReader()..hold = true;
       await openPage(tester, fake);
 
-      await pressRead(tester);
+      await tester.tapAt(offsetInText(tester, 'The sun rose'));
+      await tester.pump();
       expect(find.byTooltip('Pause'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Pause'));
@@ -425,19 +420,19 @@ void main() {
       await tester.tap(find.byTooltip('Resume'));
       await tester.pump();
       fake.release();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      // The step's advance applies to a read that was parked and finished, as
-      // it does to a fresh one (FR-010).
-      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
-      expect(hasYellow(tester, 'The sun rose over the quiet town.'), isFalse);
+      // 032 FR-004/FR-010: the step's advance is retired — a parked and resumed
+      // read leaves the SAME highlight it had, not the next sentence.
+      expect(hasYellow(tester, 'The sun rose over the quiet town.'), isTrue);
+      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isFalse);
     });
 
-    testWidgets('a relaunch after a step brings nothing back, and writes nothing',
+    testWidgets('a relaunch after a tap brings nothing back, and writes nothing',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
-      await pressRead(tester);
+      await tapRead(tester, 'Birds sang');
       expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
 
       final prefs = await SharedPreferences.getInstance();
@@ -445,8 +440,7 @@ void main() {
         for (final key in prefs.getKeys())
           if (prefs.get(key) != null) key: prefs.get(key)!,
       };
-      // Nothing was written down: the step's position lives in memory only
-      // (FR-007).
+      // Nothing was written down: the tap's position lives in memory only.
       expect(stored['read_position_$pageContentKey'], isNull);
 
       // A relaunch: the same prefs, a brand new view.
@@ -460,59 +454,8 @@ void main() {
       await tester.pump();
       expect(relaunched.speeches.first.start, 0,
           reason: '⏭ starts at the first sentence (010 FR-005)');
-    });
-
-    testWidgets('a relaunch after a TAP brings nothing back either',
-        (tester) async {
-      final fake = RecordingReader();
-      await openPage(tester, fake);
-      await tester.tapAt(offsetOf(tester, 'Birds sang'));
+      await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
-      expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
-
-      final prefs = await SharedPreferences.getInstance();
-      final stored = <String, Object>{
-        for (final key in prefs.getKeys())
-          if (prefs.get(key) != null) key: prefs.get(key)!,
-      };
-      expect(stored['read_position_$pageContentKey'], isNull,
-          reason: 'a tap writes no position either (decision 5)');
-
-      SharedPreferences.setMockInitialValues(stored);
-      await tester.pumpWidget(const SizedBox());
-      final relaunched = RecordingReader();
-      await openPage(tester, relaunched);
-
-      expect(hasAnyYellow(tester), isFalse);
-      await tester.tap(find.byTooltip('Continue Read'));
-      await tester.pump();
-      expect(relaunched.speeches.first.start, 0);
-    });
-  });
-
-  group('the reader\'s own content: a line with no delimiter before its tag',
-      () {
-    testWidgets('▶ walks the lines one at a time, and each keeps its comment',
-        (tester) async {
-      final fake = RecordingReader();
-      await openPage(tester, fake, body: readerContent);
-
-      // The title, with the comment that rides it.
-      await pressRead(tester);
-      expect(fake.speeches.first.start, 0);
-      expect(fake.speeches.first.text.trim(), 'Basic Spanish 1');
-      expect(fake.speeches.last.text.trim(), 'Greetings');
-
-      // The very next line — not the third, which is where it used to land.
-      await pressRead(tester);
-      expect(fake.speeches.first.start, readerContent.indexOf('Hola'));
-      expect(fake.speeches.first.text.trim(), 'Hola');
-      expect(fake.speeches.last.text.trim(), 'Hello');
-
-      // And then the line after that.
-      await pressRead(tester);
-      expect(fake.speeches.first.start, readerContent.indexOf('¿Cómo estás?'));
-      expect(fake.speeches.last.text.trim(), 'How are you?');
     });
   });
 }

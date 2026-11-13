@@ -182,20 +182,20 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// The read actions' labels in every shipped locale (test 11 drives a read in
-  /// each of them).
-  final readLabels = <Locale, (String read, String stop)>{
-    Locale('en'): ('Read', 'Stop'),
-    Locale('zh'): ('朗读', '停止'),
-    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'): ('朗读', '停止'),
-    Locale('es'): ('Leer', 'Detener'),
+  /// The stop action's label in every shipped locale (test 11 drives a read in
+  /// each of them; 032 removed the Read button — the tap IS the read).
+  final stopLabels = <Locale, String>{
+    Locale('en'): 'Stop',
+    Locale('zh'): '停止',
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'): '停止',
+    Locale('es'): 'Detener',
   };
 
   testWidgets('11. the action is offered in every locale, idle-only',
       (tester) async {
     for (final entry in labels.entries) {
       final fake = HoldingReader();
-      final (read, stop) = readLabels[entry.key]!;
+      final stop = stopLabels[entry.key]!;
       await openPage(tester, reader: fake, locale: entry.key);
       expect(find.byTooltip(entry.value), findsOneWidget,
           reason: 'locale ${entry.key}');
@@ -203,12 +203,10 @@ void main() {
       expect(action(tester).onPressed, isNotNull, reason: 'locale ${entry.key}');
 
       // Reading: present but disabled — an appearance change mid-read would
-      // fight the page's own tracking (FR-014). ▶ reads a selection (FR-023),
-      // so the page has to be tapped before Read is offered anything to speak.
+      // fight the page's own tracking (FR-014). 032: the tap on the text IS
+      // the read, so the gesture alone puts the page mid-speech.
       await tester.tapAt(offsetOf(tester, 'The sun rose'));
-      await tester.pump();
-      await tester.tap(find.byTooltip(read));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(action(tester).onPressed, isNull, reason: 'locale ${entry.key}');
       await tester.tap(find.byTooltip(stop));
       await tester.pump();

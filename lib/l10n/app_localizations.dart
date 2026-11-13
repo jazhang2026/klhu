@@ -125,12 +125,6 @@ abstract class AppLocalizations {
   /// **'Español'**
   String get spanishNative;
 
-  /// No description provided for @readButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Read'**
-  String get readButton;
-
   /// No description provided for @continueReadButton.
   ///
   /// In en, this message translates to:

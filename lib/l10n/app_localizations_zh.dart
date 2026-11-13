@@ -22,9 +22,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get spanishNative => 'Español';
 
   @override
-  String get readButton => '朗读';
-
-  @override
   String get continueReadButton => '继续朗读';
 
   @override
@@ -733,9 +730,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get spanishNative => 'Español';
-
-  @override
-  String get readButton => '朗读';
 
   @override
   String get continueReadButton => '继续朗读';

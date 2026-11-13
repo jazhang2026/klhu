@@ -150,7 +150,6 @@ L = {
     "done": ("完成", "Done"),
     "format": ("排版", "Format"),
     "undo": ("撤销", "Undo"),
-    "read": ("朗读", "Read"),
     "voice": ("语音", "Voice"),
     "back": ("返回", "Back"),
     "stop": ("停止", "Stop"),

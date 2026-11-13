@@ -200,7 +200,8 @@ void main() {
       final reader = await pumpPage(tester, store: store);
       await tester.tap(find.byIcon(Icons.skip_next));
       await settle(tester);
-      expect(reader.spoken, ['{阿明} 你好。', '{May} Hello there.']);
+      // 032 FR-007: ⏭ wraps — the first pass is what this case is about.
+      expect(reader.spoken.take(2), ['{阿明} 你好。', '{May} Hello there.']);
     });
   });
 
@@ -287,8 +288,10 @@ void main() {
       await tester.tap(find.byIcon(Icons.skip_next));
       await settle(tester);
 
-      expect(reader.spoken, ['你好。', 'Hello there.']);
-      for (final spoken in reader.spoken) {
+      // 032 FR-007: ⏭ wraps — the first pass is what this case is about.
+      final firstPass = reader.spoken.take(2).toList();
+      expect(firstPass, ['你好。', 'Hello there.']);
+      for (final spoken in firstPass) {
         expect(spoken.contains('{'), isFalse);
         expect(spoken.contains('阿明'), isFalse);
         expect(spoken.contains('May'), isFalse);

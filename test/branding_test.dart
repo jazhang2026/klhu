@@ -120,7 +120,8 @@ void main() {
     testWidgets('reading actions announce the current language',
         (tester) async {
       await _pumpApp(tester, const Locale('zh'));
-      expect(find.byTooltip('朗读'), findsOneWidget);
+      // 032: the Read button is gone — the tap on the text is the read.
+      expect(find.byTooltip('朗读'), findsNothing);
       expect(find.byTooltip('继续朗读'), findsOneWidget);
       expect(find.byTooltip('停止'), findsOneWidget);
       expect(find.byTooltip('编辑'), findsOneWidget);

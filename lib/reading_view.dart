@@ -241,11 +241,11 @@ class _ReadingViewState extends State<ReadingView> {
   /// (FR-004/FR-005). Distinct from [_highlight]: tracking repaints the
   /// highlight per sentence, and the position must survive that.
   ///
-  /// The two are in force together and die together (FR-022): a tap is the one
-  /// gesture that sets both, the tracking highlight does not move the position,
-  /// and every state a read leaves — Stop, the end of a read, EDIT — takes the
-  /// highlight away and clears the position with it, in memory and on disk, so
-  /// nothing can resume from a sentence that is no longer painted.
+  /// Since 032 the two are no longer moved together: a tap-read keeps its
+  /// highlight and moves only this position to the next step, so ⏭ does not
+  /// re-read the sentence just heard. The states a read leaves — Stop, an
+  /// edit, a text switch — still take both away, in memory and nowhere else
+  /// (016 decision 5).
   int? _anchor;
 
   /// Which text [_anchor] belongs to — the library entry id, or the shipped
@@ -565,6 +565,8 @@ class _ReadingViewState extends State<ReadingView> {
   /// text being left, so it is forgotten. Nothing was written down to forget —
   /// a position lives inside the session and nowhere else (016 decision 5).
   Future<void> _adoptAnchor() async {
+    _continueReading = false;
+    _pausedReadFrom = null;
     if (_anchor != null) setState(() => _anchor = null);
   }
 
@@ -586,6 +588,19 @@ class _ReadingViewState extends State<ReadingView> {
   /// state after the read has already finished.
   bool _isPausing = false;
   bool _isResuming = false;
+
+  /// The Continue Read wrap loop (032 FR-007/FR-008): armed by ⏭, cleared by
+  /// Stop or an edit. [_readCompleted] is set by the last unit of a pass that
+  /// ended by itself — Pause, Stop and an error all leave it false.
+  bool _continueReading = false;
+  bool _readCompleted = false;
+  bool _readFailed = false;
+
+  /// The content offset a paused Continue Read resumes its remaining units
+  /// from (032 FR-010): a multi-unit read parks mid-pass, and Resume must
+  /// finish the parked unit first and then continue at the next unit rather
+  /// than re-reading the whole range.
+  int? _pausedReadFrom;
 
   bool get _isSpeakingOrPaused =>
       _mode == _Mode.speaking || _mode == _Mode.paused;
@@ -807,6 +822,8 @@ class _ReadingViewState extends State<ReadingView> {
 
   Future<void> _enterEdit() async {
     if (_mode == _Mode.speaking) return;
+    _continueReading = false;
+    _pausedReadFrom = null;
     await widget.reader.stop();
     _editController ??= TextEditingController();
     // A valid selection, so the loaded text is the undo stack's first state
@@ -1388,10 +1405,9 @@ class _ReadingViewState extends State<ReadingView> {
     await _resolveAt(details.globalPosition, resolveParagraph);
   }
 
-  /// Shared idle tap/long-press path: map the touch point to a text offset,
-  /// resolve to the enclosing segment, highlight, set the Continue Read start
-  /// position from the same segment (D1), and wait for a read action
-  /// (data-model invariant).
+  /// Shared idle tap/long-press path (032): map the touch point to a text
+  /// offset, resolve to the enclosing segment, select it, and read it — the
+  /// gesture IS the read command now that the Read button is gone.
   ///
   /// The gesture is arena-gated (`onTapUp`, not `onTapDown`): a touch that turns
   /// into a scroll, or the tap that stops the page's fling, never resolves a
@@ -1409,16 +1425,19 @@ class _ReadingViewState extends State<ReadingView> {
     // (FR-012, SC-009; plan ripple 11).
     final segment = _segmentAt(_commentDisplay.toContent(pos.offset), resolve);
     _select(segment);
+    try {
+      await _readSelection();
+    } on ReaderException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
   }
 
-  /// Puts [segment] in force as the page's selection (016 plan §2.1): the
-  /// highlight the reader sees, the anchor the read continues from, and the
-  /// generation that wins over a stopped loop's `finally`.
+  /// Puts [segment] in force as the page's selection: the highlight the reader
+  /// sees, the anchor the read continues from, and the generation that wins
+  /// over a stopped loop's `finally`.
   ///
-  /// The gesture and ▶ Read must set a selection the same way, or a press would
-  /// read a range the page is not showing. The record the gesture writes is
-  /// **not** here: it is decision 5's to retire (016 T015), so this seam
-  /// carries the selection alone.
+  /// The gesture and the read it triggers must set a selection the same way, or
+  /// a press would read a range the page is not showing.
   void _select(TextSegment segment) {
     setState(() {
       // Win over the stopped loop's `finally` below.
@@ -1433,14 +1452,14 @@ class _ReadingViewState extends State<ReadingView> {
   }
 
 
-  /// ▶ Read (016 FR-001/FR-002/FR-003): one press, ONE unit, and it stops.
+  /// The tap/long-press read (032 FR-002/FR-003): ONE unit, and it stops.
   ///
-  /// Nothing highlighted → the text's first step is selected and read, so the
-  /// press is the reader's whole gesture (`stepRanges`: the app's own
-  /// sentences, with a comment's characters excluded — a comment-headed text's
-  /// first step is the sentence after the comment, not the tag). A sentence is
-  /// read exactly; a **paragraph** selection (a long press, 011 FR-024) is read
-  /// whole — the reader's own unit is never overruled by the stepping rule.
+  /// A sentence is read exactly; a **paragraph** selection (a long press) is
+  /// read whole — the reader's own unit is never overruled. When the read ends
+  /// the highlight stays on the unit just read (FR-004) and only the Continue
+  /// Read anchor moves to the next step (FR-005). With nothing highlighted the
+  /// text's first step is selected and read (`stepRanges`: the app's own
+  /// sentences, with a comment's characters excluded).
   ///
   /// The range of a step is the STEP, not the sentence: `stepEnd` reaches over
   /// the comment that belongs to it, because a read speaks a comment only when
@@ -1483,11 +1502,45 @@ class _ReadingViewState extends State<ReadingView> {
         step: true);
   }
 
-  /// ⏭ Continue Read: the selection read to the end of the text — from the
-  /// sentence a tap picked, from the paragraph a long-press picked, and from
-  /// the first sentence when nothing is highlighted (010 FR-004/FR-005).
+  /// ⏭ Continue Read (032 FR-007): read from the position to the end of the
+  /// text — from the step a tap-read left, from the first sentence when nothing
+  /// is in force (010 FR-004/FR-005) — then wrap to the first sentence and keep
+  /// going until Pause or Stop.
   Future<void> _readContinue() async {
-    await _readRange(_anchor ?? 0, _content.length, track: true);
+    _continueReading = true;
+    await _driveContinue(_anchor ?? 0);
+    if (_mode != _Mode.paused) _continueReading = false;
+  }
+
+  /// The wrap loop: each pass reads [from] to the end; a pass that ends by
+  /// itself (`_readCompleted`) starts the next at the first sentence. A parked
+  /// pass returns with the loop still armed — the resume path re-enters here
+  /// from [_pausedReadFrom].
+  Future<void> _driveContinue(int from) async {
+    var start = from;
+    while (mounted && _continueReading) {
+      await _readRange(start, _content.length, track: true);
+      if (_mode == _Mode.paused) return;
+      if (!_readCompleted || !_continueReading) {
+        // The pass kept SPEAKING up for a wrap that is no longer coming
+        // (the loop was disarmed as it ended): hand the page back to idle.
+        if (mounted && _mode == _Mode.speaking) {
+          setState(() => _mode = _Mode.read);
+        }
+        return;
+      }
+      start = 0;
+      // Yield a frame between passes: a read whose units all resolve
+      // instantly must still let a Stop or Pause tap land. A post-frame
+      // callback, not a Timer — a zero-duration Timer never fires under a
+      // test's pump() and lingers pending at dispose; every pass already
+      // schedules a frame through setState, and scheduleFrame covers a pass
+      // that somehow did not.
+      final frame = Completer<void>();
+      WidgetsBinding.instance.addPostFrameCallback((_) => frame.complete());
+      WidgetsBinding.instance.scheduleFrame();
+      await frame.future;
+    }
   }
 
   /// Shared read path (002 US1): resolve the range into speeches — each
@@ -1501,6 +1554,7 @@ class _ReadingViewState extends State<ReadingView> {
   /// on screen, and the highlight clears at end/Stop.
   Future<void> _readRange(int start, int end,
       {bool track = false, bool step = false}) async {
+    _readCompleted = false;
     // 016 FR-004: whether THIS read is a step, and where the step's own range
     // ends — the key the next step is searched from. Both are read by
     // `_runRead`'s end, which is also the end a PAUSE'd read reaches through
@@ -1564,6 +1618,15 @@ class _ReadingViewState extends State<ReadingView> {
           ),
           last: i == reads.length - 1,
         );
+        // 032 FR-010: a parked or stopped read speaks no further unit — Pause
+        // keeps the remainder in [_pausedReadFrom] for the resume path, and a
+        // bumped generation means Stop or a newer read owns the page now.
+        if (_mode == _Mode.paused) {
+          _pausedReadFrom =
+              i + 1 < reads.length ? reads[i + 1].start : null;
+          return;
+        }
+        if (_readGen != gen) return;
       }
       return;
     }
@@ -1810,24 +1873,19 @@ class _ReadingViewState extends State<ReadingView> {
   bool _steppedRead = false;
   int _stepEndKey = 0;
 
-  /// Moves the highlight to the step AFTER [from] and leaves it there, ready
-  /// for the next press (FR-004) — brought into view, because a highlight the
-  /// reader cannot see is a button they cannot aim (FR-012). At the text's end
-  /// both the highlight and the position go and **nothing is said** (FR-008).
-  void _advanceStep(int from) {
-    TextSegment? next;
+  /// Moves the Continue Read anchor to the step AFTER [from] (032 FR-005): a
+  /// tap-read leaves its highlight where it is and moves only the position,
+  /// so ⏭ picks up where the reader left off. At the text's end the position
+  /// goes and nothing is said.
+  void _advanceAnchor(int from) {
+    int? next;
     for (final range in stepRanges(_spoken)) {
       if (range.start >= from) {
-        next = range;
+        next = range.start;
         break;
       }
     }
-    setState(() {
-      _highlight = next;
-      _anchor = next?.start;
-      _hint = null;
-    });
-    if (next != null) _revealRange(next);
+    if (mounted) setState(() => _anchor = next);
   }
 
   /// Brings a range the page holds as a segment into view (016 FR-012), by the
@@ -1850,9 +1908,11 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _runRead(int gen, Future<void> Function() start,
       {bool last = true}) async {
     if (mounted) setState(() => _mode = _Mode.speaking);
+    _readFailed = false;
     try {
       await start();
     } on ReaderException catch (e) {
+      _readFailed = true;
       if (mounted) setState(() => _error = e.message);
     } finally {
       // Leave the state alone when someone else owns it now: a stale
@@ -1860,32 +1920,28 @@ class _ReadingViewState extends State<ReadingView> {
       // kept the queue, so Resume must stay on screen instead of the buttons
       // silently falling back to idle.
       if (mounted && gen == _readGen && _mode == _Mode.speaking) {
-        // A STEP's read that ends by itself advances instead of clearing (016
-        // FR-004): the highlight moves to the next sentence and stays, so the
-        // next press has something to read. Its position survives the session
-        // in memory (FR-007) and is never written down.
+        // A STEP's read that ends by itself keeps its highlight (032 FR-004)
+        // and moves only the position to the next step (FR-005). A read that
+        // is not a step ends the way 011 FR-022 always had it: the highlight
+        // goes, and the LAST unit of a Continue Read pass also drops the
+        // position and marks the pass complete so the wrap loop can start the
+        // next pass at the first sentence (032 FR-007).
         final stepped = _steppedRead;
-        final advances =
-            stepped && _highlight?.unit == SegmentUnit.sentence;
+        // A Continue Read pass that ends cleanly hands straight to the next
+        // pass (032 FR-007): SPEAKING stays up across the boundary, so the
+        // toolbar never flickers idle controls mid-session and a second ⏭
+        // cannot start a second driver.
+        final wraps =
+            !stepped && last && _continueReading && !_readFailed;
         setState(() {
-          _mode = _Mode.read;
+          if (!wraps) _mode = _Mode.read;
           if (!stepped) _highlight = null;
         });
-        if (advances) {
-          if (last) {
-            _advanceStep(_stepEndKey);
-          }
-        } else if (!stepped) {
-          // A paged read's intermediate unit hands the floor to the next
-          // unit's own read instead of ending the read; only the last unit of a
-          // paged read - and every step or whole-content read - ends it, and an
-          // ending read still drops the highlight and the position together
-          // (011 FR-022, which 016 narrows for a step and for nothing else). A
-          // paragraph step keeps both: its unit is the paragraph, and there is
-          // no next sentence for it.
-          if (last) {
-            await _clearAnchor();
-          }
+        if (stepped) {
+          if (last) _advanceAnchor(_stepEndKey);
+        } else if (last) {
+          await _clearAnchor();
+          if (!_readFailed) _readCompleted = true;
         }
       }
     }
@@ -1895,6 +1951,9 @@ class _ReadingViewState extends State<ReadingView> {
     _readGen++;
     _isPausing = false;
     _isResuming = false;
+    _continueReading = false;
+    _readCompleted = false;
+    _pausedReadFrom = null;
     await widget.reader.stop();
     setState(() {
       _mode = _Mode.read;
@@ -3283,8 +3342,21 @@ class _ReadingViewState extends State<ReadingView> {
       // twice crashes the Android plugin), and the reader continues the queue
       // it kept. Same read generation: the continuation keeps updating the
       // highlight the read already installed.
-      await _runRead(_readGen, () => widget.reader.resume());
+      final remaining = _pausedReadFrom;
+      _pausedReadFrom = null;
+      await _runRead(_readGen, () => widget.reader.resume(),
+          last: remaining == null);
       if (mounted) setState(() => _isResuming = false);
+      // 032 FR-010: the parked unit just finished — pick the wrap loop back
+      // up where it parked. A pass that was on its LAST unit ends complete
+      // instead, which wraps to the first sentence.
+      if (_continueReading && mounted) {
+        if (remaining != null) {
+          unawaited(_driveContinue(remaining));
+        } else if (_readCompleted) {
+          unawaited(_driveContinue(0));
+        }
+      }
     }
   }
 
@@ -3691,12 +3763,6 @@ class _ReadingViewState extends State<ReadingView> {
                         ),
                       ]
                     : [
-                        if (!_isSpeakingOrPaused)
-                          IconButton(
-                            icon: const Icon(Icons.play_arrow),
-                            tooltip: AppLocalizations.of(context)?.readButton,
-                            onPressed: _readSelection,
-                          ),
                         if (!_isSpeakingOrPaused)
                           IconButton(
                             icon: const Icon(Icons.skip_next),

@@ -10,6 +10,8 @@ import 'package:klhu/services/localization_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'content_fixtures.dart';
+import 'package:klhu/models/content.dart';
+import 'package:klhu/services/content_store.dart';
 
 /// Fake at the [Reader] seam, modelling the contract [ReaderService] actually
 /// offers the view:
@@ -135,6 +137,7 @@ Future<void> _pumpView(
   required Reader reader,
   LocalizationService? service,
   void Function(String)? onLanguageChanged,
+  ContentStore? store,
 }) async {
   await tester.pumpWidget(MaterialApp(
     localizationsDelegates: const [
@@ -152,7 +155,7 @@ Future<void> _pumpView(
       reader: reader,
       localizationService: service,
       onLanguageChanged: onLanguageChanged,
-    contentStore: sharedPageStore()),
+    contentStore: store ?? sharedPageStore()),
   ));
   await _waitForStartupContent(tester);
 }
@@ -303,16 +306,25 @@ void main() {
       expect(fake.paragraphStarts, [0, 1, 1]);
       expect(fake.spoken[spokenAtPause], fake.spoken[spokenAtPause - 1]);
 
-      // The rest of the queue follows in order and the read ends cleanly.
+      // The rest of the queue follows in order; the pass then ends and 032's
+      // wrap starts the next pass at the first paragraph — Stop is what ends
+      // a Continue Read now.
       fake.endParagraph();
       await tester.pump();
       expect(fake.paragraphStarts, [0, 1, 1, 2]);
       fake.endParagraph();
       await tester.pump();
-      expect(fake.isSpeaking, isFalse);
+      await tester.pump();
+      expect(fake.paragraphStarts, [0, 1, 1, 2, 0],
+          reason: 'the finished pass wraps to the first paragraph (032 FR-007)');
+      expect(fake.isSpeaking, isTrue);
       expect(fake.stopCalls, 0);
+      expect(find.byTooltip('Continue Read'), findsNothing);
+      expect(find.byTooltip('Pause'), findsOneWidget);
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+      expect(fake.isSpeaking, isFalse);
       expect(find.byTooltip('Continue Read'), findsOneWidget);
-      expect(find.byTooltip('Pause'), findsNothing);
     });
 
     testWidgets('Stop while paused resets to idle and clears Resume',
@@ -330,7 +342,8 @@ void main() {
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
-      expect(find.byTooltip('Read'), findsOneWidget);
+      // 032: the Read button is gone — the tap on the text is the read.
+      expect(find.byTooltip('Read'), findsNothing);
       expect(find.byTooltip('Continue Read'), findsOneWidget);
       expect(find.byTooltip('Edit'), findsOneWidget);
     });
@@ -380,24 +393,37 @@ void main() {
       expect(fake.isPaused, isFalse);
       expect(find.byTooltip('Resume'), findsNothing);
       expect(find.byTooltip('Pause'), findsNothing);
-      // Idle in the NEW language: 朗读 / 继续朗读 / 停止 / 编辑.
+      // Idle in the NEW language: 继续朗读 / 停止 / 编辑 (032: no Read button).
       expect(find.byTooltip('继续朗读'), findsOneWidget);
       expect(find.byTooltip('编辑'), findsOneWidget);
       expect(find.byTooltip('Continue Read'), findsNothing);
       expect(service.loadLanguage(), 'zh');
     });
 
-    testWidgets('a read that ends on its own leaves no pause state behind',
+    testWidgets('a read that ends on its own wraps until Stop (032 FR-007)',
         (tester) async {
       final fake = _PauseFakeReader(autoAdvance: true);
       await _pumpView(tester, reader: fake);
       await _startPageRead(tester);
-      await tester.pumpAndSettle();
-
-      expect(find.byTooltip('Pause'), findsNothing);
+      // Every paragraph ends by itself, so passes complete back to back; the
+      // wrap keeps the read alive — Pause stays reachable between passes.
+      for (var i = 0; i < 10 && fake.paragraphStarts.length < 8; i++) {
+        await tester.pump();
+      }
+      expect(fake.paragraphStarts.length, greaterThan(3),
+          reason: 'the read wrapped past the last paragraph');
+      expect(find.byTooltip('Continue Read'), findsNothing);
+      expect(find.byTooltip('Pause'), findsOneWidget);
       expect(find.byTooltip('Resume'), findsNothing);
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
       expect(find.byTooltip('Continue Read'), findsOneWidget);
       expect(find.byTooltip('Edit'), findsOneWidget);
+      final count = fake.paragraphStarts.length;
+      await tester.pump();
+      await tester.pump();
+      expect(fake.paragraphStarts.length, count,
+          reason: 'Stop ends the wrap for good (032 FR-008)');
     });
 
     testWidgets('rapid toggling: one call per tap, last tap wins',
@@ -429,6 +455,65 @@ void main() {
       expect(find.byTooltip('Pause'), findsNothing);
       expect(fake.isPaused, isTrue);
       expect(fake.stopCalls, 0);
+    });
+
+    testWidgets('a multi-unit read parks on Pause and resumes into the wrap '
+        '(032 FR-010)', (tester) async {
+      // Over 4000 chars → documentUnits walks more than one unit, the case
+      // where a parked read must not start the next unit on its own.
+      final body = '${'Red fox. ' * 513}\n\n${'Blue dog. ' * 100}';
+      final fake = _PauseFakeReader();
+      await _pumpView(
+        tester,
+        reader: fake,
+        store: ContentStore(
+          directory: root,
+          loadCatalog: () async => [
+            PresetContent(id: 'p', language: 'en', text: body),
+          ],
+          now: () => DateTime.utc(2026, 10, 20),
+        ),
+      );
+      await _startPageRead(tester);
+      await tester.pumpAndSettle();
+      expect(fake.isSpeaking, isTrue);
+
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      final atPause = fake.spoken.length;
+      expect(fake.spoken.every((s) => s.contains('Red')), isTrue,
+          reason: 'the first unit is all the read has reached');
+
+      await tester.tap(find.byTooltip('Resume'));
+      await tester.pumpAndSettle();
+      // The interrupted unit replays its paragraph — and nothing past it.
+      expect(fake.spoken.length, atPause + 1);
+
+      // Finish the parked unit: the NEXT unit's text (Blue) may only speak
+      // now that the read actually moved on.
+      var sawBlue = false;
+      for (var i = 0; i < 8 && !sawBlue; i++) {
+        fake.endParagraph();
+        await tester.pumpAndSettle();
+        sawBlue = fake.spoken.any((s) => s.contains('Blue'));
+      }
+      expect(sawBlue, isTrue,
+          reason: 'the read moved on to the next unit after Resume');
+
+      // And the wrap: finishing the pass starts it over at the first unit.
+      var wrapped = false;
+      for (var i = 0; i < 10 && !wrapped; i++) {
+        fake.endParagraph();
+        await tester.pumpAndSettle();
+        wrapped = fake.spoken.isNotEmpty &&
+            fake.spoken.last.contains('Red') &&
+            fake.spoken.any((s) => s.contains('Blue'));
+      }
+      expect(wrapped, isTrue,
+          reason: 'the finished pass wrapped to the first unit (032 FR-007)');
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+      expect(fake.isSpeaking, isFalse);
     });
   });
 }

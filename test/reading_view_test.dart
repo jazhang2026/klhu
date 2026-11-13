@@ -122,7 +122,7 @@ void main() {
   }
 
   group('US1 P1: tap sentence, hear it read', () {
-    testWidgets('tap highlights the tapped sentence', (tester) async {
+    testWidgets('tap highlights and reads the tapped sentence', (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
@@ -139,13 +139,15 @@ void main() {
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(hasYellowHighlight(tester, firstSentence), isTrue);
-      // Tap alone does not speak; it waits for Read (data-model invariant).
-      expect(fake.spoken, isEmpty);
+      // 032: the tap IS the read — no button press, and the highlight stays on
+      // the sentence just heard.
+      expect(fake.spoken, [firstSentence]);
+      expect(find.byTooltip('Read'), findsNothing);
     });
 
-    testWidgets('Read speaks the highlighted sentence', (tester) async {
+    testWidgets('a second tap repeats the sentence', (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
         localizationsDelegates: const [
@@ -162,10 +164,10 @@ void main() {
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
-      await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
-      expect(fake.spoken, [firstSentence]);
+      await tester.pumpAndSettle();
+      await tester.tapAt(await tapFirstSentence(tester));
+      await tester.pumpAndSettle();
+      expect(fake.spoken, [firstSentence, firstSentence]);
     });
 
     testWidgets('Stop halts speech', (tester) async {
@@ -186,8 +188,6 @@ void main() {
       await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
       await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
       expect(fake.isSpeaking, isTrue);
       final stopsBefore = fake.stops;
       await tester.tap(find.byTooltip('Stop'));
@@ -196,7 +196,7 @@ void main() {
       expect(fake.stops, stopsBefore + 1);
     });
 
-    testWidgets('Read with nothing selected reads the first sentence',
+    testWidgets('the Read button is gone; Continue Read remains',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -213,20 +213,13 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
-      // Nothing is highlighted: ▶ takes the first sentence, brings it into
-      // view and reads it, then stops (016 FR-001 — the warning 011 FR-023
-      // asked for is gone).
-      expect(fake.spoken, [firstSentence]);
-      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
-      // The highlight is left on what the NEXT press reads (016 FR-004,
-      // decision 1): the sentence just heard is no longer painted.
-      expect(hasYellowHighlight(tester, firstSentence), isFalse);
-      expect(hasYellowHighlight(tester, 'Birds sang in the tall trees.'), isTrue);
+      // 032 FR-001: no read control remains that reads a selected unit on
+      // press — the tap on the text is the read.
+      expect(find.byTooltip('Read'), findsNothing);
+      expect(find.byTooltip('Continue Read'), findsOneWidget);
     });
 
-    testWidgets('Read after a stop starts at the first sentence again',
+    testWidgets('a tap after a stop reads fresh from wherever it lands',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -243,26 +236,23 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      // A tap puts a position in force and paints it (010 FR-002) — 'Birds
-      // sang' is NOT the text's first sentence, so the position is plainly not
-      // the top of the page.
+      // 'Birds sang' is NOT the text's first sentence, so the position is
+      // plainly not the top of the page.
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(
           hasYellowHighlight(tester, 'Birds sang in the tall trees.'), isTrue);
       await tester.tap(find.byTooltip('Stop'));
       await tester.pump();
-      // Stop takes the highlight away and the position with it (011 FR-022,
-      // 016 FR-009): with nothing in force ▶ starts at the first sentence
-      // again, which is what the tap's position bought it before.
+      // Stop takes the highlight away and the position with it (011 FR-022):
+      // the next tap reads the sentence it lands on, highlighted as it goes.
       expect(hasAnyYellow(tester), isFalse);
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
-      expect(fake.spoken, [firstSentence],
-          reason: '▶ after a Stop starts the text again (016 FR-009)');
-      expect(hasYellowHighlight(tester, 'Birds sang in the tall trees.'), isTrue,
-          reason: 'and the highlight is where the next press will read');
-      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
+      await tester.tapAt(offsetOf(tester, 'The sun rose'));
+      await tester.pumpAndSettle();
+      expect(fake.spoken.last, firstSentence,
+          reason: 'the tap reads the sentence it selects (032 FR-002)');
+      expect(hasYellowHighlight(tester, firstSentence), isTrue,
+          reason: 'and the highlight stays on what was just read (032 FR-004)');
     });
 
     testWidgets('missing voice shows error instead of crashing', (tester) async {
@@ -282,9 +272,7 @@ void main() {
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
       await tester.tapAt(await tapFirstSentence(tester));
-      await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(
           find.text('Voice not available for en-US'), findsOneWidget);
     });
@@ -329,9 +317,7 @@ void main() {
         home: ReadingView(reader: fake, contentStore: store)));
       await settle();
       await tester.tapAt(await tapFirstSentence(tester));
-      await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(fake.isSpeaking, isTrue);
       final stopsBefore = fake.stops;
 
@@ -368,7 +354,7 @@ void main() {
       // the Text/RichText swap rendered different metrics (font jump).
       expect(contentText(), findsNothing);
       await tester.tapAt(await tapFirstSentence(tester));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(contentText(), findsNothing);
       expect(hasYellowHighlight(tester, firstSentence), isTrue);
     });
@@ -413,29 +399,7 @@ void main() {
     const firstParagraph =
         'The sun rose over the quiet town. Birds sang in the tall trees.';
 
-    testWidgets('long-press highlights the whole paragraph', (tester) async {
-      final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en'),
-          Locale('zh'),
-          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
-        ],
-        home: ReadingView(reader: fake, contentStore: pageStore(root))));
-      await loadPageContent(tester);
-      await tester.longPressAt(await tapFirstSentence(tester));
-      await tester.pump();
-      expect(hasYellowHighlight(tester, firstParagraph), isTrue);
-      expect(fake.spoken, isEmpty);
-    });
-
-    testWidgets('Read speaks the highlighted paragraph in order',
+    testWidgets('long-press highlights and reads the whole paragraph',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -453,13 +417,14 @@ void main() {
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
       await tester.longPressAt(await tapFirstSentence(tester));
-      await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      // 032 FR-003: the gesture picked the paragraph, painted it, and read it —
+      // no button press, and the paragraph highlight remains (FR-004).
+      expect(hasYellowHighlight(tester, firstParagraph), isTrue);
       expect(fake.spoken, [firstParagraph]);
     });
 
-    testWidgets('the page gesture picks the unit ▶ reads (FR-024)',
+    testWidgets('the page gesture picks the unit it reads (FR-024)',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -476,24 +441,18 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
-      // A TAP on the page selects a sentence, so ▶ reads that one sentence…
+      // A TAP on the page selects a sentence, and reads that one sentence…
       await tester.tapAt(await tapFirstSentence(tester));
-      await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(fake.spoken, [firstSentence],
-          reason: 'a tapped sentence is what ▶ reads');
+          reason: 'a tapped sentence is what the tap reads');
 
-      // …and a LONG-PRESS selects the paragraph, so ▶ reads the paragraph.
-      // That read ended and took the highlight with it (FR-022), so the page is
-      // selected again first.
+      // …and a LONG-PRESS selects the paragraph, and reads the paragraph.
       fake.spoken.clear();
       await tester.longPressAt(await tapFirstSentence(tester));
-      await tester.pump();
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(fake.spoken, [firstParagraph],
-          reason: 'a long-pressed paragraph is what ▶ reads');
+          reason: 'a long-pressed paragraph is what the press reads');
     });
 
     testWidgets('single tap still resolves sentence after long-press',
@@ -515,86 +474,17 @@ void main() {
       await loadPageContent(tester);
       final pos = await tapFirstSentence(tester);
       await tester.longPressAt(pos);
-      await tester.pump();
+      await tester.pumpAndSettle();
       await tester.tapAt(pos);
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(hasYellowHighlight(tester, firstSentence), isTrue);
+      expect(fake.spoken.last, firstSentence,
+          reason: 'the tap narrowed the paragraph back to its sentence');
     });
   });
 
   group('US3 P3: read whole page', () {
-    testWidgets('Continue Read speaks each paragraph in order', (tester) async {
-      final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en'),
-          Locale('zh'),
-          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
-        ],
-        home: ReadingView(reader: fake, contentStore: pageStore(root))));
-      await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Continue Read'));
-      await tester.pump();
-      // 002 US1: one speech per paragraph (not one for the whole page).
-      expect(fake.spoken.length, 3);
-      expect(fake.spoken.join('\n\n'), kSampleEnText.trimRight());
-    });
-
-    testWidgets('Continue Read clears tracking highlight at end', (tester) async {
-      final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en'),
-          Locale('zh'),
-          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
-        ],
-        home: ReadingView(reader: fake, contentStore: pageStore(root))));
-      await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Continue Read'));
-      await tester.pump();
-      // FakeReader ignores the progress callback, so no intermediate
-      // highlight is observable here — but the end state must be clean
-      // (intermediate advance is covered by the US3 tracking tests).
-      expect(hasAnyYellow(tester), isFalse);
-    });
-
-    testWidgets('Stop halts page read', (tester) async {
-      final fake = FakeReader();
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en'),
-          Locale('zh'),
-          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
-        ],
-        home: ReadingView(reader: fake, contentStore: pageStore(root))));
-      await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Continue Read'));
-      await tester.pump();
-      expect(fake.isSpeaking, isTrue);
-      await tester.tap(find.byTooltip('Stop'));
-      await tester.pump();
-      expect(fake.isSpeaking, isFalse);
-    });
-
-    testWidgets('sentence tap after Continue Read narrows to sentence',
+    testWidgets('Continue Read speaks each paragraph in order, then wraps',
         (tester) async {
       final fake = FakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -613,6 +503,65 @@ void main() {
       await loadPageContent(tester);
       await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
+      // 002 US1: one speech per paragraph (not one for the whole page). 032
+      // FR-007: the read then wraps — Stop is what ends it in a test.
+      expect(fake.spoken.length, greaterThanOrEqualTo(3));
+      expect(fake.spoken.take(3).join('\n\n'), kSampleEnText.trimRight());
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+    });
+
+    testWidgets('Stop ends the wrap: no further speech is scheduled',
+        (tester) async {
+      final fake = FakeReader();
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
+      await tester.tap(find.byTooltip('Continue Read'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+      expect(fake.isSpeaking, isFalse);
+      final spokenAtStop = fake.spoken.length;
+      await tester.pump();
+      await tester.pump();
+      expect(fake.spoken.length, spokenAtStop,
+          reason: 'the wrap loop is dead once Stop lands (032 FR-008)');
+      expect(hasAnyYellow(tester), isFalse);
+    });
+
+    testWidgets('sentence tap after Stop narrows to sentence',
+        (tester) async {
+      final fake = FakeReader();
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
+      await tester.tap(find.byTooltip('Continue Read'));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
       // Measure on the live RichText: plain-Text and RichText metrics
       // differ slightly, so a position from one mis-maps on the other.
       final render = _contentRender(tester);
@@ -625,11 +574,9 @@ void main() {
       final pos = render.localToGlobal(Offset(
           (box.left + box.right) / 2, (box.top + box.bottom) / 2));
       await tester.tapAt(pos);
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(hasYellowHighlight(tester, 'Birds sang in the tall trees.'),
           isTrue);
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
       expect(fake.spoken.last, 'Birds sang in the tall trees.');
     });
   });
@@ -664,12 +611,14 @@ void main() {
       ));
     }
 
-    testWidgets('Play and Stop sit above the bar, not under it',
+    testWidgets('Continue Read, Stop and Edit sit above the bar, not under it',
         (tester) async {
       await pumpWithSystemBar(tester, FakeReader());
       await loadPageContent(tester);
       final screen = tester.getRect(find.byType(Scaffold));
-      for (final tooltip in ['Read', 'Continue Read', 'Stop', 'Edit']) {
+      // 032: the Read button is gone — the tap on the text is the read.
+      expect(find.byTooltip('Read'), findsNothing);
+      for (final tooltip in ['Continue Read', 'Stop', 'Edit']) {
         // The button's own box — the touch target — not the label inside it.
         final control = tester.getRect(find.ancestor(
           of: find.byTooltip(tooltip),

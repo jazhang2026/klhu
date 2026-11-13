@@ -169,7 +169,7 @@ void main() {
       expect(find.text('Load'), findsNothing);
     });
 
-    testWidgets('READ tap highlights sentence yellow, does not speak',
+    testWidgets('READ tap highlights the sentence and reads it (032)',
         (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -187,46 +187,41 @@ void main() {
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
       await tester.tapAt(await _tapFirstSentence(tester));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(_hasYellow(tester, _firstSentence), isTrue);
-      expect(fake.spoken, isEmpty);
-    });
-
-    testWidgets('Read speaks the pending sentence, and the first one when there is none',
-        (tester) async {
-      final fake = _EditFakeReader();
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en'),
-          Locale('zh'),
-          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
-        ],
-        home: ReadingView(reader: fake, contentStore: pageStore(root))));
-      await loadPageContent(tester);
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
-      // Nothing is highlighted: ▶ reads the text's first sentence and stops
-      // (016 FR-001, amending 011 FR-023's warning).
       expect(fake.spoken, [_firstSentence]);
-      expect(find.text('Select a sentence or paragraph to read'), findsNothing);
-
-      await tester.tapAt(await _tapFirstSentence(tester));
-      await tester.pump();
-      // The tap still picks its own unit…
-      expect(_hasYellow(tester, _firstSentence), isTrue);
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
-      // …and ▶ reads that selection.
-      expect(fake.spoken, [_firstSentence, _firstSentence]);
     });
 
-    testWidgets('READ long-press highlights paragraph yellow',
+    testWidgets('tapping the highlighted sentence repeats the read (032)',
+        (tester) async {
+      final fake = _EditFakeReader();
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en'),
+          Locale('zh'),
+          Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+        ],
+        home: ReadingView(reader: fake, contentStore: pageStore(root))));
+      await loadPageContent(tester);
+      final pos = await _tapFirstSentence(tester);
+      await tester.tapAt(pos);
+      await tester.pumpAndSettle();
+      expect(fake.spoken, [_firstSentence]);
+      // 032 FR-006: the same tap on the highlighted sentence reads it again.
+      await tester.tapAt(pos);
+      await tester.pumpAndSettle();
+      expect(fake.spoken, [_firstSentence, _firstSentence]);
+      expect(_hasYellow(tester, _firstSentence), isTrue,
+          reason: 'the highlight stays on the sentence just read (FR-004)');
+    });
+
+    testWidgets('READ long-press highlights and reads the paragraph (032)',
         (tester) async {
       final fake = _EditFakeReader();
       await tester.pumpWidget(MaterialApp(
@@ -244,19 +239,16 @@ void main() {
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
       await tester.longPressAt(await _tapFirstSentence(tester));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(
         _hasYellow(tester,
             'The sun rose over the quiet town. Birds sang in the tall trees.'),
         isTrue,
       );
-      expect(fake.spoken, isEmpty);
-      // The page's long-press selected the whole paragraph, so ▶ reads it.
-      await tester.tap(find.byTooltip('Read'));
-      await tester.pump();
       expect(
         fake.spoken,
         ['The sun rose over the quiet town. Birds sang in the tall trees.'],
+        reason: 'the long-press IS the read now — no button (032 FR-003)',
       );
     });
 
@@ -303,8 +295,11 @@ void main() {
         ],
         home: ReadingView(reader: fake, contentStore: pageStore(root))));
       await loadPageContent(tester);
+      // 032: the tap is itself a read — the first sentence is already spoken
+      // before EDIT is even opened.
       await tester.tapAt(await _tapFirstSentence(tester));
       await tester.pump();
+      expect(fake.spoken, contains(_firstSentence));
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
       await tester.enterText(find.byType(TextField), 'Hello edited world.');
@@ -316,10 +311,14 @@ void main() {
       await loadPageContent(tester);
       // Back to RichText READ with the committed content.
       expect(find.byType(TextField), findsNothing);
-      // Pending sentence cleared by editing: Continue Read reads new content.
+      // Pending sentence cleared by editing: Continue Read reads new content
+      // from its start (032's wrap may add further passes — the LAST speech
+      // of every pass is still the edited text).
       await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
-      expect(fake.spoken, ['Hello edited world.']);
+      expect(fake.spoken.last, 'Hello edited world.');
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
     });
 
     testWidgets('Edit disabled while speaking, back after Stop',
@@ -458,7 +457,17 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip('Continue Read'));
       await tester.pump();
-      expect(fake.spoken.length, 3);
+      // 032 FR-007: the page read wraps, so a full pass is the floor, not
+      // the ceiling — Stop is what ends it.
+      expect(fake.spoken.length, greaterThanOrEqualTo(3));
+      expect(fake.spoken.take(3).join('\n\n'),
+          'The sun rose over the quiet town. Birds sang in the tall trees.\n\n'
+          'Flutter makes it easy to build beautiful apps. A single codebase '
+          'runs on both iOS and Android. Tap any sentence to hear it read aloud.\n\n'
+          'This is the third paragraph. It tests paragraph-level resolution '
+          'across blank lines. Each block should highlight and speak in order.');
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
     });
   });
 

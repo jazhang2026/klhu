@@ -665,7 +665,7 @@ void main() {
     await tester.pump();
 
     // The page is idle at once (FR-019), and the render writes no file.
-    expect(find.byTooltip('Read'), findsOneWidget);
+    expect(find.byTooltip('Continue Read'), findsOneWidget);
     expect(find.textContaining('Rendering video'), findsNothing,
         reason: 'the page is idle again, not rendering');
     expect(encoder.finishes, 0, reason: 'confirming writes nothing');
@@ -1271,7 +1271,8 @@ void main() {
 
     expectNotOffered(l10n.videoButton,
         reason: 'no action is offered where rendering is impossible');
-    expectOffered(l10n.readButton, reason: 'and the rest of the page is normal');
+    expectOffered(l10n.stopButton,
+        reason: 'and the rest of the page is normal');
   });
 
   testWidgets('leaving an undecided review keeps nothing', (tester) async {

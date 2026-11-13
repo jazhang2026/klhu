@@ -467,10 +467,14 @@ void main() {
       // An anchored read: its first speech is a paragraph remainder, the case
       // the reader clips to whole sentences. The tap must land on a sentence
       // that is on screen — a point below the fold belongs to no gesture.
+      // 032: the tap is itself a read — release it, then ⏭ starts at the NEXT
+      // step ('Sentence number 3.'), not the tapped one again.
       await tester.tapAt(offsetOf(tester, 'Sentence number 2.', longText));
-      await tester.pump();
+      fake.release();
+      await tester.pumpAndSettle();
+      fake.hold = true;
       await continueRead(tester);
-      expect(fake.plan.first.start, longText.indexOf('Sentence number 2.'));
+      expect(fake.plan.first.start, longText.indexOf('Sentence number 3.'));
 
       final starts = <int>[];
       for (final spoken in fake.plan) {
@@ -495,13 +499,21 @@ void main() {
       await tester.pump();
       expect(hasAnyYellow(tester), isTrue);
 
-      // Natural end: the fake released, so the read finishes.
+      // A finished pass does not end the read (032 FR-007): it wraps, and the
+      // wrap's next pass parks on the same hold — a stable mid-read state
+      // with nothing painted between passes.
       fake.release();
+      fake.hold = true;
       await tester.pump();
       await tester.pump();
       expect(hasAnyYellow(tester), isFalse);
 
-      // Stop mid-read clears it too (003's rule, kept).
+      // Stop clears the highlight (003's rule, kept) and ends the wrap.
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+      expect(hasAnyYellow(tester), isFalse);
+
+      // Stop mid-read clears it too.
       await continueRead(tester);
       fake.fireAt(2);
       await tester.pump();

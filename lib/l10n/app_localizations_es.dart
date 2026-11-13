@@ -22,9 +22,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get spanishNative => 'Español';
 
   @override
-  String get readButton => 'Leer';
-
-  @override
   String get continueReadButton => 'Continuar leyendo';
 
   @override

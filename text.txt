@@ -201,3 +201,12 @@ Requirement:
     do not save image prompt from batch images generation. make Recent prompts deletable.
 
     the generated images can be selected as chosen pictures for video generation.    
+
+032. Change Read button function.
+    - Remove Read button.
+    - When user tap or tap&hold to select a sentence or paragraph, it highlighted and start reading. No need to click the Read button 
+    - Keep highlighted sentence/paragraph after reading. Don't auto highlight next sentence after reading.
+    - To read next sentence or any other sentence, user need to tap on the sentence to read it.
+    - Tap or tap&hold on the highlighted sentence/paragraph to repeat reading.
+    - User click Continue Reading button to read the rest of the content. This is not changed.
+    - When continue reading finished the last sentence, continue reading from the first sentence of the content.

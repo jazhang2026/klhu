@@ -158,7 +158,8 @@ void main() {
       );
       expect(find.text('KalaHoo Lectura'), findsOneWidget);
       expect(find.text('KalaHoo Reading'), findsNothing);
-      expect(find.byTooltip('Leer'), findsOneWidget);
+      // 032: the Read button is gone — Stop is the read-session action left.
+      expect(find.byTooltip('Detener'), findsOneWidget);
       expect(find.text('Español'), findsOneWidget);
       // Content is reached through the library now; the sample buttons are gone
       // in every interface language (008 FR-003).

@@ -140,6 +140,33 @@ Offset offsetOf(WidgetTester tester, String target) {
   ));
 }
 
+/// A global point inside [target]'s first characters within the RichText that
+/// paints [inText] — or, when [inText] is null, the first RichText whose plain
+/// text contains [target]. 032's tap-to-read tests tap sentences and paragraphs
+/// directly, on bodies `offsetOf` (which only knows the two shipped samples)
+/// cannot name.
+Offset offsetInText(WidgetTester tester, String target, {String? inText}) {
+  for (final element in find.byType(RichText).evaluate()) {
+    final widget = element.widget as RichText;
+    final plain = widget.text.toPlainText();
+    if (inText != null && plain != inText) continue;
+    final start = plain.indexOf(target);
+    if (start < 0) continue;
+    final render = element.renderObject as RenderParagraph;
+    final end = start + 3 > plain.length ? plain.length : start + 3;
+    final box = render
+        .getBoxesForSelection(
+            TextSelection(baseOffset: start, extentOffset: end))
+        .first;
+    return render.localToGlobal(Offset(
+      (box.left + box.right) / 2,
+      (box.top + box.bottom) / 2,
+    ));
+  }
+  throw StateError('"$target" not found'
+      '${inText == null ? '' : ' in the given text'}');
+}
+
 /// The sentences of [speech] as the reader reports them: one [SpokenSentence]
 /// per utterance, with ABSOLUTE offsets into the text the speech was cut from.
 /// `ReaderService` hands the view exactly this, so a fake that mirrors it

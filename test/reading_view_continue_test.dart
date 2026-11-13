@@ -208,47 +208,58 @@ void main() {
       expect(fake.speeches.last.end, readEnd);
     });
 
-    testWidgets('a tap sets the position; Continue Read starts there',
+    testWidgets('a tap reads its sentence; Continue Read starts at the next step',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
-      await tester.pump();
-      // Feedback before any read (FR-006): the tapped sentence is painted.
+      await tester.pumpAndSettle();
+      // 032 FR-002/FR-004: the tap IS the read — the sentence is spoken and
+      // stays painted; only the position moved, to the NEXT step.
       expect(hasYellow(tester, 'Birds sang in the tall trees.'), isTrue);
-      expect(fake.reads, isEmpty);
-      // A position a tap set and never played is already remembered (FR-008).
+      expect(fake.speeches.single.start, s2Start);
+      final before = fake.reads.length;
 
       await continueRead(tester);
 
-      expect(fake.speeches.first.start, s2Start);
-      expect(fake.speeches.first.text, text.substring(s2Start, p1End));
-      // From the anchor to the end of the text: every paragraph in order, with
-      // only the blank line between paragraphs left out.
-      expect(fake.speeches.map((s) => s.text).join('\n\n'),
-          text.substring(s2Start, readEnd));
-      expect(fake.speeches.last.end, readEnd);
-      for (var i = 0; i + 1 < fake.speeches.length; i++) {
-        expect(text.substring(fake.speeches[i].end, fake.speeches[i + 1].start),
-            '\n\n');
+      // ⏭ picks up where the tap-read left off: the sentence AFTER the one
+      // just heard, not the heard one again (032 FR-005). The pass is indexed,
+      // not `reads.last` — 032's wrap may already have started the next pass.
+      final pass = fake.reads[before];
+      expect(pass.first.start, p2Start);
+      expect(pass.first.text, text.substring(p2Start, p3Start - 2));
+      expect(pass.map((s) => s.text).join('\n\n'),
+          text.substring(p2Start, readEnd));
+      expect(pass.last.end, readEnd);
+      for (var i = 0; i + 1 < pass.length; i++) {
+        expect(text.substring(pass[i].end, pass[i + 1].start), '\n\n');
       }
-      // The read ended, so its highlight is gone and the position with it
-      // (FR-022) — the record the tap wrote does not outlive the read.
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
     });
 
-    testWidgets('a long-press sets the position at the paragraph start',
+    testWidgets('a long-press reads its paragraph; Continue Read starts after it',
         (tester) async {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
       await tester.longPressAt(offsetOf(tester, 'codebase runs'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      // The paragraph was read whole and stays highlighted (032 FR-003/FR-004).
+      expect(hasYellow(tester, text.substring(p2Start, p3Start - 2)), isTrue);
+      expect(fake.speeches.single.start, p2Start);
+      final before = fake.reads.length;
+
       await continueRead(tester);
 
-      // The paragraph start, not the sentence the finger landed in.
-      expect(fake.speeches.first.start, p2Start);
-      expect(fake.speeches.first.text, text.substring(p2Start, p3Start - 2));
+      // The position moved past the paragraph: the next step is the first
+      // sentence of the LAST paragraph.
+      final pass = fake.reads[before];
+      expect(pass.first.start, p3Start);
+      expect(pass.first.text, text.substring(p3Start, readEnd));
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
     });
 
     testWidgets('a touch during a read changes nothing (FR-025)',
@@ -292,14 +303,19 @@ void main() {
 
     testWidgets('tracking follows the read, and the read takes the position with it',
         (tester) async {
-      final fake = RecordingReader()..hold = true;
+      final fake = RecordingReader();
       await openPage(tester, fake);
 
       await tester.tapAt(offsetOf(tester, 'codebase runs'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      // Park only the ⏭ read — the tap's own read must finish first.
+      fake.hold = true;
       await continueRead(tester);
-      // A tap anchors the sentence it landed in, not its paragraph.
-      expect(fake.speeches.length, 2);
+      // The tap read its own sentence first; ⏭'s pass is the read after it,
+      // starting at the NEXT step (032 FR-005).
+      expect(fake.reads.length, greaterThanOrEqualTo(2));
+      final pass = fake.reads[1];
+      expect(pass.length, 2);
 
       // The read tracks per SENTENCE, from the anchored one on (011 FR-020):
       // the same span the engine is speaking, not the paragraph around it.
@@ -315,13 +331,21 @@ void main() {
       fake.release();
       await tester.pump();
       await tester.pump();
-      // End of the read clears the tracking highlight… (FR-020)
+      // 032 FR-007: the pass ending does NOT end the read — it wraps to the
+      // first sentence and tracking keeps painting. Stop is the only end.
+      expect(fake.reads.length, greaterThan(2),
+          reason: 'the finished pass wrapped to the first sentence');
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
+      // Stop clears the tracking highlight… (FR-020)
       expect(hasAnyYellow(tester), isFalse);
-      // …and the position goes with it, in memory and on disk (FR-022): a read
-      // that has ended leaves nothing to continue from, so a later ⏭ starts at
-      // the first sentence instead of resuming from an unpainted one.
+      // …and the position goes with it, in memory and on disk (FR-022): a
+      // stopped read leaves nothing to continue from, so a later ⏭ starts at
+      // the first sentence.
+      final stoppedAt = fake.reads.length;
       await continueRead(tester);
-      expect(fake.speeches.first.start, 0);
+      expect(fake.reads.length, greaterThan(stoppedAt));
+      expect(fake.reads.last.first.start, 0);
     });
 
     testWidgets('Stop drops the position, in memory and on disk', (tester) async {
@@ -346,16 +370,21 @@ void main() {
       final fake = RecordingReader();
       await openPage(tester, fake);
 
-      // No frame in between: the gestures queue up.
+      // No frame in between: the gestures queue up — and each is a READ now
+      // (032), so the last tap's own read is what counts.
       await tester.tapAt(offsetOf(tester, 'Birds sang'));
       await tester.tapAt(offsetOf(tester, 'codebase runs'));
       await tester.tapAt(offsetOf(tester, 'third paragraph'));
-      await tester.pump();
-      // The LAST of them is the one on disk (invariant I10)…
+      await tester.pumpAndSettle();
+      final before = fake.reads.length;
       await continueRead(tester);
 
-      // …and the one the read starts from.
-      expect(fake.speeches.first.start, p3Start);
+      // …and the one the read starts from: the step AFTER the last tap's
+      // sentence — 'It tests paragraph-level…', not the paragraph's start.
+      expect(fake.reads[before].first.start,
+          text.indexOf('It tests paragraph-level'));
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
     });
 
     testWidgets('mixed content reads per paragraph from a non-zero anchor',
@@ -375,15 +404,23 @@ void main() {
 
       final anchor = mixed.indexOf('Birds sang');
       await tester.tapAt(offsetOf(tester, 'Birds sang', inText: mixed));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      // The tap read 'Birds sang.'; ⏭ continues at the NEXT step — the first
+      // sentence of the Chinese paragraph (032 FR-005). The save's SnackBar
+      // still covers the bottom bar: let it time out first.
+      final zhStart = mixed.indexOf('清晨');
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      final before = fake.reads.length;
       await continueRead(tester);
+      final pass = fake.reads[before];
 
-      expect(fake.speeches.length, 2);
-      expect(fake.speeches[0].start, anchor);
-      expect(fake.speeches[0].text, 'Birds sang.');
-      expect(fake.speeches[0].language, 'en');
-      expect(fake.speeches[1].text, mixed.substring(mixed.indexOf('清晨')));
-      expect(fake.speeches[1].language, 'zh-Hans');
+      expect(pass.length, 1);
+      expect(pass[0].start, zhStart);
+      expect(pass[0].text, mixed.substring(zhStart));
+      expect(pass[0].language, 'zh-Hans');
+      await tester.tap(find.byTooltip('Stop'));
+      await tester.pump();
     });
   });
 
@@ -398,10 +435,12 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
-
+      // The earlier tap was itself a read (032) — what matters is that ⏭
+      // adds nothing once the text is empty.
+      final before = fake.reads.length;
       await continueRead(tester);
 
-      expect(fake.reads, isEmpty);
+      expect(fake.reads.length, before);
       expect(find.text('Nothing left to read from here'), findsOneWidget);
     });
 
@@ -516,8 +555,11 @@ void main() {
       await tester.tap(find.byTooltip('Done'));
       await tester.pump();
 
+      // The earlier tap was itself a read (032) — what matters is that ⏭
+      // adds nothing once the text is empty.
+      final before = fake.reads.length;
       await continueRead(tester);
-      expect(fake.reads, isEmpty);
+      expect(fake.reads.length, before);
     });
 
     testWidgets('switching content clears the position in force',
