@@ -210,3 +210,6 @@ Requirement:
     - Tap or tap&hold on the highlighted sentence/paragraph to repeat reading.
     - User click Continue Reading button to read the rest of the content. This is not changed.
     - When continue reading finished the last sentence, continue reading from the first sentence of the content.
+
+033. Like to have voice input for kalahoo reading: text editor with voice input and AI prompt.
+    Better quality if possible. Also consider stable, scalable and cost-effective. And future development.

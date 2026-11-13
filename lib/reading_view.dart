@@ -3619,9 +3619,17 @@ class _ReadingViewState extends State<ReadingView> {
                   preferredSize: const Size.fromHeight(_actionRowHeight),
                   child: SizedBox(
                     height: _actionRowHeight,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: _pageActions(),
+                    // Every action is 48dp and the list grows (video, videos,
+                    // settings): on a window narrower than their sum the row
+                    // scrolls rather than overflowing off the edge — `reverse`
+                    // keeps the actions flush right, the side they lead from.
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: _pageActions(),
+                      ),
                     ),
                   ),
                 )
@@ -4409,11 +4417,15 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      l10n.aiPromptSkillLabel,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    Expanded(
+                      child: Text(
+                        l10n.aiPromptSkillLabel,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 4),
                     // Template language selector — always show all 3 regardless of app locale.
                     _LangChip('EN', _templateLocale == 'en' ? Theme.of(context).colorScheme.primary : Colors.grey.shade600, () => setState(() => _templateLocale = 'en')),
                     const SizedBox(width: 4),

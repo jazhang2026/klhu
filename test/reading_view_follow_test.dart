@@ -534,13 +534,24 @@ bool reportedYellowIsLastSentence(WidgetTester tester, FollowingReader fake) {
   return hasYellow(tester, longText.substring(last.start, last.end));
 }
 
-/// The reading area's scroll position (the page's only scrollable in READ).
+/// The reading area's scroll position (the page's only VERTICAL scrollable
+/// in READ — the action row's horizontal one does not count).
 ScrollPosition scrollPosition(WidgetTester tester) {
-  final scrollable = find.descendant(
+  final scrollables = find.descendant(
     of: find.byType(SingleChildScrollView),
     matching: find.byType(Scrollable),
   );
-  return tester.state<ScrollableState>(scrollable).position;
+  ScrollableState? state;
+  for (final element in scrollables.evaluate()) {
+    final scrollable = element.widget as Scrollable;
+    if (scrollable.axisDirection == AxisDirection.down ||
+        scrollable.axisDirection == AxisDirection.up) {
+      state = (element as StatefulElement).state as ScrollableState;
+      break;
+    }
+  }
+  if (state == null) throw StateError('reading scrollable not found');
+  return state.position;
 }
 
 /// The reading content's render paragraph, whatever text it holds.
@@ -570,12 +581,18 @@ Rect sentenceBox(WidgetTester tester, SpokenSentence spoken) {
   return render.localToGlobal(rect.topLeft) & rect.size;
 }
 
-/// The page's visible area, in global coordinates.
+/// The page's visible area, in global coordinates. The action row's
+/// horizontal scroller is a SingleChildScrollView too but only 48dp tall —
+/// the reading area's is the tall one.
 Rect viewportRect(WidgetTester tester) {
-  final box = tester.renderObject<RenderBox>(
-    find.byType(SingleChildScrollView),
-  );
-  return box.localToGlobal(Offset.zero) & box.size;
+  RenderBox? box;
+  for (final element in find.byType(SingleChildScrollView).evaluate()) {
+    final candidate = element.renderObject as RenderBox;
+    if (box == null || candidate.size.height > box.size.height) {
+      box = candidate;
+    }
+  }
+  return box!.localToGlobal(Offset.zero) & box.size;
 }
 
 /// FR-001/SC-001 expressed as geometry: the reported sentence is fully inside
