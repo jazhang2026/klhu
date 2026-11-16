@@ -426,6 +426,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readLanguageRoleLabel => 'Language';
 
   @override
+  String get readLanguageMainLabel => 'Main text';
+
+  @override
+  String get readLanguageCommentLabel => 'Comments';
+
+  @override
   String get assignmentOpenButton => 'Assign sentences';
 
   @override

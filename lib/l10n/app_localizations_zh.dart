@@ -412,6 +412,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readLanguageRoleLabel => '語言';
 
   @override
+  String get readLanguageMainLabel => '正文';
+
+  @override
+  String get readLanguageCommentLabel => '注釋';
+
+  @override
   String get assignmentOpenButton => '分配句子';
 
   @override
@@ -1134,6 +1140,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get readLanguageRoleLabel => '语言';
+
+  @override
+  String get readLanguageMainLabel => '正文';
+
+  @override
+  String get readLanguageCommentLabel => '注释';
 
   @override
   String get assignmentOpenButton => '分配句子';

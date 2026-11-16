@@ -77,3 +77,15 @@ speech_resolver role turns           ◀── same seam (role = turn.role)
 
 - No caching of resolved languages — computed per read (FR-005 free).
 - Comment path (`comment.dart`) never calls the seam — unchanged.
+
+## Amendment — commentLang (2026-11-16)
+
+`SavedContent` gains `commentLang` (`String`, default `'auto'`) — same
+treatment as `readLang`: optional in `index.json`, `copyWith`, equality.
+`ContentStore.setReadLanguage` accepts it alongside `readLang`/`roleLangs`.
+
+Resolution: `resolveSpeeches(commentLang:)` → `_withComments` resolves each
+comment speech as `resolveReadLanguage(detected: comment.language,
+main: commentLang)` — comment override → per-comment detection. The
+content's `readLang` does NOT apply to comments (they are deliberately the
+"other" language; 015's per-comment detection stays the auto answer).

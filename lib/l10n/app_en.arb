@@ -174,6 +174,8 @@
   "readLanguageDetected": "Detected: {language}",
   "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageRoleLabel": "Language",
+  "readLanguageMainLabel": "Main text",
+  "readLanguageCommentLabel": "Comments",
   "assignmentOpenButton": "Assign sentences",
   "assignmentNothingAssigned": "No sentences assigned",
   "assignmentSentenceCount": "{count, plural, =0 {No sentences} =1 {1 sentence} other {{count} sentences}}",

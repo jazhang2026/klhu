@@ -833,6 +833,18 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get readLanguageRoleLabel;
 
+  /// No description provided for @readLanguageMainLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Main text'**
+  String get readLanguageMainLabel;
+
+  /// No description provided for @readLanguageCommentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Comments'**
+  String get readLanguageCommentLabel;
+
   /// No description provided for @assignmentOpenButton.
   ///
   /// In en, this message translates to:

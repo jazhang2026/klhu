@@ -64,10 +64,12 @@ void main() {
         charCount: 3,
         readLang: 'es',
         roleLangs: const {'阿明': 'en'},
+        commentLang: 'zh-Hans',
       );
       final back = SavedContent.fromJson(entry.toJson());
       expect(back.readLang, 'es');
       expect(back.roleLangs, {'阿明': 'en'});
+      expect(back.commentLang, 'zh-Hans');
       expect(back, entry);
     });
 
@@ -82,10 +84,12 @@ void main() {
         charCount: 3,
       ).toJson()
         ..remove('readLang')
-        ..remove('roleLangs');
+        ..remove('roleLangs')
+        ..remove('commentLang');
       final back = SavedContent.fromJson(json);
       expect(back.readLang, 'auto');
       expect(back.roleLangs, isEmpty);
+      expect(back.commentLang, 'auto');
     });
   });
 
@@ -109,9 +113,11 @@ void main() {
         entry,
         readLang: 'es',
         roleLangs: const {'阿明': 'zh-Hans'},
+        commentLang: 'en',
       );
       expect(updated.readLang, 'es');
       expect(updated.roleLangs, {'阿明': 'zh-Hans'});
+      expect(updated.commentLang, 'en');
       // updatedAt untouched: a settings change is not content activity.
       expect(updated.updatedAt, entry.updatedAt);
 
@@ -119,6 +125,7 @@ void main() {
       final found = reloaded.firstWhere((e) => e.id == entry.id);
       expect(found.readLang, 'es');
       expect(found.roleLangs, {'阿明': 'zh-Hans'});
+      expect(found.commentLang, 'en');
     });
 
     test('refuses presets', () async {
@@ -174,6 +181,34 @@ void main() {
         loadInstalled: () async => const [],
       );
       expect(speeches.every((s) => s.language == 'es'), isTrue);
+    });
+
+    // 034 amendment FR-015: the comment setting is its own — 'auto' keeps
+    // each comment's detection, an explicit pick applies to all of them,
+    // and the main readLang never reaches a comment.
+    test('commentLang auto keeps each comment\'s own detection', () async {
+      const content = 'Hello there.\n\n[注] How are you?\n\n[注] Como estas?';
+      final speeches = await resolveSpeeches(
+        content: content,
+        readLang: 'es', // the main pick must NOT reach comments
+        loadVoice: noVoice,
+      );
+      final comments = speeches.where((s) => s.isComment).toList();
+      expect(comments.length, 2);
+      expect(comments[0].language, 'en');
+      expect(comments[1].language, 'es');
+    });
+
+    test('commentLang explicit pins every comment', () async {
+      const content = 'Hello there.\n\n[注] How are you?\n\n[注] Como estas?';
+      final speeches = await resolveSpeeches(
+        content: content,
+        commentLang: 'zh-Hans',
+        loadVoice: noVoice,
+      );
+      final comments = speeches.where((s) => s.isComment).toList();
+      expect(comments.length, 2);
+      expect(comments.every((s) => s.language == 'zh-Hans'), isTrue);
     });
   });
 }

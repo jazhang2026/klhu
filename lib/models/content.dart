@@ -43,6 +43,11 @@ class SavedContent {
   /// Per-role read language overrides for dialogue contents: role name →
   /// `'auto'` or a supported language. Absent role = auto (spec 034 FR-003).
   final Map<String, String> roleLangs;
+
+  /// Comment read language (spec 034 amendment FR-015): `'auto'` keeps each
+  /// comment's own detection; an explicit pick applies to every comment.
+  /// The main [readLang] does not apply to comments.
+  final String commentLang;
   final ContentOrigin origin;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -55,6 +60,7 @@ class SavedContent {
     required this.language,
     this.readLang = 'auto',
     this.roleLangs = const {},
+    this.commentLang = 'auto',
     required this.origin,
     required this.createdAt,
     required this.updatedAt,
@@ -69,6 +75,7 @@ class SavedContent {
     String? language,
     String? readLang,
     Map<String, String>? roleLangs,
+    String? commentLang,
     ContentOrigin? origin,
     DateTime? updatedAt,
     int? charCount,
@@ -80,6 +87,7 @@ class SavedContent {
         language: language ?? this.language,
         readLang: readLang ?? this.readLang,
         roleLangs: roleLangs ?? this.roleLangs,
+        commentLang: commentLang ?? this.commentLang,
         origin: origin ?? this.origin,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -93,6 +101,7 @@ class SavedContent {
         'language': language,
         'readLang': readLang,
         'roleLangs': roleLangs,
+        'commentLang': commentLang,
         'origin': origin.name,
         'createdAt': createdAt.toUtc().toIso8601String(),
         'updatedAt': updatedAt.toUtc().toIso8601String(),
@@ -129,6 +138,7 @@ class SavedContent {
       throw const FormatException('updatedAt before createdAt');
     }
     final readLang = json['readLang'];
+    final commentLang = json['commentLang'];
     final roleLangsRaw = json['roleLangs'];
     final roleLangs = <String, String>{};
     if (roleLangsRaw is Map) {
@@ -144,6 +154,9 @@ class SavedContent {
       language: language,
       readLang: readLang is String && readLang.isNotEmpty ? readLang : 'auto',
       roleLangs: roleLangs,
+      commentLang: commentLang is String && commentLang.isNotEmpty
+          ? commentLang
+          : 'auto',
       origin: ContentOrigin.values.firstWhere((o) => o.name == origin),
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -160,6 +173,7 @@ class SavedContent {
       other.language == language &&
       other.readLang == readLang &&
       _mapEquals(other.roleLangs, roleLangs) &&
+      other.commentLang == commentLang &&
       other.origin == origin &&
       other.createdAt == createdAt &&
       other.updatedAt == updatedAt &&
@@ -167,7 +181,7 @@ class SavedContent {
 
   @override
   int get hashCode => Object.hash(
-      id, name, language, readLang, origin, createdAt, updatedAt, charCount);
+      id, name, language, readLang, commentLang, origin, createdAt, updatedAt, charCount);
 
   @override
   String toString() =>

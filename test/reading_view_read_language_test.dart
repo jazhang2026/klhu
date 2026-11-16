@@ -117,18 +117,24 @@ void main() {
   }
 
   group('reading-language section (US1)', () {
-    testWidgets('shows Auto plus the three languages and the detected label',
-        (tester) async {
+    testWidgets('shows Main text and Comments dropdowns; Auto carries the '
+        'detected language', (tester) async {
       final store = await userStore(tester, 'Hello there. This is a plain English text.');
       await pumpPage(tester, store: store);
       await openTextType(tester);
 
       expect(find.text('Reading language'), findsOneWidget);
-      expect(find.text('Auto'), findsOneWidget);
-      expect(find.text('English'), findsOneWidget);
-      expect(find.text('中文'), findsOneWidget);
-      expect(find.text('Español'), findsOneWidget);
-      expect(find.textContaining('Detected:'), findsOneWidget);
+      expect(find.text('Main text'), findsOneWidget);
+      expect(find.text('Comments'), findsOneWidget);
+      expect(find.byType(DropdownButton<String>), findsNWidgets(2));
+
+      // Open the main dropdown: Auto shows what it detected, inline.
+      await tester.tap(find.byType(DropdownButton<String>).first);
+      await settle(tester);
+      expect(find.textContaining('Auto — Detected:'), findsWidgets);
+      expect(find.text('English'), findsWidgets);
+      expect(find.text('中文'), findsWidgets);
+      expect(find.text('Español'), findsWidgets);
     });
 
     testWidgets('picking Español persists and reopens selected',
@@ -137,19 +143,36 @@ void main() {
       await pumpPage(tester, store: store);
       await openTextType(tester);
 
-      await tester.tap(find.text('Español'));
+      await tester.tap(find.byType(DropdownButton<String>).first);
+      await settle(tester);
+      await tester.tap(find.text('Español').last);
       await settle(tester);
 
       final entries = (await tester.runAsync(() => store.list()))!;
       expect(entries.single.readLang, 'es');
 
-      // Reopen: the chip reads selected.
+      // Reopen: the dropdown's value is the pick.
       await tester.tap(find.text('Done'));
       await settle(tester);
       await openTextType(tester);
-      final chip = tester.widget<ChoiceChip>(
-          find.widgetWithText(ChoiceChip, 'Español'));
-      expect(chip.selected, isTrue);
+      final dropdown = tester.widget<DropdownButton<String>>(
+          find.byType(DropdownButton<String>).first);
+      expect(dropdown.value, 'es');
+    });
+
+    testWidgets('the Comments dropdown persists commentLang',
+        (tester) async {
+      final store = await userStore(tester, 'Hello there. [注] How are you?');
+      await pumpPage(tester, store: store);
+      await openTextType(tester);
+
+      await tester.tap(find.byType(DropdownButton<String>).last);
+      await settle(tester);
+      await tester.tap(find.text('Español').last);
+      await settle(tester);
+
+      final entries = (await tester.runAsync(() => store.list()))!;
+      expect(entries.single.commentLang, 'es');
     });
 
     testWidgets('a preset shows no reading-language section', (tester) async {

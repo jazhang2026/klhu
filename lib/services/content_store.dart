@@ -364,12 +364,14 @@ class ContentStore {
   }
 
   /// Persists read-language settings (spec 034) without touching the text
-  /// file: [readLang] for the main text and [roleLangs] for dialogue roles.
+  /// file: [readLang] for the main text, [commentLang] for comments and
+  /// [roleLangs] for dialogue roles.
   /// Presets are refused — their language is fixed (spec Assumptions).
   Future<SavedContent> setReadLanguage(
     SavedContent entry, {
     String? readLang,
     Map<String, String>? roleLangs,
+    String? commentLang,
   }) async {
     if (entry.isPreset) {
       throw ArgumentError.value(
@@ -381,6 +383,7 @@ class ContentStore {
     final updated = entry.copyWith(
       readLang: readLang ?? entry.readLang,
       roleLangs: roleLangs ?? entry.roleLangs,
+      commentLang: commentLang ?? entry.commentLang,
     );
     await _commit(index.copyWith(
       entries: _sorted(

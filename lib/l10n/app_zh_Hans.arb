@@ -131,6 +131,8 @@
   "readLanguageDetected": "检测到：{language}",
   "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageRoleLabel": "语言",
+  "readLanguageMainLabel": "正文",
+  "readLanguageCommentLabel": "注释",
   "assignmentOpenButton": "分配句子",
   "assignmentNothingAssigned": "未分配句子",
   "assignmentSentenceCount": "{count, plural, =1 {1 句} other {{count} 句}}",

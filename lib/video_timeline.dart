@@ -131,6 +131,7 @@ Future<List<VideoSentence>> videoSentencesFrom({
   // resolveSpeeches so the video's voices match what a read would speak.
   String readLang = autoLanguage,
   Map<String, String> roleLangs = const {},
+  String commentLang = autoLanguage,
   Future<List<VoiceEntry>> Function()? loadInstalled,
 }) async {
   final from = resolveSentence(content, position).start;
@@ -144,6 +145,7 @@ Future<List<VideoSentence>> videoSentencesFrom({
     commentsRead: commentsRead,
     readLang: readLang,
     roleLangs: roleLangs,
+    commentLang: commentLang,
     loadVoice: loadVoice,
     loadInstalled: loadInstalled,
   );

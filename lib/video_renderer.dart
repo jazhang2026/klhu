@@ -234,6 +234,7 @@ class VideoRenderer {
     bool commentsRead = true,
     String readLang = autoLanguage,
     Map<String, String> roleLangs = const {},
+    String commentLang = autoLanguage,
     Future<List<VoiceEntry>> Function()? loadInstalled,
     void Function(VideoRenderProgress)? onProgress,
     void Function(VideoFrame)? onFrame,
@@ -254,6 +255,7 @@ class VideoRenderer {
       commentsRead: commentsRead,
       readLang: readLang,
       roleLangs: roleLangs,
+      commentLang: commentLang,
       loadInstalled: loadInstalled,
     );
     if (sentences.isEmpty) {

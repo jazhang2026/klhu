@@ -134,3 +134,23 @@ with rule-table fallback — accent-less Spanish stops reading as English.
 
 MVP = US1 alone (content default fixes the reported bug). US2 adds role
 overrides on the same seam — small incremental diff. Polish last.
+
+## Phase 6: Amendment — dropdown UI + comment language (2026-11-16)
+
+- [X] T024 [P] Add `commentLang` (`String`, default `'auto'`) to
+  `SavedContent` (fields, json, copyWith, equality) and a `commentLang`
+  param on `ContentStore.setReadLanguage`; round-trip + legacy → auto
+- [X] T025 Thread `commentLang` through `resolveSpeeches` → `_withComments`
+  (resolve via `resolveReadLanguage(detected: comment.language,
+  main: commentLang)`), `videoSentencesFrom`, `VideoRenderer.render`, and
+  all `reading_view.dart` call sites
+- [X] T026 [P] l10n keys `readLanguageMainLabel`, `readLanguageCommentLabel`
+  ×4 locales; `flutter gen-l10n`
+- [X] T027 Replace `_languageChips` with `_languageDropdown`: 标准 shows
+  Main text + Comments rows; 多人对话 shows Main text + per-role dropdowns;
+  Auto item reads "Auto — Detected: {language}" inline (FR-012/013/014)
+- [X] T028 `_setCommentLang` persists via `setReadLanguage(commentLang:)`
+- [X] T029 Tests: resolver comment override (explicit pins all comments,
+  auto keeps per-comment detection); store round-trip; widget tests updated
+  for dropdown UI (open dropdown → pick → persists → reopens selected)
+- [X] T030 `flutter analyze --no-pub` clean; `flutter test --concurrency=2` green

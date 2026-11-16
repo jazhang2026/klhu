@@ -131,6 +131,8 @@
   "readLanguageDetected": "Detectado: {language}",
   "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageRoleLabel": "Idioma",
+  "readLanguageMainLabel": "Texto principal",
+  "readLanguageCommentLabel": "Comentarios",
   "assignmentOpenButton": "Asignar oraciones",
   "assignmentNothingAssigned": "Sin oraciones asignadas",
   "assignmentSentenceCount": "{count, plural, =1 {1 oración} other {{count} oraciones}}",

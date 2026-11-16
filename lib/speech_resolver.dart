@@ -62,6 +62,9 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
   // keeps today's detection-only behavior.
   String readLang = autoLanguage,
   Map<String, String> roleLangs = const {},
+  // 034 amendment: the content's comment read language. 'auto' keeps each
+  // comment's own detection; an explicit pick applies to all of them.
+  String commentLang = autoLanguage,
   required Future<VoiceChoice?> Function(String language) loadVoice,
   Future<List<VoiceEntry>> Function()? loadInstalled,
 }) async {
@@ -87,7 +90,8 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
     final speeches = await _paragraphSpeeches(
         content, start, to, loadVoice, comments, display,
         main: readLang);
-    return _withComments(speeches, spoken, content, start, to, loadVoice, display);
+    return _withComments(speeches, spoken, content, start, to, loadVoice,
+        display, commentLang: commentLang);
   }
 
   // 024: the turns are cut from the masked text, so a scene tag's line is no
@@ -100,7 +104,8 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
   final turnSpeeches = await _turnSpeeches(turns, picks, loadVoice,
       loadInstalled, content, display,
       main: readLang, roleLangs: roleLangs);
-  return _withComments(turnSpeeches, spoken, content, start, to, loadVoice, display);
+  return _withComments(turnSpeeches, spoken, content, start, to, loadVoice,
+      display, commentLang: commentLang);
 }
 
 /// 标准's own read: today's per-paragraph resolution (`lib/language.dart:110`)
@@ -219,8 +224,9 @@ Future<List<ParagraphSpeech>> _withComments(
   int start,
   int end,
   Future<VoiceChoice?> Function(String language) loadVoice,
-  CommentDisplay? display,
-) async {
+  CommentDisplay? display, {
+  String commentLang = autoLanguage,
+}) async {
   if (spoken.isEmpty) return speeches;
   final pending = <({int tagStart, ParagraphSpeech speech})>[];
   for (final comment in spoken) {
@@ -228,13 +234,17 @@ Future<List<ParagraphSpeech>> _withComments(
     final from = start > comment.contentStart ? start : comment.contentStart;
     final to = end < comment.contentEnd ? end : comment.contentEnd;
     if (from >= to) continue;
+    // 034 amendment FR-015: the content's comment setting wins; 'auto'
+    // keeps the comment's own detection (`comment.language`).
+    final language = resolveReadLanguage(
+        detected: comment.language, main: commentLang);
     pending.add((
       tagStart: comment.tag.start,
       speech: ParagraphSpeech(
         text: _words(display, content, from, to),
-        language: comment.language,
+        language: language,
         display: display,
-        voice: await loadVoice(comment.language),
+        voice: await loadVoice(language),
         start: from,
         end: to,
         isComment: true,

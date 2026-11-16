@@ -200,3 +200,21 @@ fall back to the rule table's answer.
 - Preset contents (shipped samples) are read-only for settings — overrides
   apply to saved/imported contents; presets keep detection (their language
   is known anyway).
+
+## Amendment — 2026-11-16 (post-merge UI revision)
+
+Reader feedback on the merged dialog: the language picks should be
+dropdowns, not chips; "Auto" should show what it detected on the same
+row; and 标准 needs a comment language alongside the main one, while
+多人对话 lists a language per role.
+
+- **FR-012**: Each language pick MUST be a dropdown (main text, comments,
+  each dialogue role) — the chip row is replaced.
+- **FR-013**: The Auto option MUST display its detected language inline
+  (e.g. "Auto — Detected: Español") on the same row.
+- **FR-014**: 标准's Reading language section MUST offer Main text and
+  Comments selectors; 多人对话 keeps Main text and offers one language
+  dropdown per role. Comments in dialogue keep per-comment detection.
+- **FR-015**: The comment setting MUST persist on the content
+  (`commentLang`, default `'auto'`); `'auto'` keeps today's per-comment
+  detection, an explicit pick applies to every spoken comment.

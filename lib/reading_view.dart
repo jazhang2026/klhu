@@ -1595,6 +1595,7 @@ class _ReadingViewState extends State<ReadingView> {
           // everywhere keeps detection-only behavior.
           readLang: _loaded?.readLang ?? autoLanguage,
           roleLangs: _loaded?.roleLangs ?? const {},
+          commentLang: _loaded?.commentLang ?? autoLanguage,
           loadVoice: widget.voiceStore.loadVoice,
           // Only 多人对话 asks for the device's voices, and only because a role with
           // no pick falls back to an assignment over them (FR-014). 標準's path is
@@ -1646,6 +1647,7 @@ class _ReadingViewState extends State<ReadingView> {
       commentsRead: _roles.commentsRead,
       readLang: _loaded?.readLang ?? autoLanguage,
       roleLangs: _loaded?.roleLangs ?? const {},
+      commentLang: _loaded?.commentLang ?? autoLanguage,
       loadVoice: widget.voiceStore.loadVoice,
       // Only 多人对话 asks for the device's voices, and only because a role with
       // no pick falls back to an assignment over them (FR-014). 标准's path is
@@ -2208,22 +2210,27 @@ class _ReadingViewState extends State<ReadingView> {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 8),
-                  _languageChips(
+                  _languageRow(
+                    label: l10n?.readLanguageMainLabel ?? 'Main text',
                     selected: _loaded!.readLang,
+                    detected: detectLanguage(_content),
                     onPick: (option) async {
                       await _setReadLang(option);
                       setDialog(() {});
                     },
                   ),
-                  if (_loaded!.readLang == autoLanguage)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        l10n?.readLanguageDetected(languageLabelOf(
-                                l10n, detectLanguage(_content))) ??
-                            'Detected: ${detectLanguage(_content)}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                  // 034 amendment FR-014: 标准 also gets the comments' own
+                  // language; 多人对话's per-role picks live on the role
+                  // tiles below, and its comments keep detection.
+                  if (!_roles.isDialogue)
+                    _languageRow(
+                      label: l10n?.readLanguageCommentLabel ?? 'Comments',
+                      selected: _loaded!.commentLang,
+                      detected: _firstCommentLanguage(),
+                      onPick: (option) async {
+                        await _setCommentLang(option);
+                        setDialog(() {});
+                      },
                     ),
                 ],
                 if (_roles.isDialogue) ...[
@@ -2264,14 +2271,32 @@ class _ReadingViewState extends State<ReadingView> {
                             // content's — Auto keeps the resolution chain.
                             if (_loaded != null && !_loaded!.isPreset) ...[
                               const SizedBox(height: 4),
-                              _languageChips(
-                                compact: true,
-                                selected: _loaded!.roleLangs[role.name] ??
-                                    autoLanguage,
-                                onPick: (option) async {
-                                  await _setRoleLang(role.name, option);
-                                  setDialog(() {});
-                                },
+                              Row(
+                                children: [
+                                  Text(
+                                    l10n?.readLanguageRoleLabel ??
+                                        'Language',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _languageDropdown(
+                                      compact: true,
+                                      selected: _loaded!.roleLangs[role.name] ??
+                                          autoLanguage,
+                                      detected: role.turns.isEmpty
+                                          ? null
+                                          : detectLanguage(
+                                              role.turns.first.text),
+                                      onPick: (option) async {
+                                        await _setRoleLang(role.name, option);
+                                        setDialog(() {});
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],
@@ -2304,32 +2329,70 @@ class _ReadingViewState extends State<ReadingView> {
     );
   }
 
-  /// The Auto + three-language chip row the Text type dialog offers (034):
-  /// [selected] is the stored setting value, [onPick] persists a new one.
-  Widget _languageChips({
+  /// One labelled language row of the Text type dialog (034 amendment):
+  /// the unit's name on the left, its dropdown on the right.
+  Widget _languageRow({
+    required String label,
     required String selected,
+    required String? detected,
+    required Future<void> Function(String option) onPick,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          _languageDropdown(
+              selected: selected, detected: detected, onPick: onPick),
+        ],
+      ),
+    );
+  }
+
+  /// The detected language of the first spoken comment — the Comments
+  /// dropdown's Auto preview (034 amendment FR-013). Null when the content
+  /// has no spoken comment.
+  String? _firstCommentLanguage() {
+    for (final comment in _commentDisplay.comments) {
+      if (comment.hasContent && comment.hasOwner) return comment.language;
+    }
+    return null;
+  }
+
+  /// One language dropdown (034 amendment FR-012/013): Auto's own label
+  /// carries the detected language inline — "Auto — Detected: Español" —
+  /// so the row shows what 'auto' would do before the reader picks.
+  Widget _languageDropdown({
+    required String selected,
+    required String? detected,
     required Future<void> Function(String option) onPick,
     bool compact = false,
   }) {
     final l10n = AppLocalizations.of(context);
-    return Wrap(
-      spacing: 8,
-      runSpacing: 4,
-      children: [
+    String labelFor(String option) {
+      if (option != autoLanguage) return languageLabelOf(l10n, option);
+      final d = detected;
+      final auto = l10n?.readLanguageAuto ?? 'Auto';
+      if (d == null) return auto;
+      return '$auto — '
+          '${l10n?.readLanguageDetected(languageLabelOf(l10n, d)) ?? 'Detected: $d'}';
+    }
+
+    return DropdownButton<String>(
+      value: selected,
+      isDense: true,
+      isExpanded: compact,
+      padding: EdgeInsets.zero,
+      style: compact
+          ? Theme.of(context).textTheme.bodySmall
+          : Theme.of(context).textTheme.bodyMedium,
+      items: [
         for (final option in const [autoLanguage, ...supportedReadLanguages])
-          ChoiceChip(
-            label: Text(option == autoLanguage
-                ? l10n?.readLanguageAuto ?? 'Auto'
-                : languageLabelOf(l10n, option)),
-            selected: selected == option,
-            visualDensity:
-                compact ? VisualDensity.compact : VisualDensity.standard,
-            materialTapTargetSize: compact
-                ? MaterialTapTargetSize.shrinkWrap
-                : MaterialTapTargetSize.padded,
-            onSelected: (_) => onPick(option),
-          ),
+          DropdownMenuItem(value: option, child: Text(labelFor(option))),
       ],
+      onChanged: (option) {
+        if (option != null) onPick(option);
+      },
     );
   }
 
@@ -2339,6 +2402,16 @@ class _ReadingViewState extends State<ReadingView> {
     final entry = _loaded;
     if (entry == null || entry.isPreset) return;
     final updated = await _store.setReadLanguage(entry, readLang: option);
+    if (!mounted) return;
+    setState(() => _loaded = updated);
+  }
+
+  /// Persists the content's comment read language (034 amendment FR-015):
+  /// 'auto' keeps each comment's own detection.
+  Future<void> _setCommentLang(String option) async {
+    final entry = _loaded;
+    if (entry == null || entry.isPreset) return;
+    final updated = await _store.setReadLanguage(entry, commentLang: option);
     if (!mounted) return;
     setState(() => _loaded = updated);
   }
@@ -3003,6 +3076,7 @@ class _ReadingViewState extends State<ReadingView> {
     commentsRead: _roles.commentsRead,
     readLang: _loaded?.readLang ?? autoLanguage,
     roleLangs: _loaded?.roleLangs ?? const {},
+    commentLang: _loaded?.commentLang ?? autoLanguage,
   );
 
   /// What no longer fits, **before** the render begins (020 FR-014): the reader
@@ -3285,6 +3359,7 @@ class _ReadingViewState extends State<ReadingView> {
         commentsRead: _roles.commentsRead,
         readLang: _loaded?.readLang ?? autoLanguage,
         roleLangs: _loaded?.roleLangs ?? const {},
+        commentLang: _loaded?.commentLang ?? autoLanguage,
         loadInstalled: _installedVoices,
         onProgress: (progress) => _reportRenderProgress(gen, progress),
         onFrame: (frame) {
