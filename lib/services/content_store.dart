@@ -363,6 +363,32 @@ class ContentStore {
     }
   }
 
+  /// Persists read-language settings (spec 034) without touching the text
+  /// file: [readLang] for the main text and [roleLangs] for dialogue roles.
+  /// Presets are refused — their language is fixed (spec Assumptions).
+  Future<SavedContent> setReadLanguage(
+    SavedContent entry, {
+    String? readLang,
+    Map<String, String>? roleLangs,
+  }) async {
+    if (entry.isPreset) {
+      throw ArgumentError.value(
+          entry, 'entry', 'read-language settings apply to user content');
+    }
+    final index = await _loadIndex();
+    // updatedAt is deliberately untouched: a settings change is not content
+    // activity and must not reorder the list.
+    final updated = entry.copyWith(
+      readLang: readLang ?? entry.readLang,
+      roleLangs: roleLangs ?? entry.roleLangs,
+    );
+    await _commit(index.copyWith(
+      entries: _sorted(
+          [...index.entries.where((e) => e.id != entry.id), updated]),
+    ));
+    return updated;
+  }
+
   /// Remembers which entry to open next launch (research D9).
   Future<void> markOpened(String id) async {
     final index = await _loadIndex();

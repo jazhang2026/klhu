@@ -33,6 +33,7 @@ import 'package:klhu/platform/ocr_engine.dart';
 import 'package:klhu/platform/picture_picker.dart';
 import 'package:klhu/platform/video_encoder.dart';
 import 'package:klhu/platform/video_player.dart';
+import 'package:klhu/read_language.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/role_store.dart';
 import 'package:klhu/scene_tag.dart';
@@ -1590,6 +1591,10 @@ class _ReadingViewState extends State<ReadingView> {
           picks: _roles.voices,
           // 015: this content's own answer, in both text types.
           commentsRead: _roles.commentsRead,
+          // 034: this content's persisted read-language settings; 'auto'
+          // everywhere keeps detection-only behavior.
+          readLang: _loaded?.readLang ?? autoLanguage,
+          roleLangs: _loaded?.roleLangs ?? const {},
           loadVoice: widget.voiceStore.loadVoice,
           // Only 多人对话 asks for the device's voices, and only because a role with
           // no pick falls back to an assignment over them (FR-014). 標準's path is
@@ -1639,6 +1644,8 @@ class _ReadingViewState extends State<ReadingView> {
       picks: _roles.voices,
       // 015: this content's own answer, in both text types.
       commentsRead: _roles.commentsRead,
+      readLang: _loaded?.readLang ?? autoLanguage,
+      roleLangs: _loaded?.roleLangs ?? const {},
       loadVoice: widget.voiceStore.loadVoice,
       // Only 多人对话 asks for the device's voices, and only because a role with
       // no pick falls back to an assignment over them (FR-014). 标准's path is
@@ -2129,6 +2136,8 @@ class _ReadingViewState extends State<ReadingView> {
     var voices = await resolveRoleVoices(
       turns: turns,
       picks: _roles.voices,
+      readLang: _loaded?.readLang ?? autoLanguage,
+      roleLangs: _loaded?.roleLangs ?? const {},
       loadVoice: widget.voiceStore.loadVoice,
       loadInstalled: _installedVoices,
     );
@@ -2145,6 +2154,8 @@ class _ReadingViewState extends State<ReadingView> {
             voices = await resolveRoleVoices(
               turns: turns,
               picks: _roles.voices,
+              readLang: _loaded?.readLang ?? autoLanguage,
+              roleLangs: _loaded?.roleLangs ?? const {},
               loadVoice: widget.voiceStore.loadVoice,
               loadInstalled: _installedVoices,
             );
@@ -2187,6 +2198,34 @@ class _ReadingViewState extends State<ReadingView> {
                     setDialog(() {});
                   },
                 ),
+                // 034: the content's read language, editable here and applied
+                // from the next read. Pre-sets and the catalog fallback have
+                // no entry to persist to, so the section is hidden for them.
+                if (_loaded != null && !_loaded!.isPreset) ...[
+                  const Divider(height: 24),
+                  Text(
+                    l10n?.readLanguageTitle ?? 'Reading language',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  _languageChips(
+                    selected: _loaded!.readLang,
+                    onPick: (option) async {
+                      await _setReadLang(option);
+                      setDialog(() {});
+                    },
+                  ),
+                  if (_loaded!.readLang == autoLanguage)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        l10n?.readLanguageDetected(languageLabelOf(
+                                l10n, detectLanguage(_content))) ??
+                            'Detected: ${detectLanguage(_content)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                ],
                 if (_roles.isDialogue) ...[
                   const Divider(height: 24),
                   Text(
@@ -2215,8 +2254,27 @@ class _ReadingViewState extends State<ReadingView> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(role.name),
-                        subtitle: Text(
-                          _roleSubtitle(role, voices[role.name], l10n),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _roleSubtitle(role, voices[role.name], l10n),
+                            ),
+                            // 034 FR-006: a role's own language, over the
+                            // content's — Auto keeps the resolution chain.
+                            if (_loaded != null && !_loaded!.isPreset) ...[
+                              const SizedBox(height: 4),
+                              _languageChips(
+                                compact: true,
+                                selected: _loaded!.roleLangs[role.name] ??
+                                    autoLanguage,
+                                onPick: (option) async {
+                                  await _setRoleLang(role.name, option);
+                                  setDialog(() {});
+                                },
+                              ),
+                            ],
+                          ],
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.person_remove_outlined),
@@ -2246,6 +2304,61 @@ class _ReadingViewState extends State<ReadingView> {
     );
   }
 
+  /// The Auto + three-language chip row the Text type dialog offers (034):
+  /// [selected] is the stored setting value, [onPick] persists a new one.
+  Widget _languageChips({
+    required String selected,
+    required Future<void> Function(String option) onPick,
+    bool compact = false,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        for (final option in const [autoLanguage, ...supportedReadLanguages])
+          ChoiceChip(
+            label: Text(option == autoLanguage
+                ? l10n?.readLanguageAuto ?? 'Auto'
+                : languageLabelOf(l10n, option)),
+            selected: selected == option,
+            visualDensity:
+                compact ? VisualDensity.compact : VisualDensity.standard,
+            materialTapTargetSize: compact
+                ? MaterialTapTargetSize.shrinkWrap
+                : MaterialTapTargetSize.padded,
+            onSelected: (_) => onPick(option),
+          ),
+      ],
+    );
+  }
+
+  /// Persists the content's read language (034): 'auto' is a real stored
+  /// value — detection stays the default and every old record reads as it.
+  Future<void> _setReadLang(String option) async {
+    final entry = _loaded;
+    if (entry == null || entry.isPreset) return;
+    final updated = await _store.setReadLanguage(entry, readLang: option);
+    if (!mounted) return;
+    setState(() => _loaded = updated);
+  }
+
+  /// Persists one dialogue role's language override (034 FR-006): 'auto'
+  /// removes the entry so the role falls back to the content's setting.
+  Future<void> _setRoleLang(String role, String option) async {
+    final entry = _loaded;
+    if (entry == null || entry.isPreset) return;
+    final langs = {...entry.roleLangs};
+    if (option == autoLanguage) {
+      langs.remove(role);
+    } else {
+      langs[role] = option;
+    }
+    final updated = await _store.setReadLanguage(entry, roleLangs: langs);
+    if (!mounted) return;
+    setState(() => _loaded = updated);
+  }
+
   /// The shipped picker, opened for one role (D7): titled with the role's name,
   /// offering the *automatic* row, its pick read from and written to the role
   /// store — never the language's (FR-013).
@@ -2264,9 +2377,15 @@ class _ReadingViewState extends State<ReadingView> {
         builder: (_) => VoicePickerScreen(
           reader: widget.reader,
           store: widget.voiceStore,
-          // The picker lists one language's voices: the role's own, and its
-          // segment control is there for a role that reads in another.
-          language: detectLanguage(first.text),
+          // The picker lists one language's voices: the role's own resolved
+          // read language (034: role override → content default → detected),
+          // and its segment control is there for a role that reads in another.
+          language: resolveReadLanguage(
+            detected: detectLanguage(first.text),
+            main: _loaded?.readLang ?? autoLanguage,
+            role: role,
+            roleLangs: _loaded?.roleLangs ?? const {},
+          ),
           title: l10n?.rolePickerTitle(role) ?? role,
           clearable: true,
           initialSelection: _roles.pickFor(role),
@@ -2340,7 +2459,12 @@ class _ReadingViewState extends State<ReadingView> {
         : VoiceMappingService().displayName(
             VoiceEntry(name: voice.name, locale: voice.locale),
             l10n,
-            voiceListLanguage: detectLanguage(role.turns.first.text),
+            voiceListLanguage: resolveReadLanguage(
+              detected: detectLanguage(role.turns.first.text),
+              main: _loaded?.readLang ?? autoLanguage,
+              role: role.name,
+              roleLangs: _loaded?.roleLangs ?? const {},
+            ),
           );
     return '$count · $label';
   }
@@ -2877,6 +3001,8 @@ class _ReadingViewState extends State<ReadingView> {
     removed: _roles.removedFor(_rolesVersion),
     picks: _roles.voices,
     commentsRead: _roles.commentsRead,
+    readLang: _loaded?.readLang ?? autoLanguage,
+    roleLangs: _loaded?.roleLangs ?? const {},
   );
 
   /// What no longer fits, **before** the render begins (020 FR-014): the reader
@@ -3157,6 +3283,8 @@ class _ReadingViewState extends State<ReadingView> {
         // turned off is in no frame's audio, while the block still paints it
         // (FR-013, SC-008).
         commentsRead: _roles.commentsRead,
+        readLang: _loaded?.readLang ?? autoLanguage,
+        roleLangs: _loaded?.roleLangs ?? const {},
         loadInstalled: _installedVoices,
         onProgress: (progress) => _reportRenderProgress(gen, progress),
         onFrame: (frame) {

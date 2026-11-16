@@ -809,6 +809,30 @@ abstract class AppLocalizations {
   /// **'Read the comments'**
   String get commentsReadLabel;
 
+  /// No description provided for @readLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading language'**
+  String get readLanguageTitle;
+
+  /// No description provided for @readLanguageAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get readLanguageAuto;
+
+  /// No description provided for @readLanguageDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected: {language}'**
+  String readLanguageDetected(String language);
+
+  /// No description provided for @readLanguageRoleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get readLanguageRoleLabel;
+
   /// No description provided for @assignmentOpenButton.
   ///
   /// In en, this message translates to:

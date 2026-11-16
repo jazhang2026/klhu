@@ -35,6 +35,14 @@ class SavedContent {
   /// Label language: `en`, `zh-Hans` or `es`. Reading still detects the
   /// language per paragraph (`lib/language.dart`).
   final String language;
+
+  /// Main-text read language: `'auto'` (detect per paragraph) or one of the
+  /// supported read languages. Persisted per content (spec 034 FR-001).
+  final String readLang;
+
+  /// Per-role read language overrides for dialogue contents: role name →
+  /// `'auto'` or a supported language. Absent role = auto (spec 034 FR-003).
+  final Map<String, String> roleLangs;
   final ContentOrigin origin;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -45,6 +53,8 @@ class SavedContent {
     required this.id,
     required this.name,
     required this.language,
+    this.readLang = 'auto',
+    this.roleLangs = const {},
     required this.origin,
     required this.createdAt,
     required this.updatedAt,
@@ -57,6 +67,8 @@ class SavedContent {
   SavedContent copyWith({
     String? name,
     String? language,
+    String? readLang,
+    Map<String, String>? roleLangs,
     ContentOrigin? origin,
     DateTime? updatedAt,
     int? charCount,
@@ -66,6 +78,8 @@ class SavedContent {
         id: id,
         name: name ?? this.name,
         language: language ?? this.language,
+        readLang: readLang ?? this.readLang,
+        roleLangs: roleLangs ?? this.roleLangs,
         origin: origin ?? this.origin,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -77,6 +91,8 @@ class SavedContent {
         'id': id,
         'name': name,
         'language': language,
+        'readLang': readLang,
+        'roleLangs': roleLangs,
         'origin': origin.name,
         'createdAt': createdAt.toUtc().toIso8601String(),
         'updatedAt': updatedAt.toUtc().toIso8601String(),
@@ -112,10 +128,22 @@ class SavedContent {
     if (updatedAt.isBefore(createdAt)) {
       throw const FormatException('updatedAt before createdAt');
     }
+    final readLang = json['readLang'];
+    final roleLangsRaw = json['roleLangs'];
+    final roleLangs = <String, String>{};
+    if (roleLangsRaw is Map) {
+      for (final entry in roleLangsRaw.entries) {
+        if (entry.key is String && entry.value is String) {
+          roleLangs[entry.key as String] = entry.value as String;
+        }
+      }
+    }
     return SavedContent(
       id: id,
       name: name,
       language: language,
+      readLang: readLang is String && readLang.isNotEmpty ? readLang : 'auto',
+      roleLangs: roleLangs,
       origin: ContentOrigin.values.firstWhere((o) => o.name == origin),
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -130,18 +158,28 @@ class SavedContent {
       other.id == id &&
       other.name == name &&
       other.language == language &&
+      other.readLang == readLang &&
+      _mapEquals(other.roleLangs, roleLangs) &&
       other.origin == origin &&
       other.createdAt == createdAt &&
       other.updatedAt == updatedAt &&
       other.charCount == charCount;
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, language, origin, createdAt, updatedAt, charCount);
+  int get hashCode => Object.hash(
+      id, name, language, readLang, origin, createdAt, updatedAt, charCount);
 
   @override
   String toString() =>
       'SavedContent($id, $name, $language, ${origin.name}, $charCount chars)';
+}
+
+bool _mapEquals(Map<String, String> a, Map<String, String> b) {
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (b[entry.key] != entry.value) return false;
+  }
+  return true;
 }
 
 DateTime _parseUtc(Object? raw) {

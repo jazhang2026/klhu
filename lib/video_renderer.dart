@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:klhu/comment.dart';
 import 'package:klhu/picture_assignment.dart';
 import 'package:klhu/platform/video_encoder.dart';
+import 'package:klhu/read_language.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/speech_resolver.dart';
 import 'package:klhu/video_aspect.dart';
@@ -231,6 +232,8 @@ class VideoRenderer {
     Set<String> removed = const {},
     Map<String, VoiceChoice> picks = const {},
     bool commentsRead = true,
+    String readLang = autoLanguage,
+    Map<String, String> roleLangs = const {},
     Future<List<VoiceEntry>> Function()? loadInstalled,
     void Function(VideoRenderProgress)? onProgress,
     void Function(VideoFrame)? onFrame,
@@ -249,6 +252,8 @@ class VideoRenderer {
       removed: removed,
       picks: picks,
       commentsRead: commentsRead,
+      readLang: readLang,
+      roleLangs: roleLangs,
       loadInstalled: loadInstalled,
     );
     if (sentences.isEmpty) {

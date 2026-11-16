@@ -398,6 +398,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commentsReadLabel => '朗读注释';
 
   @override
+  String get readLanguageTitle => '朗讀語言';
+
+  @override
+  String get readLanguageAuto => '自動';
+
+  @override
+  String readLanguageDetected(String language) {
+    return '偵測到：$language';
+  }
+
+  @override
+  String get readLanguageRoleLabel => '語言';
+
+  @override
   String get assignmentOpenButton => '分配句子';
 
   @override
@@ -1106,6 +1120,20 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get commentsReadLabel => '朗读注释';
+
+  @override
+  String get readLanguageTitle => '朗读语言';
+
+  @override
+  String get readLanguageAuto => '自动';
+
+  @override
+  String readLanguageDetected(String language) {
+    return '检测到：$language';
+  }
+
+  @override
+  String get readLanguageRoleLabel => '语言';
 
   @override
   String get assignmentOpenButton => '分配句子';

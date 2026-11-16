@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'comment.dart';
 import 'dialogue.dart';
 import 'language.dart';
+import 'read_language.dart';
 import 'models/voice_mapping.dart';
 import 'reader_service.dart';
 import 'segmenter.dart';
@@ -57,6 +58,10 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
   Set<String> removed = const {},
   Map<String, VoiceChoice> picks = const {},
   bool commentsRead = true,
+  // 034: the content's persisted read-language settings. 'auto' everywhere
+  // keeps today's detection-only behavior.
+  String readLang = autoLanguage,
+  Map<String, String> roleLangs = const {},
   required Future<VoiceChoice?> Function(String language) loadVoice,
   Future<List<VoiceEntry>> Function()? loadInstalled,
 }) async {
@@ -79,8 +84,9 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
       : const <Comment>[];
 
   if (mode == ReadingMode.standard) {
-    final speeches =
-        await _paragraphSpeeches(content, start, to, loadVoice, comments, display);
+    final speeches = await _paragraphSpeeches(
+        content, start, to, loadVoice, comments, display,
+        main: readLang);
     return _withComments(speeches, spoken, content, start, to, loadVoice, display);
   }
 
@@ -91,8 +97,9 @@ Future<List<ParagraphSpeech>> resolveSpeeches({
   // span still points into the text the page paints and the video renders.
   final turns = turnsOf(shown.masked,
       start: start, end: to, removed: removed, comments: comments);
-  final turnSpeeches =
-      await _turnSpeeches(turns, picks, loadVoice, loadInstalled, content, display);
+  final turnSpeeches = await _turnSpeeches(turns, picks, loadVoice,
+      loadInstalled, content, display,
+      main: readLang, roleLangs: roleLangs);
   return _withComments(turnSpeeches, spoken, content, start, to, loadVoice, display);
 }
 
@@ -110,8 +117,9 @@ Future<List<ParagraphSpeech>> _paragraphSpeeches(
   int end,
   Future<VoiceChoice?> Function(String language) loadVoice,
   List<Comment> comments,
-  CommentDisplay? display,
-) async {
+  CommentDisplay? display, {
+  String main = autoLanguage,
+}) async {
   final speeches = <ParagraphSpeech>[];
   for (final para in paragraphRanges(content)) {
     if (para.start >= end || para.end <= start) continue;
@@ -125,8 +133,10 @@ Future<List<ParagraphSpeech>> _paragraphSpeeches(
         _isSpace(content[speakableEnd - 1])) {
       speakableEnd--;
     }
-    final language =
-        detectLanguage(_words(display, content, para.start, speakableEnd));
+    final language = resolveReadLanguage(
+        detected:
+            detectLanguage(_words(display, content, para.start, speakableEnd)),
+        main: main);
     final from = start < para.start ? para.start : start;
     final to = end > speakableEnd ? speakableEnd : end;
     if (from >= to) continue;
@@ -152,15 +162,25 @@ Future<List<ParagraphSpeech>> _turnSpeeches(
   Future<VoiceChoice?> Function(String language) loadVoice,
   Future<List<VoiceEntry>> Function()? loadInstalled,
   String content,
-  CommentDisplay? display,
-) async {
+  CommentDisplay? display, {
+  String main = autoLanguage,
+  Map<String, String> roleLangs = const {},
+}) async {
   if (turns.isEmpty) return const [];
+
+  String languageOf(Turn turn) => resolveReadLanguage(
+      detected: detectLanguage(
+          _words(display, content, turn.contentStart, turn.contentEnd)),
+      main: main,
+      role: turn.role,
+      roleLangs: roleLangs);
 
   final voices = await _assign(
     turns: turns,
     picks: picks,
     loadVoice: loadVoice,
     loadInstalled: loadInstalled,
+    languageOf: languageOf,
   );
 
   // The assignment, printed once per dialogue read (research D10): it is
@@ -173,8 +193,7 @@ Future<List<ParagraphSpeech>> _turnSpeeches(
     for (var i = 0; i < turns.length; i++)
       ParagraphSpeech(
         text: _words(display, content, turns[i].contentStart, turns[i].contentEnd),
-        language: detectLanguage(
-            _words(display, content, turns[i].contentStart, turns[i].contentEnd)),
+        language: languageOf(turns[i]),
         voice: voices[i],
         start: turns[i].contentStart,
         end: turns[i].contentEnd,
@@ -276,12 +295,20 @@ Future<Map<String, VoiceChoice?>> resolveRoleVoices({
   required Map<String, VoiceChoice> picks,
   required Future<VoiceChoice?> Function(String language) loadVoice,
   Future<List<VoiceEntry>> Function()? loadInstalled,
+  String readLang = autoLanguage,
+  Map<String, String> roleLangs = const {},
 }) async {
+  String languageOf(Turn turn) => resolveReadLanguage(
+      detected: detectLanguage(turn.text),
+      main: readLang,
+      role: turn.role,
+      roleLangs: roleLangs);
   final voices = await _assign(
     turns: turns,
     picks: picks,
     loadVoice: loadVoice,
     loadInstalled: loadInstalled,
+    languageOf: languageOf,
   );
   final byRole = <String, VoiceChoice?>{};
   for (var i = 0; i < turns.length; i++) {
@@ -300,8 +327,11 @@ Future<List<VoiceChoice?>> _assign({
   required Map<String, VoiceChoice> picks,
   required Future<VoiceChoice?> Function(String language) loadVoice,
   Future<List<VoiceEntry>> Function()? loadInstalled,
+  String Function(Turn turn)? languageOf,
 }) async {
-  final languages = {for (final turn in turns) detectLanguage(turn.text)};
+  String langOf(Turn turn) =>
+      languageOf?.call(turn) ?? detectLanguage(turn.text);
+  final languages = {for (final turn in turns) langOf(turn)};
   final picksByLanguage = <String, VoiceChoice?>{
     for (final language in languages) language: await loadVoice(language),
   };
