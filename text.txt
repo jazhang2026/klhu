@@ -211,5 +211,10 @@ Requirement:
     - User click Continue Reading button to read the rest of the content. This is not changed.
     - When continue reading finished the last sentence, continue reading from the first sentence of the content.
 
-033. Like to have voice input for kalahoo reading: text editor with voice input and AI prompt.
-    Better quality if possible. Also consider stable, scalable and cost-effective. And future development.
+034. Now Kalahoo try to auto find language of reading text. But many spanish read as english. I think the automatic has limitation.
+    Some inprovement can be:
+
+    Add language properties for content: main: Spanish, comment: English. or role1: Engliah, role2: Chinese
+    Auto set first. User can view and change?
+    Can be set in Text type.
+

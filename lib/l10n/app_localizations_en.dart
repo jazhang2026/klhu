@@ -412,6 +412,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commentsReadLabel => 'Read the comments';
 
   @override
+  String get readLanguageTitle => 'Reading language';
+
+  @override
+  String get readLanguageAuto => 'Auto';
+
+  @override
+  String readLanguageDetected(String language) {
+    return 'Detected: $language';
+  }
+
+  @override
+  String get readLanguageRoleLabel => 'Language';
+
+  @override
   String get assignmentOpenButton => 'Assign sentences';
 
   @override

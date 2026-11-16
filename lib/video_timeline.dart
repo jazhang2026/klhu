@@ -7,6 +7,7 @@
 library;
 
 import 'package:klhu/comment.dart';
+import 'package:klhu/read_language.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
 import 'package:klhu/speech_resolver.dart';
@@ -126,6 +127,10 @@ Future<List<VideoSentence>> videoSentencesFrom({
   Set<String> removed = const {},
   Map<String, VoiceChoice> picks = const {},
   bool commentsRead = true,
+  // 034: the content's read-language settings, passed through to
+  // resolveSpeeches so the video's voices match what a read would speak.
+  String readLang = autoLanguage,
+  Map<String, String> roleLangs = const {},
   Future<List<VoiceEntry>> Function()? loadInstalled,
 }) async {
   final from = resolveSentence(content, position).start;
@@ -137,6 +142,8 @@ Future<List<VideoSentence>> videoSentencesFrom({
     removed: removed,
     picks: picks,
     commentsRead: commentsRead,
+    readLang: readLang,
+    roleLangs: roleLangs,
     loadVoice: loadVoice,
     loadInstalled: loadInstalled,
   );

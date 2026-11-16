@@ -1,3 +1,4 @@
+import 'package:klhu/langid/langid.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/reader_service.dart';
 import 'package:klhu/segmenter.dart';
@@ -24,9 +25,10 @@ String languageLabelOf(AppLocalizations? l10n, String language) {
 /// Per-paragraph language detection for mixed-language reads (002).
 ///
 /// Content rule: one language per paragraph — a language switch must start a
-/// new paragraph. Detection is a rule table so a third language is a new rule
-/// row, not new branches: first matching rule wins, fallback is English.
-typedef _LanguageRule = String? Function(String paragraph);
+/// new paragraph. Detection is the bundled n-gram model (034 US3) with the
+/// rule table as its low-confidence fallback, so a third language is a new
+/// profile or a new rule row, not new branches: first decisive answer wins,
+/// fallback is English.
 
 /// Rule 1: CJK ideograph presence → Simplified Chinese.
 String? _cjkRule(String paragraph) {
@@ -35,8 +37,6 @@ String? _cjkRule(String paragraph) {
   const cjk = '\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff';
   return RegExp('[$cjk]').hasMatch(paragraph) ? 'zh-Hans' : null;
 }
-
-const List<_LanguageRule> _rules = [_cjkRule, _spanishRule];
 
 /// Spanish-only letters: á é í ó ú ü ñ ¿ ¡. English text has none of them, so a
 /// single occurrence is already decisive.
@@ -93,11 +93,18 @@ String? _spanishRule(String paragraph) {
 }
 
 /// Detect the language of one paragraph: `'zh-Hans'`, `'es'` or `'en'`.
+///
+/// Order (034): the CJK rule is decisive and cheap, so it runs first; then
+/// the n-gram model answers when its margin clears [kLangIdThreshold]; a
+/// paragraph the model is unsure about falls to the rule table, whose own
+/// fallback is English.
 String detectLanguage(String paragraph) {
-  for (final rule in _rules) {
-    final hit = rule(paragraph);
-    if (hit != null) return hit;
-  }
+  final cjk = _cjkRule(paragraph);
+  if (cjk != null) return cjk;
+  final model = detectWithModel(paragraph);
+  if (model.confidence >= kLangIdThreshold) return model.language;
+  final spanish = _spanishRule(paragraph);
+  if (spanish != null) return spanish;
   return 'en';
 }
 
