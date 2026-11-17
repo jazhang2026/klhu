@@ -2271,30 +2271,28 @@ class _ReadingViewState extends State<ReadingView> {
                             // content's — Auto keeps the resolution chain.
                             if (_loaded != null && !_loaded!.isPreset) ...[
                               const SizedBox(height: 4),
-                              Row(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     l10n?.readLanguageRoleLabel ??
                                         'Language',
                                     style: Theme.of(context)
                                         .textTheme
-                                        .bodySmall,
+                                        .bodyMedium,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: _languageDropdown(
-                                      compact: true,
-                                      selected: _loaded!.roleLangs[role.name] ??
-                                          autoLanguage,
-                                      detected: role.turns.isEmpty
-                                          ? null
-                                          : detectLanguage(
-                                              role.turns.first.text),
-                                      onPick: (option) async {
-                                        await _setRoleLang(role.name, option);
-                                        setDialog(() {});
-                                      },
-                                    ),
+                                  _languageDropdown(
+                                    fill: true,
+                                    selected: _loaded!.roleLangs[role.name] ??
+                                        autoLanguage,
+                                    detected: role.turns.isEmpty
+                                        ? null
+                                        : detectLanguage(
+                                            role.turns.first.text),
+                                    onPick: (option) async {
+                                      await _setRoleLang(role.name, option);
+                                      setDialog(() {});
+                                    },
                                   ),
                                 ],
                               ),
@@ -2367,6 +2365,7 @@ class _ReadingViewState extends State<ReadingView> {
     required String? detected,
     required Future<void> Function(String option) onPick,
     bool compact = false,
+    bool fill = false,
   }) {
     final l10n = AppLocalizations.of(context);
     String labelFor(String option) {
@@ -2380,8 +2379,8 @@ class _ReadingViewState extends State<ReadingView> {
 
     return DropdownButton<String>(
       value: selected,
-      isDense: true,
-      isExpanded: compact,
+      isDense: compact,
+      isExpanded: compact || fill,
       padding: EdgeInsets.zero,
       style: compact
           ? Theme.of(context).textTheme.bodySmall
