@@ -428,6 +428,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get readLanguageRoleLabel => 'Idioma';
 
   @override
+  String readLanguageAutoDetected(String language) {
+    return 'Automático detectado: $language';
+  }
+
+  @override
   String get readLanguageMainLabel => 'Texto principal';
 
   @override

@@ -412,6 +412,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readLanguageRoleLabel => '語言';
 
   @override
+  String readLanguageAutoDetected(String language) {
+    return '自動偵測：$language';
+  }
+
+  @override
   String get readLanguageMainLabel => '正文';
 
   @override
@@ -1140,6 +1145,11 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get readLanguageRoleLabel => '语言';
+
+  @override
+  String readLanguageAutoDetected(String language) {
+    return '自动检测：$language';
+  }
 
   @override
   String get readLanguageMainLabel => '正文';

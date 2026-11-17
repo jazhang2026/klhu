@@ -131,6 +131,8 @@
   "readLanguageDetected": "Detectado: {language}",
   "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageRoleLabel": "Idioma",
+  "readLanguageAutoDetected": "Automático detectado: {language}",
+  "@readLanguageAutoDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageMainLabel": "Texto principal",
   "readLanguageCommentLabel": "Comentarios",
   "assignmentOpenButton": "Asignar oraciones",

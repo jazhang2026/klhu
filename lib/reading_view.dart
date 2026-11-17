@@ -2260,39 +2260,73 @@ class _ReadingViewState extends State<ReadingView> {
                     for (final role in roles)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text(role.name),
+                        title: Row(
+                          children: [
+                            Flexible(child: Text(role.name)),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n?.roleTurnCount(role.turnCount) ??
+                                  '${role.turnCount} turns',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _roleSubtitle(role, voices[role.name], l10n),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.record_voice_over_outlined,
+                                  size: 18,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(_roleVoiceText(
+                                      role, voices[role.name], l10n)),
+                                ),
+                              ],
                             ),
                             // 034 FR-006: a role's own language, over the
                             // content's — Auto keeps the resolution chain.
+                            // The gap is deliberate: voice row and language
+                            // row are different taps and must not collide.
                             if (_loaded != null && !_loaded!.isPreset) ...[
-                              const SizedBox(height: 4),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 12),
+                              Row(
                                 children: [
-                                  Text(
-                                    l10n?.readLanguageRoleLabel ??
-                                        'Language',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium,
+                                  Icon(
+                                    Icons.language,
+                                    size: 20,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
-                                  _languageDropdown(
-                                    fill: true,
-                                    selected: _loaded!.roleLangs[role.name] ??
-                                        autoLanguage,
-                                    detected: role.turns.isEmpty
-                                        ? null
-                                        : detectLanguage(
-                                            role.turns.first.text),
-                                    onPick: (option) async {
-                                      await _setRoleLang(role.name, option);
-                                      setDialog(() {});
-                                    },
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _languageDropdown(
+                                      fill: true,
+                                      selected: _loaded!.roleLangs[role.name] ??
+                                          autoLanguage,
+                                      detected: role.turns.isEmpty
+                                          ? null
+                                          : detectLanguage(
+                                              role.turns.first.text),
+                                      onPick: (option) async {
+                                        await _setRoleLang(role.name, option);
+                                        setDialog(() {});
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),
@@ -2371,10 +2405,9 @@ class _ReadingViewState extends State<ReadingView> {
     String labelFor(String option) {
       if (option != autoLanguage) return languageLabelOf(l10n, option);
       final d = detected;
-      final auto = l10n?.readLanguageAuto ?? 'Auto';
-      if (d == null) return auto;
-      return '$auto — '
-          '${l10n?.readLanguageDetected(languageLabelOf(l10n, d)) ?? 'Detected: $d'}';
+      if (d == null) return l10n?.readLanguageAuto ?? 'Auto';
+      return l10n?.readLanguageAutoDetected(languageLabelOf(l10n, d)) ??
+          'Auto detected: ${languageLabelOf(l10n, d)}';
     }
 
     return DropdownButton<String>(
@@ -2518,15 +2551,15 @@ class _ReadingViewState extends State<ReadingView> {
     setState(() => _roles = _roles.withRemoval(name, version));
   }
 
-  /// `2 turns · 普通话 CCC` — the turns the text gives the role and the voice it
-  /// reads with, named the way the picker names voices (FR-016). No age is shown
-  /// or modelled anywhere (FR-017).
-  String _roleSubtitle(Role role, VoiceChoice? voice, AppLocalizations? l10n) {
-    final count = l10n?.roleTurnCount(role.turnCount) ?? '${role.turnCount}';
+  /// The voice a role reads with, named the way the picker names voices
+  /// (FR-016) — or 'Automatic' when it has none. The turn count moved to the
+  /// row's title (034 amendment); no age is shown or modelled anywhere
+  /// (FR-017).
+  String _roleVoiceText(Role role, VoiceChoice? voice, AppLocalizations? l10n) {
     if (voice == null) {
-      return '$count · ${l10n?.roleVoiceAutomatic ?? 'Automatic'}';
+      return l10n?.roleVoiceAutomatic ?? 'Automatic';
     }
-    final label = l10n == null
+    return l10n == null
         ? voice.name
         : VoiceMappingService().displayName(
             VoiceEntry(name: voice.name, locale: voice.locale),
@@ -2538,7 +2571,6 @@ class _ReadingViewState extends State<ReadingView> {
               roleLangs: _loaded?.roleLangs ?? const {},
             ),
           );
-    return '$count · $label';
   }
 
   /// Keeps what the review is showing (FR-011/FR-012): the working copy is

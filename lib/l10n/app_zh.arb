@@ -131,6 +131,8 @@
   "readLanguageDetected": "偵測到：{language}",
   "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageRoleLabel": "語言",
+  "readLanguageAutoDetected": "自動偵測：{language}",
+  "@readLanguageAutoDetected": {"placeholders": {"language": {"type": "String"}}},
   "readLanguageMainLabel": "正文",
   "readLanguageCommentLabel": "注釋",
   "assignmentOpenButton": "分配句子",

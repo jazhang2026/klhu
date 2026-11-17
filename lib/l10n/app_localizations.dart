@@ -833,6 +833,12 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get readLanguageRoleLabel;
 
+  /// No description provided for @readLanguageAutoDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto detected: {language}'**
+  String readLanguageAutoDetected(String language);
+
   /// No description provided for @readLanguageMainLabel.
   ///
   /// In en, this message translates to:

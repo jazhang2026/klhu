@@ -131,7 +131,7 @@ void main() {
       // Open the main dropdown: Auto shows what it detected, inline.
       await tester.tap(find.byType(DropdownButton<String>).first);
       await settle(tester);
-      expect(find.textContaining('Auto — Detected:'), findsWidgets);
+      expect(find.textContaining('Auto detected:'), findsWidgets);
       expect(find.text('English'), findsWidgets);
       expect(find.text('中文'), findsWidgets);
       expect(find.text('Español'), findsWidgets);
