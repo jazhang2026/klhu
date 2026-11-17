@@ -356,7 +356,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get roleListEmptyMessage => '还没有角色。以角色标签开头的段落属于该角色。';
 
   @override
-  String get roleListUnsplitMessage => '還沒有角色：角色標籤之間還沒有空行分開。點編輯欄的「排版」補上空行即可。';
+  String get roleListUnsplitMessage => '还没有角色：角色标签之间还没有空行分开。点编辑栏的「排版」补上空行即可。';
 
   @override
   String roleTurnCount(int count) {
@@ -398,29 +398,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commentsReadLabel => '朗读注释';
 
   @override
-  String get readLanguageTitle => '朗讀語言';
+  String get readLanguageTitle => '朗读语言';
 
   @override
-  String get readLanguageAuto => '自動';
+  String get readLanguageAuto => '自动';
 
   @override
   String readLanguageDetected(String language) {
-    return '偵測到：$language';
+    return '检测到：$language';
   }
 
   @override
-  String get readLanguageRoleLabel => '語言';
+  String get readLanguageRoleLabel => '语言';
 
   @override
   String readLanguageAutoDetected(String language) {
-    return '自動偵測：$language';
+    return '自动检测：$language';
   }
 
   @override
   String get readLanguageMainLabel => '正文';
 
   @override
-  String get readLanguageCommentLabel => '注釋';
+  String get readLanguageCommentLabel => '注释';
 
   @override
   String get assignmentOpenButton => '分配句子';
@@ -440,27 +440,27 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get assignmentRemoveSentence => '解除這句話的分配';
+  String get assignmentRemoveSentence => '解除这句话的分配';
 
   @override
-  String get assignmentRefusedNotContinuous => '只能加入與這張圖已有句子相鄰的句子。';
+  String get assignmentRefusedNotContinuous => '只能添加与这张图已有的句子相邻的句子。';
 
   @override
-  String get assignmentRefusedNotInOrder => '這句話排在前一張圖已有句子的前面。';
+  String get assignmentRefusedNotInOrder => '这句话排在前一张图已有句子的前面。';
 
   @override
-  String get assignmentRefusedMiddle => '只能解除一張圖的第一句或最後一句。';
+  String get assignmentRefusedMiddle => '只能解除一张图的第一句或最后一句。';
 
   @override
-  String get assignmentRefusedHoldsSentences => '這張圖已有句子；先解除分配再移動它。';
+  String get assignmentRefusedHoldsSentences => '这张图已有句子；先解除分配再移动它。';
 
   @override
   String assignmentStaleWarning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '有 $count 條分配已不匹配這篇文字',
-      one: '有 1 條分配已不匹配這篇文字',
+      other: '有 $count 条分配已不匹配这篇文字',
+      one: '有 1 条分配已不匹配这篇文字',
     );
     return '$_temp0';
   }
@@ -500,20 +500,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assignmentSwitchConfirm => '移动';
 
   @override
-  String get assignmentScenesButton => '按場景自動分配';
+  String get assignmentScenesButton => '按场景自动分配';
 
   @override
-  String get assignmentScenesTitle => '按場景自動分配？';
+  String get assignmentScenesTitle => '按场景自动分配？';
 
   @override
   String assignmentScenesBody(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count 張圖片按順序取得各場景的句子。',
-      one: '1 張圖片取得它那個場景的句子。',
+      other: '$count 张图片按顺序取得各场景的句子。',
+      one: '1 张图片取得它那个场景的句子。',
     );
-    return '$_temp0這些圖片原有的分配會被取代。';
+    return '$_temp0这些图片原有的分配会被取代。';
   }
 
   @override
@@ -640,7 +640,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiBatchSaved => '已保存';
 
   @override
-  String get aiBatchSaveAll => '全部儲存';
+  String get aiBatchSaveAll => '全部保存';
 
   @override
   String get aiBatchDelete => '删除';
