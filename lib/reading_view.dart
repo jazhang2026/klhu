@@ -2373,9 +2373,15 @@ class _ReadingViewState extends State<ReadingView> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Expanded(child: Text(label)),
-          _languageDropdown(
-              selected: selected, detected: detected, onPick: onPick),
+          Text(label),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _languageDropdown(
+                fill: true,
+                selected: selected,
+                detected: detected,
+                onPick: onPick),
+          ),
         ],
       ),
     );
@@ -2420,7 +2426,11 @@ class _ReadingViewState extends State<ReadingView> {
           : Theme.of(context).textTheme.bodyMedium,
       items: [
         for (final option in const [autoLanguage, ...supportedReadLanguages])
-          DropdownMenuItem(value: option, child: Text(labelFor(option))),
+          DropdownMenuItem(
+            value: option,
+            child: Text(labelFor(option),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: (option) {
         if (option != null) onPick(option);
