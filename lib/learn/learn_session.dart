@@ -201,6 +201,15 @@ class LearnSession {
     state = cycleIndex >= 3 ? LearnState.waiting : LearnState.reading;
   }
 
+  /// End the current sentence's run early — used when the failure is
+  /// deterministic (no STT for this language, recognizer absent): retrying
+  /// the remaining cycles would just re-read aloud with no mic window.
+  /// The learner sees the unscored reason and taps again to retry.
+  void endRun() {
+    if (currentKey == null) return;
+    state = LearnState.waiting;
+  }
+
   /// End the session (FR-007). Terminal — the controller discards it.
   void stop() {
     state = LearnState.stopped;

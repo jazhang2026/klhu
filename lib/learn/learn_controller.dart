@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint;
 import 'package:klhu/learn/learn_session.dart';
 import 'package:klhu/learn/speech_recognizer.dart';
 import 'package:klhu/learn/speech_scorer.dart';
@@ -89,7 +89,9 @@ class LearnController extends ChangeNotifier {
   Future<void> _runCycles(LearnSentence sentence, int gen) async {
     while (_alive(gen) && session.state == LearnState.reading) {
       // 1. KalaHoo reads — the mic must never open during TTS (echo gate).
+      debugPrint('learn cycle ${session.cycleIndex + 1}: speak');
       final language = await _speak(sentence);
+      debugPrint('learn cycle ${session.cycleIndex + 1}: spoke lang=$language');
       if (!_alive(gen)) return;
       if (language == null) {
         session.noteReadError();
@@ -114,8 +116,10 @@ class LearnController extends ChangeNotifier {
     _notify();
 
     final localeId = localeIdFor(language);
+    debugPrint('learn capture locale=$localeId');
     if (localeId == null) {
       _record(UnscoredReason.unsupportedLanguage, gen);
+      session.endRun();
       return;
     }
 
@@ -124,6 +128,7 @@ class LearnController extends ChangeNotifier {
       if (!_alive(gen)) return;
       if (!_recognizerReady) {
         _record(UnscoredReason.recognitionUnavailable, gen);
+        session.endRun();
         return;
       }
     }
@@ -131,6 +136,7 @@ class LearnController extends ChangeNotifier {
     if (!_permissionAsked) {
       _permissionAsked = true;
       _permissionGranted = await _micPermission();
+      debugPrint('learn mic permission -> $_permissionGranted');
       if (!_alive(gen)) return;
     }
     if (!_permissionGranted) {
@@ -140,7 +146,9 @@ class LearnController extends ChangeNotifier {
 
     // Open the mic window; resolve on the first final transcript, done,
     // error, or a bounded timeout — whichever lands first.
+    debugPrint('learn listen open');
     final outcome = await _listen(localeId);
+    debugPrint('learn listen closed: ${outcome.runtimeType}');
     if (!_alive(gen)) return;
 
     switch (outcome) {
@@ -155,7 +163,16 @@ class LearnController extends ChangeNotifier {
       case _Empty():
         _record(UnscoredReason.noSpeech, gen);
       case _ListenError():
-        _record(UnscoredReason.error, gen, transcript: outcome.text);
+        // error_language_unavailable means this device has no speech pack
+        // for the locale — deterministic, so end the run rather than
+        // re-reading twice more with no mic window.
+        if (outcome.reason.contains('language_unavailable')) {
+          _record(UnscoredReason.unsupportedLanguage, gen,
+              transcript: outcome.text);
+          session.endRun();
+        } else {
+          _record(UnscoredReason.error, gen, transcript: outcome.text);
+        }
     }
     lastAttempt =
         session.results[sentence.key]?.attempts.last ?? lastAttempt;
@@ -179,6 +196,20 @@ class LearnController extends ChangeNotifier {
       if (!completer.isCompleted) completer.complete(o);
     }
 
+    // The platform reports 'done' and the real error in the same frame —
+    // done wins the completer before the error lands, which would mislabel
+    // error_language_unavailable as noSpeech. Hold the done briefly so a
+    // trailing error can still take precedence.
+    Timer? doneTimer;
+    void done() {
+      doneTimer?.cancel();
+      doneTimer = Timer(const Duration(milliseconds: 300), () {
+        finish(sawFinal && latest.trim().isNotEmpty
+            ? _Transcript(latest)
+            : const _Empty());
+      });
+    }
+
     await _recognizer.listen(
       localeId: localeId,
       onResult: (text, isFinal) {
@@ -187,10 +218,11 @@ class LearnController extends ChangeNotifier {
           sawFinal = true;
         }
       },
-      onDone: () => finish(sawFinal && latest.trim().isNotEmpty
-          ? _Transcript(latest)
-          : const _Empty()),
-      onError: (_) => finish(_ListenError(latest)),
+      onDone: done,
+      onError: (reason) {
+        doneTimer?.cancel();
+        finish(_ListenError(latest, reason));
+      },
     );
 
     // Hard bound: a recognizer that never reports must not hang the cycle.
@@ -239,5 +271,6 @@ class _Empty extends _ListenOutcome {
 
 class _ListenError extends _ListenOutcome {
   final String text;
-  const _ListenError(this.text);
+  final String reason;
+  const _ListenError(this.text, this.reason);
 }

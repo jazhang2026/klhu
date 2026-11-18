@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Speech-recognition seam for Learn mode (spec 035, research R1/R2/R8).
@@ -50,9 +51,23 @@ class PlatformSpeechRecognizer implements SpeechRecognizer {
   Future<bool> initialize() async {
     if (_ready) return true;
     _ready = await _stt.initialize(
-      onStatus: (s) => _onStatus?.call(s),
-      onError: (e) => _onError?.call(e.errorMsg),
+      onStatus: (s) {
+        debugPrint('learn-stt status: $s');
+        _onStatus?.call(s);
+      },
+      onError: (e) {
+        debugPrint('learn-stt init error: ${e.errorMsg}');
+        _onError?.call(e.errorMsg);
+      },
     );
+    debugPrint('learn-stt initialize -> $_ready');
+    if (_ready) {
+      try {
+        final locales = await _stt.locales();
+        debugPrint('learn-stt locales: '
+            '${locales.map((l) => l.localeId).join(',')}');
+      } catch (_) {}
+    }
     return _ready;
   }
 
@@ -64,9 +79,14 @@ class PlatformSpeechRecognizer implements SpeechRecognizer {
     void Function(String reason)? onError,
   }) async {
     _onStatus = (status) {
+      debugPrint('learn-stt status: $status');
       if (status == 'done' || status == 'notListening') onDone?.call();
     };
-    _onError = onError;
+    _onError = (reason) {
+      debugPrint('learn-stt listen error: $reason');
+      onError?.call(reason);
+    };
+    debugPrint('learn-stt listen locale=$localeId');
     await _stt.listen(
       onResult: (r) => onResult(r.recognizedWords, r.finalResult),
       listenOptions: stt.SpeechListenOptions(
