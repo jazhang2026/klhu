@@ -16,6 +16,7 @@ import 'package:klhu/ai/skill.dart';
 import 'package:klhu/ai/skill_store.dart';
 import 'package:klhu/ai/post_processor.dart';
 import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/dialogue.dart';
@@ -606,6 +607,30 @@ class _ReadingViewState extends State<ReadingView> {
   bool get _isSpeakingOrPaused =>
       _mode == _Mode.speaking || _mode == _Mode.paused;
 
+  /// Whether the wakelock is currently held (see [_syncWakelock]).
+  bool _wakelockHeld = false;
+
+  /// Keeps the screen awake while a read is in flight — a tapped sentence, a
+  /// stepped read, a paused read the reader is following — and while the
+  /// video review is playing. The Continue Read wrap loop is exempt: it is
+  /// unattended listening, so the screen is free to sleep while the audio
+  /// keeps going. Resynced from [build] so every mode/loop transition is
+  /// covered; the flag makes repeat calls free.
+  void _syncWakelock() {
+    final want =
+        (_isSpeakingOrPaused || _isReview) && !_continueReading;
+    if (want == _wakelockHeld) return;
+    _wakelockHeld = want;
+    _holdWakelock(want);
+  }
+
+  /// Best-effort platform call: a missing plugin (widget tests, an
+  /// unsupported platform) must not surface as an unhandled error.
+  void _holdWakelock(bool hold) {
+    final future = hold ? WakelockPlus.enable() : WakelockPlus.disable();
+    unawaited(future.catchError((Object _) {}));
+  }
+
   String? _error;
   String? _hint;
 
@@ -767,6 +792,10 @@ class _ReadingViewState extends State<ReadingView> {
     // An undecided review keeps nothing (FR-021): leaving it throws the working
     // copy away and releases the player.
     _leaveReview();
+    if (_wakelockHeld) {
+      _wakelockHeld = false;
+      _holdWakelock(false);
+    }
     _disposeUndo();
     _editController?.dispose();
     _focusNode.dispose();
@@ -3819,6 +3848,7 @@ class _ReadingViewState extends State<ReadingView> {
 
   @override
   Widget build(BuildContext context) {
+    _syncWakelock();
     final editing = _mode == _Mode.edit;
     final l10n = AppLocalizations.of(context);
     return PopScope(
