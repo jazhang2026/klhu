@@ -1,4 +1,4 @@
-package com.example.klhu
+package com.jazhang.kalahoo.reading
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

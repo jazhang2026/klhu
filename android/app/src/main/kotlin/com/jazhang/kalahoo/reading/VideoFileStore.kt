@@ -1,4 +1,4 @@
-package com.example.klhu
+package com.jazhang.kalahoo.reading
 
 import android.Manifest
 import android.app.Activity

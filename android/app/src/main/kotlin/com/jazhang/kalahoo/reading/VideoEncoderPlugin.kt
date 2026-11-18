@@ -1,4 +1,4 @@
-package com.example.klhu
+package com.jazhang.kalahoo.reading
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
