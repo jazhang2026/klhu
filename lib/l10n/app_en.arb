@@ -10,6 +10,7 @@
   "doneButton": "Done",
   "voiceButton": "Voice",
   "languageDropdown": "Language",
+  "continueReadFinished": "Continue Read finished.",
   "nothingToReadMessage": "Nothing left to read from here",
   "genderMale": "Male",
   "genderFemale": "Female",

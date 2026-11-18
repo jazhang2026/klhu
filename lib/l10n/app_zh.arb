@@ -10,6 +10,7 @@
   "doneButton": "完成",
   "voiceButton": "语音",
   "languageDropdown": "语言",
+  "continueReadFinished": "连续朗读已结束。",
   "nothingToReadMessage": "从这里开始没有可朗读的内容",
   "genderMale": "男",
   "genderFemale": "女",

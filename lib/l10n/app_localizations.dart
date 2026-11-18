@@ -161,6 +161,12 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get languageDropdown;
 
+  /// No description provided for @continueReadFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Read finished.'**
+  String get continueReadFinished;
+
   /// No description provided for @nothingToReadMessage.
   ///
   /// In en, this message translates to:

@@ -40,6 +40,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get languageDropdown => 'Idioma';
 
   @override
+  String get continueReadFinished => 'Lectura continua finalizada.';
+
+  @override
   String get nothingToReadMessage => 'No queda nada por leer desde aquí';
 
   @override

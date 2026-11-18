@@ -40,6 +40,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageDropdown => '语言';
 
   @override
+  String get continueReadFinished => '连续朗读已结束。';
+
+  @override
   String get nothingToReadMessage => '从这里开始没有可朗读的内容';
 
   @override
@@ -773,6 +776,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get languageDropdown => '语言';
+
+  @override
+  String get continueReadFinished => '连续朗读已结束。';
 
   @override
   String get nothingToReadMessage => '从这里开始没有可朗读的内容';

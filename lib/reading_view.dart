@@ -598,6 +598,14 @@ class _ReadingViewState extends State<ReadingView> {
   bool _readCompleted = false;
   bool _readFailed = false;
 
+  /// Continue Read's own bounds: at most this many end-to-end passes, and no
+  /// longer than this measured from arming — the loop is for listening, not
+  /// forever. Counted across pause/resume; reset each time ⏭ arms the loop.
+  static const int _continueMaxPasses = 3;
+  static const Duration _continueMaxDuration = Duration(hours: 1);
+  int _continuePasses = 0;
+  DateTime? _continueBegan;
+
   /// The content offset a paused Continue Read resumes its remaining units
   /// from (032 FR-010): a multi-unit read parks mid-pass, and Resume must
   /// finish the parked unit first and then continue at the next unit rather
@@ -612,13 +620,12 @@ class _ReadingViewState extends State<ReadingView> {
 
   /// Keeps the screen awake while a read is in flight — a tapped sentence, a
   /// stepped read, a paused read the reader is following — and while the
-  /// video review is playing. The Continue Read wrap loop is exempt: it is
-  /// unattended listening, so the screen is free to sleep while the audio
-  /// keeps going. Resynced from [build] so every mode/loop transition is
-  /// covered; the flag makes repeat calls free.
+  /// video review is playing. Continue Read holds it too: the loop is
+  /// bounded ([_continueMaxPasses]/[_continueMaxDuration]), so the screen
+  /// cannot stay on forever. Resynced from [build] so every mode/loop
+  /// transition is covered; the flag makes repeat calls free.
   void _syncWakelock() {
-    final want =
-        (_isSpeakingOrPaused || _isReview) && !_continueReading;
+    final want = _isSpeakingOrPaused || _isReview;
     if (want == _wakelockHeld) return;
     _wakelockHeld = want;
     _holdWakelock(want);
@@ -1538,6 +1545,8 @@ class _ReadingViewState extends State<ReadingView> {
   /// going until Pause or Stop.
   Future<void> _readContinue() async {
     _continueReading = true;
+    _continuePasses = 0;
+    _continueBegan = DateTime.now();
     await _driveContinue(_anchor ?? 0);
     if (_mode != _Mode.paused) _continueReading = false;
   }
@@ -1556,6 +1565,23 @@ class _ReadingViewState extends State<ReadingView> {
         // (the loop was disarmed as it ended): hand the page back to idle.
         if (mounted && _mode == _Mode.speaking) {
           setState(() => _mode = _Mode.read);
+        }
+        return;
+      }
+      _continuePasses++;
+      final began = _continueBegan;
+      final timedOut = began != null &&
+          DateTime.now().difference(began) >= _continueMaxDuration;
+      if (_continuePasses >= _continueMaxPasses || timedOut) {
+        // The loop's own limit, not the reader's: hand the page back to
+        // idle with a note rather than wrapping again.
+        _continueReading = false;
+        if (mounted && _mode == _Mode.speaking) {
+          setState(() {
+            _mode = _Mode.read;
+            _hint = AppLocalizations.of(context)?.continueReadFinished ??
+                'Continue Read finished.';
+          });
         }
         return;
       }
@@ -1990,6 +2016,8 @@ class _ReadingViewState extends State<ReadingView> {
     _isPausing = false;
     _isResuming = false;
     _continueReading = false;
+    _continuePasses = 0;
+    _continueBegan = null;
     _readCompleted = false;
     _pausedReadFrom = null;
     await widget.reader.stop();
