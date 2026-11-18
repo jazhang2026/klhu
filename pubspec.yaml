@@ -152,3 +152,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+dependency_overrides:
+  # permission_handler_android 14.x requires compileSdk 37; AGP 9.1.0 tops out at 36.
+  # Pin the last 13.x (compileSdk 35) until AGP catches up.
+  permission_handler_android: 13.0.1
