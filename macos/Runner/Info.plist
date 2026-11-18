@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Used to hear your reading practice in Learn mode. Recognition stays on this device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used to capture your voice when practicing reading aloud in Learn mode.</string>
 </dict>
 </plist>

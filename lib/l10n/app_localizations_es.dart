@@ -766,4 +766,87 @@ class AppLocalizationsEs extends AppLocalizations {
   String videoGenNotifySummary(int ok, int fail) {
     return 'Imágenes de escena: $ok exitosas, $fail fallaron';
   }
+
+  @override
+  String get learnButton => 'Aprender';
+
+  @override
+  String get learnExitButton => 'Salir de Aprender';
+
+  @override
+  String get learnYourTurnLabel => 'Te toca — di la oración';
+
+  @override
+  String get learnListeningLabel => 'Escuchando…';
+
+  @override
+  String get learnReadingLabel => 'KalaHoo está leyendo…';
+
+  @override
+  String learnAttemptLabel(int n) {
+    return 'Intento $n de 3';
+  }
+
+  @override
+  String learnScoreLabel(int pct) {
+    return '$pct%';
+  }
+
+  @override
+  String learnMissedLabel(String words) {
+    return 'Faltó: $words';
+  }
+
+  @override
+  String learnExtraLabel(String words) {
+    return 'Extra: $words';
+  }
+
+  @override
+  String get learnUnscoredNoSpeech => 'No se detectó voz';
+
+  @override
+  String get learnUnscoredUnavailable => 'Reconocimiento de voz no disponible';
+
+  @override
+  String get learnUnscoredLanguage =>
+      'Reconocimiento no disponible para este idioma';
+
+  @override
+  String get learnUnscoredPermission =>
+      'Se necesita permiso de micrófono para puntuar';
+
+  @override
+  String get learnUnscoredError => 'Error de reconocimiento';
+
+  @override
+  String get learnSummaryTitle => 'Resultados de la sesión';
+
+  @override
+  String get learnSummaryEmpty => 'Aún no practicaste ninguna oración.';
+
+  @override
+  String learnSummaryScore(int pct) {
+    return 'Puntuación: $pct%';
+  }
+
+  @override
+  String learnSummaryUnscored(int count) {
+    return '$count sin puntuar';
+  }
+
+  @override
+  String learnSummaryAttempts(int count) {
+    return '$count intentos';
+  }
+
+  @override
+  String get learnPermissionMessage =>
+      'KalaHoo necesita acceso al micrófono para escuchar tu práctica. La puntuación se desactiva sin él.';
+
+  @override
+  String get learnTapHint => 'Toca una oración para practicar';
+
+  @override
+  String get learnCycleDone => 'Listo — toca la siguiente oración';
 }

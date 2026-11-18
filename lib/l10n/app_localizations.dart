@@ -1390,6 +1390,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scene images: {ok} succeeded, {fail} failed'**
   String videoGenNotifySummary(int ok, int fail);
+
+  /// Tooltip/label for the Learn mode toggle on the reading page
+  ///
+  /// In en, this message translates to:
+  /// **'Learn'**
+  String get learnButton;
+
+  /// Tooltip for leaving Learn mode
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Learn'**
+  String get learnExitButton;
+
+  /// Shown while the mic waits for the learner's repeat
+  ///
+  /// In en, this message translates to:
+  /// **'Your turn — say the sentence'**
+  String get learnYourTurnLabel;
+
+  /// Shown while the mic captures the learner's repeat
+  ///
+  /// In en, this message translates to:
+  /// **'Listening…'**
+  String get learnListeningLabel;
+
+  /// Shown while TTS reads the sentence in Learn mode
+  ///
+  /// In en, this message translates to:
+  /// **'KalaHoo is reading…'**
+  String get learnReadingLabel;
+
+  /// Current repeat number in a Learn sentence cycle
+  ///
+  /// In en, this message translates to:
+  /// **'Attempt {n} of 3'**
+  String learnAttemptLabel(int n);
+
+  /// Accuracy percentage for a scored Learn attempt
+  ///
+  /// In en, this message translates to:
+  /// **'{pct}%'**
+  String learnScoreLabel(int pct);
+
+  /// Words the learner did not say
+  ///
+  /// In en, this message translates to:
+  /// **'Missed: {words}'**
+  String learnMissedLabel(String words);
+
+  /// Words the learner said that were not in the sentence
+  ///
+  /// In en, this message translates to:
+  /// **'Extra: {words}'**
+  String learnExtraLabel(String words);
+
+  /// Unscored reason: silence during the repeat window
+  ///
+  /// In en, this message translates to:
+  /// **'No speech detected'**
+  String get learnUnscoredNoSpeech;
+
+  /// Unscored reason: recognizer could not initialize
+  ///
+  /// In en, this message translates to:
+  /// **'Speech recognition unavailable'**
+  String get learnUnscoredUnavailable;
+
+  /// Unscored reason: resolved read language has no recognizer locale
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition not available for this language'**
+  String get learnUnscoredLanguage;
+
+  /// Unscored reason: mic permission denied
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission needed for scoring'**
+  String get learnUnscoredPermission;
+
+  /// Unscored reason: recognizer error
+  ///
+  /// In en, this message translates to:
+  /// **'Recognition failed'**
+  String get learnUnscoredError;
+
+  /// Title of the Stop summary sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Learn session results'**
+  String get learnSummaryTitle;
+
+  /// Shown when Stop is tapped before any sentence
+  ///
+  /// In en, this message translates to:
+  /// **'No sentences practiced yet.'**
+  String get learnSummaryEmpty;
+
+  /// Per-sentence best score in the summary
+  ///
+  /// In en, this message translates to:
+  /// **'Score: {pct}%'**
+  String learnSummaryScore(int pct);
+
+  /// Count of unscored attempts in summary
+  ///
+  /// In en, this message translates to:
+  /// **'{count} unscored'**
+  String learnSummaryUnscored(int count);
+
+  /// Attempt count in summary
+  ///
+  /// In en, this message translates to:
+  /// **'{count} attempts'**
+  String learnSummaryAttempts(int count);
+
+  /// Shown when mic permission is denied
+  ///
+  /// In en, this message translates to:
+  /// **'KalaHoo needs microphone access to hear your reading practice. Scoring is off without it.'**
+  String get learnPermissionMessage;
+
+  /// Learn idle status: prompt to pick a sentence
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a sentence to practice'**
+  String get learnTapHint;
+
+  /// Learn status after a sentence's 3 cycles
+  ///
+  /// In en, this message translates to:
+  /// **'Done — tap the next sentence'**
+  String get learnCycleDone;
 }
 
 class _AppLocalizationsDelegate

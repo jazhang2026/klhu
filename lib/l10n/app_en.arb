@@ -146,8 +146,20 @@
     }
   },
   "videoPicturesChooseMore": "Choose more",
-  "videoPicturesReorder": "Hold a picture and drop it on another to change the order; drag it to the window\u2019s edge to reach the rest.",
-  "@videoPicturesOverSentences": {"placeholders": {"chosen": {"type": "int"}, "sentences": {"type": "int"}, "extra": {"type": "int"}}},
+  "videoPicturesReorder": "Hold a picture and drop it on another to change the order; drag it to the window’s edge to reach the rest.",
+  "@videoPicturesOverSentences": {
+    "placeholders": {
+      "chosen": {
+        "type": "int"
+      },
+      "sentences": {
+        "type": "int"
+      },
+      "extra": {
+        "type": "int"
+      }
+    }
+  },
   "videoPicturesRemove": "Remove this picture",
   "videoPicturesFailed": "Could not open your pictures. Try again.",
   "textTypeButton": "Text type",
@@ -159,24 +171,48 @@
   "roleListEmptyMessage": "No roles yet. A paragraph that starts with a role tag belongs to that role.",
   "roleListUnsplitMessage": "No roles yet: the role tags are not yet separated by blank lines. Press Format in the editor to add them.",
   "roleTurnCount": "{count, plural, =1 {1 turn} other {{count} turns}}",
-  "@roleTurnCount": {"placeholders": {"count": {"type": "int"}}},
+  "@roleTurnCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "roleVoiceLabel": "Voice",
   "roleVoiceAutomatic": "Automatic",
   "roleRemoveButton": "Remove this role",
   "roleRemoveConfirmTitle": "Remove this role?",
   "roleRemoveConfirmMessage": "Its paragraphs will be read as narration, in the reading voice.",
   "rolePickerTitle": "Voice for {role}",
-  "@rolePickerTitle": {"placeholders": {"role": {"type": "String"}}},
+  "@rolePickerTitle": {
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
   "formatButton": "Format",
   "aiButton": "AI",
   "commentsReadLabel": "Read the comments",
   "readLanguageTitle": "Reading language",
   "readLanguageAuto": "Auto",
   "readLanguageDetected": "Detected: {language}",
-  "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
+  "@readLanguageDetected": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "readLanguageRoleLabel": "Language",
   "readLanguageAutoDetected": "Auto detected: {language}",
-  "@readLanguageAutoDetected": {"placeholders": {"language": {"type": "String"}}},
+  "@readLanguageAutoDetected": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "readLanguageMainLabel": "Main text",
   "readLanguageCommentLabel": "Comments",
   "assignmentOpenButton": "Assign sentences",
@@ -221,8 +257,20 @@
   "aiProviderTipHint": "How to get an API key...",
   "aiProviderAddButton2": "Add",
   "aiProviderFailSave": "Failed to save: {error}",
-  "@aiProviderFailSave": {"placeholders": {"error": {"type": "String"}}},
-  "@aiProviderDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
+  "@aiProviderFailSave": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@aiProviderDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "aiPromptTitle": "AI Prompt",
   "aiPromptSkillLabel": "Prompt Template",
   "aiPromptSkillNone": "None",
@@ -249,17 +297,35 @@
   "aiImageSaveButton": "Save to gallery",
   "aiImageSavedMessage": "Saved to Gallery: Klhu folder",
   "aiImageSaveFailed": "Save failed: {error}",
-  "@aiImageSaveFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@aiImageSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "aiProgressGeneratingText": "Generating text…",
   "aiProgressGeneratingImage": "Generating image… This may take a minute.",
   "aiProgressGeneratingVideo": "Generating video… This may take a while.",
   "aiProgressRetrying": "Retrying with suggested model…",
   "aiClipboardCopiedMessage": "Copied to clipboard: {url}",
-  "@aiClipboardCopiedMessage": {"placeholders": {"url": {"type": "String"}}},
+  "@aiClipboardCopiedMessage": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
   "aiClipboardOpenAction": "Open",
   "aiConnectivityTestFailed": "Connectivity test failed. Please check the API key.",
   "aiEditProviderTitle": "Edit: {name}",
-  "@aiEditProviderTitle": {"placeholders": {"name": {"type": "String"}}},
+  "@aiEditProviderTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "aiEditApiKeyLabel": "API Key",
   "aiEditApiKeyHint": "Enter your API key…",
   "aiTestPassed": "Connectivity test passed",
@@ -267,15 +333,177 @@
   "aiEditSaveButton": "Save & Test",
   "videoGenerateAllButton": "Generate All",
   "videoGenProgress": "{done} / {total} done",
-  "@videoGenProgress": {"placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "@videoGenProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenSummarySuccess": "{n} succeeded",
-  "@videoGenSummarySuccess": {"placeholders": {"n": {"type": "int"}}},
+  "@videoGenSummarySuccess": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenSummaryPartial": "{ok} succeeded, {fail} failed",
-  "@videoGenSummaryPartial": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}},
+  "@videoGenSummaryPartial": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenRetry": "Retry",
   "videoGenNotifyRunning": "Generating scene images…",
   "videoGenNotifyDone": "Scene images: {n} done",
-  "@videoGenNotifyDone": {"placeholders": {"n": {"type": "int"}}},
+  "@videoGenNotifyDone": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenNotifySummary": "Scene images: {ok} succeeded, {fail} failed",
-  "@videoGenNotifySummary": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}}
+  "@videoGenNotifySummary": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
+  "learnButton": "Learn",
+  "@learnButton": {
+    "description": "Tooltip/label for the Learn mode toggle on the reading page"
+  },
+  "learnExitButton": "Exit Learn",
+  "@learnExitButton": {
+    "description": "Tooltip for leaving Learn mode"
+  },
+  "learnYourTurnLabel": "Your turn — say the sentence",
+  "@learnYourTurnLabel": {
+    "description": "Shown while the mic waits for the learner's repeat"
+  },
+  "learnListeningLabel": "Listening…",
+  "@learnListeningLabel": {
+    "description": "Shown while the mic captures the learner's repeat"
+  },
+  "learnReadingLabel": "KalaHoo is reading…",
+  "@learnReadingLabel": {
+    "description": "Shown while TTS reads the sentence in Learn mode"
+  },
+  "learnAttemptLabel": "Attempt {n} of 3",
+  "@learnAttemptLabel": {
+    "description": "Current repeat number in a Learn sentence cycle",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "learnScoreLabel": "{pct}%",
+  "@learnScoreLabel": {
+    "description": "Accuracy percentage for a scored Learn attempt",
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "learnMissedLabel": "Missed: {words}",
+  "@learnMissedLabel": {
+    "description": "Words the learner did not say",
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "learnExtraLabel": "Extra: {words}",
+  "@learnExtraLabel": {
+    "description": "Words the learner said that were not in the sentence",
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "learnUnscoredNoSpeech": "No speech detected",
+  "@learnUnscoredNoSpeech": {
+    "description": "Unscored reason: silence during the repeat window"
+  },
+  "learnUnscoredUnavailable": "Speech recognition unavailable",
+  "@learnUnscoredUnavailable": {
+    "description": "Unscored reason: recognizer could not initialize"
+  },
+  "learnUnscoredLanguage": "Recognition not available for this language",
+  "@learnUnscoredLanguage": {
+    "description": "Unscored reason: resolved read language has no recognizer locale"
+  },
+  "learnUnscoredPermission": "Microphone permission needed for scoring",
+  "@learnUnscoredPermission": {
+    "description": "Unscored reason: mic permission denied"
+  },
+  "learnUnscoredError": "Recognition failed",
+  "@learnUnscoredError": {
+    "description": "Unscored reason: recognizer error"
+  },
+  "learnSummaryTitle": "Learn session results",
+  "@learnSummaryTitle": {
+    "description": "Title of the Stop summary sheet"
+  },
+  "learnSummaryEmpty": "No sentences practiced yet.",
+  "@learnSummaryEmpty": {
+    "description": "Shown when Stop is tapped before any sentence"
+  },
+  "learnSummaryScore": "Score: {pct}%",
+  "@learnSummaryScore": {
+    "description": "Per-sentence best score in the summary",
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "learnSummaryUnscored": "{count} unscored",
+  "@learnSummaryUnscored": {
+    "description": "Count of unscored attempts in summary",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnSummaryAttempts": "{count} attempts",
+  "@learnSummaryAttempts": {
+    "description": "Attempt count in summary",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "learnPermissionMessage": "KalaHoo needs microphone access to hear your reading practice. Scoring is off without it.",
+  "@learnPermissionMessage": {
+    "description": "Shown when mic permission is denied"
+  },
+  "learnTapHint": "Tap a sentence to practice",
+  "@learnTapHint": {
+    "description": "Learn idle status: prompt to pick a sentence"
+  },
+  "learnCycleDone": "Done — tap the next sentence",
+  "@learnCycleDone": {
+    "description": "Learn status after a sentence's 3 cycles"
+  }
 }

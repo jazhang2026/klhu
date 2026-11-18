@@ -130,10 +130,22 @@
   "readLanguageTitle": "Idioma de lectura",
   "readLanguageAuto": "Automático",
   "readLanguageDetected": "Detectado: {language}",
-  "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
+  "@readLanguageDetected": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "readLanguageRoleLabel": "Idioma",
   "readLanguageAutoDetected": "Automático detectado: {language}",
-  "@readLanguageAutoDetected": {"placeholders": {"language": {"type": "String"}}},
+  "@readLanguageAutoDetected": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "readLanguageMainLabel": "Texto principal",
   "readLanguageCommentLabel": "Comentarios",
   "assignmentOpenButton": "Asignar oraciones",
@@ -163,7 +175,13 @@
   "aiProviderAddButton": "Agregar proveedor",
   "aiProviderDeleteTitle": "Eliminar proveedor",
   "aiProviderDeleteConfirm": "¿Eliminar \"{name}\"?",
-  "@aiProviderDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
+  "@aiProviderDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "aiProviderDeleteCancel": "Cancelar",
   "aiProviderDeleteButton": "Eliminar",
   "aiProviderStatusSelected": "Seleccionado",
@@ -179,7 +197,13 @@
   "aiProviderTipHint": "Cómo obtener una clave API…",
   "aiProviderAddButton2": "Agregar",
   "aiProviderFailSave": "Error al guardar: {error}",
-  "@aiProviderFailSave": {"placeholders": {"error": {"type": "String"}}},
+  "@aiProviderFailSave": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "aiPromptTitle": "Prompt de IA",
   "aiPromptSkillLabel": "Plantilla de prompt",
   "aiPromptSkillNone": "Ninguno",
@@ -198,17 +222,35 @@
   "aiImageSaveButton": "Guardar en galería",
   "aiImageSavedMessage": "Guardado en Galería: carpeta Klhu",
   "aiImageSaveFailed": "Error al guardar: {error}",
-  "@aiImageSaveFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@aiImageSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "aiProgressGeneratingText": "Generando texto…",
   "aiProgressGeneratingImage": "Generando imagen… Esto puede tardar un minuto.",
   "aiProgressGeneratingVideo": "Generando vídeo… Esto puede tardar un poco.",
   "aiProgressRetrying": "Reintentando con el modelo sugerido…",
   "aiClipboardCopiedMessage": "Copiado al portapapeles: {url}",
-  "@aiClipboardCopiedMessage": {"placeholders": {"url": {"type": "String"}}},
+  "@aiClipboardCopiedMessage": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
   "aiClipboardOpenAction": "Abrir",
   "aiConnectivityTestFailed": "La prueba de conectividad falló. Verifica la clave API.",
   "aiEditProviderTitle": "Editar: {name}",
-  "@aiEditProviderTitle": {"placeholders": {"name": {"type": "String"}}},
+  "@aiEditProviderTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "aiEditApiKeyLabel": "Clave API",
   "aiEditApiKeyHint": "Ingresa tu clave API…",
   "aiTestPassed": "Prueba de conectividad exitosa",
@@ -216,15 +258,76 @@
   "aiEditSaveButton": "Guardar y probar",
   "videoGenerateAllButton": "Generar todo",
   "videoGenProgress": "{done} / {total} hechos",
-  "@videoGenProgress": {"placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "@videoGenProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenSummarySuccess": "{n} exitosas",
-  "@videoGenSummarySuccess": {"placeholders": {"n": {"type": "int"}}},
+  "@videoGenSummarySuccess": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenSummaryPartial": "{ok} exitosas, {fail} fallaron",
-  "@videoGenSummaryPartial": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}},
+  "@videoGenSummaryPartial": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenRetry": "Reintentar",
   "videoGenNotifyRunning": "Generando imágenes de escena…",
   "videoGenNotifyDone": "Imágenes de escena: {n} hechas",
-  "@videoGenNotifyDone": {"placeholders": {"n": {"type": "int"}}},
+  "@videoGenNotifyDone": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenNotifySummary": "Imágenes de escena: {ok} exitosas, {fail} fallaron",
-  "@videoGenNotifySummary": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}}
+  "@videoGenNotifySummary": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
+  "learnButton": "Aprender",
+  "learnExitButton": "Salir de Aprender",
+  "learnYourTurnLabel": "Te toca — di la oración",
+  "learnListeningLabel": "Escuchando…",
+  "learnReadingLabel": "KalaHoo está leyendo…",
+  "learnAttemptLabel": "Intento {n} de 3",
+  "learnScoreLabel": "{pct}%",
+  "learnMissedLabel": "Faltó: {words}",
+  "learnExtraLabel": "Extra: {words}",
+  "learnUnscoredNoSpeech": "No se detectó voz",
+  "learnUnscoredUnavailable": "Reconocimiento de voz no disponible",
+  "learnUnscoredLanguage": "Reconocimiento no disponible para este idioma",
+  "learnUnscoredPermission": "Se necesita permiso de micrófono para puntuar",
+  "learnUnscoredError": "Error de reconocimiento",
+  "learnSummaryTitle": "Resultados de la sesión",
+  "learnSummaryEmpty": "Aún no practicaste ninguna oración.",
+  "learnSummaryScore": "Puntuación: {pct}%",
+  "learnSummaryUnscored": "{count} sin puntuar",
+  "learnSummaryAttempts": "{count} intentos",
+  "learnPermissionMessage": "KalaHoo necesita acceso al micrófono para escuchar tu práctica. La puntuación se desactiva sin él.",
+  "learnTapHint": "Toca una oración para practicar",
+  "learnCycleDone": "Listo — toca la siguiente oración"
 }

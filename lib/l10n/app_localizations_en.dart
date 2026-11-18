@@ -766,4 +766,87 @@ class AppLocalizationsEn extends AppLocalizations {
   String videoGenNotifySummary(int ok, int fail) {
     return 'Scene images: $ok succeeded, $fail failed';
   }
+
+  @override
+  String get learnButton => 'Learn';
+
+  @override
+  String get learnExitButton => 'Exit Learn';
+
+  @override
+  String get learnYourTurnLabel => 'Your turn — say the sentence';
+
+  @override
+  String get learnListeningLabel => 'Listening…';
+
+  @override
+  String get learnReadingLabel => 'KalaHoo is reading…';
+
+  @override
+  String learnAttemptLabel(int n) {
+    return 'Attempt $n of 3';
+  }
+
+  @override
+  String learnScoreLabel(int pct) {
+    return '$pct%';
+  }
+
+  @override
+  String learnMissedLabel(String words) {
+    return 'Missed: $words';
+  }
+
+  @override
+  String learnExtraLabel(String words) {
+    return 'Extra: $words';
+  }
+
+  @override
+  String get learnUnscoredNoSpeech => 'No speech detected';
+
+  @override
+  String get learnUnscoredUnavailable => 'Speech recognition unavailable';
+
+  @override
+  String get learnUnscoredLanguage =>
+      'Recognition not available for this language';
+
+  @override
+  String get learnUnscoredPermission =>
+      'Microphone permission needed for scoring';
+
+  @override
+  String get learnUnscoredError => 'Recognition failed';
+
+  @override
+  String get learnSummaryTitle => 'Learn session results';
+
+  @override
+  String get learnSummaryEmpty => 'No sentences practiced yet.';
+
+  @override
+  String learnSummaryScore(int pct) {
+    return 'Score: $pct%';
+  }
+
+  @override
+  String learnSummaryUnscored(int count) {
+    return '$count unscored';
+  }
+
+  @override
+  String learnSummaryAttempts(int count) {
+    return '$count attempts';
+  }
+
+  @override
+  String get learnPermissionMessage =>
+      'KalaHoo needs microphone access to hear your reading practice. Scoring is off without it.';
+
+  @override
+  String get learnTapHint => 'Tap a sentence to practice';
+
+  @override
+  String get learnCycleDone => 'Done — tap the next sentence';
 }

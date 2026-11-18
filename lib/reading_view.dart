@@ -21,6 +21,10 @@ import 'package:klhu/content_list_screen.dart';
 import 'package:klhu/content_naming.dart';
 import 'package:klhu/dialogue.dart';
 import 'package:klhu/language.dart';
+import 'package:klhu/learn/learn_controller.dart';
+import 'package:klhu/learn/learn_session.dart';
+import 'package:klhu/learn/speech_recognizer.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:klhu/comment.dart';
 import 'package:klhu/document_input.dart';
 import 'package:klhu/models/content.dart';
@@ -63,6 +67,16 @@ import 'package:path_provider/path_provider.dart';
 // 13: "too much space, can be less ... try 15px" — 15 device pixels on that
 // phone is 5, its panel being 3.0 to the logical one).
 const double _controlBarGap = 5;
+
+/// Learn mode's mic ask (035 FR-009): granted → capture may proceed. Any
+/// platform failure reads as denied — scoring degrades, reading continues.
+Future<bool> _defaultMicPermission() async {
+  try {
+    return (await Permission.microphone.request()).isGranted;
+  } catch (_) {
+    return false;
+  }
+}
 
 /// Reading view (003, revised per emulator validation): RichText for
 /// READ/SPEAKING with the 001 yellow highlight (tap selects sentence,
@@ -141,6 +155,14 @@ class ReadingView extends StatefulWidget {
   /// the engine out of the test.
   final OcrEngine? ocrEngine;
 
+  /// Learn mode's speech-recognition seam (035): the real one wraps
+  /// `speech_to_text`; tests inject a fake. Created once per page.
+  final SpeechRecognizer speechRecognizer;
+
+  /// Learn mode's mic-permission ask (035 FR-009): lazily invoked at the
+  /// first repeat attempt; tests inject a scripted answer.
+  final MicPermission micPermission;
+
   final Function(String)? onLanguageChanged;
   final dynamic localizationService;
 
@@ -158,6 +180,8 @@ class ReadingView extends StatefulWidget {
     DocumentPicker? documentPicker,
     DocumentExtractor? documentExtractor,
     OcrEngine? ocrEngine,
+    SpeechRecognizer? speechRecognizer,
+    MicPermission? micPermission,
     this.onLanguageChanged,
     this.localizationService,
   })  : reader = reader ?? ReaderService(),
@@ -172,7 +196,9 @@ class ReadingView extends StatefulWidget {
         picturePicker = picturePicker ?? const FilePicturePicker(),
         documentPicker = documentPicker ?? const FileDocumentPicker(),
         documentExtractor = documentExtractor ?? defaultExtractor('pdf'),
-        ocrEngine = ocrEngine ?? defaultOcrEngine();
+        ocrEngine = ocrEngine ?? defaultOcrEngine(),
+        speechRecognizer = speechRecognizer ?? PlatformSpeechRecognizer(),
+        micPermission = micPermission ?? _defaultMicPermission;
 
   /// The engine a render speaks through — the reader's own when it can write
   /// files, else a fresh service (D5: the read and the render share one voice
@@ -567,6 +593,7 @@ class _ReadingViewState extends State<ReadingView> {
   /// text being left, so it is forgotten. Nothing was written down to forget —
   /// a position lives inside the session and nowhere else (016 decision 5).
   Future<void> _adoptAnchor() async {
+    if (_learnActive) _exitLearn();
     _continueReading = false;
     _pausedReadFrom = null;
     if (_anchor != null) setState(() => _anchor = null);
@@ -598,6 +625,18 @@ class _ReadingViewState extends State<ReadingView> {
   bool _readCompleted = false;
   bool _readFailed = false;
 
+  // -------------------------------------------------------------------
+  // Learn mode (035): an additive practice layer — a mode toggle swaps the
+  // control row and the tap path; nothing about normal reads changes.
+  // -------------------------------------------------------------------
+
+  /// Whether the page is in Learn mode. Sessions are ephemeral: each entry
+  /// builds a fresh [LearnController]/[LearnSession].
+  bool _learnActive = false;
+  LearnController? _learnCtl;
+
+
+
   /// Continue Read's own bounds: at most this many end-to-end passes, and no
   /// longer than this measured from arming — the loop is for listening, not
   /// forever. Counted across pause/resume; reset each time ⏭ arms the loop.
@@ -625,7 +664,7 @@ class _ReadingViewState extends State<ReadingView> {
   /// cannot stay on forever. Resynced from [build] so every mode/loop
   /// transition is covered; the flag makes repeat calls free.
   void _syncWakelock() {
-    final want = _isSpeakingOrPaused || _isReview;
+    final want = _isSpeakingOrPaused || _isReview || _learnActive;
     if (want == _wakelockHeld) return;
     _wakelockHeld = want;
     _holdWakelock(want);
@@ -799,6 +838,7 @@ class _ReadingViewState extends State<ReadingView> {
     // An undecided review keeps nothing (FR-021): leaving it throws the working
     // copy away and releases the player.
     _leaveReview();
+    unawaited(_learnCtl?.abandon());
     if (_wakelockHeld) {
       _wakelockHeld = false;
       _holdWakelock(false);
@@ -1439,7 +1479,8 @@ class _ReadingViewState extends State<ReadingView> {
   Future<void> _onLongPressText(LongPressStartDetails details) async {
     // Same rule as a tap, for the same reason (FR-025).
     if (_isSpeakingOrPaused) return;
-    await _resolveAt(details.globalPosition, resolveParagraph);
+    await _resolveAt(details.globalPosition,
+        _learnActive ? resolveSentence : resolveParagraph);
   }
 
   /// Shared idle tap/long-press path (032): map the touch point to a text
@@ -1462,6 +1503,12 @@ class _ReadingViewState extends State<ReadingView> {
     // (FR-012, SC-009; plan ripple 11).
     final segment = _segmentAt(_commentDisplay.toContent(pos.offset), resolve);
     _select(segment);
+    // Learn mode (035): the same gesture selects and highlights the sentence,
+    // then hands it to the practice loop instead of a plain read.
+    if (_learnActive) {
+      _learnTap(segment);
+      return;
+    }
     try {
       await _readSelection();
     } on ReaderException catch (e) {
@@ -2029,6 +2076,291 @@ class _ReadingViewState extends State<ReadingView> {
     // ⏭ Continue Read starts at the first sentence afterwards rather than
     // resuming from a sentence the user can no longer see.
     await _clearAnchor();
+  }
+
+  // -------------------------------------------------------------------
+  // Learn mode (035): practice a sentence — KalaHoo reads, the mic captures
+  // the repeat, an on-device diff scores it, three times per sentence.
+  // -------------------------------------------------------------------
+
+  /// The mode toggle (FR-012): swaps the control row and the tap path.
+  /// Entering builds a fresh session; leaving discards it.
+  void _toggleLearn() {
+    if (_learnActive) {
+      _exitLearn();
+      return;
+    }
+    // Only the idle page offers Learn — never mid-read, edit, render or
+    // review (the toggle itself is hidden there, this is the backstop).
+    if (_mode != _Mode.read) return;
+    setState(() => _learnActive = true);
+    _learnCtl = LearnController(
+      speak: _learnSpeak,
+      recognizer: widget.speechRecognizer,
+      micPermission: widget.micPermission,
+    )..addListener(_onLearnChanged);
+  }
+
+  void _onLearnChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Leave Learn without a summary (toggle off, text switch, dispose).
+  void _exitLearn() {
+    final ctl = _learnCtl;
+    _learnCtl = null;
+    _learnActive = false;
+    if (ctl != null) {
+      ctl.removeListener(_onLearnChanged);
+      unawaited(ctl.abandon());
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Stop (FR-007): end the session, then show what was practiced.
+  Future<void> _learnStop() async {
+    final ctl = _learnCtl;
+    if (ctl == null) return;
+    // Cut any read or capture still in flight before summarizing.
+    unawaited(widget.reader.stop());
+    await ctl.stop();
+    final results = List.of(ctl.session.summary);
+    _exitLearn();
+    if (mounted) _showLearnSummary(results);
+  }
+
+  /// A Learn tap: highlight stays from [_select]; the sentence's own
+  /// 3-cycle practice begins (US1/US2/US4).
+  void _learnTap(TextSegment segment) {
+    final ctl = _learnCtl;
+    if (ctl == null) return;
+    _revealRange(segment);
+    final text = _content.substring(segment.start, segment.end).trim();
+    if (text.isEmpty) return;
+    unawaited(ctl.practice(LearnSentence(
+      key: '${segment.start}:${segment.end}',
+      start: segment.start,
+      end: segment.end,
+      text: text,
+    )));
+  }
+
+  /// The controller's read step: resolve and speak exactly the sentence —
+  /// comments forced off (FR-002) — through the same engine, tracking and
+  /// scroll-follow a tap-read uses. Returns the language actually spoken,
+  /// for the recognizer's locale; null on failure.
+  Future<String?> _learnSpeak(LearnSentence sentence) async {
+    final seg =
+        TextSegment(sentence.start, sentence.end, SegmentUnit.sentence);
+    final List<ParagraphSpeech> speeches;
+    try {
+      speeches = await resolveSpeeches(
+        content: _content,
+        start: seg.start,
+        end: seg.end,
+        mode: _roles.isDialogue ? ReadingMode.dialogue : ReadingMode.standard,
+        removed: _roles.removedFor(_rolesVersion),
+        picks: _roles.voices,
+        commentsRead: false,
+        readLang: _loaded?.readLang ?? autoLanguage,
+        roleLangs: _loaded?.roleLangs ?? const {},
+        commentLang: _loaded?.commentLang ?? autoLanguage,
+        loadVoice: widget.voiceStore.loadVoice,
+        loadInstalled: _installedVoices,
+      );
+    } catch (_) {
+      return null;
+    }
+    if (speeches.isEmpty) return null;
+    // Stepped + last:false: the read keeps its highlight and never touches
+    // the Continue Read anchor — Learn changes nothing outside itself.
+    _steppedRead = true;
+    _stepEndKey = seg.end;
+    final gen = ++_readGen;
+    try {
+      await _runRead(
+        gen,
+        () => widget.reader.speakParagraphs(
+          speeches,
+          onSentenceStart: (spoken) => _onSpokenSentence(gen, spoken),
+        ),
+        last: false,
+      );
+    } finally {
+      _steppedRead = false;
+    }
+    if (!mounted || gen != _readGen || _readFailed) return null;
+    return speeches.first.language;
+  }
+
+  /// The Learn control row (FR-012): status, Stop, exit — in place of the
+  /// normal read controls while Learn is active.
+  List<Widget> _learnControls(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return [
+      Expanded(child: _learnStatus(context)),
+      IconButton(
+        icon: const Icon(Icons.stop),
+        tooltip: l10n?.stopButton ?? 'Stop',
+        onPressed: _learnStop,
+      ),
+      IconButton(
+        icon: const Icon(Icons.school_outlined),
+        tooltip: l10n?.learnExitButton ?? 'Exit Learn',
+        onPressed: _exitLearn,
+      ),
+    ];
+  }
+
+  /// Status line + last-attempt detail for the Learn row.
+  Widget _learnStatus(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final ctl = _learnCtl;
+    if (ctl == null) return const SizedBox.shrink();
+    final session = ctl.session;
+    final state = ctl.state;
+    final cycle = session.cycleIndex;
+    final attemptNo = state == LearnState.waiting ? 3 : cycle + 1;
+
+    String stateLabel;
+    switch (state) {
+      case LearnState.idle:
+        stateLabel = l10n?.learnTapHint ?? 'Tap a sentence to practice';
+      case LearnState.reading:
+        stateLabel =
+            '${l10n?.learnReadingLabel ?? 'KalaHoo is reading…'} '
+            '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
+      case LearnState.listening:
+      case LearnState.scoring:
+        stateLabel =
+            '${l10n?.learnListeningLabel ?? 'Listening…'} '
+            '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
+      case LearnState.waiting:
+        stateLabel = l10n?.learnCycleDone ?? 'Done — tap the next sentence';
+      case LearnState.stopped:
+        stateLabel = '';
+    }
+
+    final detail = _learnAttemptDetail(l10n, ctl.lastAttempt);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(stateLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall),
+        if (detail != null)
+          Text(detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.grey)),
+      ],
+    );
+  }
+
+  /// One line for the last attempt: score + missed/extra, or the unscored
+  /// reason (FR-011 keeps the full transcript in the summary).
+  String? _learnAttemptDetail(AppLocalizations? l10n, LearnAttempt? a) {
+    if (a == null) return null;
+    if (a.status == AttemptStatus.scored && a.accuracy != null) {
+      final pct = (a.accuracy! * 100).round();
+      var line = l10n?.learnScoreLabel(pct) ?? '$pct%';
+      if (a.missedWords.isNotEmpty) {
+        line += ' · ${l10n?.learnMissedLabel(a.missedWords.join(' ')) ?? 'Missed: ${a.missedWords.join(' ')}'}';
+      }
+      if (a.extraWords.isNotEmpty) {
+        line += ' · ${l10n?.learnExtraLabel(a.extraWords.join(' ')) ?? 'Extra: ${a.extraWords.join(' ')}'}';
+      }
+      return line;
+    }
+    if (a.status == AttemptStatus.unscored) {
+      return _unscoredLabel(l10n, a.unscoredReason);
+    }
+    return null;
+  }
+
+  String _unscoredLabel(AppLocalizations? l10n, UnscoredReason? reason) {
+    switch (reason) {
+      case UnscoredReason.noSpeech:
+        return l10n?.learnUnscoredNoSpeech ?? 'No speech detected';
+      case UnscoredReason.recognitionUnavailable:
+        return l10n?.learnUnscoredUnavailable ??
+            'Speech recognition unavailable';
+      case UnscoredReason.unsupportedLanguage:
+        return l10n?.learnUnscoredLanguage ??
+            'Recognition not available for this language';
+      case UnscoredReason.permissionDenied:
+        return l10n?.learnUnscoredPermission ??
+            'Microphone permission needed for scoring';
+      case UnscoredReason.error:
+      case null:
+        return l10n?.learnUnscoredError ?? 'Recognition failed';
+    }
+  }
+
+  /// The Stop summary (FR-007): every practiced sentence with its score and
+  /// attempt counts, unscored attempts marked.
+  void _showLearnSummary(List<SentenceResult> results) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final l10n = AppLocalizations.of(sheetContext);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  l10n?.learnSummaryTitle ?? 'Learn session results',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+              ),
+              if (results.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l10n?.learnSummaryEmpty ??
+                      'No sentences practiced yet.'),
+                )
+              else
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final r in results) _learnSummaryTile(sheetContext, l10n, r),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _learnSummaryTile(
+      BuildContext context, AppLocalizations? l10n, SentenceResult r) {
+    final best = r.bestAccuracy;
+    final scoreText = best != null
+        ? (l10n?.learnSummaryScore((best * 100).round()) ??
+            'Score: ${(best * 100).round()}%')
+        : (l10n?.learnSummaryUnscored(r.unscoredCount) ??
+            '${r.unscoredCount} unscored');
+    return ListTile(
+      dense: true,
+      title: Text(r.sentenceText,
+          maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text([
+        scoreText,
+        l10n?.learnSummaryAttempts(r.attempts.length) ??
+            '${r.attempts.length} attempts',
+      ].join(' · ')),
+    );
   }
 
   // -------------------------------------------------------------------
@@ -4072,7 +4404,19 @@ class _ReadingViewState extends State<ReadingView> {
                           onPressed: _doneEdit,
                         ),
                       ]
+                    : _learnActive
+                    ? _learnControls(context)
                     : [
+                        // Learn mode toggle (035 FR-012): idle-only, beside
+                        // the read controls; swaps the row into Learn's.
+                        if (!_isSpeakingOrPaused)
+                          IconButton(
+                            icon: const Icon(Icons.school_outlined),
+                            tooltip:
+                                AppLocalizations.of(context)?.learnButton ??
+                                    'Learn',
+                            onPressed: _toggleLearn,
+                          ),
                         if (!_isSpeakingOrPaused)
                           IconButton(
                             icon: const Icon(Icons.skip_next),

@@ -741,6 +741,86 @@ class AppLocalizationsZh extends AppLocalizations {
   String videoGenNotifySummary(int ok, int fail) {
     return '场景图片：$ok 张成功，$fail 张失败';
   }
+
+  @override
+  String get learnButton => '学习';
+
+  @override
+  String get learnExitButton => '退出学习';
+
+  @override
+  String get learnYourTurnLabel => '轮到你了——请朗读句子';
+
+  @override
+  String get learnListeningLabel => '正在聆听…';
+
+  @override
+  String get learnReadingLabel => 'KalaHoo 正在朗读…';
+
+  @override
+  String learnAttemptLabel(int n) {
+    return '第 $n 次，共 3 次';
+  }
+
+  @override
+  String learnScoreLabel(int pct) {
+    return '$pct%';
+  }
+
+  @override
+  String learnMissedLabel(String words) {
+    return '漏读：$words';
+  }
+
+  @override
+  String learnExtraLabel(String words) {
+    return '多读：$words';
+  }
+
+  @override
+  String get learnUnscoredNoSpeech => '未检测到语音';
+
+  @override
+  String get learnUnscoredUnavailable => '语音识别不可用';
+
+  @override
+  String get learnUnscoredLanguage => '此语言不支持识别';
+
+  @override
+  String get learnUnscoredPermission => '需要麦克风权限才能评分';
+
+  @override
+  String get learnUnscoredError => '识别失败';
+
+  @override
+  String get learnSummaryTitle => '学习结果';
+
+  @override
+  String get learnSummaryEmpty => '还没有练习任何句子。';
+
+  @override
+  String learnSummaryScore(int pct) {
+    return '得分：$pct%';
+  }
+
+  @override
+  String learnSummaryUnscored(int count) {
+    return '$count 次未评分';
+  }
+
+  @override
+  String learnSummaryAttempts(int count) {
+    return '$count 次尝试';
+  }
+
+  @override
+  String get learnPermissionMessage => 'KalaHoo 需要麦克风权限来聆听你的朗读练习。没有权限将无法评分。';
+
+  @override
+  String get learnTapHint => '点击句子开始练习';
+
+  @override
+  String get learnCycleDone => '完成——点击下一句';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1479,4 +1559,84 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String videoGenNotifySummary(int ok, int fail) {
     return '场景图片：$ok 张成功，$fail 张失败';
   }
+
+  @override
+  String get learnButton => '学习';
+
+  @override
+  String get learnExitButton => '退出学习';
+
+  @override
+  String get learnYourTurnLabel => '轮到你了——请朗读句子';
+
+  @override
+  String get learnListeningLabel => '正在聆听…';
+
+  @override
+  String get learnReadingLabel => 'KalaHoo 正在朗读…';
+
+  @override
+  String learnAttemptLabel(int n) {
+    return '第 $n 次，共 3 次';
+  }
+
+  @override
+  String learnScoreLabel(int pct) {
+    return '$pct%';
+  }
+
+  @override
+  String learnMissedLabel(String words) {
+    return '漏读：$words';
+  }
+
+  @override
+  String learnExtraLabel(String words) {
+    return '多读：$words';
+  }
+
+  @override
+  String get learnUnscoredNoSpeech => '未检测到语音';
+
+  @override
+  String get learnUnscoredUnavailable => '语音识别不可用';
+
+  @override
+  String get learnUnscoredLanguage => '此语言不支持识别';
+
+  @override
+  String get learnUnscoredPermission => '需要麦克风权限才能评分';
+
+  @override
+  String get learnUnscoredError => '识别失败';
+
+  @override
+  String get learnSummaryTitle => '学习结果';
+
+  @override
+  String get learnSummaryEmpty => '还没有练习任何句子。';
+
+  @override
+  String learnSummaryScore(int pct) {
+    return '得分：$pct%';
+  }
+
+  @override
+  String learnSummaryUnscored(int count) {
+    return '$count 次未评分';
+  }
+
+  @override
+  String learnSummaryAttempts(int count) {
+    return '$count 次尝试';
+  }
+
+  @override
+  String get learnPermissionMessage => 'KalaHoo 需要麦克风权限来聆听你的朗读练习。没有权限将无法评分。';
+
+  @override
+  String get learnTapHint => '点击句子开始练习';
+
+  @override
+  String get learnCycleDone => '完成——点击下一句';
 }
