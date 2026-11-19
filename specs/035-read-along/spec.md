@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-18
 
-**Status**: Draft
+**Status**: Implemented (device-verified on OnePlus 9)
 
 **Input**: User description: "like to have new language learning function: user follow the kalahoo reading. User tap the following button to start learning. User tap a sentence to start the learning. The sentence is highlighted. Kalahoo read a sentence. User follow kalahoo's reading. Repeat 3 times. User can tap any sentence to repeat the reading. On user's reading, kalahoo use mic to record the reading and compare with kalahoo's reading. When user tap stop button, show the result of the comparison." — clarified by the reader: fully on-device (no cloud, no AI); Learn is a new function and changes nothing about existing reading functions; the cycle is Kalahoo reads → user follows → repeated 3 times; comments are never read in Learn. **Amended 2026-11-18**: speech-to-text comparison was dropped after device testing showed platform speech recognition is unreliable across devices (missing language packs, blocked services). Learn now detects whether the learner actually spoke during each repeat (voice-activity detection) and keeps the attempt's audio so the learner can play it back — no transcription, no accuracy score. **Amended again 2026-11-18**: the three-cycle repeat was dropped for instability — each sentence tap now runs ONE read+record attempt; recordings accumulate per sentence until Stop, and Stop ends the session and drops the recordings.
 
@@ -71,7 +71,7 @@ At any time in Learn mode the learner can tap any sentence — including one alr
 
 **Acceptance Scenarios**:
 
-1. **Given** a sentence mid-cycle, **When** the learner taps another sentence, **Then** the first cycle is abandoned and the tapped sentence starts fresh.
+1. **Given** a sentence mid-cycle, **When** the learner taps another sentence, **Then** the tap is ignored — one read+record runs at a time; the next tap works once the current attempt finishes.
 2. **Given** a practiced sentence, **When** the learner taps it again, **Then** another read+record attempt is appended to it.
 
 ---
@@ -79,12 +79,12 @@ At any time in Learn mode the learner can tap any sentence — including one alr
 ### Edge Cases
 
 - Microphone permission denied: Learn still opens; the first repeat attempt explains that the mic is needed and offers the path to grant it; cycles without capture are marked accordingly and produce no recordings.
-- No voice detected during a repeat window (silence, noise): the attempt is marked "no voice detected" and the cycle continues to the next repeat.
+- No voice detected during a repeat window (silence, noise): the attempt is marked "no voice detected" and the session waits for the next tap.
 - Recording failure (audio subsystem busy, storage error): the attempt is marked failed and the cycle continues; the read-aloud part is unaffected.
 - Learner backgrounds the app mid-cycle: the cycle pauses; returning resumes or restarts cleanly without phantom recordings.
 - TTS fails mid-cycle: the cycle stops for that sentence with an error note; other sentences remain usable.
 - Very long sentences: the recording window is bounded; whatever was captured is kept and voice detection runs on it.
-- Loud environment / KalaHoo's own speaker output bleeding into the mic: the recording window opens strictly after TTS completes, minimizing echo; residual bleed is the learner's environment, not an app error.
+- Loud environment / KalaHoo's own speaker output bleeding into the mic: the mic session opens before the read but is paused — no audio is written until the read fully completes and the capture resumes, so TTS is never recorded; residual bleed is the learner's environment, not an app error.
 
 ## Requirements *(mandatory)*
 
@@ -92,7 +92,7 @@ At any time in Learn mode the learner can tap any sentence — including one alr
 
 - **FR-001**: The reading page MUST offer a Learn entry point that puts the page into Learn mode without altering any existing function (read, continue read, pause/resume, text type, appearance, video).
 - **FR-002**: Learn mode MUST reuse the page's sentence model, highlighting, and auto-scroll so the practiced sentence is always visible — comments are never read in Learn mode.
-- **FR-003**: For each sentence tap the system MUST run one cycle of: read the sentence aloud → open the microphone → record the learner's repeat → close the microphone → wait for the next tap. Recording MUST NOT begin until the read has fully finished.
+- **FR-003**: For each sentence tap the system MUST run one cycle of: open the microphone paused → read the sentence aloud → resume recording the learner's repeat → close the microphone → wait for the next tap. No audio may be written until the read has fully finished (the mic is paused during TTS, so the read is never recorded).
 - **FR-004**: Each repeat MUST be recorded to a local audio file and analyzed on-device for voice activity (did the learner speak). No audio may leave the device; no cloud service, AI provider, or speech-recognition engine may be used.
 - **FR-005**: Per-attempt results MUST be visible on or beside the practiced sentence as they are produced: voice captured vs. no voice detected.
 - **FR-006**: Tapping any sentence in Learn mode MUST run one read+record attempt for it; tapping an already-practiced sentence appends another attempt; tapping the currently highlighted sentence MUST repeat it.
@@ -122,9 +122,10 @@ At any time in Learn mode the learner can tap any sentence — including one alr
 ## Assumptions
 
 - "Detect and record the user's voice" means: verify speech occurred during each repeat window (energy-based voice-activity detection) and keep the audio for playback — no transcription and no accuracy scoring (amended 2026-11-18 after platform STT proved unreliable across devices).
-- The microphone captures only the learner's repeat; each capture window opens strictly after the TTS utterance completes.
+- The microphone captures only the learner's repeat; the mic session may be opened before the read but stays paused — audio capture resumes only after the TTS utterance completes, so the read is never recorded and the repeat is never clipped by recorder startup latency.
 - ~~"Repeat 3 times"~~ superseded: each sentence tap runs one read+record attempt (amended 2026-11-18 — three-cycle flow proved unstable on device).
-- Learn sessions and their recordings are not persisted; results and audio live for the session, are shown on Stop, and are deleted when the session ends.
+- Learn sessions and their recordings are not persisted; results and audio live for the session, are shown on Stop, and are deleted when the summary is dismissed or Learn is exited.
+- Sentence taps during an in-flight read+record cycle are ignored (no highlight, no new attempt) — one cycle runs at a time.
 - Voice detection is language-agnostic — it works identically for English, Simplified Chinese, Spanish, and any future read language.
 - Android is the primary verification target; iOS support follows the same on-device constraint.
 - "mac" in the original request is read as "mic".

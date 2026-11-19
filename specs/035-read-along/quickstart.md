@@ -23,10 +23,11 @@ including:
 
 - `test/voice_activity_test.dart` — VAD thresholds, min-voiced-time,
   window tracker trailing-silence/cap.
-- `test/learn_session_test.dart` — 3-cycle state machine, voice/noVoice/
-  failed attempts, sentence switching, Stop summary aggregation.
-- `test/learn_controller_test.dart` — faked `VoiceCapture`: 3-cycle
-  orchestration, echo gate, permission denial, capture errors, stop.
+- `test/learn_session_test.dart` — one-attempt-per-tap state machine,
+  voice/noVoice/failed attempts, re-practice appends, Stop summary.
+- `test/learn_controller_test.dart` — faked `VoiceCapture`: paused-mic
+  echo gate (mic opens paused before TTS, resumes after), permission
+  denial, capture errors, graceful stop, attempt accumulation.
 - `test/reading_view_learn_test.dart` — toggle swaps controls, tap starts
   cycle, comments never spoken, Stop shows summary with play buttons,
   re-tap restarts. No platform channels.
@@ -45,9 +46,10 @@ least 3 sentences (ideally one with a comment).
    "Voice heard · Xs" appears with a small ▶ button.
 3. **Playback**: tap ▶ → your recording plays; tap again (■) to stop.
    The recording is *your* voice, not KalaHoo's.
-4. **Echo check**: during KalaHoo's read the mic must NOT be recording
-   (no attempt completes during TTS).
-5. **No-voice case**: stay silent during a repeat → after the ~15s cap
+4. **Echo check**: during KalaHoo's read the mic session is open but
+   PAUSED — the recording contains only your voice, never KalaHoo's.
+   (Android shows the mic indicator during the read — expected.)
+5. **No-voice case**: stay silent during a repeat → after the ~20s cap
    the attempt shows "No voice detected" but the audio is still kept and
    playable.
 6. **Next sentence**: tap another sentence → same single read+record;
@@ -80,7 +82,7 @@ least 3 sentences (ideally one with a comment).
 
 - Very quiet speech or heavy background noise may read as "no voice" —
   the recording is still kept; the learner can replay it.
-- The 15s cap means a silent window takes up to ~15s to close; speaking
+- The 20s cap means a silent window takes up to ~20s to close; speaking
   closes it ~2s after you stop.
 - Recordings live in the temp dir and are deleted when the session ends —
   they are not persisted.

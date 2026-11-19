@@ -1,5 +1,9 @@
 # Implementation Plan: Read-Along Language Learning
 
+
+**Amended 2026-11-18 (final, device-verified)**: the STT design below was replaced — `speech_to_text` removed; Learn now uses `record` + `audioplayers`, a pure-Dart amplitude VAD (`voice_activity.dart`), and one read+record attempt per tap (3-cycle dropped). The mic opens *paused* before TTS and resumes at read end (no clip, no TTS in file); Stop gracefully keeps an in-flight attempt; a fresh `RecorderVoiceCapture` is created per Learn entry. `data-model.md` and `spec.md` are authoritative; the text below is the historical STT plan kept for context.
+
+
 **Branch**: `035-read-along` | **Date**: 2026-11-18 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `/specs/035-read-along/spec.md`

@@ -7,6 +7,8 @@
 **Tests**: Included — constitution principle III (tests before implementation).
 **Amended**: STT removed; voice detection + kept audio (see research.md amendment).
 
+> **Post-implementation amendments (2026-11-18, final)**: task text below predates three later changes — (1) one read+record attempt per tap replaced the 3-cycle loop (T006/T007/T011/T015/T018 wording), (2) the mic opens *paused* before TTS and resumes at read end, (3) lifecycle fixes: fresh recorder per Learn entry, recordings deleted on summary dismissal, graceful stop keeps in-flight attempt, busy taps ignored without highlight. All tasks are checked; `spec.md`/`data-model.md` are authoritative.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: parallelizable (different files, no dependencies)

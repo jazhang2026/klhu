@@ -149,3 +149,17 @@ sentence tap runs ONE read → record → voice-check cycle, then waits.
 Re-taps append attempts; all recordings kept until Stop ends the session
 and deletes them. `LearnSession` lost `cycleIndex`/`_runStart`;
 `LearnController.practice` runs a single cycle.
+
+
+---
+
+## Amendment — final architecture (2026-11-18, device-verified)
+
+The R1–R9 decisions below describe the abandoned STT design. What actually shipped:
+
+- **No speech recognition at all.** Platform STT failed on real devices (ColorOS missing/broken language packs, `error_client`, `error_language_unavailable` even after pack downloads). Replaced by `record` plugin (`RecorderVoiceCapture`, AAC-LC `.m4a`, 16 kHz mono, echoCancel+noiseSuppress, `onAmplitudeChanged` @200 ms) + `audioplayers` for playback.
+- **Voice detection is pure Dart** (`voice_activity.dart`): energy threshold ≈ -45 dB, min voiced ≈ 250 ms, window closes ~2 s after trailing silence or 20 s cap.
+- **One read+record per tap** (3-cycle repeat dropped after instability). Taps during an in-flight cycle are ignored — no highlight, no abandoned attempts.
+- **Mic opens paused before TTS** (`MediaRecorder.pause/resume`): nothing is written during the read, resume is instant → no clipped first syllables, no TTS in the file. Trade-off: mic indicator stays lit during reads.
+- **Lifecycle hardening from device logs**: fresh `RecorderVoiceCapture` per Learn entry (disposed-recorder reuse caused "Recording failed"); recordings deleted on summary dismissal, not before (fixed ENOENT playback); `stop()` force-closes the window and awaits the in-flight attempt ≤5 s (last sentence keeps its recording); permission/encoder probes + recorder + output path all pre-warmed during TTS.
+- **Result**: per-attempt voice/noVoice/failed + playable `.m4a`; Stop summary with counts and ▶ per recording; recordings deleted on dismiss/exit.
