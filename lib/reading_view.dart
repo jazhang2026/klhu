@@ -2122,15 +2122,20 @@ class _ReadingViewState extends State<ReadingView> {
   }
 
   /// Leave Learn without a summary (toggle off, text switch, dispose).
-  /// Session recordings are ephemeral — deleted here.
-  void _exitLearn() {
+  /// Session recordings are ephemeral — deleted here unless the caller is
+  /// about to show the summary (which plays them first).
+  void _exitLearn({bool deleteRecordings = true}) {
     final ctl = _learnCtl;
     _learnCtl = null;
     _learnActive = false;
     if (ctl != null) {
       ctl.removeListener(_onLearnChanged);
       final paths = ctl.recordingPaths;
-      unawaited(ctl.abandon().then((_) => _deleteLearnRecordings(paths)));
+      unawaited(ctl
+          .abandon()
+          .then((_) => deleteRecordings
+              ? _deleteLearnRecordings(paths)
+              : null));
     }
     if (mounted) setState(() {});
   }
@@ -2144,10 +2149,10 @@ class _ReadingViewState extends State<ReadingView> {
     await ctl.stop();
     final results = List.of(ctl.session.summary);
     final paths = ctl.recordingPaths;
-    _exitLearn();
+    // Keep recordings alive for the summary's play buttons — they're
+    // deleted when the sheet closes.
+    _exitLearn(deleteRecordings: false);
     if (mounted) {
-      // Recordings stay alive while the summary is open for playback;
-      // they're deleted when the sheet closes.
       unawaited(_showLearnSummary(results).whenComplete(
           () => _deleteLearnRecordings(paths)));
     }
@@ -5334,9 +5339,12 @@ class _LearnPlayButtonState extends State<_LearnPlayButton> {
       return;
     }
     try {
+      debugPrint('learn play: ${widget.path}');
       await _ensurePlayer().play(DeviceFileSource(widget.path));
+      debugPrint('learn play: started');
       if (mounted) setState(() => _playing = true);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('learn play failed: $e');
       // Missing/corrupt file or no audio plugin — leave the button idle.
     }
   }
