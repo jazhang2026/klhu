@@ -103,6 +103,10 @@ class AIPromptHistory {
   ///
   /// The new entry is prepended; entries beyond [maxEntries] are dropped
   /// from the end. The updated list is persisted immediately.
+  ///
+  /// Re-submitting an identical prompt (same text, type and
+  /// includeReadingContent) does not duplicate it — the existing entry is
+  /// removed and the prompt moves back to the top with a fresh timestamp.
   Future<void> add({
     required String text,
     required AIPromptType type,
@@ -118,7 +122,10 @@ class AIPromptHistory {
           includeReadingContent: includeReadingContent,
           timestamp: DateTime.now().millisecondsSinceEpoch,
         ),
-        ...entries,
+        ...entries.where((e) =>
+            e.text != text ||
+            e.type != type ||
+            e.includeReadingContent != includeReadingContent),
       ];
       if (entries.length > maxEntries) {
         entries = entries.take(maxEntries).toList();
@@ -137,6 +144,30 @@ class AIPromptHistory {
       await prefs.remove(historyKey);
     } catch (e) {
       debugPrint('klhu AI prompt history not cleared: $e');
+    }
+  }
+
+  /// Remove every entry whose timestamp is in [timestamps].
+  /// Returns how many entries were removed.
+  ///
+  /// Entries sharing a timestamp are all removed — timestamps are the
+  /// history's only identity, so a collision deletes together.
+  Future<int> deleteEntries(Set<int> timestamps) async {
+    try {
+      final prefs = await _prefs();
+      final entries = await load();
+      final kept = [
+        for (final e in entries)
+          if (!timestamps.contains(e.timestamp)) e,
+      ];
+      final removed = entries.length - kept.length;
+      if (removed == 0) return 0;
+      final jsonList = kept.map((e) => e.toJson()).toList();
+      await prefs.setString(historyKey, jsonEncode(jsonList));
+      return removed;
+    } catch (e) {
+      debugPrint('klhu AI prompt history delete entries failed: $e');
+      return 0;
     }
   }
 

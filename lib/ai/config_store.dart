@@ -166,6 +166,13 @@ class AIConfigStore {
     return history.deleteEntry(timestamp);
   }
 
+  /// Delete every prompt history entry whose timestamp is in [timestamps].
+  /// Returns how many entries were removed.
+  Future<int> deletePromptHistoryEntries(Set<int> timestamps) async {
+    final history = AIPromptHistory(prefs: _prefs);
+    return history.deleteEntries(timestamps);
+  }
+
   Future<void> _save(
     SharedPreferences prefs,
     List<AIProvider> providers,

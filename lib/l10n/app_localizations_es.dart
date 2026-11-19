@@ -650,6 +650,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get aiPromptCancel => 'Cancelar';
 
   @override
+  String get aiPromptSelect => 'Seleccionar';
+
+  @override
+  String aiPromptDeleteSelected(Object count) {
+    return 'Eliminar ($count)';
+  }
+
+  @override
+  String get aiPromptDeleteEntry => 'Eliminar prompt';
+
+  @override
   String get aiBatchTitle => 'Crear imágenes';
 
   @override

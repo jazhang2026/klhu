@@ -4933,6 +4933,13 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
   late TextEditingController _promptController;
   bool _includeReadingContent = false;
   bool _historyExpanded = false;
+
+  /// Local copy of the prompt history — deletions update it and persist
+  /// immediately, so the list reflects changes without reopening.
+  late List<AIPromptEntry> _entries;
+  bool _selectingPrompts = false;
+  final Set<int> _selectedPromptTimes = {};
+
   AISkill? _selectedSkill;
   late String _templateLocale; // locale for template text (separate from app locale)
 
@@ -4946,6 +4953,7 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
       orElse: () => widget.providers.first,
     );
     _selectedProviderName = selectedProvider.name;
+    _entries = List.of(widget.history);
     _promptController = TextEditingController();
     // Listen for text changes so the Generate button re-evaluates its state.
     _promptController.addListener(() => setState(() {}));
@@ -5002,6 +5010,28 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
       _selectedType = entry.type;
       _includeReadingContent = entry.includeReadingContent;
     });
+  }
+
+  /// Delete one history entry (trash icon on its row).
+  Future<void> _deleteHistoryEntry(AIPromptEntry entry) async {
+    final ts = entry.timestamp;
+    setState(() {
+      _entries = _entries.where((e) => e.timestamp != ts).toList();
+      _selectedPromptTimes.remove(ts);
+    });
+    await AIConfigStore().deletePromptHistoryEntries({ts});
+  }
+
+  /// Delete every checked entry and leave selection mode.
+  Future<void> _deleteSelectedPrompts() async {
+    final ts = Set<int>.of(_selectedPromptTimes);
+    if (ts.isEmpty) return;
+    setState(() {
+      _entries = _entries.where((e) => !ts.contains(e.timestamp)).toList();
+      _selectedPromptTimes.clear();
+      _selectingPrompts = false;
+    });
+    await AIConfigStore().deletePromptHistoryEntries(ts);
   }
 
   void _submit() {
@@ -5230,47 +5260,125 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                 dense: true,
               ),
               // Recent prompts history.
-              if (widget.history.isNotEmpty) ...[
+              if (_entries.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                InkWell(
-                  onTap: () => setState(() => _historyExpanded = !_historyExpanded),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _historyExpanded
-                            ? Icons.expand_less
-                            : Icons.expand_more,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        l10n.aiPromptRecentPrompts(widget.history.length),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 12,
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(
+                            () => _historyExpanded = !_historyExpanded),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _historyExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                l10n.aiPromptRecentPrompts(_entries.length),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    if (_historyExpanded)
+                      _selectingPrompts
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextButton(
+                                  onPressed: () => setState(() {
+                                    _selectingPrompts = false;
+                                    _selectedPromptTimes.clear();
+                                  }),
+                                  child: Text(l10n.aiPromptCancel),
+                                ),
+                                TextButton(
+                                  onPressed: _selectedPromptTimes.isEmpty
+                                      ? null
+                                      : _deleteSelectedPrompts,
+                                  child: Text(l10n.aiPromptDeleteSelected(
+                                      _selectedPromptTimes.length)),
+                                ),
+                              ],
+                            )
+                          : TextButton(
+                              onPressed: () => setState(() {
+                                _selectingPrompts = true;
+                                _selectedPromptTimes.clear();
+                              }),
+                              child: Text(l10n.aiPromptSelect),
+                            ),
+                  ],
                 ),
                 if (_historyExpanded)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Column(
-                      children: widget.history.map((entry) {
+                      children: _entries.map((entry) {
+                        final selected =
+                            _selectedPromptTimes.contains(entry.timestamp);
                         return InkWell(
-                          onTap: () => _restoreFromHistory(entry),
+                          onTap: () {
+                            if (_selectingPrompts) {
+                              setState(() {
+                                selected
+                                    ? _selectedPromptTimes.remove(
+                                        entry.timestamp)
+                                    : _selectedPromptTimes
+                                        .add(entry.timestamp);
+                              });
+                            } else {
+                              _restoreFromHistory(entry);
+                            }
+                          },
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 2),
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
+                              border: Border.all(
+                                  color: selected
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                      : Colors.grey.shade300),
                               borderRadius: BorderRadius.circular(4),
-                              color: Colors.grey.shade50,
+                              color: selected
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.08)
+                                  : Colors.grey.shade50,
                             ),
                             child: Row(
                               children: [
+                                if (_selectingPrompts) ...[
+                                  Checkbox(
+                                    value: selected,
+                                    onChanged: (_) {
+                                      setState(() {
+                                        selected
+                                            ? _selectedPromptTimes.remove(
+                                                entry.timestamp)
+                                            : _selectedPromptTimes
+                                                .add(entry.timestamp);
+                                      });
+                                    },
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
                                 Icon(
                                   entry.type == AIPromptType.image
                                       ? Icons.image
@@ -5299,6 +5407,17 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
                                     color: Colors.grey.shade500,
                                   ),
                                 ),
+                                if (!_selectingPrompts)
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 16),
+                                    tooltip: l10n.aiPromptDeleteEntry,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 28, minHeight: 28),
+                                    onPressed: () =>
+                                        _deleteHistoryEntry(entry),
+                                  ),
                               ],
                             ),
                           ),

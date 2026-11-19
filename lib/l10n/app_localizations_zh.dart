@@ -628,6 +628,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPromptCancel => '取消';
 
   @override
+  String get aiPromptSelect => '选择';
+
+  @override
+  String aiPromptDeleteSelected(Object count) {
+    return '删除（$count）';
+  }
+
+  @override
+  String get aiPromptDeleteEntry => '删除该提示';
+
+  @override
   String get aiBatchTitle => '创建图片';
 
   @override
@@ -1440,6 +1451,17 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get aiPromptCancel => '取消';
+
+  @override
+  String get aiPromptSelect => '选择';
+
+  @override
+  String aiPromptDeleteSelected(Object count) {
+    return '删除（$count）';
+  }
+
+  @override
+  String get aiPromptDeleteEntry => '删除该提示';
 
   @override
   String get aiBatchTitle => '创建图片';

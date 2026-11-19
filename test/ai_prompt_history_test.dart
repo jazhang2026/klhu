@@ -158,6 +158,59 @@ void main() {
       expect(await history.load(), isEmpty);
     });
 
+    test('re-adding an identical prompt moves it to the top, no duplicate',
+        () async {
+      final history = AIPromptHistory();
+      await history.add(text: 'alpha', type: AIPromptType.text, includeReadingContent: false);
+      await Future.delayed(const Duration(milliseconds: 10));
+      await history.add(text: 'beta', type: AIPromptType.text, includeReadingContent: false);
+      await Future.delayed(const Duration(milliseconds: 10));
+      final betaTime = (await history.load())[0].timestamp;
+
+      // Same text+type+flag → not a new entry; moves to top, fresh time.
+      await history.add(text: 'alpha', type: AIPromptType.text, includeReadingContent: false);
+      final entries = await history.load();
+      expect(entries.length, 2);
+      expect(entries[0].text, 'alpha');
+      expect(entries[0].timestamp, greaterThan(betaTime));
+      expect(entries[1].text, 'beta');
+    });
+
+    test('same text with a different type or flag still adds a new entry',
+        () async {
+      final history = AIPromptHistory();
+      await history.add(text: 'same', type: AIPromptType.text, includeReadingContent: false);
+      await history.add(text: 'same', type: AIPromptType.image, includeReadingContent: false);
+      await history.add(text: 'same', type: AIPromptType.text, includeReadingContent: true);
+      final entries = await history.load();
+      expect(entries.length, 3);
+    });
+
+    test('deleteEntries removes every entry with a matching timestamp',
+        () async {
+      final history = AIPromptHistory();
+      await history.add(text: 'one', type: AIPromptType.text, includeReadingContent: false);
+      await Future.delayed(const Duration(milliseconds: 10));
+      await history.add(text: 'two', type: AIPromptType.text, includeReadingContent: false);
+      await Future.delayed(const Duration(milliseconds: 10));
+      await history.add(text: 'three', type: AIPromptType.text, includeReadingContent: false);
+
+      final entries = await history.load();
+      final times = {entries[0].timestamp, entries[2].timestamp};
+      final removed = await history.deleteEntries(times);
+      expect(removed, 2);
+      final remaining = await history.load();
+      expect(remaining.length, 1);
+      expect(remaining.single.text, 'two');
+    });
+
+    test('deleteEntries with unknown timestamps removes nothing', () async {
+      final history = AIPromptHistory();
+      await history.add(text: 'only', type: AIPromptType.text, includeReadingContent: false);
+      expect(await history.deleteEntries({12345}), 0);
+      expect((await history.load()).length, 1);
+    });
+
     test('duplicate text is allowed (reader may retry same prompt)', () async {
       final history = AIPromptHistory();
       await history.add(text: 'same prompt', type: AIPromptType.text, includeReadingContent: false);

@@ -1193,6 +1193,24 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get aiPromptCancel;
 
+  /// No description provided for @aiPromptSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get aiPromptSelect;
+
+  /// No description provided for @aiPromptDeleteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete ({count})'**
+  String aiPromptDeleteSelected(Object count);
+
+  /// No description provided for @aiPromptDeleteEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete prompt'**
+  String get aiPromptDeleteEntry;
+
   /// No description provided for @aiBatchTitle.
   ///
   /// In en, this message translates to:

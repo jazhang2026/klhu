@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -51,6 +52,83 @@ void main() {
     await tester.tap(find.byTooltip('AI'));
     await tester.pumpAndSettle();
     expect(find.text('AI Prompt'), findsOneWidget);
+  });
+
+  testWidgets('recent prompts: delete one, then select and delete many',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'ai_prompt_history': jsonEncode([
+        {
+          'text': 'prompt one',
+          'type': 'text',
+          'includeReadingContent': false,
+          'timestamp': 1000,
+        },
+        {
+          'text': 'prompt two',
+          'type': 'image',
+          'includeReadingContent': false,
+          'timestamp': 2000,
+        },
+        {
+          'text': 'prompt three',
+          'type': 'video',
+          'includeReadingContent': true,
+          'timestamp': 3000,
+        },
+      ]),
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en')],
+      home: ReadingView(
+          reader: SilentReader(), contentStore: pageStore(root)),
+    ));
+    await loadPageContent(tester);
+    await tester.tap(find.byTooltip('Edit'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('AI'));
+    await tester.pumpAndSettle();
+    expect(find.text('AI Prompt'), findsOneWidget);
+
+    // Expand the history list (it sits at the bottom of the scrollable
+    // dialog — scroll it into view first).
+    await tester.ensureVisible(find.text('Recent prompts (3)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Recent prompts (3)'));
+    await tester.pumpAndSettle();
+    expect(find.text('prompt one'), findsOneWidget);
+
+    // Single delete via the row's close icon.
+    await tester.ensureVisible(find.byIcon(Icons.close).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close).first);
+    await tester.pumpAndSettle();
+    var prefs = await SharedPreferences.getInstance();
+    var stored = jsonDecode(prefs.getString('ai_prompt_history')!) as List;
+    expect(stored.length, 2);
+    expect(find.text('prompt one'), findsNothing);
+
+    // Bulk delete: Select → check two rows → Delete (2).
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('prompt two'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('prompt three'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Delete (2)'));
+    await tester.pumpAndSettle();
+
+    prefs = await SharedPreferences.getInstance();
+    stored = jsonDecode(prefs.getString('ai_prompt_history') ?? '[]') as List;
+    expect(stored, isEmpty);
+    expect(find.textContaining('Recent prompts'), findsNothing);
   });
 
   testWidgets('reading page at phone width + large font', (tester) async {
