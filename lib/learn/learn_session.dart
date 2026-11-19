@@ -3,14 +3,13 @@
 /// per-sentence aggregation live here; all TTS/mic/recording orchestration
 /// lives in `learn_controller.dart`.
 ///
-/// Cycle rule (FR-003, clarified): exactly three learner repeats per
-/// sentence — each is Kalahoo-read → user-repeat-recorded. Attempts are
-/// recorded whether voice was detected or not; they still count toward the
-/// three.
+/// Cycle rule (amended 2026-11-18): ONE learner repeat per tap —
+/// Kalahoo reads the tapped sentence once, the mic records the learner's
+/// reading once, and the session waits for the next tap. Re-tapping a
+/// sentence appends another attempt; every recording is kept until Stop.
 ///
-/// Re-practice (US4): `begin` on an already-practiced sentence starts a
-/// fresh run — new attempts append to the same [SentenceResult] (history
-/// kept for the summary) and the run-local index restarts at 1.
+/// Re-practice: `begin` on an already-practiced sentence appends a new
+/// attempt to the same [SentenceResult] (history kept for the summary).
 library;
 
 /// Where one attempt ended up.
@@ -27,7 +26,7 @@ class LearnAttempt {
   final String sentenceKey;
   final String sentenceText;
 
-  /// Position within the current 3-attempt run (1–3), not the lifetime count.
+  /// Position of this attempt within its sentence's history (1-based).
   final int attemptIndex;
   final AttemptStatus status;
 
@@ -82,17 +81,10 @@ class SentenceResult {
 class LearnSession {
   final Map<String, SentenceResult> _results = {};
 
-  /// Attempts recorded before the current run began — the run-local index is
-  /// `result.attempts.length - _runStart`.
-  int _runStart = 0;
-
   String? currentKey;
   String? _currentText;
   LearnState state = LearnState.idle;
 
-  /// Attempts made on the sentence currently being practiced.
-  int get cycleIndex =>
-      currentKey == null ? 0 : (_results[currentKey]!.attempts.length - _runStart);
 
   Map<String, SentenceResult> get results => Map.unmodifiable(_results);
 
@@ -102,9 +94,8 @@ class LearnSession {
   /// Start (or restart) the 3-cycle practice of [key]/[text]. Any in-flight
   /// cycle for another sentence is abandoned — its recorded attempts remain.
   void begin(String key, String text) {
-    final result = _results.putIfAbsent(
+    _results.putIfAbsent(
         key, () => SentenceResult(sentenceKey: key, sentenceText: text));
-    _runStart = result.attempts.length;
     currentKey = key;
     _currentText = text;
     state = LearnState.reading;
@@ -176,7 +167,7 @@ class LearnSession {
     final attempt = LearnAttempt(
       sentenceKey: key,
       sentenceText: _currentText ?? result.sentenceText,
-      attemptIndex: result.attempts.length - _runStart + 1,
+      attemptIndex: result.attempts.length + 1,
       status: status,
       duration: duration,
       audioPath: audioPath,
@@ -186,10 +177,9 @@ class LearnSession {
     return attempt;
   }
 
-  /// After an attempt: 3 done → waiting for the learner's next tap, else the
-  /// next read begins.
+  /// After the single attempt: wait for the learner's next tap.
   void _advance() {
-    state = cycleIndex >= 3 ? LearnState.waiting : LearnState.reading;
+    state = LearnState.waiting;
   }
 
   /// End the session (FR-007). Terminal — the controller discards it.

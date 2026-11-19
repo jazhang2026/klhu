@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:klhu/learn/learn_session.dart';
 
 void main() {
-  group('LearnSession cycle', () {
+  group('LearnSession single-cycle', () {
     test('starts idle', () {
       final s = LearnSession();
       expect(s.state, LearnState.idle);
@@ -16,60 +16,55 @@ void main() {
       expect(s.currentKey, '0:10');
     });
 
-    test('state walk: reading → listening → recording → reading', () {
+    test('state walk: reading → listening → recording → waiting', () {
       final s = LearnSession();
       s.begin('0:10', 'Hi.');
       s.toListening();
       expect(s.state, LearnState.listening);
       s.toRecording();
       expect(s.state, LearnState.recording);
+      s.recordVoice(
+          duration: const Duration(seconds: 2), audioPath: '/tmp/a.m4a');
+      expect(s.state, LearnState.waiting);
     });
 
-    test('three voiced attempts complete the cycle into waiting', () {
+    test('one voiced attempt per tap, then waits', () {
       final s = LearnSession();
       s.begin('0:10', 'Hello world.');
-      for (var i = 1; i <= 3; i++) {
-        s.toListening();
-        s.toRecording();
-        s.recordVoice(
-            duration: const Duration(seconds: 2), audioPath: '/tmp/a$i.m4a');
-        if (i < 3) {
-          expect(s.state, LearnState.reading);
-        }
-      }
+      s.toListening();
+      s.toRecording();
+      s.recordVoice(
+          duration: const Duration(seconds: 2), audioPath: '/tmp/a.m4a');
       expect(s.state, LearnState.waiting);
       final r = s.results['0:10']!;
-      expect(r.attempts, hasLength(3));
-      expect(r.attempts.map((a) => a.attemptIndex), [1, 2, 3]);
-      expect(r.attempts.every((a) => a.status == AttemptStatus.voice), isTrue);
-      expect(r.voiceCount, 3);
-      expect(r.noVoiceCount, 0);
-      expect(r.attempts.first.audioPath, '/tmp/a1.m4a');
+      expect(r.attempts, hasLength(1));
+      expect(r.attempts.single.status, AttemptStatus.voice);
+      expect(r.attempts.single.attemptIndex, 1);
+      expect(r.attempts.single.audioPath, '/tmp/a.m4a');
+      expect(r.voiceCount, 1);
     });
 
-    test('no-voice and failed attempts count toward the three cycles', () {
+    test('no-voice and failed attempts are recorded too', () {
       final s = LearnSession();
       s.begin('0:10', 'Hi.');
       s.toListening();
       s.toRecording();
       s.recordNoVoice(
           duration: const Duration(seconds: 1), audioPath: '/tmp/n.m4a');
+      expect(s.state, LearnState.waiting);
+      s.begin('0:10', 'Hi.');
       s.toListening();
       s.toRecording();
       s.recordFailed(AttemptFailure.permissionDenied);
-      s.toListening();
-      s.toRecording();
-      s.recordFailed(AttemptFailure.captureError);
-      expect(s.state, LearnState.waiting);
       final r = s.results['0:10']!;
-      expect(r.voiceCount, 0);
       expect(r.noVoiceCount, 1);
-      expect(r.failedCount, 2);
+      expect(r.failedCount, 1);
       expect(r.attempts[1].failure, AttemptFailure.permissionDenied);
-      expect(r.attempts[2].audioPath, isNull);
+      expect(r.attempts[1].attemptIndex, 2);
+      expect(r.attempts[1].audioPath, isNull);
     });
 
-    test('switching sentences mid-cycle keeps partial result', () {
+    test('switching sentences keeps each result', () {
       final s = LearnSession();
       s.begin('0:5', 'First.');
       s.toListening();
@@ -82,26 +77,22 @@ void main() {
       expect(s.results['0:5']!.attempts, hasLength(1));
     });
 
-    test('re-practicing a sentence appends a fresh run', () {
+    test('re-tapping a sentence appends attempts, all kept', () {
       final s = LearnSession();
-      s.begin('0:5', 'Again.');
       for (var i = 0; i < 3; i++) {
+        s.begin('0:5', 'Again.');
         s.toListening();
         s.toRecording();
         s.recordVoice(
-            duration: const Duration(seconds: 1), audioPath: '/tmp/r$i.m4a');
+            duration: const Duration(seconds: 1),
+            audioPath: '/tmp/r$i.m4a');
       }
-      expect(s.state, LearnState.waiting);
-      s.begin('0:5', 'Again.');
-      expect(s.state, LearnState.reading);
-      s.toListening();
-      s.toRecording();
-      s.recordVoice(
-          duration: const Duration(seconds: 1), audioPath: '/tmp/r3.m4a');
       final r = s.results['0:5']!;
-      expect(r.attempts, hasLength(4));
-      expect(r.voiceCount, 4);
-      expect(r.attempts.last.attemptIndex, 1); // run-local index restarts
+      expect(r.attempts, hasLength(3));
+      expect(r.voiceCount, 3);
+      expect(r.attempts.map((a) => a.attemptIndex), [1, 2, 3]);
+      expect(r.attempts.map((a) => a.audioPath),
+          ['/tmp/r0.m4a', '/tmp/r1.m4a', '/tmp/r2.m4a']);
     });
 
     test('stop ends session and summary covers all sentences', () {

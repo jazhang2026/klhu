@@ -2248,29 +2248,20 @@ class _ReadingViewState extends State<ReadingView> {
     final l10n = AppLocalizations.of(context);
     final ctl = _learnCtl;
     if (ctl == null) return const SizedBox.shrink();
-    final session = ctl.session;
     final state = ctl.state;
-    final cycle = session.cycleIndex;
-    final attemptNo = state == LearnState.waiting ? 3 : cycle + 1;
 
     String stateLabel;
     switch (state) {
       case LearnState.idle:
         stateLabel = l10n?.learnTapHint ?? 'Tap a sentence to practice';
       case LearnState.reading:
-        stateLabel =
-            '${l10n?.learnReadingLabel ?? 'KalaHoo is reading…'} '
-            '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
+        stateLabel = l10n?.learnReadingLabel ?? 'KalaHoo is reading…';
       case LearnState.listening:
-        stateLabel =
-            '${l10n?.learnListeningLabel ?? 'Listening…'} '
-            '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
+        stateLabel = l10n?.learnListeningLabel ?? 'Listening…';
       case LearnState.recording:
-        stateLabel =
-            '${l10n?.learnRecordingLabel ?? 'Recording — your turn'} '
-            '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
+        stateLabel = l10n?.learnRecordingLabel ?? 'Recording — your turn';
       case LearnState.waiting:
-        stateLabel = l10n?.learnCycleDone ?? 'Done — tap the next sentence';
+        stateLabel = l10n?.learnTapHint ?? 'Tap a sentence to practice';
       case LearnState.stopped:
         stateLabel = '';
     }

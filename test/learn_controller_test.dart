@@ -51,7 +51,8 @@ class FakeVoiceCapture implements VoiceCapture {
     stopCalls++;
     isRecording = false;
     return stopResult ??
-        CaptureResult(path: paths.last, duration: const Duration(seconds: 3));
+        CaptureResult(path: paths.isEmpty ? '' : paths.last,
+            duration: const Duration(seconds: 3));
   }
 
   @override
@@ -80,11 +81,10 @@ void main() {
         recordingPath: () async => nextPath(),
       );
 
-  /// Runs one full practice and feeds each capture window as it opens.
-  /// [feed] chooses the amplitude script per attempt.
-  Future<LearnController> runPractice(
+  /// Runs one practice() and feeds the capture window as it opens.
+  Future<LearnController> runOnce(
     FakeVoiceCapture cap, {
-    void Function(int attempt)? feed,
+    void Function()? feed,
     Future<String?> Function(LearnSentence)? speak,
     Future<bool> Function()? micPermission,
     LearnSentence? sentence,
@@ -99,47 +99,42 @@ void main() {
         break;
       }
       if (cap.isRecording) {
-        (feed ?? (_) => cap.feedVoiceThenSilence())(
-            ctl.session.cycleIndex + 1);
+        (feed ?? cap.feedVoiceThenSilence)();
       }
       await pumpEventQueue();
     }
     await practice;
-    ctl.dispose();
     return ctl;
   }
 
-  test('three cycles: speak → record → voice detected', () async {
+  test('one tap: speak once, record once, voice detected', () async {
     final cap = FakeVoiceCapture();
     final spoken = <String>[];
-    final ctl = await runPractice(
+    final ctl = await runOnce(
       cap,
       speak: (s) async {
         spoken.add(s.key);
         return s.language;
       },
     );
-    expect(spoken, hasLength(3));
-    expect(cap.startCalls, 3);
+    expect(spoken, hasLength(1));
+    expect(cap.startCalls, 1);
     expect(ctl.session.state, LearnState.waiting);
     final r = ctl.session.results['0:12']!;
-    expect(r.attempts, hasLength(3));
-    expect(r.attempts.every((a) => a.status == AttemptStatus.voice), isTrue);
-    expect(r.attempts.every((a) => a.audioPath != null), isTrue);
-    expect(ctl.recordingPaths, hasLength(3));
+    expect(r.attempts, hasLength(1));
+    expect(r.attempts.single.status, AttemptStatus.voice);
+    expect(r.attempts.single.audioPath, isNotNull);
+    expect(ctl.recordingPaths, hasLength(1));
+    ctl.dispose();
   });
 
-  test('silence → noVoice attempts, audio still kept', () async {
+  test('silence → noVoice attempt, audio still kept', () async {
     final cap = FakeVoiceCapture();
-    final ctl = await runPractice(cap,
-        feed: (_) => cap.feedSilenceToCap());
+    final ctl = await runOnce(cap, feed: cap.feedSilenceToCap);
     final r = ctl.session.results['0:12']!;
-    expect(r.attempts, hasLength(3));
-    expect(r.attempts.every((a) => a.status == AttemptStatus.noVoice),
-        isTrue);
-    expect(r.noVoiceCount, 3);
-    // The audio is kept for playback even when no voice was detected.
-    expect(r.attempts.every((a) => a.audioPath != null), isTrue);
+    expect(r.attempts.single.status, AttemptStatus.noVoice);
+    expect(r.attempts.single.audioPath, isNotNull);
+    ctl.dispose();
   });
 
   test('mic never opens before speak resolves (echo gate)', () async {
@@ -159,37 +154,38 @@ void main() {
       cap.feedVoiceThenSilence();
       await pumpEventQueue();
     }
-    await ctl.stop();
     await practice;
     expect(duringSpeak.every((v) => !v), isTrue);
     ctl.dispose();
   });
 
-  test('permission denied → read-only cycles, failed attempts', () async {
+  test('permission denied → failed attempt, read still happened',
+      () async {
     final cap = FakeVoiceCapture();
-    final ctl = await runPractice(cap, micPermission: () async => false);
+    var speaks = 0;
+    final ctl = await runOnce(
+      cap,
+      micPermission: () async => false,
+      speak: (s) async {
+        speaks++;
+        return s.language;
+      },
+    );
+    expect(speaks, 1);
     expect(cap.startCalls, 0);
     final r = ctl.session.results['0:12']!;
-    expect(r.attempts, hasLength(3));
-    expect(
-        r.attempts.every((a) =>
-            a.status == AttemptStatus.failed &&
-            a.failure == AttemptFailure.permissionDenied),
-        isTrue);
+    expect(r.attempts.single.status, AttemptStatus.failed);
+    expect(r.attempts.single.failure, AttemptFailure.permissionDenied);
+    ctl.dispose();
   });
 
-  test('capture start failure → failed(captureError) attempts', () async {
+  test('capture start failure → failed(captureError)', () async {
     final cap = FakeVoiceCapture()..startResult = false;
-    final ctl = await runPractice(cap);
-    // start() returns false → no window opens; the loop still completes
-    // three cycles because each cycle re-attempts.
+    final ctl = await runOnce(cap);
     final r = ctl.session.results['0:12']!;
-    expect(r.attempts, hasLength(3));
-    expect(
-        r.attempts.every((a) =>
-            a.status == AttemptStatus.failed &&
-            a.failure == AttemptFailure.captureError),
-        isTrue);
+    expect(r.attempts.single.status, AttemptStatus.failed);
+    expect(r.attempts.single.failure, AttemptFailure.captureError);
+    ctl.dispose();
   });
 
   test('stop mid-cycle halts without recording phantom attempts',
@@ -214,26 +210,23 @@ void main() {
     ctl.dispose();
   });
 
-  test('mixed results across attempts accumulate on the sentence',
-      () async {
+  test('each tap is one attempt; recordings accumulate', () async {
     final cap = FakeVoiceCapture();
-    final ctl = await runPractice(
-      cap,
-      feed: (i) {
-        if (i == 2) {
-          cap.feedSilenceToCap();
-        } else {
-          cap.feedVoiceThenSilence();
-        }
-      },
-    );
+    final ctl = makeCtl(cap);
+    for (var i = 0; i < 3; i++) {
+      final practice = ctl.practice(sent());
+      for (var spins = 0; spins < 200; spins++) {
+        if (ctl.session.state == LearnState.waiting) break;
+        if (cap.isRecording) cap.feedVoiceThenSilence();
+        await pumpEventQueue();
+      }
+      await practice;
+    }
+    expect(cap.startCalls, 3);
     final r = ctl.session.results['0:12']!;
-    expect(r.voiceCount, 2);
-    expect(r.noVoiceCount, 1);
-    expect(r.attempts.map((a) => a.status), [
-      AttemptStatus.voice,
-      AttemptStatus.noVoice,
-      AttemptStatus.voice,
-    ]);
+    expect(r.attempts, hasLength(3));
+    expect(r.voiceCount, 3);
+    expect(ctl.recordingPaths, hasLength(3));
+    ctl.dispose();
   });
 }

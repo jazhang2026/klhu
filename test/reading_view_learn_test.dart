@@ -176,15 +176,19 @@ void main() {
     }
   }
 
-  /// Feeds each open capture window until the 3-cycle run finishes.
-  Future<void> driveCycles(
+  /// Feeds the open capture window until this tap's read+record finishes.
+  Future<void> driveOnce(
       WidgetTester tester, FakeVoiceCapture capture) async {
     for (var spins = 0; spins < 300; spins++) {
       if (capture.isRecording) capture.feedVoice();
       await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 5)));
       await tester.pump();
-      if (find.textContaining('Done').evaluate().isNotEmpty) break;
+      // Done when the window closed and the attempt line is showing.
+      if (!capture.isRecording &&
+          find.textContaining('Voice heard').evaluate().isNotEmpty) {
+        break;
+      }
     }
     await settle(tester);
   }
@@ -239,7 +243,7 @@ void main() {
       expect(find.text('Tap a sentence to practice'), findsNothing);
     });
 
-    testWidgets('a tap starts the sentence 3-cycle loop; comments never read',
+    testWidgets('a tap reads+records once; comments never read',
         (tester) async {
       final capture = FakeVoiceCapture();
       final reader = await pumpPage(tester, capture: capture);
@@ -247,20 +251,15 @@ void main() {
       await tester.tap(find.byIcon(Icons.school_outlined));
       await tester.pump();
       await tapOn(tester, 'The cat');
-      await driveCycles(tester, capture);
+      await driveOnce(tester, capture);
 
-      // Exactly three read→record cycles, each reading only the tapped
-      // sentence — never the second one, never a comment.
-      expect(reader.spoken.length, 3);
-      expect(reader.spoken,
-          everyElement('The cat sat on the mat.'));
+      // One read of only the tapped sentence — never the second one,
+      // never a comment — then one recording.
+      expect(reader.spoken, ['The cat sat on the mat.']);
       expect(reader.utterances.single.text, 'The cat sat on the mat.');
-      expect(capture.startCalls, 3);
-      expect(capture.paths, hasLength(3));
-
-      // After the third attempt the session waits for the next tap.
-      expect(find.textContaining('Done'), findsOneWidget);
+      expect(capture.startCalls, 1);
       expect(find.textContaining('Voice heard'), findsWidgets);
+      expect(find.byIcon(Icons.play_arrow), findsWidgets);
     });
 
     testWidgets('a normal tap-read still works after exiting Learn',
@@ -287,18 +286,19 @@ void main() {
       await tester.tap(find.byIcon(Icons.school_outlined));
       await tester.pump();
       await tapOn(tester, 'The cat');
-      await driveCycles(tester, capture);
+      await driveOnce(tester, capture);
+      await tapOn(tester, 'It purred');
+      await driveOnce(tester, capture);
 
       await tester.tap(find.byIcon(Icons.stop));
       await settle(tester);
 
-      // The summary sheet lists the practiced sentence with voiced counts
-      // and a play button per kept recording.
+      // The summary sheet lists both practiced sentences.
       expect(find.text('Learn session results'), findsOneWidget);
       expect(find.textContaining('The cat sat on the mat.'),
           findsWidgets);
-      expect(find.textContaining('3 voiced'), findsOneWidget);
-      expect(find.byIcon(Icons.play_arrow), findsWidgets);
+      expect(find.textContaining('It purred all afternoon.'),
+          findsWidgets);
 
       // Dismiss → normal controls, Learn fully exited.
       await tester.tapAt(const Offset(20, 20));
@@ -309,7 +309,7 @@ void main() {
   });
 
   group('US4: re-practice', () {
-    testWidgets('re-tapping a completed sentence restarts its 3 cycles',
+    testWidgets('re-tapping a sentence appends another recording',
         (tester) async {
       final capture = FakeVoiceCapture();
       final reader = await pumpPage(tester, capture: capture);
@@ -317,15 +317,15 @@ void main() {
       await tester.tap(find.byIcon(Icons.school_outlined));
       await tester.pump();
       await tapOn(tester, 'The cat');
-      await driveCycles(tester, capture);
-      expect(reader.spoken.length, 3);
+      await driveOnce(tester, capture);
+      expect(reader.spoken.length, 1);
 
-      // Re-tap: a fresh run — three more reads, attempts accumulate.
+      // Re-tap: one more read+record, attempts accumulate.
       await tapOn(tester, 'The cat');
-      await driveCycles(tester, capture);
-      expect(reader.spoken.length, 6);
-      expect(capture.startCalls, 6);
-      expect(find.textContaining('Done'), findsOneWidget);
+      await driveOnce(tester, capture);
+      expect(reader.spoken.length, 2);
+      expect(capture.startCalls, 2);
+      expect(find.textContaining('Voice heard'), findsWidgets);
     });
   });
 }

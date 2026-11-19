@@ -141,3 +141,11 @@ session summary; recordings are ephemeral per session.
 - Session model: attempts carry `voiceDetected`, `duration`, `audioPath`,
   failure reason — transcript/accuracy/missed/extra removed.
 - Same cycle contract: TTS → mic → ×3 → wait; echo gate unchanged.
+
+## Amendment 2 (2026-11-18): single attempt per tap
+
+The three-cycle repeat proved unstable on device. Simplified: each
+sentence tap runs ONE read → record → voice-check cycle, then waits.
+Re-taps append attempts; all recordings kept until Stop ends the session
+and deletes them. `LearnSession` lost `cycleIndex`/`_runStart`;
+`LearnController.practice` runs a single cycle.

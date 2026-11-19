@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
@@ -56,8 +57,11 @@ class RecorderVoiceCapture implements VoiceCapture {
   @override
   Future<bool> start(String path) async {
     final recorder = _recorder ??= AudioRecorder();
-    if (!await recorder.hasPermission()) return false;
+    final granted = await recorder.hasPermission();
+    debugPrint('learn capture: permission=$granted');
+    if (!granted) return false;
     final supported = await recorder.isEncoderSupported(AudioEncoder.aacLc);
+    debugPrint('learn capture: encoder=$supported');
     if (!supported) return false;
     _watch
       ..reset()
@@ -77,8 +81,10 @@ class RecorderVoiceCapture implements VoiceCapture {
         ),
         path: path,
       );
+      debugPrint('learn capture: started $path');
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('learn capture: start failed: $e');
       return false;
     }
   }
@@ -89,7 +95,8 @@ class RecorderVoiceCapture implements VoiceCapture {
     String? path;
     try {
       path = await _recorder?.stop();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('learn capture: stop failed: $e');
       path = null;
     }
     if (path == null || path.isEmpty) return null;

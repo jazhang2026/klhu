@@ -40,9 +40,9 @@ typedef LearnSpeaker = Future<String?> Function(LearnSentence sentence);
 /// dir, `.m4a`). Implemented by the reading page via path_provider.
 typedef RecordingPath = Future<String> Function();
 
-/// Orchestrates one Learn session's three-cycle loop (spec 035 FR-003,
-/// amended): Kalahoo reads → mic records the repeat → voice detected?
-/// → repeat ×3 → wait.
+/// Orchestrates one Learn session (spec 035, amended): each tap runs ONE
+/// cycle — Kalahoo reads → mic records the repeat → voice detected? →
+/// wait for the next tap.
 ///
 /// No speech recognition: the mic only captures audio; a pure-Dart
 /// amplitude VAD decides whether the learner's voice was present. Every
@@ -89,38 +89,33 @@ class LearnController extends ChangeNotifier {
   /// Current UI-facing status for the Learn control row.
   LearnState get state => session.state;
 
-  /// Practice [sentence]: runs its full 3-cycle loop, then waits. Safe to
-  /// call while another sentence is mid-cycle — the old cycle is abandoned
-  /// (its recorded attempts remain in the session).
+  /// Practice [sentence]: ONE read → record → voice-check cycle, then the
+  /// session waits for the next tap. Safe to call while another sentence
+  /// is mid-cycle — the old cycle is abandoned (its recorded attempts
+  /// remain in the session).
   Future<void> practice(LearnSentence sentence) async {
     final gen = ++_gen;
     session.begin(sentence.key, sentence.text);
     _notify();
-    await _runCycles(sentence, gen);
-  }
 
-  Future<void> _runCycles(LearnSentence sentence, int gen) async {
-    while (_alive(gen) && session.state == LearnState.reading) {
-      // 1. KalaHoo reads — the mic must never open during TTS (echo gate).
-      debugPrint('learn cycle ${session.cycleIndex + 1}: speak');
-      final language = await _speak(sentence);
-      debugPrint('learn cycle ${session.cycleIndex + 1}: spoke lang=$language');
-      if (!_alive(gen)) return;
-      if (language == null) {
-        session.noteReadError();
-        _notify();
-        return;
-      }
-      session.toListening();
+    // 1. KalaHoo reads — the mic must never open during TTS (echo gate).
+    debugPrint('learn: speak ${sentence.key}');
+    final language = await _speak(sentence);
+    debugPrint('learn: spoke ${sentence.key} lang=$language');
+    if (!_alive(gen)) return;
+    if (language == null) {
+      session.noteReadError();
       _notify();
-
-      // 2. The learner's repeat — record, then check for voice.
-      await _recordAttempt(sentence, gen);
-      if (!_alive(gen)) return;
-      // session.record* already advanced state: reading (next cycle) or
-      // waiting (3 done).
-      _notify();
+      return;
     }
+    session.toListening();
+    _notify();
+
+    // 2. The learner's repeat — record, then check for voice.
+    await _recordAttempt(sentence, gen);
+    if (!_alive(gen)) return;
+    // session.record* advanced state to waiting.
+    _notify();
   }
 
   Future<void> _recordAttempt(LearnSentence sentence, int gen) async {
