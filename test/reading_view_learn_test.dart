@@ -308,6 +308,34 @@ void main() {
     });
   });
 
+    testWidgets('taps during an in-flight cycle are ignored',
+        (tester) async {
+      final capture = FakeVoiceCapture();
+      final reader = await pumpPage(tester, capture: capture);
+
+      await tester.tap(find.byIcon(Icons.school_outlined));
+      await tester.pump();
+      await tapOn(tester, 'The cat');
+      // Let the read finish and the capture window open.
+      for (var spins = 0; spins < 200 && !capture.isRecording; spins++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 5)));
+        await tester.pump();
+      }
+      expect(capture.isRecording, isTrue);
+
+      // Tap another sentence mid-recording — must not start a new cycle.
+      await tapOn(tester, 'It purred');
+      await tester.pump();
+      expect(capture.startCalls, 1);
+      expect(reader.spoken, ['The cat sat on the mat.']);
+
+      // Finish the window; the ignored sentence never got an attempt.
+      capture.feedVoice();
+      await settle(tester);
+      expect(find.textContaining('Voice heard'), findsWidgets);
+    });
+
   group('US4: re-practice', () {
     testWidgets('re-tapping a sentence appends another recording',
         (tester) async {

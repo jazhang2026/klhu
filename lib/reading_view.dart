@@ -2171,6 +2171,19 @@ class _ReadingViewState extends State<ReadingView> {
   void _learnTap(TextSegment segment) {
     final ctl = _learnCtl;
     if (ctl == null) return;
+    // One read+record at a time: taps during an in-flight cycle are
+    // ignored — a new practice() would abandon the current attempt
+    // (leaving a 0-attempt entry) and overlap TTS reads.
+    switch (ctl.state) {
+      case LearnState.reading:
+      case LearnState.listening:
+      case LearnState.recording:
+        return;
+      case LearnState.idle:
+      case LearnState.waiting:
+      case LearnState.stopped:
+        break;
+    }
     _revealRange(segment);
     final text = _content.substring(segment.start, segment.end).trim();
     if (text.isEmpty) return;
