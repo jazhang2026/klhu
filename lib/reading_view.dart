@@ -164,9 +164,10 @@ class ReadingView extends StatefulWidget {
   /// the engine out of the test.
   final OcrEngine? ocrEngine;
 
-  /// Learn mode's mic-capture seam (035, amended): the real one wraps the
-  /// `record` plugin; tests inject a fake. Created once per page.
-  final VoiceCapture voiceCapture;
+  /// Learn mode's mic-capture seam (035, amended): tests inject a fake.
+  /// Null → a fresh [RecorderVoiceCapture] is created per Learn session
+  /// (the recorder is disposed on exit and cannot be reused).
+  final VoiceCapture? voiceCapture;
 
   /// Learn mode's per-attempt recording path (035): real impl uses the temp
   /// dir; tests inject a fake so no platform channel is touched.
@@ -211,7 +212,7 @@ class ReadingView extends StatefulWidget {
         documentPicker = documentPicker ?? const FileDocumentPicker(),
         documentExtractor = documentExtractor ?? defaultExtractor('pdf'),
         ocrEngine = ocrEngine ?? defaultOcrEngine(),
-        voiceCapture = voiceCapture ?? RecorderVoiceCapture(),
+        voiceCapture = voiceCapture,
         micPermission = micPermission ?? _defaultMicPermission,
         recordingPath = recordingPath ?? _defaultRecordingPath;
 
@@ -2111,7 +2112,7 @@ class _ReadingViewState extends State<ReadingView> {
     setState(() => _learnActive = true);
     _learnCtl = LearnController(
       speak: _learnSpeak,
-      capture: widget.voiceCapture,
+      capture: widget.voiceCapture ?? RecorderVoiceCapture(),
       micPermission: widget.micPermission,
       recordingPath: widget.recordingPath,
     )..addListener(_onLearnChanged);
