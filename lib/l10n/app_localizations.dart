@@ -1390,6 +1390,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scene images: {ok} succeeded, {fail} failed'**
   String videoGenNotifySummary(int ok, int fail);
+
+  /// Tooltip/label for the Learn mode toggle on the reading page
+  ///
+  /// In en, this message translates to:
+  /// **'Learn'**
+  String get learnButton;
+
+  /// Tooltip for leaving Learn mode
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Learn'**
+  String get learnExitButton;
+
+  /// Shown while the mic waits for the learner's repeat
+  ///
+  /// In en, this message translates to:
+  /// **'Your turn — say the sentence'**
+  String get learnYourTurnLabel;
+
+  /// Shown while the mic captures the learner's repeat
+  ///
+  /// In en, this message translates to:
+  /// **'Listening…'**
+  String get learnListeningLabel;
+
+  /// Shown while TTS reads the sentence in Learn mode
+  ///
+  /// In en, this message translates to:
+  /// **'KalaHoo is reading…'**
+  String get learnReadingLabel;
+
+  /// Current repeat number in a Learn sentence cycle
+  ///
+  /// In en, this message translates to:
+  /// **'Attempt {n} of 3'**
+  String learnAttemptLabel(int n);
+
+  /// Title of the Stop summary sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Learn session results'**
+  String get learnSummaryTitle;
+
+  /// Shown when Stop is tapped before any sentence
+  ///
+  /// In en, this message translates to:
+  /// **'No sentences practiced yet.'**
+  String get learnSummaryEmpty;
+
+  /// Attempt count in summary
+  ///
+  /// In en, this message translates to:
+  /// **'{count} attempts'**
+  String learnSummaryAttempts(int count);
+
+  /// Shown when mic permission is denied
+  ///
+  /// In en, this message translates to:
+  /// **'KalaHoo needs microphone access to record your reading practice. Recording will not work without it.'**
+  String get learnPermissionMessage;
+
+  /// Learn idle status: prompt to pick a sentence
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a sentence to practice'**
+  String get learnTapHint;
+
+  /// Learn status after a sentence's 3 cycles
+  ///
+  /// In en, this message translates to:
+  /// **'Done — tap the next sentence'**
+  String get learnCycleDone;
+
+  /// No description provided for @learnRecordingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording — your turn'**
+  String get learnRecordingLabel;
+
+  /// No description provided for @learnAttemptVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice heard'**
+  String get learnAttemptVoice;
+
+  /// No description provided for @learnAttemptNoVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'No voice detected'**
+  String get learnAttemptNoVoice;
+
+  /// No description provided for @learnAttemptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording failed'**
+  String get learnAttemptFailed;
+
+  /// No description provided for @learnAttemptPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission needed'**
+  String get learnAttemptPermission;
+
+  /// No description provided for @learnPlayRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play recording'**
+  String get learnPlayRecording;
+
+  /// No description provided for @learnStopPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop playback'**
+  String get learnStopPlayback;
+
+  /// No description provided for @learnSummaryVoiced.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} voiced'**
+  String learnSummaryVoiced(Object count);
+
+  /// No description provided for @learnSummaryNoVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} no voice'**
+  String learnSummaryNoVoice(Object count);
+
+  /// No description provided for @learnSummaryFailedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} failed'**
+  String learnSummaryFailedCount(Object count);
 }
 
 class _AppLocalizationsDelegate

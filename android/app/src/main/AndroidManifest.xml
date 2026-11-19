@@ -7,6 +7,9 @@
         android:maxSdkVersion="28" />
     <!-- Internet access for AI provider connectivity tests and URL launching -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Read-along Learn mode (spec 035): on-device speech recognition for
+         the learner's repeat; requested lazily at first capture. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:label="@string/app_name"

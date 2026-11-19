@@ -766,4 +766,81 @@ class AppLocalizationsEn extends AppLocalizations {
   String videoGenNotifySummary(int ok, int fail) {
     return 'Scene images: $ok succeeded, $fail failed';
   }
+
+  @override
+  String get learnButton => 'Learn';
+
+  @override
+  String get learnExitButton => 'Exit Learn';
+
+  @override
+  String get learnYourTurnLabel => 'Your turn — say the sentence';
+
+  @override
+  String get learnListeningLabel => 'Listening…';
+
+  @override
+  String get learnReadingLabel => 'KalaHoo is reading…';
+
+  @override
+  String learnAttemptLabel(int n) {
+    return 'Attempt $n of 3';
+  }
+
+  @override
+  String get learnSummaryTitle => 'Learn session results';
+
+  @override
+  String get learnSummaryEmpty => 'No sentences practiced yet.';
+
+  @override
+  String learnSummaryAttempts(int count) {
+    return '$count attempts';
+  }
+
+  @override
+  String get learnPermissionMessage =>
+      'KalaHoo needs microphone access to record your reading practice. Recording will not work without it.';
+
+  @override
+  String get learnTapHint => 'Tap a sentence to practice';
+
+  @override
+  String get learnCycleDone => 'Done — tap the next sentence';
+
+  @override
+  String get learnRecordingLabel => 'Recording — your turn';
+
+  @override
+  String get learnAttemptVoice => 'Voice heard';
+
+  @override
+  String get learnAttemptNoVoice => 'No voice detected';
+
+  @override
+  String get learnAttemptFailed => 'Recording failed';
+
+  @override
+  String get learnAttemptPermission => 'Microphone permission needed';
+
+  @override
+  String get learnPlayRecording => 'Play recording';
+
+  @override
+  String get learnStopPlayback => 'Stop playback';
+
+  @override
+  String learnSummaryVoiced(Object count) {
+    return '$count voiced';
+  }
+
+  @override
+  String learnSummaryNoVoice(Object count) {
+    return '$count no voice';
+  }
+
+  @override
+  String learnSummaryFailedCount(Object count) {
+    return '$count failed';
+  }
 }

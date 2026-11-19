@@ -130,10 +130,22 @@
   "readLanguageTitle": "朗读语言",
   "readLanguageAuto": "自动",
   "readLanguageDetected": "检测到：{language}",
-  "@readLanguageDetected": {"placeholders": {"language": {"type": "String"}}},
+  "@readLanguageDetected": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "readLanguageRoleLabel": "语言",
   "readLanguageAutoDetected": "自动检测：{language}",
-  "@readLanguageAutoDetected": {"placeholders": {"language": {"type": "String"}}},
+  "@readLanguageAutoDetected": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "readLanguageMainLabel": "正文",
   "readLanguageCommentLabel": "注释",
   "assignmentOpenButton": "分配句子",
@@ -178,8 +190,20 @@
   "aiProviderTipHint": "如何获取 API 密钥…",
   "aiProviderAddButton2": "新增",
   "aiProviderFailSave": "保存失败：{error}",
-  "@aiProviderFailSave": {"placeholders": {"error": {"type": "String"}}},
-  "@aiProviderDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
+  "@aiProviderFailSave": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@aiProviderDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "aiPromptTitle": "AI 提示",
   "aiPromptSkillLabel": "提示模板",
   "aiPromptSkillNone": "无",
@@ -198,17 +222,35 @@
   "aiImageSaveButton": "保存到相册",
   "aiImageSavedMessage": "已保存至相册：Klhu 文件夹",
   "aiImageSaveFailed": "保存失败：{error}",
-  "@aiImageSaveFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@aiImageSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "aiProgressGeneratingText": "正在生成文字…",
   "aiProgressGeneratingImage": "正在生成图片…这可能需要一分钟。",
   "aiProgressGeneratingVideo": "正在生成视频…这可能需要较长时间。",
   "aiProgressRetrying": "正在使用建议模型重试…",
   "aiClipboardCopiedMessage": "已复制到剪贴板：{url}",
-  "@aiClipboardCopiedMessage": {"placeholders": {"url": {"type": "String"}}},
+  "@aiClipboardCopiedMessage": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
   "aiClipboardOpenAction": "打开",
   "aiConnectivityTestFailed": "连接测试失败，请检查 API 密钥。",
   "aiEditProviderTitle": "编辑：{name}",
-  "@aiEditProviderTitle": {"placeholders": {"name": {"type": "String"}}},
+  "@aiEditProviderTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "aiEditApiKeyLabel": "API 密钥",
   "aiEditApiKeyHint": "输入您的 API 密钥…",
   "aiTestPassed": "连接测试通过",
@@ -216,15 +258,76 @@
   "aiEditSaveButton": "保存并测试",
   "videoGenerateAllButton": "全部生成",
   "videoGenProgress": "{done} / {total} 已完成",
-  "@videoGenProgress": {"placeholders": {"done": {"type": "int"}, "total": {"type": "int"}}},
+  "@videoGenProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenSummarySuccess": "{n} 张成功",
-  "@videoGenSummarySuccess": {"placeholders": {"n": {"type": "int"}}},
+  "@videoGenSummarySuccess": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenSummaryPartial": "{ok} 张成功，{fail} 张失败",
-  "@videoGenSummaryPartial": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}},
+  "@videoGenSummaryPartial": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenRetry": "重试",
   "videoGenNotifyRunning": "正在生成场景图片…",
   "videoGenNotifyDone": "场景图片：{n} 张完成",
-  "@videoGenNotifyDone": {"placeholders": {"n": {"type": "int"}}},
+  "@videoGenNotifyDone": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "videoGenNotifySummary": "场景图片：{ok} 张成功，{fail} 张失败",
-  "@videoGenNotifySummary": {"placeholders": {"ok": {"type": "int"}, "fail": {"type": "int"}}}
+  "@videoGenNotifySummary": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
+  "learnButton": "学习",
+  "learnExitButton": "退出学习",
+  "learnYourTurnLabel": "轮到你了——请朗读句子",
+  "learnListeningLabel": "正在聆听…",
+  "learnReadingLabel": "KalaHoo 正在朗读…",
+  "learnAttemptLabel": "第 {n} 次，共 3 次",
+  "learnSummaryTitle": "学习结果",
+  "learnSummaryEmpty": "还没有练习任何句子。",
+  "learnSummaryAttempts": "{count} 次尝试",
+  "learnPermissionMessage": "KalaHoo 需要麦克风权限才能录制你的朗读练习。没有权限将无法录音。",
+  "learnTapHint": "点击句子开始练习",
+  "learnCycleDone": "完成——点击下一句",
+  "learnRecordingLabel": "录音中——轮到你",
+  "learnAttemptVoice": "已检测到语音",
+  "learnAttemptNoVoice": "未检测到语音",
+  "learnAttemptFailed": "录音失败",
+  "learnAttemptPermission": "需要麦克风权限",
+  "learnPlayRecording": "播放录音",
+  "learnStopPlayback": "停止播放",
+  "learnSummaryVoiced": "{count} 次有声",
+  "learnSummaryNoVoice": "{count} 次无声",
+  "learnSummaryFailedCount": "{count} 次失败"
 }

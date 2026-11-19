@@ -218,3 +218,11 @@ Requirement:
     Auto set first. User can view and change?
     Can be set in Text type.
 
+035. like to have new language learning function: user follow the kalahoo reading.
+    - User tap the following button to start learning.
+    - User tap a sentence to start the learning. The sentence is highlighted.
+    - Kalahoo read a sentence. User follow kalahoo's reading. Repeat 3 times.
+    - User can tap any sentence to repeat the reading.
+    - On user's reading, kalahoo use mac to record the reading and compare with kalahoo's reading.
+    - When user tap stop button, show the result of the comparison.
+    - User can replay the recording or drop the recording.
