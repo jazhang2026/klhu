@@ -1427,54 +1427,6 @@ abstract class AppLocalizations {
   /// **'Attempt {n} of 3'**
   String learnAttemptLabel(int n);
 
-  /// Accuracy percentage for a scored Learn attempt
-  ///
-  /// In en, this message translates to:
-  /// **'{pct}%'**
-  String learnScoreLabel(int pct);
-
-  /// Words the learner did not say
-  ///
-  /// In en, this message translates to:
-  /// **'Missed: {words}'**
-  String learnMissedLabel(String words);
-
-  /// Words the learner said that were not in the sentence
-  ///
-  /// In en, this message translates to:
-  /// **'Extra: {words}'**
-  String learnExtraLabel(String words);
-
-  /// Unscored reason: silence during the repeat window
-  ///
-  /// In en, this message translates to:
-  /// **'No speech detected'**
-  String get learnUnscoredNoSpeech;
-
-  /// Unscored reason: recognizer could not initialize
-  ///
-  /// In en, this message translates to:
-  /// **'Speech recognition unavailable'**
-  String get learnUnscoredUnavailable;
-
-  /// Unscored reason: resolved read language has no recognizer locale
-  ///
-  /// In en, this message translates to:
-  /// **'Recognition not available for this language'**
-  String get learnUnscoredLanguage;
-
-  /// Unscored reason: mic permission denied
-  ///
-  /// In en, this message translates to:
-  /// **'Microphone permission needed for scoring'**
-  String get learnUnscoredPermission;
-
-  /// Unscored reason: recognizer error
-  ///
-  /// In en, this message translates to:
-  /// **'Recognition failed'**
-  String get learnUnscoredError;
-
   /// Title of the Stop summary sheet
   ///
   /// In en, this message translates to:
@@ -1487,18 +1439,6 @@ abstract class AppLocalizations {
   /// **'No sentences practiced yet.'**
   String get learnSummaryEmpty;
 
-  /// Per-sentence best score in the summary
-  ///
-  /// In en, this message translates to:
-  /// **'Score: {pct}%'**
-  String learnSummaryScore(int pct);
-
-  /// Count of unscored attempts in summary
-  ///
-  /// In en, this message translates to:
-  /// **'{count} unscored'**
-  String learnSummaryUnscored(int count);
-
   /// Attempt count in summary
   ///
   /// In en, this message translates to:
@@ -1508,7 +1448,7 @@ abstract class AppLocalizations {
   /// Shown when mic permission is denied
   ///
   /// In en, this message translates to:
-  /// **'KalaHoo needs microphone access to hear your reading practice. Scoring is off without it.'**
+  /// **'KalaHoo needs microphone access to record your reading practice. Recording will not work without it.'**
   String get learnPermissionMessage;
 
   /// Learn idle status: prompt to pick a sentence
@@ -1522,6 +1462,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done — tap the next sentence'**
   String get learnCycleDone;
+
+  /// No description provided for @learnRecordingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording — your turn'**
+  String get learnRecordingLabel;
+
+  /// No description provided for @learnAttemptVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice heard'**
+  String get learnAttemptVoice;
+
+  /// No description provided for @learnAttemptNoVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'No voice detected'**
+  String get learnAttemptNoVoice;
+
+  /// No description provided for @learnAttemptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording failed'**
+  String get learnAttemptFailed;
+
+  /// No description provided for @learnAttemptPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission needed'**
+  String get learnAttemptPermission;
+
+  /// No description provided for @learnPlayRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play recording'**
+  String get learnPlayRecording;
+
+  /// No description provided for @learnStopPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop playback'**
+  String get learnStopPlayback;
+
+  /// No description provided for @learnSummaryVoiced.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} voiced'**
+  String learnSummaryVoiced(Object count);
+
+  /// No description provided for @learnSummaryNoVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} no voice'**
+  String learnSummaryNoVoice(Object count);
+
+  /// No description provided for @learnSummaryFailedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} failed'**
+  String learnSummaryFailedCount(Object count);
 }
 
 class _AppLocalizationsDelegate

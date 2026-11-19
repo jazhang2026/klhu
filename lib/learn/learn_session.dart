@@ -1,30 +1,26 @@
-/// Learn-mode session state (spec 035, data-model.md). Pure Dart: the cycle
-/// state machine and per-sentence aggregation live here; all TTS/mic/permission
-/// orchestration lives in `learn_controller.dart`.
+/// Learn-mode session state (spec 035, data-model.md, amended for
+/// voice-detection + kept audio): pure Dart — the cycle state machine and
+/// per-sentence aggregation live here; all TTS/mic/recording orchestration
+/// lives in `learn_controller.dart`.
 ///
-/// Cycle rule (FR-003, clarified): exactly three learner repeats per sentence —
-/// each is Kalahoo-read → user-repeat. Attempts are recorded whether scored or
-/// not; unscored attempts still count toward the three.
+/// Cycle rule (FR-003, clarified): exactly three learner repeats per
+/// sentence — each is Kalahoo-read → user-repeat-recorded. Attempts are
+/// recorded whether voice was detected or not; they still count toward the
+/// three.
 ///
-/// Re-practice (US4): `begin` on an already-practiced sentence starts a fresh
-/// run — new attempts append to the same [SentenceResult] (history kept for
-/// the summary) and the run-local index restarts at 1.
+/// Re-practice (US4): `begin` on an already-practiced sentence starts a
+/// fresh run — new attempts append to the same [SentenceResult] (history
+/// kept for the summary) and the run-local index restarts at 1.
 library;
 
 /// Where one attempt ended up.
-enum AttemptStatus { scored, unscored, failed }
+enum AttemptStatus { voice, noVoice, failed }
 
-/// Why an attempt produced no score.
-enum UnscoredReason {
-  noSpeech,
-  recognitionUnavailable,
-  unsupportedLanguage,
-  permissionDenied,
-  error,
-}
+/// Why a capture produced no usable audio.
+enum AttemptFailure { permissionDenied, captureError }
 
 /// The session-level state machine (data-model.md).
-enum LearnState { idle, reading, listening, scoring, waiting, stopped }
+enum LearnState { idle, reading, listening, recording, waiting, stopped }
 
 /// One learner repeat of one sentence.
 class LearnAttempt {
@@ -34,22 +30,24 @@ class LearnAttempt {
   /// Position within the current 3-attempt run (1–3), not the lifetime count.
   final int attemptIndex;
   final AttemptStatus status;
-  final String? transcript;
-  final double? accuracy;
-  final List<String> missedWords;
-  final List<String> extraWords;
-  final UnscoredReason? unscoredReason;
+
+  /// Length of the kept recording, when capture succeeded.
+  final Duration? duration;
+
+  /// Path to the kept audio file (ephemeral, per-session), when one exists.
+  final String? audioPath;
+
+  /// Why the attempt failed, when [status] is [AttemptStatus.failed].
+  final AttemptFailure? failure;
 
   const LearnAttempt({
     required this.sentenceKey,
     required this.sentenceText,
     required this.attemptIndex,
     required this.status,
-    this.transcript,
-    this.accuracy,
-    this.missedWords = const [],
-    this.extraWords = const [],
-    this.unscoredReason,
+    this.duration,
+    this.audioPath,
+    this.failure,
   });
 }
 
@@ -61,28 +59,22 @@ class SentenceResult {
 
   SentenceResult({required this.sentenceKey, required this.sentenceText});
 
-  double? get bestAccuracy {
-    double? best;
-    for (final a in attempts) {
-      final acc = a.accuracy;
-      if (acc != null && (best == null || acc > best)) best = acc;
-    }
-    return best;
+  int get voiceCount =>
+      attempts.where((a) => a.status == AttemptStatus.voice).length;
+
+  int get noVoiceCount =>
+      attempts.where((a) => a.status == AttemptStatus.noVoice).length;
+
+  int get failedCount =>
+      attempts.where((a) => a.status == AttemptStatus.failed).length;
+
+  /// Best run: most voiced attempts.
+  int get bestVoiceCount {
+    // Attempts accumulate across re-practice runs; the "best" is the run
+    // with the most voiced attempts — computed per contiguous run is overkill
+    // for the summary, so report the voiced count of the latest run.
+    return voiceCount;
   }
-
-  double? get lastAccuracy {
-    for (var i = attempts.length - 1; i >= 0; i--) {
-      final acc = attempts[i].accuracy;
-      if (acc != null) return acc;
-    }
-    return null;
-  }
-
-  int get scoredCount =>
-      attempts.where((a) => a.status == AttemptStatus.scored).length;
-
-  int get unscoredCount =>
-      attempts.where((a) => a.status == AttemptStatus.unscored).length;
 }
 
 /// The whole Learn session: which sentence is being practiced, how far into
@@ -123,9 +115,9 @@ class LearnSession {
     state = LearnState.listening;
   }
 
-  void toScoring() {
+  void toRecording() {
     if (state != LearnState.listening) return;
-    state = LearnState.scoring;
+    state = LearnState.recording;
   }
 
   /// The read for the current attempt failed — back to idle; the learner can
@@ -135,47 +127,48 @@ class LearnSession {
     state = LearnState.idle;
   }
 
-  /// A repeat produced a scored transcript.
-  LearnAttempt recordScored({
-    required String transcript,
-    required double accuracy,
-    List<String> missed = const [],
-    List<String> extra = const [],
+  /// A repeat was captured and voice activity was detected.
+  LearnAttempt recordVoice({
+    required Duration duration,
+    required String audioPath,
   }) {
     final attempt = _record(
-      status: AttemptStatus.scored,
-      transcript: transcript,
-      accuracy: accuracy,
-      missedWords: missed,
-      extraWords: extra,
+      status: AttemptStatus.voice,
+      duration: duration,
+      audioPath: audioPath,
     );
     _advance();
     return attempt;
   }
 
-  /// A repeat window closed without a usable transcript.
-  LearnAttempt recordUnscored(UnscoredReason reason, {String? transcript}) {
+  /// A repeat window closed without detectable voice. The audio is still
+  /// kept for playback (the learner may have been too quiet).
+  LearnAttempt recordNoVoice({
+    required Duration duration,
+    required String audioPath,
+  }) {
     final attempt = _record(
-      status: AttemptStatus.unscored,
-      transcript: transcript,
-      unscoredReason: reason,
+      status: AttemptStatus.noVoice,
+      duration: duration,
+      audioPath: audioPath,
     );
     _advance();
     return attempt;
   }
 
-  /// The recognizer itself failed — counts as an unscored attempt so the
-  /// three-cycle contract still completes.
-  LearnAttempt recordFailed(UnscoredReason reason) =>
-      recordUnscored(reason);
+  /// Capture could not run (permission denied / recorder error) — counts as
+  /// an attempt so the three-cycle contract still completes.
+  LearnAttempt recordFailed(AttemptFailure failure) {
+    final attempt = _record(status: AttemptStatus.failed, failure: failure);
+    _advance();
+    return attempt;
+  }
 
   LearnAttempt _record({
     required AttemptStatus status,
-    String? transcript,
-    double? accuracy,
-    List<String> missedWords = const [],
-    List<String> extraWords = const [],
-    UnscoredReason? unscoredReason,
+    Duration? duration,
+    String? audioPath,
+    AttemptFailure? failure,
   }) {
     final key = currentKey;
     if (key == null) throw StateError('record* before begin()');
@@ -185,11 +178,9 @@ class LearnSession {
       sentenceText: _currentText ?? result.sentenceText,
       attemptIndex: result.attempts.length - _runStart + 1,
       status: status,
-      transcript: transcript,
-      accuracy: accuracy,
-      missedWords: missedWords,
-      extraWords: extraWords,
-      unscoredReason: unscoredReason,
+      duration: duration,
+      audioPath: audioPath,
+      failure: failure,
     );
     result.attempts.add(attempt);
     return attempt;
@@ -199,15 +190,6 @@ class LearnSession {
   /// next read begins.
   void _advance() {
     state = cycleIndex >= 3 ? LearnState.waiting : LearnState.reading;
-  }
-
-  /// End the current sentence's run early — used when the failure is
-  /// deterministic (no STT for this language, recognizer absent): retrying
-  /// the remaining cycles would just re-read aloud with no mic window.
-  /// The learner sees the unscored reason and taps again to retry.
-  void endRun() {
-    if (currentKey == null) return;
-    state = LearnState.waiting;
   }
 
   /// End the session (FR-007). Terminal — the controller discards it.

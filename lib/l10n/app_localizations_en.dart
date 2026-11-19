@@ -788,52 +788,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String learnScoreLabel(int pct) {
-    return '$pct%';
-  }
-
-  @override
-  String learnMissedLabel(String words) {
-    return 'Missed: $words';
-  }
-
-  @override
-  String learnExtraLabel(String words) {
-    return 'Extra: $words';
-  }
-
-  @override
-  String get learnUnscoredNoSpeech => 'No speech detected';
-
-  @override
-  String get learnUnscoredUnavailable => 'Speech recognition unavailable';
-
-  @override
-  String get learnUnscoredLanguage =>
-      'Recognition not available for this language';
-
-  @override
-  String get learnUnscoredPermission =>
-      'Microphone permission needed for scoring';
-
-  @override
-  String get learnUnscoredError => 'Recognition failed';
-
-  @override
   String get learnSummaryTitle => 'Learn session results';
 
   @override
   String get learnSummaryEmpty => 'No sentences practiced yet.';
-
-  @override
-  String learnSummaryScore(int pct) {
-    return 'Score: $pct%';
-  }
-
-  @override
-  String learnSummaryUnscored(int count) {
-    return '$count unscored';
-  }
 
   @override
   String learnSummaryAttempts(int count) {
@@ -842,11 +800,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learnPermissionMessage =>
-      'KalaHoo needs microphone access to hear your reading practice. Scoring is off without it.';
+      'KalaHoo needs microphone access to record your reading practice. Recording will not work without it.';
 
   @override
   String get learnTapHint => 'Tap a sentence to practice';
 
   @override
   String get learnCycleDone => 'Done — tap the next sentence';
+
+  @override
+  String get learnRecordingLabel => 'Recording — your turn';
+
+  @override
+  String get learnAttemptVoice => 'Voice heard';
+
+  @override
+  String get learnAttemptNoVoice => 'No voice detected';
+
+  @override
+  String get learnAttemptFailed => 'Recording failed';
+
+  @override
+  String get learnAttemptPermission => 'Microphone permission needed';
+
+  @override
+  String get learnPlayRecording => 'Play recording';
+
+  @override
+  String get learnStopPlayback => 'Stop playback';
+
+  @override
+  String learnSummaryVoiced(Object count) {
+    return '$count voiced';
+  }
+
+  @override
+  String learnSummaryNoVoice(Object count) {
+    return '$count no voice';
+  }
+
+  @override
+  String learnSummaryFailedCount(Object count) {
+    return '$count failed';
+  }
 }

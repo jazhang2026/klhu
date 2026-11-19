@@ -121,3 +121,19 @@ No persistence; no changes to `SavedContent`, `ContentStore`, or any stored sche
 - No pronunciation/acoustic scoring.
 - No session persistence or history.
 - No changes to read/continue/text-type/appearance/video functions.
+
+---
+
+## Amendment (2026-11-18): voice detection replaces transcript scoring
+
+`LearnAttempt` drops `transcript`/`accuracy`/`missedWords`/`extraWords`/
+`unscoredReason`; gains `duration`, `audioPath`, `failure`
+(`AttemptFailure.permissionDenied|captureError`). `AttemptStatus` is now
+`voice | noVoice | failed`. `SentenceResult` aggregates `voiceCount`,
+`noVoiceCount`, `failedCount` (replaces `bestAccuracy`/`scoredCount`/
+`unscoredCount`). `LearnState.scoring` → `LearnState.recording`.
+
+New collaborators: `VoiceCapture` seam (`voice_capture.dart`, `record`
+plugin, AAC-LC `.m4a`), `analyzeVoiceActivity`/`VoiceWindowTracker`
+(`voice_activity.dart`, pure Dart amplitude VAD). Recordings are ephemeral
+files under the temp dir, one per attempt, deleted on session end.

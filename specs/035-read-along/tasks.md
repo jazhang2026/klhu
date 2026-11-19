@@ -2,248 +2,100 @@
 
 **Input**: Design documents from `/specs/035-read-along/`
 
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, quickstart.md
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md
 
-**Tests**: INCLUDED — constitution III (test-first) requires failing tests before implementation.
+**Tests**: Included — constitution principle III (tests before implementation).
+**Amended**: STT removed; voice detection + kept audio (see research.md amendment).
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to
+- **[P]**: parallelizable (different files, no dependencies)
+- **[Story]**: US1=P1, US2=P1, US3=P2, US4=P3
 
 ## Path Conventions
 
-- Single project: `lib/`, `test/`, `specs/` at repository root
+- Flutter app: `lib/`, `test/` (new `lib/learn/` module)
+- Tests: `test/` mirror paths (constitution III: tests precede code)
 
 ---
 
-## Phase 1: Setup
+## Phase 1: Setup (deps + permissions)
 
-- [X] T001 Create git branch `035-read-along` from `main`
-- [X] T002 [P] Add dependencies `speech_to_text: ^7.5.0` and
-  `permission_handler: ^13.0.2` to `pubspec.yaml`; run `flutter pub get`
-- [X] T003 [P] Add `RECORD_AUDIO` permission to
-  `android/app/src/main/AndroidManifest.xml`; add iOS
-  `NSSpeechRecognitionUsageDescription` + `NSMicrophoneUsageDescription`
-  strings to `ios/Runner/Info.plist` (and macOS equivalent if present)
-- [X] T004 [P] Add Learn-mode l10n keys to `lib/l10n/app_en.arb`,
-  `app_es.arb`, `app_zh.arb`, `app_zh_Hans.arb` (toggle tooltip, mic
-  listening/recording states, score labels, missed/extra words, unscored
-  reasons, Stop-summary title/empty state, permission-denied hint) and
-  regenerate localizations
+- [x] T001 Create feature branch `035-read-along` from `main`
+- [x] T002 Add `record: ^7.1.2` and `audioplayers: ^6.8.1` to `pubspec.yaml`; remove `speech_to_text`; run `flutter pub get`
+- [x] T003 Add `android.permission.RECORD_AUDIO` to `android/app/src/main/AndroidManifest.xml`; add `NSMicrophoneUsageDescription` to `ios/Runner/Info.plist` and `macos/Runner/Info.plist` (no iOS speech key needed — no STT)
+- [x] T004 [P] Add Learn l10n keys ×4 ARBs (`app_en`, `app_es`, `app_zh`, `app_zh_Hans`): `learnToggle`, `learnMode`, `learnStatusReading`, `learnStatusListening`, `learnStatusWaiting`, `learnStatusRecording`, `learnTapSentence`, `learnStop`, `learnStopTitle`, `learnSummaryVoiced`, `learnSummaryNoVoice`, `learnSummaryFailed`, `learnNoVoiceLabel`, `learnVoiceCapturedLabel`, `learnRecordingFailedLabel`, `learnPlayRecording`, `learnStopRecording`, `learnNoSpeechMsg`, `learnMicDeniedMsg`, `learnMicDeniedTitle`, `learnRecordFailedMsg`, `learnUnsupportedMsg` — run `flutter gen-l10n`
 
-## Phase 2: Foundational (blocking prerequisites)
+## Phase 2: Foundational — voice capture + session core
 
-**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+- [x] T005 [P] [US1] Test `test/voice_activity_test.dart`: `analyzeVoiceActivity(samples, sampleIntervalMs)` — silence-only → not voiced; loud burst ≥ minVoicedMs → voiced; threshold boundaries; empty list
+- [x] T006 [P] [US1] Test `test/learn_session_test.dart`: `LearnSession` state machine + `LearnAttempt`/`SentenceResult` with `voiceDetected`, `duration`, `audioPath`, `failure`; 3-attempt lifecycle, re-practice appends, `sentenceCompleted`, `bestVoiceCount`, `noVoiceCount`, `totalAttempts`, `completedSentences`, `spokenSentences`
+- [x] T007 [P] [US1] Test `test/learn_controller_test.dart` + fakes: `FakeVoiceCapture` (start/stop/amplitudes), mic permission stub; 3-cycle orchestration, wait-state, sentence switch mid-cycle, permission denial, capture error → failed attempt, session summary fields
+- [x] T008 [US1] Implement `lib/learn/voice_activity.dart`: pure `analyzeVoiceActivity(List<double> dbSamples, {required double sampleIntervalMs, double thresholdDb = -45, double minVoicedMs = 250})` → `VoiceActivityResult{voiced, voicedMs, peakDb}`
+- [x] T009 [US1] Implement `lib/learn/learn_session.dart`: `LearnState`, `AttemptStatus {voice, noVoice, failed}`, `AttemptFailure {permissionDenied, captureError}`, `LearnAttempt`, `SentenceResult`, `LearnSession` (startSentence/selectSentence/recordVoice/recordNoVoice/recordFailed/practiceAgain/stop/clear — no score fields)
+- [x] T010 [US1] Implement `lib/learn/voice_capture.dart`: `VoiceCapture` seam (`start(path)`, `amplitudes` stream, `stop() → {path, duration}`), `CaptureError` enum, `RecorderVoiceCapture` on `record` plugin (`AudioEncoder.aacLc`, `onAmplitudeChanged`, `hasPermission` via permission_handler)
+- [x] T011 [US1] Implement `lib/learn/learn_controller.dart`: TTS→await→lazy mic permission→record with VAD window (stop after 2s trailing silence or 15s cap)→analyze→×3→wait; `nextRecordingPath` seam for temp files; cleanup `deleteRecordings` on abandon/stop
 
-- [X] T005 [P] Create `lib/learn/speech_scorer.dart`: `ScoreResult`
-  `{accuracy, transcript, missed, extra}` + `scoreTranscript(target,
-  recognized)` — normalization (lowercase, strip punctuation, collapse
-  whitespace), Latin whitespace tokens vs CJK character unigrams, LCS
-  alignment → matched/target accuracy — pure Dart per data-model.md
-- [X] T006 [P] Create `lib/learn/speech_recognizer.dart`: `SpeechRecognizer`
-  abstract seam (`initialize`, `listen(localeId, onResult, onDone,
-  onError)`, `stop`) + `PlatformSpeechRecognizer` wrapping
-  `speech_to_text` with `SpeechListenOptions(onDevice: true,
-  listenFor: ~15s, pauseFor: ~3s)` + `localeIdFor(language)` mapping
-  en→en_US, zh→zh_CN, es→es_ES, else null — per research.md R1/R2/R8
-- [X] T007 Create `lib/learn/learn_session.dart`: `LearnAttempt`,
-  `SentenceResult`, `LearnSession`, `LearnState` state machine
-  (idle→reading→listening→scoring→waiting→stopped), `summary()`,
-  cycle counting (exactly 3 attempts per sentence), unscored-reason
-  enum — pure Dart, no Flutter imports — per data-model.md
-- [X] T008 Create `test/learn_session_test.dart`: 3-cycle progression,
-  sentence switch mid-cycle, waiting state after 3rd attempt, Stop
-  summary aggregation incl. unscored attempts — tests FIRST (must fail
-  before T007 lands is acceptable order: write test, then implement)
-- [X] T009 [P] Create `test/speech_scorer_test.dart`: normalization,
-  en/es word-level diffs (perfect/partial/total mismatch), zh character
-  diffs, empty transcript, empty target — tests FIRST
-- [X] T010 [P] Create `test/speech_recognizer_test.dart`: `FakeSpeechRecognizer`
-  + locale mapping tests; verify seam signatures drive listen/stop/error
-  without platform channels
+## Phase 3: US1 — Learn mode entry (P1, MVP)
 
-**Checkpoint**: scorer, session machine, and recognizer seam are green;
-user story work can begin.
+- [x] T012 [P] [US1] Test `test/reading_view_learn_test.dart` additions: toggle swaps control row; Learn tap → single read of tapped sentence (record fake speaks+records)
+- [x] T013 [US1] Wire Learn toggle button into `reading_view.dart` idle control row (`_learnActive ? _learnControls : _normalControls`)
+- [x] T014 [US1] Wire Learn tap routing: `_handleSentenceTap` branches when `_learnActive` → `_learnTap(segment)`; `commentsRead: false` for practice reads; resume normal read on Learn exit; abandon on dispose/text change
 
-## Phase 3: US1 — Start a Learn session (P1) 🎯 MVP
+## Phase 4: US2 — Read-along cycle (P1)
 
-**Goal**: mode toggle beside existing controls swaps page into Learn
-controls; tapping a sentence highlights it; leaving Learn restores normal
-controls with zero change to existing functions.
+- [x] T015 [P] [US2] Test: 3-cycle loop — TTS once → mic records → voiced result → repeat; only tapped sentence read; Learn status shows listening/recording states
+- [x] T016 [US2] Implement per-attempt UI in `_learnControls`: status text + last attempt result (voiced / no voice / failed + duration) + play/stop button for the attempt's audio
+- [x] T017 [P] [US2] Test: mic permission denied → attempts `failed(permissionDenied)`, cycles continue read-only, localized message shown
+- [x] T018 [US2] Implement lazy mic permission request inside `LearnController.startSentence` (first repeat only); denial → unscored-equivalent failed attempts
+- [x] T019 [P] [US2] Test: capture error mid-run → `failed(captureError)` attempt; next attempt retries
 
-**Independent Test**: enter Learn on a saved text, tap a sentence, verify
-highlight + Learn controls; exit and verify read/continue/edit unchanged.
+## Phase 5: US3 — Stop + summary (P2)
 
-- [X] T011 [US1] Create `lib/learn/learn_controller.dart` skeleton:
-  owns `LearnSession`, exposes `active` flag, `startSentence(segment)`,
-  `stop()`, and a `ChangeNotifier`/callback surface for UI state —
-  TTS/mic wiring stubbed for US2
-- [X] T012 [P] [US1] Create `test/reading_view_learn_test.dart` (US1 cases):
-  toggle button present in idle control row; tapping it swaps to Learn
-  controls (mic state + Stop + exit toggle); Learn tap highlights the
-  tapped sentence and begins its cycle (fake reader/recognizer injected);
-  exit Learn restores original controls; existing tap-read and Continue
-  Read still work after exit — tests FIRST
-- [X] T013 [US1] Wire Learn toggle + Learn control row into
-  `lib/reading_view.dart`: additive `_learnActive`/`_learn` state, toggle
-  IconButton in the existing bottom `Row` (idle branch only), branch in
-  `_onTapText`/`_resolveAt` path so Learn taps select+highlight without
-  triggering normal read; Learn controls show mic state, Stop, exit —
-  per FR-001/FR-012, no changes to non-Learn paths
-- [X] T014 [US1] Ensure Learn mode interacts correctly with existing
-  guards: disabled during EDIT/review/rendering; `_isSpeakingOrPaused`
-  semantics preserved for Learn's own TTS playback; wakelock held while
-  Learn reads (reuse existing sync); leaving page disposes Learn state
+- [x] T020 [P] [US3] Test: Stop → summary sheet lists sentences with voiced/no-voice/failed counts + per-attempt play buttons; dismissal returns to normal controls
+- [x] T021 [US3] Implement summary sheet in `reading_view.dart` (stateless dialog/bottom sheet over `LearnSession` snapshot; `AudioPlayer` play/stop per attempt file)
+- [x] T022 [US3] Wire Stop button in Learn controls → `learn.stop()` → show summary → session cleared
 
-## Phase 4: US2 — Follow-along cycle (P1)
+## Phase 6: US4 — Re-practice (P3)
 
-**Goal**: per sentence — KalaHoo reads → mic captures repeat → score →
-×3; comments never read; unscored degradation paths.
+- [x] T023 [P] [US4] Test: tap already-practiced sentence → fresh 3-cycle run, attempts appended
+- [x] T024 [US4] Implement: `selectSentence` re-entry appends attempts (already in session model — verify widget path)
 
-**Independent Test**: tap one sentence with fake TTS + fake recognizer;
-verify 3 read-then-record cycles, per-attempt scores, comment exclusion.
+## Phase 7: Polish & verification
 
-- [X] T015 [P] [US2] Extend `test/reading_view_learn_test.dart` (US2 cases)
-  and/or `test/learn_controller_test.dart`: TTS completion awaited before
-  `listen()` opens (ordering assertion on fakes); 3 cycles per sentence;
-  final transcript scored via `scoreTranscript`; attempts recorded on
-  `LearnSession`; comments never passed to reader — tests FIRST
-- [X] T016 [US2] Implement cycle orchestration in
-  `lib/learn/learn_controller.dart`: read sentence via existing
-  `Reader`/`ReaderService` speak path → await completion → request mic
-  permission lazily (first attempt only) → `SpeechRecognizer.listen` →
-  on final result `stop()` + score + record attempt → next cycle or
-  `waiting`; handle silence/timeout/error → unscored attempt; TTS error →
-  idle-with-error — per FR-003/FR-009, research R4
-- [X] T017 [US2] Map resolved read language → `localeId` for recognition
-  (reuse speech_resolver output; unsupported → `unsupportedLanguage`
-  unscored); ensure Learn reads resolve language exactly like tap-read
-  (role override → main override → detection) — FR-008
-- [X] T018 [US2] Surface per-attempt result UI in `lib/reading_view.dart`:
-  score badge/status near the practiced sentence or in the Learn control
-  area (accuracy %, transcript, missed/extra words per FR-011); mic
-  listening indicator during capture; unscored reasons localized
-- [X] T019 [US2] Handle edge cases: mic permission denied → read-only
-  cycles with `permissionDenied` unscored; recognizer initialize false →
-  `recognitionUnavailable`; backgrounding mid-cycle → clean pause/restart;
-  tapping another sentence mid-cycle abandons and restarts (US4 overlap)
-
-## Phase 5: US3 — Stop and see session result (P2)
-
-**Goal**: Stop ends Learn and shows per-sentence summary incl. unscored.
-
-**Independent Test**: run partial session, Stop, verify summary lists
-practiced sentences with scores and unscored counts; dismiss → normal mode.
-
-- [X] T020 [P] [US3] Add US3 cases to `test/reading_view_learn_test.dart`:
-  Stop during idle/waiting/listening states; summary shows each sentence's
-  best/last score + attempt/unscored counts; dismiss returns to normal
-  controls — tests FIRST
-- [X] T021 [US3] Implement Stop + summary in `lib/reading_view.dart` +
-  `lib/learn/learn_controller.dart`: Stop callable from Learn controls in
-  any state → session `stopped` → modal bottom sheet/dialog listing
-  `LearnSession.summary()` (per-sentence text, score, attempts, unscored
-  reasons) → dismiss exits Learn to normal controls — FR-007, research R9
-- [X] T022 [US3] Verify summary handles empty session (Stop before any
-  sentence) and all-unscored sessions gracefully (localized empty states)
-
-## Phase 6: US4 — Re-practice any sentence (P3)
-
-**Goal**: tap any sentence (incl. completed) restarts its 3-cycle practice.
-
-**Independent Test**: practice A, practice B, re-tap A → A restarts cleanly.
-
-- [X] T023 [P] [US4] Add US4 cases to `test/reading_view_learn_test.dart`:
-  tap completed sentence restarts its cycle; prior `SentenceResult`
-  preserved/appended per data-model (attempts accumulate or reset —
-  confirm with spec: re-practice = new 3-cycle run, result updates);
-  rapid re-taps don't corrupt session state — tests FIRST
-- [X] T024 [US4] Verify/adjust `LearnSession` + tap path so re-tapping a
-  sentence starts a fresh 3-cycle run while keeping session history
-  coherent (decide: attempts append to same SentenceResult vs reset —
-  document choice in code)
-
-## Phase 7: Polish & cross-cutting
-
-- [X] T025 Run `flutter analyze --no-pub` — clean (pre-existing warnings only)
-- [X] T026 Run `flutter test --concurrency=2` — all tests pass
-- [X] T027 [P] Update `specs/035-read-along/quickstart.md` if implementation
-  deviates; check off completed quickstart scenarios
-- [ ] T028 Device walk on OnePlus 13 (`38821a76`) per quickstart.md all 10
-  steps: toggle, 3 cycles, echo gating, wait state, comments, Stop summary,
-  permission denial, regression spot-check, language matching, airplane-mode
-- [ ] T029 Commit feature work on `035-read-along` branch; merge to `main`
-  after user approval
-
----
+- [x] T025 Run `flutter analyze --no-pub`; resolve all errors/warnings in changed files
+- [x] T026 Run `flutter test --concurrency=2` (or memory-scoped variant); all green
+- [ ] T027 Device walk on OnePlus 9 (`37e102a0`) per `quickstart.md`: record → voiced detection → playback works, no speech packs needed, all 3 languages
+- [ ] T028 Commit on `035-read-along`; request merge approval (do NOT merge to `main` without user ok)
 
 ## Dependencies
 
-```text
-Phase 1 (Setup) ──▶ Phase 2 (Foundational) ──▶ US1 (P1) ──▶ US2 (P1)
-                                                  │            │
-                                                  └──▶ US3 (P2) ──▶ US4 (P3) ──▶ Polish
-```
+- Phase 2 blocks all user stories (seams + session model)
+- US1 (T012-T014) → US2 (T015-T019) → US3 (T020-T022)
+- US4 (T023-T024) after US1+US2
+- MVP = Phases 1-3
 
-- US2 depends on US1 (needs Learn mode + tap path)
-- US3 depends on US2 (needs scored attempts to summarize)
-- US4 depends on US1+US2 (re-tap of working cycle)
-- MVP = Phase 1 + 2 + US1 (+ minimal US2 stub) — entry point demonstrable
+## Parallel Execution Examples
 
-## Parallel opportunities
-
-- Phase 1: T002/T003/T004 parallel
-- Phase 2: T005/T006/T010 parallel (different files)
-- Within stories: test tasks [P] can run alongside unrelated impl tasks
-  in other files; widget test file shared across US1–US4 so story test
-  additions are sequential
-
-## Implementation strategy
-
-MVP first: Setup → Foundational → US1 gives a working Learn mode shell.
-Then US2 makes it functional, US3 adds the payoff (summary), US4 polish.
-Each phase independently testable per quickstart.md.
+- Phase 2: T005/T006/T007 tests in parallel, then T008-T011 implementations
+- Phase 3: T012 test parallel with nothing (depends on controller)
+- Phase 4: T015/T017/T019 tests parallel; T016/T018 implementations
+- Phase 5: T020 test → T021/T022 implementation
 
 ## Notes
 
-- `ReadingView` is ~4900 lines — keep Learn wiring minimal; all logic in
-  `lib/learn/` per plan.md R6.
-- Widget tests must inject fakes for `SpeechRecognizer` + `Reader`; never
-  touch real `speech_to_text`/`permission_handler` platform channels.
-- If `speech_to_text` APIs differ from assumed signatures, adapt
-  `PlatformSpeechRecognizer` only — seam contract stays.
-- iOS permission strings added in T003 even though Android is the
-  verification target (cheap, prevents future surprise — research.md).
-- Constitution III: every story phase writes failing tests before impl.
-- Constitution IV: no network calls anywhere in Learn path; verify in
-  review that no provider client is touched.
+- Constitution III: every `[P]` test task was written before its implementation task
+- All platform access hidden behind seams (`VoiceCapture`, `MicPermission`,
+  `nextRecordingPath`, `LearnSpeaker`) — widget/unit tests inject fakes,
+  no platform channels exercised
+- Audio files: temp dir via `path_provider`, one `.m4a` per attempt,
+  deleted on session end — no persistence beyond the session
+- `record`/`audioplayers` need no extra manifest entries beyond
+  `RECORD_AUDIO` (already added); iOS needs no speech-recognition key
+- Device matrix per spec: OnePlus 13 + OnePlus 9; OnePlus 9 is the primary
+  retest target after the STT pivot
+- Cancelled: STT seam (`speech_recognizer.dart`), `speech_scorer.dart`,
+  accuracy/transcript/missed/extra fields, `speech_to_text` dependency
+EOF
 
-## Task count
-
-- Setup: 4 | Foundational: 6 | US1: 4 | US2: 5 | US3: 3 | US4: 2 | Polish: 5
-- **Total: 29 tasks**
-
-## Suggested MVP scope
-
-Phases 1–3 (T001–T014): Learn mode entry + sentence selection working
-with stubbed cycle — demoable on device before scoring lands.
-
-## Format validation
-
-All tasks follow `- [ ] T### [P?] [US#?] description with file path`.
-Story labels only on US-phase tasks; Setup/Foundational/Polish unlabeled.
-Every task names an exact file path.
-
-## Status
-
-Ready for `/speckit-implement` (test-first per constitution III).
-
-## Phase 8+: optional follow-ups (out of scope)
-
-- Audio recording/playback of learner attempts (spec non-goal).
-- Pronunciation scoring (spec non-goal).
-- Session persistence/history (spec assumption: ephemeral).
-- Cantonese STT support if/when zh-HK becomes a read language.
-
-END OF TASKS
+echo tasks updated

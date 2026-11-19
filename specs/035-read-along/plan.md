@@ -106,3 +106,14 @@ No constitution violations — section intentionally empty.
 ## Next Steps
 
 `/speckit-tasks` → test-first implementation per constitution III.
+
+---
+
+## Amendment (2026-11-18): STT dropped — voice detection + kept audio
+
+Device testing showed platform speech recognition unusable across phones
+(missing packs, `error_client`, no in-app fix). The feature now records
+each repeat locally and detects voice via amplitude VAD; audio is kept
+per attempt for playback. `speech_to_text`/`speech_scorer` removed;
+`record` + `audioplayers` added. See research.md amendment and the
+rewritten tasks.md for the current task list.

@@ -116,3 +116,28 @@ PASS — no violations.
 ## Status
 
 Plan complete. Ready for /speckit-tasks.
+
+---
+
+## Amendment (2026-11-18): STT dropped — voice detection + audio kept
+
+Device testing on OnePlus 13 (ColorOS) and OnePlus 9 showed platform
+speech recognition unusable in practice: `error_language_unavailable` /
+`error_language_not_supported` / `error_client` across locales, missing
+on-device packs, and no user-manageable fix inside the app. Live Caption
+packs proved to be a different model and did not help.
+
+**New approach**: record each repeat to a local audio file and detect
+voice activity from the amplitude stream (energy VAD — language-agnostic,
+no packs, no network). Kept audio is playable per attempt and from the
+session summary; recordings are ephemeral per session.
+
+- `speech_to_text` removed; `record ^7.1.2` (capture + amplitude) and
+  `audioplayers ^6.8.1` (playback) added. `permission_handler` stays.
+- `lib/learn/speech_recognizer.dart` → `lib/learn/voice_capture.dart`
+  (`VoiceCapture` seam + `RecorderVoiceCapture` on `record`).
+- `lib/learn/speech_scorer.dart` → `lib/learn/voice_activity.dart`
+  (pure-Dart amplitude → voiced/not-voiced analysis).
+- Session model: attempts carry `voiceDetected`, `duration`, `audioPath`,
+  failure reason — transcript/accuracy/missed/extra removed.
+- Same cycle contract: TTS → mic → ×3 → wait; echo gate unchanged.

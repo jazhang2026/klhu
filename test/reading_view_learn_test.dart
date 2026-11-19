@@ -4,13 +4,14 @@
 /// sentence restarts its run. Nothing here touches a platform channel.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:klhu/learn/speech_recognizer.dart';
+import 'package:klhu/learn/voice_capture.dart';
 import 'package:klhu/l10n/app_localizations.dart';
 import 'package:klhu/models/content.dart';
 import 'package:klhu/reader_service.dart';
@@ -81,42 +82,43 @@ class FakeReader implements Reader {
   Future<void> previewVoice(VoiceEntry voice, String sampleText) async {}
 }
 
-/// A recognizer that answers every listen window with a fixed transcript.
-class FakeStt implements SpeechRecognizer {
-  bool initialized = false;
-  bool available = true;
-  final List<String> locales = [];
-  int listenCalls = 0;
-  String transcript;
+/// A scripted mic capture: tests feed amplitude windows; the controller's
+/// VAD tracker closes each window on trailing silence.
+class FakeVoiceCapture implements VoiceCapture {
+  final _amps = StreamController<double>.broadcast();
+  int startCalls = 0;
+  bool isRecording = false;
+  final List<String> paths = [];
 
-  FakeStt({this.transcript = ''});
-
-  @override
-  Future<bool> initialize() async {
-    initialized = true;
-    return available;
-  }
-
-  @override
-  Future<void> listen({
-    required String localeId,
-    required void Function(String transcript, bool isFinal) onResult,
-    void Function()? onDone,
-    void Function(String reason)? onError,
-  }) async {
-    listenCalls++;
-    locales.add(localeId);
-    if (transcript.isNotEmpty) {
-      onResult(transcript, true);
+  void feedVoice() {
+    for (final v in [...List.filled(8, -20.0), ...List.filled(12, -60.0)]) {
+      _amps.add(v);
     }
-    onDone?.call();
   }
 
   @override
-  Future<void> stop() async {}
+  Future<bool> start(String path) async {
+    startCalls++;
+    paths.add(path);
+    isRecording = true;
+    return true;
+  }
 
   @override
-  void dispose() {}
+  Stream<double> get amplitudes => _amps.stream;
+
+  @override
+  Future<CaptureResult?> stop() async {
+    isRecording = false;
+    if (paths.isEmpty) return null;
+    return CaptureResult(
+        path: paths.last, duration: const Duration(seconds: 2));
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _amps.close();
+  }
 }
 
 void main() {
@@ -135,9 +137,11 @@ void main() {
         PresetContent(id: 'learn', language: 'en', text: kLearnText),
       ]);
 
+  var pathSeq = 0;
+
   Future<FakeReader> pumpPage(
     WidgetTester tester, {
-    FakeStt? stt,
+    FakeVoiceCapture? capture,
     Future<bool> Function()? micPermission,
   }) async {
     final fake = FakeReader();
@@ -152,8 +156,10 @@ void main() {
       home: ReadingView(
         reader: fake,
         contentStore: learnStore(),
-        speechRecognizer: stt ?? FakeStt(),
+        voiceCapture: capture ?? FakeVoiceCapture(),
         micPermission: micPermission ?? () async => true,
+        recordingPath: () async =>
+            '${root.path}/learn_a${pathSeq++}.m4a',
       ),
     ));
     await loadPageContent(tester);
@@ -168,6 +174,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
     }
+  }
+
+  /// Feeds each open capture window until the 3-cycle run finishes.
+  Future<void> driveCycles(
+      WidgetTester tester, FakeVoiceCapture capture) async {
+    for (var spins = 0; spins < 300; spins++) {
+      if (capture.isRecording) capture.feedVoice();
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)));
+      await tester.pump();
+      if (find.textContaining('Done').evaluate().isNotEmpty) break;
+    }
+    await settle(tester);
   }
 
   /// Taps the middle of the first character of [what] in the painted text.
@@ -198,8 +217,7 @@ void main() {
   group('US1: Learn mode entry', () {
     testWidgets('toggle swaps the control row and exit restores it',
         (tester) async {
-      final stt = FakeStt();
-      await pumpPage(tester, stt: stt);
+      await pumpPage(tester);
 
       // Idle: the Learn toggle sits beside the read controls.
       expect(find.byIcon(Icons.school_outlined), findsOneWidget);
@@ -223,25 +241,26 @@ void main() {
 
     testWidgets('a tap starts the sentence 3-cycle loop; comments never read',
         (tester) async {
-      final stt = FakeStt(transcript: 'The cat sat on the mat.');
-      final reader = await pumpPage(tester, stt: stt);
+      final capture = FakeVoiceCapture();
+      final reader = await pumpPage(tester, capture: capture);
 
       await tester.tap(find.byIcon(Icons.school_outlined));
       await tester.pump();
       await tapOn(tester, 'The cat');
-      await settle(tester);
+      await driveCycles(tester, capture);
 
-      // Exactly three read→repeat cycles, each reading only the tapped
+      // Exactly three read→record cycles, each reading only the tapped
       // sentence — never the second one, never a comment.
       expect(reader.spoken.length, 3);
       expect(reader.spoken,
           everyElement('The cat sat on the mat.'));
       expect(reader.utterances.single.text, 'The cat sat on the mat.');
-      expect(stt.listenCalls, 3);
-      expect(stt.locales, everyElement('en_US'));
+      expect(capture.startCalls, 3);
+      expect(capture.paths, hasLength(3));
 
       // After the third attempt the session waits for the next tap.
       expect(find.textContaining('Done'), findsOneWidget);
+      expect(find.textContaining('Voice heard'), findsWidgets);
     });
 
     testWidgets('a normal tap-read still works after exiting Learn',
@@ -262,22 +281,24 @@ void main() {
   group('US3: Stop and summary', () {
     testWidgets('Stop summarizes practiced sentences, then exits to normal',
         (tester) async {
-      final stt = FakeStt(transcript: 'The cat sat on the mat.');
-      await pumpPage(tester, stt: stt);
+      final capture = FakeVoiceCapture();
+      await pumpPage(tester, capture: capture);
 
       await tester.tap(find.byIcon(Icons.school_outlined));
       await tester.pump();
       await tapOn(tester, 'The cat');
-      await settle(tester);
+      await driveCycles(tester, capture);
 
       await tester.tap(find.byIcon(Icons.stop));
       await settle(tester);
 
-      // The summary sheet lists the practiced sentence with its score.
+      // The summary sheet lists the practiced sentence with voiced counts
+      // and a play button per kept recording.
       expect(find.text('Learn session results'), findsOneWidget);
       expect(find.textContaining('The cat sat on the mat.'),
           findsWidgets);
-      expect(find.textContaining('100%'), findsOneWidget);
+      expect(find.textContaining('3 voiced'), findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow), findsWidgets);
 
       // Dismiss → normal controls, Learn fully exited.
       await tester.tapAt(const Offset(20, 20));
@@ -290,20 +311,20 @@ void main() {
   group('US4: re-practice', () {
     testWidgets('re-tapping a completed sentence restarts its 3 cycles',
         (tester) async {
-      final stt = FakeStt(transcript: 'The cat sat on the mat.');
-      final reader = await pumpPage(tester, stt: stt);
+      final capture = FakeVoiceCapture();
+      final reader = await pumpPage(tester, capture: capture);
 
       await tester.tap(find.byIcon(Icons.school_outlined));
       await tester.pump();
       await tapOn(tester, 'The cat');
-      await settle(tester);
+      await driveCycles(tester, capture);
       expect(reader.spoken.length, 3);
 
       // Re-tap: a fresh run — three more reads, attempts accumulate.
       await tapOn(tester, 'The cat');
-      await settle(tester);
+      await driveCycles(tester, capture);
       expect(reader.spoken.length, 6);
-      expect(stt.listenCalls, 6);
+      expect(capture.startCalls, 6);
       expect(find.textContaining('Done'), findsOneWidget);
     });
   });

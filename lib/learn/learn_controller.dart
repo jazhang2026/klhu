@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show ChangeNotifier, debugPrint;
 import 'package:klhu/learn/learn_session.dart';
-import 'package:klhu/learn/speech_recognizer.dart';
-import 'package:klhu/learn/speech_scorer.dart';
+import 'package:klhu/learn/voice_activity.dart';
+import 'package:klhu/learn/voice_capture.dart';
 
 /// One sentence queued for practice.
 class LearnSentence {
@@ -15,11 +15,11 @@ class LearnSentence {
   final int start;
   final int end;
 
-  /// The target text scoring compares against — the sentence as written.
+  /// The sentence text as written — shown in the summary.
   final String text;
 
-  /// The resolved read language for STT locale selection (what KalaHoo
-  /// actually spoke), or null when the read failed.
+  /// The resolved read language, for diagnostics. Not used for recognition —
+  /// voice detection is language-agnostic.
   final String? language;
 
   const LearnSentence({
@@ -31,46 +31,59 @@ class LearnSentence {
   });
 }
 
-/// Reads [sentence] aloud and returns the language it was read in — the
-/// resolved language (role override → main override → detection), so
-/// recognition matches what was spoken (FR-008). Returns null on read
+/// Reads [sentence] aloud; returns the language it was read in (resolved
+/// language — role override → main override → detection) or null on read
 /// failure. Implemented by the reading page, which owns TTS.
 typedef LearnSpeaker = Future<String?> Function(LearnSentence sentence);
 
-/// Ensures microphone permission; true → capture may proceed (FR-009).
-typedef MicPermission = Future<bool> Function();
+/// Provides a fresh file path for one attempt's recording (ephemeral temp
+/// dir, `.m4a`). Implemented by the reading page via path_provider.
+typedef RecordingPath = Future<String> Function();
 
-/// Orchestrates one Learn session's three-cycle loop (spec 035 FR-003):
-/// Kalahoo reads → mic captures the repeat → score → repeat ×3 → wait.
+/// Orchestrates one Learn session's three-cycle loop (spec 035 FR-003,
+/// amended): Kalahoo reads → mic records the repeat → voice detected?
+/// → repeat ×3 → wait.
 ///
-/// All platform access is injected — [speak] (TTS), [recognizer] (STT),
-/// [micPermission] — so the whole state machine is unit-testable with fakes.
-/// UI listens via [addListener]; [session] exposes the data model.
+/// No speech recognition: the mic only captures audio; a pure-Dart
+/// amplitude VAD decides whether the learner's voice was present. Every
+/// captured attempt keeps its audio file for playback.
+///
+/// All platform access is injected — [speak] (TTS), [capture] (mic),
+/// [micPermission], [recordingPath] — so the whole state machine is
+/// unit-testable with fakes. UI listens via [addListener]; [session]
+/// exposes the data model.
 class LearnController extends ChangeNotifier {
   final LearnSession session = LearnSession();
   final LearnSpeaker _speak;
-  final SpeechRecognizer _recognizer;
+  final VoiceCapture _capture;
   final MicPermission _micPermission;
+  final RecordingPath _recordingPath;
 
   /// Bumped by [stop]/[abandon] and by each [practice] call so a stale async
   /// cycle can never record an attempt for a sentence the learner left.
   int _gen = 0;
-
-  /// Whether the recognizer initialized successfully this session.
-  bool _recognizerReady = false;
 
   /// Whether mic permission was already asked this session — requested
   /// lazily at the FIRST repeat attempt only (FR-009).
   bool _permissionAsked = false;
   bool _permissionGranted = false;
 
-  /// The most recent attempt, for the status line (score or unscored reason).
+  /// The most recent attempt, for the status line.
   LearnAttempt? lastAttempt;
+
+  /// Amplitude sample spacing assumed for VAD bookkeeping (matches the
+  /// recorder's 200 ms poll).
+  static const double _sampleIntervalMs = 200;
+
+  /// Hard bound on one capture window — a learner who never stops talking
+  /// still releases the mic.
+  static const Duration _maxCapture = Duration(seconds: 20);
 
   LearnController({
     required this._speak,
-    required this._recognizer,
+    required this._capture,
     required this._micPermission,
+    required this._recordingPath,
   });
 
   /// Current UI-facing status for the Learn control row.
@@ -101,8 +114,8 @@ class LearnController extends ChangeNotifier {
       session.toListening();
       _notify();
 
-      // 2. The learner's repeat — capture, then score.
-      await _capture(sentence, language, gen);
+      // 2. The learner's repeat — record, then check for voice.
+      await _recordAttempt(sentence, gen);
       if (!_alive(gen)) return;
       // session.record* already advanced state: reading (next cycle) or
       // waiting (3 done).
@@ -110,28 +123,9 @@ class LearnController extends ChangeNotifier {
     }
   }
 
-  Future<void> _capture(
-      LearnSentence sentence, String language, int gen) async {
-    session.toScoring();
+  Future<void> _recordAttempt(LearnSentence sentence, int gen) async {
+    session.toRecording();
     _notify();
-
-    final localeId = localeIdFor(language);
-    debugPrint('learn capture locale=$localeId');
-    if (localeId == null) {
-      _record(UnscoredReason.unsupportedLanguage, gen);
-      session.endRun();
-      return;
-    }
-
-    if (!_recognizerReady) {
-      _recognizerReady = await _recognizer.initialize();
-      if (!_alive(gen)) return;
-      if (!_recognizerReady) {
-        _record(UnscoredReason.recognitionUnavailable, gen);
-        session.endRun();
-        return;
-      }
-    }
 
     if (!_permissionAsked) {
       _permissionAsked = true;
@@ -140,108 +134,98 @@ class LearnController extends ChangeNotifier {
       if (!_alive(gen)) return;
     }
     if (!_permissionGranted) {
-      _record(UnscoredReason.permissionDenied, gen);
+      _record(AttemptFailure.permissionDenied, gen);
       return;
     }
 
-    // Open the mic window; resolve on the first final transcript, done,
-    // error, or a bounded timeout — whichever lands first.
-    debugPrint('learn listen open');
-    final outcome = await _listen(localeId);
-    debugPrint('learn listen closed: ${outcome.runtimeType}');
+    final path = await _recordingPath();
     if (!_alive(gen)) return;
 
-    switch (outcome) {
-      case _Transcript():
-        final score = scoreTranscript(sentence.text, outcome.text);
-        session.recordScored(
-          transcript: score.transcript,
-          accuracy: score.accuracy,
-          missed: score.missed,
-          extra: score.extra,
-        );
-      case _Empty():
-        _record(UnscoredReason.noSpeech, gen);
-      case _ListenError():
-        // error_language_unavailable means this device has no speech pack
-        // for the locale — deterministic, so end the run rather than
-        // re-reading twice more with no mic window.
-        if (outcome.reason.contains('language_unavailable')) {
-          _record(UnscoredReason.unsupportedLanguage, gen,
-              transcript: outcome.text);
-          session.endRun();
-        } else {
-          _record(UnscoredReason.error, gen, transcript: outcome.text);
-        }
+    final started = await _capture.start(path);
+    if (!_alive(gen)) {
+      // Abandoned mid-start — make sure the mic is released.
+      unawaited(_capture.stop());
+      return;
+    }
+    if (!started) {
+      _record(AttemptFailure.captureError, gen);
+      return;
+    }
+
+    // Collect amplitude samples; the window closes on trailing silence or
+    // the hard cap, whichever first — then stop the recorder once.
+    final samples = <double>[];
+    final tracker = VoiceWindowTracker(
+      sampleIntervalMs: _sampleIntervalMs,
+      maxWindowMs: _maxCapture.inMilliseconds.toDouble(),
+    );
+    final windowDone = Completer<void>();
+    void closeWindow() {
+      if (!windowDone.isCompleted) windowDone.complete();
+    }
+
+    final sub = _capture.amplitudes.listen((db) {
+      samples.add(db);
+      if (tracker.addSample(db)) closeWindow();
+    });
+    // Safety bound in case the amplitude stream stalls.
+    final safety = Timer(_maxCapture + const Duration(seconds: 3), closeWindow);
+
+    await windowDone.future;
+    CaptureResult? result;
+    try {
+      result = await _capture.stop();
+    } catch (_) {
+      result = null;
+    } finally {
+      await sub.cancel();
+      safety.cancel();
+    }
+    debugPrint(
+        'learn capture done: path=${result?.path} '
+        'dur=${result?.duration} samples=${samples.length}');
+    if (!_alive(gen)) return;
+
+    if (result == null) {
+      _record(AttemptFailure.captureError, gen);
+      return;
+    }
+
+    final activity = analyzeVoiceActivity(
+      samples,
+      sampleIntervalMs: _sampleIntervalMs,
+    );
+    debugPrint('learn voice: voiced=${activity.voiced} '
+        'voicedMs=${activity.voicedDuration.inMilliseconds} '
+        'peak=${activity.peakDb}');
+
+    if (activity.voiced) {
+      session.recordVoice(duration: result.duration, audioPath: result.path);
+    } else {
+      session.recordNoVoice(duration: result.duration, audioPath: result.path);
     }
     lastAttempt =
         session.results[sentence.key]?.attempts.last ?? lastAttempt;
     _notify();
   }
 
-  void _record(UnscoredReason reason, int gen, {String? transcript}) {
+  void _record(AttemptFailure failure, int gen) {
     if (!_alive(gen)) return;
-    session.recordUnscored(reason, transcript: transcript);
+    session.recordFailed(failure);
     lastAttempt =
         session.results[session.currentKey!]?.attempts.last ?? lastAttempt;
-  }
-
-  /// One mic window. The completer resolves exactly once.
-  Future<_ListenOutcome> _listen(String localeId) async {
-    final completer = Completer<_ListenOutcome>();
-    String latest = '';
-    var sawFinal = false;
-
-    void finish(_ListenOutcome o) {
-      if (!completer.isCompleted) completer.complete(o);
-    }
-
-    // The platform reports 'done' and the real error in the same frame —
-    // done wins the completer before the error lands, which would mislabel
-    // error_language_unavailable as noSpeech. Hold the done briefly so a
-    // trailing error can still take precedence.
-    Timer? doneTimer;
-    void done() {
-      doneTimer?.cancel();
-      doneTimer = Timer(const Duration(milliseconds: 300), () {
-        finish(sawFinal && latest.trim().isNotEmpty
-            ? _Transcript(latest)
-            : const _Empty());
-      });
-    }
-
-    await _recognizer.listen(
-      localeId: localeId,
-      onResult: (text, isFinal) {
-        if (isFinal) {
-          latest = text;
-          sawFinal = true;
-        }
-      },
-      onDone: done,
-      onError: (reason) {
-        doneTimer?.cancel();
-        finish(_ListenError(latest, reason));
-      },
-    );
-
-    // Hard bound: a recognizer that never reports must not hang the cycle.
-    return completer.future.timeout(
-      const Duration(seconds: 20),
-      onTimeout: () => sawFinal && latest.trim().isNotEmpty
-          ? _Transcript(latest)
-          : const _Empty(),
-    );
+    _notify();
   }
 
   bool _alive(int gen) =>
       gen == _gen && session.state != LearnState.stopped;
 
-  /// End the session: close any open mic window, mark stopped. The session's
-  /// recorded results remain readable for the summary.
+  /// End the session: close any open capture, mark stopped. The session's
+  /// recorded results (and their audio paths) remain readable for the
+  /// summary — the caller deletes the files afterwards.
   Future<void> stop() async {
     _gen++;
-    await _recognizer.stop();
+    await _capture.stop();
     session.stop();
     _notify();
   }
@@ -249,28 +233,16 @@ class LearnController extends ChangeNotifier {
   /// Abandon without summary (leaving Learn mode entirely).
   Future<void> abandon() async {
     _gen++;
-    await _recognizer.stop();
-    _recognizer.dispose();
+    await _capture.stop();
+    await _capture.dispose();
   }
 
+  /// All audio paths kept this session — for cleanup on exit.
+  List<String> get recordingPaths => [
+        for (final r in session.summary)
+          for (final a in r.attempts)
+            if (a.audioPath != null) a.audioPath!,
+      ];
+
   void _notify() => notifyListeners();
-}
-
-sealed class _ListenOutcome {
-  const _ListenOutcome();
-}
-
-class _Transcript extends _ListenOutcome {
-  final String text;
-  const _Transcript(this.text);
-}
-
-class _Empty extends _ListenOutcome {
-  const _Empty();
-}
-
-class _ListenError extends _ListenOutcome {
-  final String text;
-  final String reason;
-  const _ListenError(this.text, this.reason);
 }

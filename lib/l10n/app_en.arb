@@ -412,53 +412,6 @@
       }
     }
   },
-  "learnScoreLabel": "{pct}%",
-  "@learnScoreLabel": {
-    "description": "Accuracy percentage for a scored Learn attempt",
-    "placeholders": {
-      "pct": {
-        "type": "int"
-      }
-    }
-  },
-  "learnMissedLabel": "Missed: {words}",
-  "@learnMissedLabel": {
-    "description": "Words the learner did not say",
-    "placeholders": {
-      "words": {
-        "type": "String"
-      }
-    }
-  },
-  "learnExtraLabel": "Extra: {words}",
-  "@learnExtraLabel": {
-    "description": "Words the learner said that were not in the sentence",
-    "placeholders": {
-      "words": {
-        "type": "String"
-      }
-    }
-  },
-  "learnUnscoredNoSpeech": "No speech detected",
-  "@learnUnscoredNoSpeech": {
-    "description": "Unscored reason: silence during the repeat window"
-  },
-  "learnUnscoredUnavailable": "Speech recognition unavailable",
-  "@learnUnscoredUnavailable": {
-    "description": "Unscored reason: recognizer could not initialize"
-  },
-  "learnUnscoredLanguage": "Recognition not available for this language",
-  "@learnUnscoredLanguage": {
-    "description": "Unscored reason: resolved read language has no recognizer locale"
-  },
-  "learnUnscoredPermission": "Microphone permission needed for scoring",
-  "@learnUnscoredPermission": {
-    "description": "Unscored reason: mic permission denied"
-  },
-  "learnUnscoredError": "Recognition failed",
-  "@learnUnscoredError": {
-    "description": "Unscored reason: recognizer error"
-  },
   "learnSummaryTitle": "Learn session results",
   "@learnSummaryTitle": {
     "description": "Title of the Stop summary sheet"
@@ -466,24 +419,6 @@
   "learnSummaryEmpty": "No sentences practiced yet.",
   "@learnSummaryEmpty": {
     "description": "Shown when Stop is tapped before any sentence"
-  },
-  "learnSummaryScore": "Score: {pct}%",
-  "@learnSummaryScore": {
-    "description": "Per-sentence best score in the summary",
-    "placeholders": {
-      "pct": {
-        "type": "int"
-      }
-    }
-  },
-  "learnSummaryUnscored": "{count} unscored",
-  "@learnSummaryUnscored": {
-    "description": "Count of unscored attempts in summary",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "learnSummaryAttempts": "{count} attempts",
   "@learnSummaryAttempts": {
@@ -494,7 +429,7 @@
       }
     }
   },
-  "learnPermissionMessage": "KalaHoo needs microphone access to hear your reading practice. Scoring is off without it.",
+  "learnPermissionMessage": "KalaHoo needs microphone access to record your reading practice. Recording will not work without it.",
   "@learnPermissionMessage": {
     "description": "Shown when mic permission is denied"
   },
@@ -505,5 +440,15 @@
   "learnCycleDone": "Done — tap the next sentence",
   "@learnCycleDone": {
     "description": "Learn status after a sentence's 3 cycles"
-  }
+  },
+  "learnRecordingLabel": "Recording — your turn",
+  "learnAttemptVoice": "Voice heard",
+  "learnAttemptNoVoice": "No voice detected",
+  "learnAttemptFailed": "Recording failed",
+  "learnAttemptPermission": "Microphone permission needed",
+  "learnPlayRecording": "Play recording",
+  "learnStopPlayback": "Stop playback",
+  "learnSummaryVoiced": "{count} voiced",
+  "learnSummaryNoVoice": "{count} no voice",
+  "learnSummaryFailedCount": "{count} failed"
 }

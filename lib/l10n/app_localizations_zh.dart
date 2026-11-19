@@ -763,50 +763,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String learnScoreLabel(int pct) {
-    return '$pct%';
-  }
-
-  @override
-  String learnMissedLabel(String words) {
-    return '漏读：$words';
-  }
-
-  @override
-  String learnExtraLabel(String words) {
-    return '多读：$words';
-  }
-
-  @override
-  String get learnUnscoredNoSpeech => '未检测到语音';
-
-  @override
-  String get learnUnscoredUnavailable => '语音识别不可用';
-
-  @override
-  String get learnUnscoredLanguage => '此语言不支持识别';
-
-  @override
-  String get learnUnscoredPermission => '需要麦克风权限才能评分';
-
-  @override
-  String get learnUnscoredError => '识别失败';
-
-  @override
   String get learnSummaryTitle => '学习结果';
 
   @override
   String get learnSummaryEmpty => '还没有练习任何句子。';
-
-  @override
-  String learnSummaryScore(int pct) {
-    return '得分：$pct%';
-  }
-
-  @override
-  String learnSummaryUnscored(int count) {
-    return '$count 次未评分';
-  }
 
   @override
   String learnSummaryAttempts(int count) {
@@ -814,13 +774,49 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get learnPermissionMessage => 'KalaHoo 需要麦克风权限来聆听你的朗读练习。没有权限将无法评分。';
+  String get learnPermissionMessage => 'KalaHoo 需要麥克風權限才能錄製你的朗讀練習。沒有權限將無法錄音。';
 
   @override
   String get learnTapHint => '点击句子开始练习';
 
   @override
   String get learnCycleDone => '完成——点击下一句';
+
+  @override
+  String get learnRecordingLabel => '錄音中——輪到你';
+
+  @override
+  String get learnAttemptVoice => '已偵測到語音';
+
+  @override
+  String get learnAttemptNoVoice => '未偵測到語音';
+
+  @override
+  String get learnAttemptFailed => '錄音失敗';
+
+  @override
+  String get learnAttemptPermission => '需要麥克風權限';
+
+  @override
+  String get learnPlayRecording => '播放錄音';
+
+  @override
+  String get learnStopPlayback => '停止播放';
+
+  @override
+  String learnSummaryVoiced(Object count) {
+    return '$count 次有聲';
+  }
+
+  @override
+  String learnSummaryNoVoice(Object count) {
+    return '$count 次無聲';
+  }
+
+  @override
+  String learnSummaryFailedCount(Object count) {
+    return '$count 次失敗';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1581,50 +1577,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String learnScoreLabel(int pct) {
-    return '$pct%';
-  }
-
-  @override
-  String learnMissedLabel(String words) {
-    return '漏读：$words';
-  }
-
-  @override
-  String learnExtraLabel(String words) {
-    return '多读：$words';
-  }
-
-  @override
-  String get learnUnscoredNoSpeech => '未检测到语音';
-
-  @override
-  String get learnUnscoredUnavailable => '语音识别不可用';
-
-  @override
-  String get learnUnscoredLanguage => '此语言不支持识别';
-
-  @override
-  String get learnUnscoredPermission => '需要麦克风权限才能评分';
-
-  @override
-  String get learnUnscoredError => '识别失败';
-
-  @override
   String get learnSummaryTitle => '学习结果';
 
   @override
   String get learnSummaryEmpty => '还没有练习任何句子。';
-
-  @override
-  String learnSummaryScore(int pct) {
-    return '得分：$pct%';
-  }
-
-  @override
-  String learnSummaryUnscored(int count) {
-    return '$count 次未评分';
-  }
 
   @override
   String learnSummaryAttempts(int count) {
@@ -1632,11 +1588,47 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get learnPermissionMessage => 'KalaHoo 需要麦克风权限来聆听你的朗读练习。没有权限将无法评分。';
+  String get learnPermissionMessage => 'KalaHoo 需要麦克风权限才能录制你的朗读练习。没有权限将无法录音。';
 
   @override
   String get learnTapHint => '点击句子开始练习';
 
   @override
   String get learnCycleDone => '完成——点击下一句';
+
+  @override
+  String get learnRecordingLabel => '录音中——轮到你';
+
+  @override
+  String get learnAttemptVoice => '已检测到语音';
+
+  @override
+  String get learnAttemptNoVoice => '未检测到语音';
+
+  @override
+  String get learnAttemptFailed => '录音失败';
+
+  @override
+  String get learnAttemptPermission => '需要麦克风权限';
+
+  @override
+  String get learnPlayRecording => '播放录音';
+
+  @override
+  String get learnStopPlayback => '停止播放';
+
+  @override
+  String learnSummaryVoiced(Object count) {
+    return '$count 次有声';
+  }
+
+  @override
+  String learnSummaryNoVoice(Object count) {
+    return '$count 次无声';
+  }
+
+  @override
+  String learnSummaryFailedCount(Object count) {
+    return '$count 次失败';
+  }
 }

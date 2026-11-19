@@ -23,7 +23,8 @@ import 'package:klhu/dialogue.dart';
 import 'package:klhu/language.dart';
 import 'package:klhu/learn/learn_controller.dart';
 import 'package:klhu/learn/learn_session.dart';
-import 'package:klhu/learn/speech_recognizer.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:klhu/learn/voice_capture.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:klhu/comment.dart';
 import 'package:klhu/document_input.dart';
@@ -69,13 +70,21 @@ import 'package:path_provider/path_provider.dart';
 const double _controlBarGap = 5;
 
 /// Learn mode's mic ask (035 FR-009): granted → capture may proceed. Any
-/// platform failure reads as denied — scoring degrades, reading continues.
+/// platform failure reads as denied — capture degrades, reading continues.
 Future<bool> _defaultMicPermission() async {
   try {
     return (await Permission.microphone.request()).isGranted;
   } catch (_) {
     return false;
   }
+}
+
+/// One ephemeral `.m4a` path per Learn attempt inside the temp dir.
+Future<String> _defaultRecordingPath() async {
+  final dir = await getTemporaryDirectory();
+  final learnDir = Directory('${dir.path}/learn');
+  await learnDir.create(recursive: true);
+  return '${learnDir.path}/attempt_${DateTime.now().microsecondsSinceEpoch}.m4a';
 }
 
 /// Reading view (003, revised per emulator validation): RichText for
@@ -155,9 +164,13 @@ class ReadingView extends StatefulWidget {
   /// the engine out of the test.
   final OcrEngine? ocrEngine;
 
-  /// Learn mode's speech-recognition seam (035): the real one wraps
-  /// `speech_to_text`; tests inject a fake. Created once per page.
-  final SpeechRecognizer speechRecognizer;
+  /// Learn mode's mic-capture seam (035, amended): the real one wraps the
+  /// `record` plugin; tests inject a fake. Created once per page.
+  final VoiceCapture voiceCapture;
+
+  /// Learn mode's per-attempt recording path (035): real impl uses the temp
+  /// dir; tests inject a fake so no platform channel is touched.
+  final RecordingPath recordingPath;
 
   /// Learn mode's mic-permission ask (035 FR-009): lazily invoked at the
   /// first repeat attempt; tests inject a scripted answer.
@@ -180,8 +193,9 @@ class ReadingView extends StatefulWidget {
     DocumentPicker? documentPicker,
     DocumentExtractor? documentExtractor,
     OcrEngine? ocrEngine,
-    SpeechRecognizer? speechRecognizer,
+    VoiceCapture? voiceCapture,
     MicPermission? micPermission,
+    RecordingPath? recordingPath,
     this.onLanguageChanged,
     this.localizationService,
   })  : reader = reader ?? ReaderService(),
@@ -197,8 +211,9 @@ class ReadingView extends StatefulWidget {
         documentPicker = documentPicker ?? const FileDocumentPicker(),
         documentExtractor = documentExtractor ?? defaultExtractor('pdf'),
         ocrEngine = ocrEngine ?? defaultOcrEngine(),
-        speechRecognizer = speechRecognizer ?? PlatformSpeechRecognizer(),
-        micPermission = micPermission ?? _defaultMicPermission;
+        voiceCapture = voiceCapture ?? RecorderVoiceCapture(),
+        micPermission = micPermission ?? _defaultMicPermission,
+        recordingPath = recordingPath ?? _defaultRecordingPath;
 
   /// The engine a render speaks through — the reader's own when it can write
   /// files, else a fresh service (D5: the read and the render share one voice
@@ -2096,8 +2111,9 @@ class _ReadingViewState extends State<ReadingView> {
     setState(() => _learnActive = true);
     _learnCtl = LearnController(
       speak: _learnSpeak,
-      recognizer: widget.speechRecognizer,
+      capture: widget.voiceCapture,
       micPermission: widget.micPermission,
+      recordingPath: widget.recordingPath,
     )..addListener(_onLearnChanged);
   }
 
@@ -2106,13 +2122,15 @@ class _ReadingViewState extends State<ReadingView> {
   }
 
   /// Leave Learn without a summary (toggle off, text switch, dispose).
+  /// Session recordings are ephemeral — deleted here.
   void _exitLearn() {
     final ctl = _learnCtl;
     _learnCtl = null;
     _learnActive = false;
     if (ctl != null) {
       ctl.removeListener(_onLearnChanged);
-      unawaited(ctl.abandon());
+      final paths = ctl.recordingPaths;
+      unawaited(ctl.abandon().then((_) => _deleteLearnRecordings(paths)));
     }
     if (mounted) setState(() {});
   }
@@ -2125,8 +2143,21 @@ class _ReadingViewState extends State<ReadingView> {
     unawaited(widget.reader.stop());
     await ctl.stop();
     final results = List.of(ctl.session.summary);
+    final paths = ctl.recordingPaths;
     _exitLearn();
-    if (mounted) _showLearnSummary(results);
+    if (mounted) {
+      // Recordings stay alive while the summary is open for playback;
+      // they're deleted when the sheet closes.
+      unawaited(_showLearnSummary(results).whenComplete(
+          () => _deleteLearnRecordings(paths)));
+    }
+  }
+
+  /// Ephemeral session recordings — deleted on Learn exit/summary close.
+  void _deleteLearnRecordings(List<String> paths) {
+    for (final path in paths) {
+      unawaited(File(path).delete().catchError((_) => File(path)));
+    }
   }
 
   /// A Learn tap: highlight stays from [_select]; the sentence's own
@@ -2231,9 +2262,12 @@ class _ReadingViewState extends State<ReadingView> {
             '${l10n?.learnReadingLabel ?? 'KalaHoo is reading…'} '
             '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
       case LearnState.listening:
-      case LearnState.scoring:
         stateLabel =
             '${l10n?.learnListeningLabel ?? 'Listening…'} '
+            '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
+      case LearnState.recording:
+        stateLabel =
+            '${l10n?.learnRecordingLabel ?? 'Recording — your turn'} '
             '(${l10n?.learnAttemptLabel(attemptNo) ?? 'Attempt $attemptNo of 3'})';
       case LearnState.waiting:
         stateLabel = l10n?.learnCycleDone ?? 'Done — tap the next sentence';
@@ -2241,7 +2275,7 @@ class _ReadingViewState extends State<ReadingView> {
         stateLabel = '';
     }
 
-    final detail = _learnAttemptDetail(l10n, ctl.lastAttempt);
+    final attempt = ctl.lastAttempt;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2250,62 +2284,57 @@ class _ReadingViewState extends State<ReadingView> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall),
-        if (detail != null)
-          Text(detail,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey)),
+        if (attempt != null)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(_learnAttemptLabel(l10n, attempt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.grey)),
+              ),
+              if (attempt.audioPath != null)
+                _LearnPlayButton(path: attempt.audioPath!),
+            ],
+          ),
       ],
     );
   }
 
-  /// One line for the last attempt: score + missed/extra, or the unscored
-  /// reason (FR-011 keeps the full transcript in the summary).
-  String? _learnAttemptDetail(AppLocalizations? l10n, LearnAttempt? a) {
-    if (a == null) return null;
-    if (a.status == AttemptStatus.scored && a.accuracy != null) {
-      final pct = (a.accuracy! * 100).round();
-      var line = l10n?.learnScoreLabel(pct) ?? '$pct%';
-      if (a.missedWords.isNotEmpty) {
-        line += ' · ${l10n?.learnMissedLabel(a.missedWords.join(' ')) ?? 'Missed: ${a.missedWords.join(' ')}'}';
-      }
-      if (a.extraWords.isNotEmpty) {
-        line += ' · ${l10n?.learnExtraLabel(a.extraWords.join(' ')) ?? 'Extra: ${a.extraWords.join(' ')}'}';
-      }
-      return line;
-    }
-    if (a.status == AttemptStatus.unscored) {
-      return _unscoredLabel(l10n, a.unscoredReason);
-    }
-    return null;
-  }
-
-  String _unscoredLabel(AppLocalizations? l10n, UnscoredReason? reason) {
-    switch (reason) {
-      case UnscoredReason.noSpeech:
-        return l10n?.learnUnscoredNoSpeech ?? 'No speech detected';
-      case UnscoredReason.recognitionUnavailable:
-        return l10n?.learnUnscoredUnavailable ??
-            'Speech recognition unavailable';
-      case UnscoredReason.unsupportedLanguage:
-        return l10n?.learnUnscoredLanguage ??
-            'Recognition not available for this language';
-      case UnscoredReason.permissionDenied:
-        return l10n?.learnUnscoredPermission ??
-            'Microphone permission needed for scoring';
-      case UnscoredReason.error:
-      case null:
-        return l10n?.learnUnscoredError ?? 'Recognition failed';
+  /// One line for the last attempt: voice heard / no voice / failure, plus
+  /// the capture length when audio exists.
+  String _learnAttemptLabel(AppLocalizations? l10n, LearnAttempt a) {
+    final secs = a.duration == null
+        ? null
+        : '${(a.duration!.inMilliseconds / 1000).toStringAsFixed(1)}s';
+    switch (a.status) {
+      case AttemptStatus.voice:
+        return [
+          l10n?.learnAttemptVoice ?? 'Voice heard',
+          if (secs != null) secs,
+        ].join(' · ');
+      case AttemptStatus.noVoice:
+        return [
+          l10n?.learnAttemptNoVoice ?? 'No voice detected',
+          if (secs != null) secs,
+        ].join(' · ');
+      case AttemptStatus.failed:
+        if (a.failure == AttemptFailure.permissionDenied) {
+          return l10n?.learnAttemptPermission ??
+              'Microphone permission needed';
+        }
+        return l10n?.learnAttemptFailed ?? 'Recording failed';
     }
   }
 
-  /// The Stop summary (FR-007): every practiced sentence with its score and
-  /// attempt counts, unscored attempts marked.
-  void _showLearnSummary(List<SentenceResult> results) {
-    showModalBottomSheet(
+  /// The Stop summary (FR-007): every practiced sentence with its voiced /
+  /// no-voice / failed counts and a play button per kept recording.
+  Future<void> _showLearnSummary(List<SentenceResult> results) {
+    return showModalBottomSheet(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) {
@@ -2345,21 +2374,39 @@ class _ReadingViewState extends State<ReadingView> {
 
   Widget _learnSummaryTile(
       BuildContext context, AppLocalizations? l10n, SentenceResult r) {
-    final best = r.bestAccuracy;
-    final scoreText = best != null
-        ? (l10n?.learnSummaryScore((best * 100).round()) ??
-            'Score: ${(best * 100).round()}%')
-        : (l10n?.learnSummaryUnscored(r.unscoredCount) ??
-            '${r.unscoredCount} unscored');
+    final parts = <String>[
+      if (r.voiceCount > 0)
+        l10n?.learnSummaryVoiced(r.voiceCount) ?? '${r.voiceCount} voiced',
+      if (r.noVoiceCount > 0)
+        l10n?.learnSummaryNoVoice(r.noVoiceCount) ??
+            '${r.noVoiceCount} no voice',
+      if (r.failedCount > 0)
+        l10n?.learnSummaryFailedCount(r.failedCount) ??
+            '${r.failedCount} failed',
+      l10n?.learnSummaryAttempts(r.attempts.length) ??
+          '${r.attempts.length} attempts',
+    ];
+    final playable = [
+      for (final a in r.attempts)
+        if (a.audioPath != null) a.audioPath!,
+    ];
     return ListTile(
       dense: true,
       title: Text(r.sentenceText,
           maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text([
-        scoreText,
-        l10n?.learnSummaryAttempts(r.attempts.length) ??
-            '${r.attempts.length} attempts',
-      ].join(' · ')),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(parts.join(' · ')),
+          if (playable.isNotEmpty)
+            Wrap(
+              spacing: 4,
+              children: [
+                for (final path in playable) _LearnPlayButton(path: path),
+              ],
+            ),
+        ],
+      ),
     );
   }
 
@@ -5261,6 +5308,67 @@ class _AIPromptDialogState extends State<_AIPromptDialog> {
           child: Text(l10n.aiPromptGenerate),
         ),
       ],
+    );
+  }
+}
+
+/// Compact play/stop button for one kept Learn recording (035, amended).
+/// Each button owns its [AudioPlayer]; state resets when playback completes.
+class _LearnPlayButton extends StatefulWidget {
+  final String path;
+  const _LearnPlayButton({required this.path});
+
+  @override
+  State<_LearnPlayButton> createState() => _LearnPlayButtonState();
+}
+
+class _LearnPlayButtonState extends State<_LearnPlayButton> {
+  // Created lazily on first tap — constructing AudioPlayer touches a
+  // platform channel, which widget tests must not hit.
+  AudioPlayer? _player;
+  bool _playing = false;
+
+  AudioPlayer _ensurePlayer() {
+    return _player ??= AudioPlayer()
+      ..onPlayerComplete.listen((_) {
+        if (mounted) setState(() => _playing = false);
+      });
+  }
+
+  Future<void> _toggle() async {
+    final player = _player;
+    if (_playing && player != null) {
+      await player.stop();
+      if (mounted) setState(() => _playing = false);
+      return;
+    }
+    try {
+      await _ensurePlayer().play(DeviceFileSource(widget.path));
+      if (mounted) setState(() => _playing = true);
+    } catch (_) {
+      // Missing/corrupt file or no audio plugin — leave the button idle.
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_player?.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return IconButton(
+      iconSize: 18,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      icon: Icon(_playing ? Icons.stop : Icons.play_arrow),
+      tooltip: _playing
+          ? (l10n?.learnStopPlayback ?? 'Stop playback')
+          : (l10n?.learnPlayRecording ?? 'Play recording'),
+      onPressed: _toggle,
     );
   }
 }
