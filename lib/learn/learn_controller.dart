@@ -63,6 +63,17 @@ class LearnController extends ChangeNotifier {
   /// cycle can never record an attempt for a sentence the learner left.
   int _gen = 0;
 
+  /// The in-flight [practice] cycle, so [stop] can let a capture that's
+  /// already recording finish and be kept instead of dropped.
+  Future<void>? _inFlight;
+
+  /// Set by [stop]: no new cycles, and an open capture window closes now.
+  bool _stopping = false;
+
+  /// The open capture window's close signal, so [stop] can end it promptly
+  /// instead of waiting out the trailing-silence timeout.
+  Completer<void>? _activeWindow;
+
   /// Whether mic permission was already asked this session — requested
   /// lazily at the FIRST repeat attempt only (FR-009).
   bool _permissionAsked = false;
@@ -93,10 +104,27 @@ class LearnController extends ChangeNotifier {
   /// session waits for the next tap. Safe to call while another sentence
   /// is mid-cycle — the old cycle is abandoned (its recorded attempts
   /// remain in the session).
-  Future<void> practice(LearnSentence sentence) async {
+  Future<void> practice(LearnSentence sentence) {
+    if (_stopping || session.state == LearnState.stopped) {
+      return Future<void>.value();
+    }
+    final f = _practice(sentence);
+    _inFlight = f;
+    return f;
+  }
+
+  Future<void> _practice(LearnSentence sentence) async {
     final gen = ++_gen;
     session.begin(sentence.key, sentence.text);
     _notify();
+
+    // Warm everything the capture needs WHILE KalaHoo reads — the mic
+    // itself stays closed (echo gate), but permission/encoder probes, the
+    // recorder instance and the output path are all ready when TTS ends,
+    // so the recording opens with minimal latency and doesn't clip the
+    // learner's first syllables.
+    final pathFuture = _recordingPath();
+    unawaited(_capture.prepare());
 
     // 1. KalaHoo reads — the mic must never open during TTS (echo gate).
     debugPrint('learn: speak ${sentence.key}');
@@ -112,13 +140,14 @@ class LearnController extends ChangeNotifier {
     _notify();
 
     // 2. The learner's repeat — record, then check for voice.
-    await _recordAttempt(sentence, gen);
+    await _recordAttempt(sentence, gen, pathFuture);
     if (!_alive(gen)) return;
     // session.record* advanced state to waiting.
     _notify();
   }
 
-  Future<void> _recordAttempt(LearnSentence sentence, int gen) async {
+  Future<void> _recordAttempt(
+      LearnSentence sentence, int gen, Future<String> pathFuture) async {
     session.toRecording();
     _notify();
 
@@ -133,7 +162,7 @@ class LearnController extends ChangeNotifier {
       return;
     }
 
-    final path = await _recordingPath();
+    final path = await pathFuture;
     if (!_alive(gen)) return;
 
     final started = await _capture.start(path);
@@ -155,6 +184,7 @@ class LearnController extends ChangeNotifier {
       maxWindowMs: _maxCapture.inMilliseconds.toDouble(),
     );
     final windowDone = Completer<void>();
+    _activeWindow = windowDone;
     void closeWindow() {
       if (!windowDone.isCompleted) windowDone.complete();
     }
@@ -163,10 +193,14 @@ class LearnController extends ChangeNotifier {
       samples.add(db);
       if (tracker.addSample(db)) closeWindow();
     });
+    // Stop was requested while the mic was still opening — close now so
+    // the short capture is still recorded before the session ends.
+    if (_stopping) closeWindow();
     // Safety bound in case the amplitude stream stalls.
     final safety = Timer(_maxCapture + const Duration(seconds: 3), closeWindow);
 
     await windowDone.future;
+    _activeWindow = null;
     CaptureResult? result;
     try {
       result = await _capture.stop();
@@ -215,18 +249,38 @@ class LearnController extends ChangeNotifier {
   bool _alive(int gen) =>
       gen == _gen && session.state != LearnState.stopped;
 
-  /// End the session: close any open capture, mark stopped. The session's
-  /// recorded results (and their audio paths) remain readable for the
-  /// summary — the caller deletes the files afterwards.
+  /// End the session: an in-flight capture is closed promptly and allowed
+  /// to finish so its attempt is kept; otherwise the mic is released
+  /// immediately. The session's recorded results (and their audio paths)
+  /// remain readable for the summary — the caller deletes the files.
   Future<void> stop() async {
-    _gen++;
-    await _capture.stop();
+    if (_stopping) return;
+    _stopping = true;
+    final st = session.state;
+    if (st == LearnState.listening || st == LearnState.recording) {
+      // Let the open capture wrap up and record its attempt (bounded —
+      // a stuck cycle must not hold the summary hostage).
+      _activeWindow?.complete();
+      final inflight = _inFlight;
+      if (inflight != null) {
+        try {
+          await inflight.timeout(const Duration(seconds: 5));
+        } on TimeoutException {
+          _gen++;
+          await _capture.stop();
+        }
+      }
+    } else {
+      _gen++;
+      await _capture.stop();
+    }
     session.stop();
     _notify();
   }
 
   /// Abandon without summary (leaving Learn mode entirely).
   Future<void> abandon() async {
+    _stopping = true;
     _gen++;
     await _capture.stop();
     await _capture.dispose();

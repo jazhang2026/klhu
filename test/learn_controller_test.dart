@@ -36,6 +36,9 @@ class FakeVoiceCapture implements VoiceCapture {
   }
 
   @override
+  Future<void> prepare() async {}
+
+  @override
   Future<bool> start(String path) async {
     startCalls++;
     paths.add(path);
@@ -125,6 +128,24 @@ void main() {
     expect(r.attempts.single.status, AttemptStatus.voice);
     expect(r.attempts.single.audioPath, isNotNull);
     expect(ctl.recordingPaths, hasLength(1));
+    ctl.dispose();
+  });
+
+  test('stop during recording keeps the in-flight attempt', () async {
+    final cap = FakeVoiceCapture();
+    final ctl = makeCtl(cap);
+    final practice = ctl.practice(sent());
+    for (var i = 0; i < 200 && !cap.isRecording; i++) {
+      await pumpEventQueue();
+    }
+    expect(cap.isRecording, isTrue);
+    cap.feed(List.filled(6, -20.0));
+    await ctl.stop();
+    await practice;
+    final r = ctl.session.results['0:12']!;
+    expect(r.attempts, hasLength(1));
+    expect(r.attempts.single.audioPath, isNotNull);
+    expect(ctl.session.state, LearnState.stopped);
     ctl.dispose();
   });
 

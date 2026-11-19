@@ -23,6 +23,11 @@ class CaptureResult {
 /// All methods are safe to call from tests via fakes; the platform
 /// implementation is [RecorderVoiceCapture].
 abstract class VoiceCapture {
+  /// Warm platform resources (recorder instance, permission and encoder
+  /// probes) so [start] opens the mic with minimal latency. Safe to call
+  /// while TTS is still playing — it touches no audio.
+  Future<void> prepare() async {}
+
   /// Begin recording to [path]. Returns false when capture cannot start
   /// (permission missing, encoder unsupported, device busy).
   Future<bool> start(String path);
@@ -49,20 +54,33 @@ class RecorderVoiceCapture implements VoiceCapture {
   StreamSubscription<Amplitude>? _ampSub;
   final StreamController<double> _amps = StreamController<double>.broadcast();
 
+  /// Permission/encoder probe results — cached by [prepare] so [start]
+  /// doesn't pay two platform round-trips after every TTS read.
+  bool? _permOk;
+  bool? _encoderOk;
+
   RecorderVoiceCapture({AudioRecorder? recorder}) : _recorder = recorder;
 
   @override
   Stream<double> get amplitudes => _amps.stream;
 
   @override
+  Future<void> prepare() async {
+    final recorder = _recorder ??= AudioRecorder();
+    _permOk ??= await recorder.hasPermission();
+    debugPrint('learn capture: permission=$_permOk');
+    if (_permOk == true) {
+      _encoderOk ??= await recorder.isEncoderSupported(AudioEncoder.aacLc);
+      debugPrint('learn capture: encoder=$_encoderOk');
+    }
+  }
+
+  @override
   Future<bool> start(String path) async {
     final recorder = _recorder ??= AudioRecorder();
-    final granted = await recorder.hasPermission();
-    debugPrint('learn capture: permission=$granted');
-    if (!granted) return false;
-    final supported = await recorder.isEncoderSupported(AudioEncoder.aacLc);
-    debugPrint('learn capture: encoder=$supported');
-    if (!supported) return false;
+    await prepare();
+    if (_permOk != true) return false;
+    if (_encoderOk != true) return false;
     _watch
       ..reset()
       ..start();

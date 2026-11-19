@@ -97,6 +97,9 @@ class FakeVoiceCapture implements VoiceCapture {
   }
 
   @override
+  Future<void> prepare() async {}
+
+  @override
   Future<bool> start(String path) async {
     startCalls++;
     paths.add(path);
