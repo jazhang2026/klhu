@@ -88,6 +88,7 @@ class FakeVoiceCapture implements VoiceCapture {
   final _amps = StreamController<double>.broadcast();
   int startCalls = 0;
   bool isRecording = false;
+  bool isPaused = false;
   final List<String> paths = [];
 
   void feedVoice() {
@@ -104,7 +105,18 @@ class FakeVoiceCapture implements VoiceCapture {
     startCalls++;
     paths.add(path);
     isRecording = true;
+    isPaused = false;
     return true;
+  }
+
+  @override
+  Future<void> pause() async {
+    isPaused = isRecording;
+  }
+
+  @override
+  Future<void> resume() async {
+    isPaused = false;
   }
 
   @override
@@ -113,6 +125,7 @@ class FakeVoiceCapture implements VoiceCapture {
   @override
   Future<CaptureResult?> stop() async {
     isRecording = false;
+    isPaused = false;
     if (paths.isEmpty) return null;
     return CaptureResult(
         path: paths.last, duration: const Duration(seconds: 2));

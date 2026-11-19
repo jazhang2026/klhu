@@ -118,20 +118,49 @@ class LearnController extends ChangeNotifier {
     session.begin(sentence.key, sentence.text);
     _notify();
 
-    // Warm everything the capture needs WHILE KalaHoo reads — the mic
-    // itself stays closed (echo gate), but permission/encoder probes, the
-    // recorder instance and the output path are all ready when TTS ends,
-    // so the recording opens with minimal latency and doesn't clip the
-    // learner's first syllables.
+    // Open the mic BEFORE KalaHoo reads, but PAUSED — nothing is written
+    // while TTS plays, and resume() the instant the read ends. The mic
+    // session is already hot, so the learner's first syllables are never
+    // clipped by recorder startup latency. Permission/encoder probes, the
+    // recorder instance and the output path are all warmed during the
+    // same window.
     final pathFuture = _recordingPath();
     unawaited(_capture.prepare());
+    AttemptFailure? openFailure;
+    if (!_permissionAsked) {
+      _permissionAsked = true;
+      _permissionGranted = await _micPermission();
+      debugPrint('learn mic permission -> $_permissionGranted');
+    }
+    if (!_alive(gen)) return;
+    if (!_permissionGranted) {
+      openFailure = AttemptFailure.permissionDenied;
+    } else {
+      // Release any capture a previous cycle left open, then start fresh.
+      final path = await pathFuture;
+      if (!_alive(gen)) return;
+      if (await _capture.start(path)) {
+        try {
+          await _capture.pause();
+        } catch (_) {}
+      } else {
+        openFailure = AttemptFailure.captureError;
+      }
+      if (!_alive(gen)) {
+        unawaited(_capture.stop());
+        return;
+      }
+    }
 
-    // 1. KalaHoo reads — the mic must never open during TTS (echo gate).
+    // 1. KalaHoo reads — the mic is open but paused, so its voice is
+    // never written to the file (echo gate by construction).
     debugPrint('learn: speak ${sentence.key}');
     final language = await _speak(sentence);
     debugPrint('learn: spoke ${sentence.key} lang=$language');
     if (!_alive(gen)) return;
     if (language == null) {
+      // Read failed — release the paused mic; no attempt is recorded.
+      unawaited(_capture.stop());
       session.noteReadError();
       _notify();
       return;
@@ -139,40 +168,33 @@ class LearnController extends ChangeNotifier {
     session.toListening();
     _notify();
 
-    // 2. The learner's repeat — record, then check for voice.
-    await _recordAttempt(sentence, gen, pathFuture);
+    // 2. The learner's repeat — resume the hot mic, then check for voice.
+    await _recordAttempt(sentence, gen, openFailure);
     if (!_alive(gen)) return;
     // session.record* advanced state to waiting.
     _notify();
   }
 
   Future<void> _recordAttempt(
-      LearnSentence sentence, int gen, Future<String> pathFuture) async {
+      LearnSentence sentence, int gen, AttemptFailure? openFailure) async {
     session.toRecording();
     _notify();
 
-    if (!_permissionAsked) {
-      _permissionAsked = true;
-      _permissionGranted = await _micPermission();
-      debugPrint('learn mic permission -> $_permissionGranted');
-      if (!_alive(gen)) return;
-    }
-    if (!_permissionGranted) {
-      _record(AttemptFailure.permissionDenied, gen);
+    if (openFailure != null) {
+      _record(openFailure, gen);
       return;
     }
 
-    final path = await pathFuture;
-    if (!_alive(gen)) return;
-
-    final started = await _capture.start(path);
-    if (!_alive(gen)) {
-      // Abandoned mid-start — make sure the mic is released.
-      unawaited(_capture.stop());
-      return;
-    }
-    if (!started) {
+    // The mic has been open (paused) since before the read — resume is
+    // immediate, so nothing of the learner's repeat is lost.
+    try {
+      await _capture.resume();
+    } catch (_) {
       _record(AttemptFailure.captureError, gen);
+      return;
+    }
+    if (!_alive(gen)) {
+      unawaited(_capture.stop());
       return;
     }
 

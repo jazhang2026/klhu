@@ -12,7 +12,10 @@ class FakeVoiceCapture implements VoiceCapture {
       StreamController<double>.broadcast();
   int startCalls = 0;
   int stopCalls = 0;
+  int pauseCalls = 0;
+  int resumeCalls = 0;
   bool isRecording = false;
+  bool isPaused = false;
   bool startResult = true;
   CaptureResult? stopResult;
   final List<String> paths = [];
@@ -43,7 +46,20 @@ class FakeVoiceCapture implements VoiceCapture {
     startCalls++;
     paths.add(path);
     isRecording = startResult;
+    isPaused = false;
     return startResult;
+  }
+
+  @override
+  Future<void> pause() async {
+    pauseCalls++;
+    isPaused = isRecording;
+  }
+
+  @override
+  Future<void> resume() async {
+    resumeCalls++;
+    isPaused = false;
   }
 
   @override
@@ -53,6 +69,7 @@ class FakeVoiceCapture implements VoiceCapture {
   Future<CaptureResult?> stop() async {
     stopCalls++;
     isRecording = false;
+    isPaused = false;
     return stopResult ??
         CaptureResult(path: paths.isEmpty ? '' : paths.last,
             duration: const Duration(seconds: 3));
@@ -158,25 +175,33 @@ void main() {
     ctl.dispose();
   });
 
-  test('mic never opens before speak resolves (echo gate)', () async {
+  test('mic opens PAUSED during the read; resumes only after (echo gate)',
+      () async {
     final cap = FakeVoiceCapture();
-    final duringSpeak = <bool>[];
+    final micStateDuringSpeak = <String>[];
     final ctl = makeCtl(
       cap,
       speak: (s) async {
-        duringSpeak.add(cap.isRecording);
+        micStateDuringSpeak.add(!cap.isRecording
+            ? 'closed'
+            : cap.isPaused
+                ? 'paused'
+                : 'live');
         return s.language;
       },
     );
     final practice = ctl.practice(sent());
     await pumpEventQueue();
-    expect(duringSpeak, [false]);
+    // The mic session is already open — but paused, so TTS is never
+    // written to the file.
+    expect(micStateDuringSpeak, ['paused']);
     while (cap.isRecording) {
       cap.feedVoiceThenSilence();
       await pumpEventQueue();
     }
     await practice;
-    expect(duringSpeak.every((v) => !v), isTrue);
+    expect(cap.pauseCalls, greaterThanOrEqualTo(1));
+    expect(cap.resumeCalls, greaterThanOrEqualTo(1));
     ctl.dispose();
   });
 
@@ -222,11 +247,15 @@ void main() {
     ctl.dispose();
   });
 
-  test('speak failure → read error, no capture opened', () async {
+  test('speak failure → read error, paused mic released, no attempt',
+      () async {
     final cap = FakeVoiceCapture();
     final ctl = makeCtl(cap, speak: (s) async => null);
     await ctl.practice(sent());
-    expect(cap.startCalls, 0);
+    // The mic opened paused before the read; the failed read releases it
+    // without recording an attempt.
+    expect(cap.startCalls, 1);
+    expect(cap.isRecording, isFalse);
     expect(ctl.session.state, LearnState.idle);
     ctl.dispose();
   });

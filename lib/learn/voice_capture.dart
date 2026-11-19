@@ -32,6 +32,15 @@ abstract class VoiceCapture {
   /// (permission missing, encoder unsupported, device busy).
   Future<bool> start(String path);
 
+  /// Suspend writing to the file while keeping the mic session open —
+  /// audio captured while paused is discarded, not recorded. Lets Learn
+  /// open the mic BEFORE the TTS read and resume the instant it ends, so
+  /// the learner's first syllables are never clipped.
+  Future<void> pause() async {}
+
+  /// Resume a [pause]d capture; recording continues into the same file.
+  Future<void> resume() async {}
+
   /// Amplitude samples (dB, `current`) while recording — roughly one per
   /// 200 ms. Broadcast; safe to listen before or after [start].
   Stream<double> get amplitudes;
@@ -58,6 +67,12 @@ class RecorderVoiceCapture implements VoiceCapture {
   /// doesn't pay two platform round-trips after every TTS read.
   bool? _permOk;
   bool? _encoderOk;
+  Future<void>? _prepareF;
+
+  /// Whether a capture session is open (started, maybe paused) — lets
+  /// [stop] skip a platform call when idle.
+  bool _active = false;
+  bool _paused = false;
 
   RecorderVoiceCapture({AudioRecorder? recorder}) : _recorder = recorder;
 
@@ -65,7 +80,11 @@ class RecorderVoiceCapture implements VoiceCapture {
   Stream<double> get amplitudes => _amps.stream;
 
   @override
-  Future<void> prepare() async {
+  Future<void> prepare() {
+    return _prepareF ??= _doPrepare();
+  }
+
+  Future<void> _doPrepare() async {
     final recorder = _recorder ??= AudioRecorder();
     _permOk ??= await recorder.hasPermission();
     debugPrint('learn capture: permission=$_permOk');
@@ -88,6 +107,8 @@ class RecorderVoiceCapture implements VoiceCapture {
         .onAmplitudeChanged(const Duration(milliseconds: 200))
         .listen((a) => _amps.add(a.current));
     try {
+      _active = true;
+      _paused = false;
       await recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
@@ -103,13 +124,43 @@ class RecorderVoiceCapture implements VoiceCapture {
       return true;
     } catch (e) {
       debugPrint('learn capture: start failed: $e');
+      _active = false;
       return false;
+    }
+  }
+
+  @override
+  Future<void> pause() async {
+    if (!_active || _paused) return;
+    try {
+      await _recorder?.pause();
+      _paused = true;
+      // The watch only measures written audio — paused time (the whole
+      // TTS read) must not count toward the attempt's duration.
+      _watch.stop();
+    } catch (e) {
+      debugPrint('learn capture: pause failed: $e');
+    }
+  }
+
+  @override
+  Future<void> resume() async {
+    if (!_active || !_paused) return;
+    try {
+      await _recorder?.resume();
+      _paused = false;
+      _watch.start();
+    } catch (e) {
+      debugPrint('learn capture: resume failed: $e');
     }
   }
 
   @override
   Future<CaptureResult?> stop() async {
     _watch.stop();
+    if (!_active) return null;
+    _active = false;
+    _paused = false;
     String? path;
     try {
       path = await _recorder?.stop();
