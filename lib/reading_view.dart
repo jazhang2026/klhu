@@ -1518,13 +1518,14 @@ class _ReadingViewState extends State<ReadingView> {
     // offset before the segmenter sees it, and the comment rule answers first
     // (FR-012, SC-009; plan ripple 11).
     final segment = _segmentAt(_commentDisplay.toContent(pos.offset), resolve);
-    _select(segment);
     // Learn mode (035): the same gesture selects and highlights the sentence,
-    // then hands it to the practice loop instead of a plain read.
+    // then hands it to the practice loop instead of a plain read. The tap is
+    // ignored while a cycle is in-flight — no highlight, no read (035 fix).
     if (_learnActive) {
-      _learnTap(segment);
+      if (_learnTap(segment)) _select(segment);
       return;
     }
+    _select(segment);
     try {
       await _readSelection();
     } on ReaderException catch (e) {
@@ -2168,9 +2169,12 @@ class _ReadingViewState extends State<ReadingView> {
 
   /// A Learn tap: highlight stays from [_select]; the sentence's own
   /// 3-cycle practice begins (US1/US2/US4).
-  void _learnTap(TextSegment segment) {
+  /// Handles a Learn-mode sentence tap. Returns true when the tap started a
+  /// practice (the caller then selects/highlights); false while a cycle is
+  /// in-flight or the sentence is empty — the tap is a no-op then.
+  bool _learnTap(TextSegment segment) {
     final ctl = _learnCtl;
-    if (ctl == null) return;
+    if (ctl == null) return false;
     // One read+record at a time: taps during an in-flight cycle are
     // ignored — a new practice() would abandon the current attempt
     // (leaving a 0-attempt entry) and overlap TTS reads.
@@ -2178,21 +2182,22 @@ class _ReadingViewState extends State<ReadingView> {
       case LearnState.reading:
       case LearnState.listening:
       case LearnState.recording:
-        return;
+        return false;
       case LearnState.idle:
       case LearnState.waiting:
       case LearnState.stopped:
         break;
     }
-    _revealRange(segment);
     final text = _content.substring(segment.start, segment.end).trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) return false;
+    _revealRange(segment);
     unawaited(ctl.practice(LearnSentence(
       key: '${segment.start}:${segment.end}',
       start: segment.start,
       end: segment.end,
       text: text,
     )));
+    return true;
   }
 
   /// The controller's read step: resolve and speak exactly the sentence —
