@@ -274,6 +274,11 @@ class _ReadingViewState extends State<ReadingView> {
   /// none): what a Save edits in place instead of creating new content.
   SavedContent? _loaded;
 
+  /// True while the edit buffer holds AI-generated text that has not been
+  /// saved yet: Save must create NEW content (own title/id), never update
+  /// the entry that was open when the prompt ran.
+  bool _aiGeneratedPending = false;
+
   /// Empty until the library (or the shipped catalog) supplies a text: with the
   /// sample buttons gone, content only ever comes from the library (008).
   String _content = '';
@@ -954,6 +959,7 @@ class _ReadingViewState extends State<ReadingView> {
     }
     setState(() {
       _content = _editController!.text;
+      _aiGeneratedPending = false;
       _mode = _Mode.read;
       _highlight = null;
     });
@@ -966,7 +972,8 @@ class _ReadingViewState extends State<ReadingView> {
   // -------------------------------------------------------------------
 
   bool get _hasUnsavedEdits =>
-      _mode == _Mode.edit && _editController?.text != _content;
+      _mode == _Mode.edit &&
+      (_editController?.text != _content || _aiGeneratedPending);
 
   Future<void> _loadEntry(SavedContent entry) async {
     try {
@@ -976,6 +983,7 @@ class _ReadingViewState extends State<ReadingView> {
         setState(() {
         _content = text;
         _loaded = entry;
+        _aiGeneratedPending = false;
         _anchor = null;
         // A pre-set is versioned like the fallback versions it (FR-007): the
         // seeded entry's `updatedAt` is not the text's version — a pre-set's
@@ -1169,6 +1177,7 @@ class _ReadingViewState extends State<ReadingView> {
         if (!mounted) return;
         setState(() {
           _content = retryResult.content;
+          _aiGeneratedPending = true;
           _editController?.value = TextEditingValue(
             text: retryResult.content,
             selection: TextSelection.collapsed(
@@ -1218,6 +1227,7 @@ class _ReadingViewState extends State<ReadingView> {
       debugPrint('klhu AI result after post-process: ${processedContent.length} chars');
       setState(() {
         _content = processedContent;
+        _aiGeneratedPending = true;
         _editController?.value = TextEditingValue(
           text: processedContent,
           selection: TextSelection.collapsed(
@@ -1370,6 +1380,7 @@ class _ReadingViewState extends State<ReadingView> {
       setState(() {
         _content = text;
         _loaded = null;
+        _aiGeneratedPending = false;
         _anchor = null;
         _setAnchorKey(null);
         _highlight = null;
@@ -1400,6 +1411,7 @@ class _ReadingViewState extends State<ReadingView> {
     setState(() {
       _content = '';
       _loaded = null;
+      _aiGeneratedPending = false;
       _anchor = null;
       _setAnchorKey(null);
       _highlight = null;
@@ -1439,11 +1451,16 @@ class _ReadingViewState extends State<ReadingView> {
     final l10n = AppLocalizations.of(context);
     final text = _editController!.text;
     try {
-        final saved = await _store.saveEdited(_loaded, text);
+        // AI-generated text becomes NEW content — the entry that was open
+        // when the prompt ran keeps its text and title untouched.
+        final saved = _aiGeneratedPending
+            ? await _store.saveNew(text)
+            : await _store.saveEdited(_loaded, text);
       if (!mounted) return true;
       setState(() {
         _content = text;
         _loaded = saved;
+        _aiGeneratedPending = false;
         _anchor = null;
         // Editing a pre-set produces a new entry: the position belongs to the
         // text this Save replaced.
